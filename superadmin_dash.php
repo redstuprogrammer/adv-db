@@ -499,6 +499,7 @@ if (empty($_SESSION['superadmin_authed'])) {
                         <div class="sa-form-group">
                             <label for="owner-email">Clinic / Owner Email <span class="sa-badge-required">*</span></label>
                             <input type="email" id="owner-email" required>
+                            <div class="sa-note">For this demo, use a Gmail address so the onboarding email can be delivered.</div>
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
