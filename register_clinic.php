@@ -153,15 +153,15 @@ try {
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
-        // 2. Duplicate Check
-        $checkQuery = "SELECT company_name, contact_email FROM tenants WHERE company_name = ? OR contact_email = ? LIMIT 1";
+        // 2. Duplicate Check (TEMPORARY: only enforce unique clinic name, allow same email for multiple tenants)
+        $checkQuery = "SELECT company_name FROM tenants WHERE company_name = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmtCheck, "ss", $clinic, $email);
+        mysqli_stmt_bind_param($stmtCheck, "s", $clinic);
         mysqli_stmt_execute($stmtCheck);
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
         if ($row = mysqli_fetch_assoc($resultCheck)) {
-            throw new Exception("Clinic name or email already exists.");
+            throw new Exception("Clinic name already exists.");
         }
 
         // 3. Generate Slug
