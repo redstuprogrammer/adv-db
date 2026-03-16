@@ -1,7 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/security_headers.php';
-require_once __DIR__ . '/connect.php'; // This calls your Azure MySQLi logic
+require_once __DIR__ . '/connect.php'; // Using your Azure MySQLi connection
 
 /**
  * Escapes HTML for safe output
@@ -17,15 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inputPass = (string)($_POST['password'] ?? '');
 
     if ($inputUser !== '' && $inputPass !== '') {
-        // Prepare statement using $conn from connect.php
+        // 1. Check database for the user
         $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? LIMIT 1");
         mysqli_stmt_bind_param($stmt, "s", $inputUser);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         
         if ($admin = mysqli_fetch_assoc($result)) {
-            // Verify the hashed password
-            if (password_verify($inputPass, $admin['password_hash'])) {
+            // 2. PLAIN TEXT COMPARISON (Temporary for development)
+            if ($inputPass === $admin['password_hash']) {
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;
                 $_SESSION['superadmin_id'] = $admin['id'];
@@ -39,7 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
         }
-        // Generic error for security (don't tell them if the user exists or not)
+        
+        // If we reach here, authentication failed
         $error = 'Invalid username or password.';
         mysqli_stmt_close($stmt);
     } else {
@@ -60,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="t-shell" style="grid-template-columns: 1fr;">
             <section class="t-card">
                 <h1 class="t-cardTitle">Super Admin Login</h1>
+                <div class="t-cardSub">Enter your credentials to manage OralSync.</div>
                 
                 <?php if ($error): ?>
                     <div class="t-error" style="background: #fee2e2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #fecaca;">
@@ -78,6 +80,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
+
+                <div class="t-foot" style="margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.6;">
+                    OralSync Platform Management &copy; <?php echo date('Y'); ?>
+                </div>
             </section>
         </div>
     </div>
