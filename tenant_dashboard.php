@@ -18,7 +18,8 @@ $sessionTenantSlug = (string)($_SESSION['tenant_slug'] ?? '');
 $tenantName = (string)($_SESSION['tenant_name'] ?? 'Clinic');
 
 if (empty($_SESSION['tenant_id']) || $tenantSlug === '' || $sessionTenantSlug === '' || $tenantSlug !== $sessionTenantSlug) {
-    header('Location: ' . baseUrl() . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown'));
+    // Use relative redirects to avoid mixed-content / proxy scheme issues.
+    header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown'));
     exit;
 }
 ?>

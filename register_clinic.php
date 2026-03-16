@@ -21,7 +21,8 @@ function envOrNull(string $key): ?string {
 }
 
 function buildTenantLoginUrl(string $slug): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
+    $scheme = (strtolower($forwardedProto) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     // Use query-param route to avoid reliance on server rewrite modules.
     return $scheme . '://' . $host . '/tenant_login.php?tenant=' . rawurlencode($slug);

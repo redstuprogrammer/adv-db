@@ -1,12 +1,6 @@
 <?php
 session_start();
 
-function baseUrl(): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return $scheme . '://' . $host;
-}
-
 $tenantSlug = trim((string)($_GET['tenant'] ?? ($_SESSION['tenant_slug'] ?? '')));
 
 $_SESSION = [];
@@ -16,6 +10,6 @@ if (ini_get("session.use_cookies")) {
 }
 session_destroy();
 
-header('Location: ' . baseUrl() . '/tenant/' . rawurlencode($tenantSlug ?: 'unknown') . '/login');
+header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown'));
 exit;
 
