@@ -18,7 +18,7 @@ $sessionTenantSlug = (string)($_SESSION['tenant_slug'] ?? '');
 $tenantName = (string)($_SESSION['tenant_name'] ?? 'Clinic');
 
 if (empty($_SESSION['tenant_id']) || $tenantSlug === '' || $sessionTenantSlug === '' || $tenantSlug !== $sessionTenantSlug) {
-    header('Location: ' . baseUrl() . '/tenant/' . rawurlencode($tenantSlug ?: 'unknown') . '/login');
+    header('Location: ' . baseUrl() . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown'));
     exit;
 }
 ?>

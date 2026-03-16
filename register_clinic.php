@@ -23,7 +23,8 @@ function envOrNull(string $key): ?string {
 function buildTenantLoginUrl(string $slug): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return $scheme . '://' . $host . '/tenant/' . rawurlencode($slug) . '/login';
+    // Use query-param route to avoid reliance on server rewrite modules.
+    return $scheme . '://' . $host . '/tenant_login.php?tenant=' . rawurlencode($slug);
 }
 
 function sendTenantOnboardingEmail(array $params): array {
@@ -87,6 +88,9 @@ function sendTenantOnboardingEmail(array $params): array {
           <div style="margin-top:16px;padding:14px 14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
             <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Your clinic login link</div>
             <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:13px;color:#0f172a;word-break:break-all;">{$safeLoginUrl}</div>
+            <div style="margin-top:8px;color:#64748b;font-size:12px;">
+              Tip: to copy, highlight the link and press <strong>Ctrl+C</strong> (or tap-and-hold on mobile).
+            </div>
             <div style="margin-top:14px;">
               <a href="{$safeLoginUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Open your OralSync Portal</a>
             </div>

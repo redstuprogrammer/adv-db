@@ -710,7 +710,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
     const isActive = (tenant.status || '').toLowerCase() === 'active';
     const baseUrl = window.location.origin;
-    const tenantUrl = `${baseUrl}/tenant/${tenant.subdomain_slug}/login`;
+    const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
 
     tr.innerHTML = `
         <td>
@@ -910,7 +910,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
                 if (sampleLinkEl) {
                     const baseUrl = window.location.origin;
-                    sampleLinkEl.textContent = `${baseUrl}/tenant/${data.slug}/login`;
+                    sampleLinkEl.textContent = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(data.slug)}`;
                 }
 
                 const passField = document.getElementById('display-temp-password');
