@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 
 function h(string $s): string {

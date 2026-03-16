@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/security_headers.php';
 
 function envOrNull(string $key): ?string {
     $val = getenv($key);

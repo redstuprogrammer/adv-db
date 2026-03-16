@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Build and deploy PHP app to Azure Web App - oralsync
+name: Build and deploy PHP app to Azure Web App - oralsync3
 
 on:
   push:
@@ -64,7 +64,7 @@ jobs:
         run: >
           az webapp config appsettings set
           --resource-group "OralSync-rg2"
-          --name "oralsync"
+          --name "oralsync3"
           --settings
           SMTP_HOST="${{ secrets.SMTP_HOST }}"
           SMTP_PORT="${{ secrets.SMTP_PORT }}"
@@ -77,7 +77,7 @@ jobs:
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'oralsync'
+          app-name: 'oralsync3'
           slot-name: 'Production'
           package: .
           

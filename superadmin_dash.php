@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
     header('Location: superadmin_login.php');
     exit;
