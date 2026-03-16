@@ -1,5 +1,9 @@
 <?php
 session_start();
+if (empty($_SESSION['superadmin_authed'])) {
+    header('Location: superadmin_login.php');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -666,14 +670,14 @@ session_start();
         });
     })();
 
-    function showToast(message) {
+    function showToast(message, durationMs = 4500) {
         const toast = document.getElementById('sa-toast');
         if (!toast) return;
         toast.textContent = message;
         toast.classList.add('show');
         setTimeout(() => {
             toast.classList.remove('show');
-        }, 2200);
+        }, durationMs);
     }
 
     /**
@@ -919,7 +923,7 @@ session_start();
                 }
 
                 if (data.email_sent === false) {
-                    showToast('Clinic saved, but email failed to send.');
+                    showToast('Clinic saved, but email failed to send. Check console for error.', 6500);
                     if (data.email_error) console.warn('Email error:', data.email_error);
                 } else {
                     showToast('Clinic saved! Email sent.');
