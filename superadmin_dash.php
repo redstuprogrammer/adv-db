@@ -704,7 +704,8 @@ session_start();
     });
 
     const isActive = (tenant.status || '').toLowerCase() === 'active';
-    const tenantUrl = `https://oralsync.com/tenant/${tenant.subdomain_slug}/login`;
+    const baseUrl = window.location.origin;
+    const tenantUrl = `${baseUrl}/tenant/${tenant.subdomain_slug}/login`;
 
     tr.innerHTML = `
         <td>
@@ -903,7 +904,8 @@ session_start();
                 refreshTenantList();
 
                 if (sampleLinkEl) {
-                    sampleLinkEl.textContent = 'https://oralsync.com/tenant/' + data.slug + '/login';
+                    const baseUrl = window.location.origin;
+                    sampleLinkEl.textContent = `${baseUrl}/tenant/${data.slug}/login`;
                 }
 
                 const passField = document.getElementById('display-temp-password');
@@ -916,7 +918,12 @@ session_start();
                     if (resendNote) resendNote.style.display = 'none';
                 }
 
-                showToast('Clinic saved! Password generated.');
+                if (data.email_sent === false) {
+                    showToast('Clinic saved, but email failed to send.');
+                    if (data.email_error) console.warn('Email error:', data.email_error);
+                } else {
+                    showToast('Clinic saved! Email sent.');
+                }
                 form.reset();
                 modalOverlay.style.display = 'none'; // Close modal on success
             } else {

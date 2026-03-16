@@ -60,6 +60,19 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D25B87DC98FA42E1A68462473A6D21CA }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_92855220F9944589971D1A36AFA42361 }}
 
+      - name: Set SMTP app settings (from GitHub Secrets)
+        run: >
+          az webapp config appsettings set
+          --resource-group "OralSync-rg2"
+          --name "oralsync"
+          --settings
+          SMTP_HOST="${{ secrets.SMTP_HOST }}"
+          SMTP_PORT="${{ secrets.SMTP_PORT }}"
+          SMTP_USERNAME="${{ secrets.SMTP_USERNAME }}"
+          SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
+          SMTP_FROM_EMAIL="${{ secrets.SMTP_FROM_EMAIL }}"
+          SMTP_FROM_NAME="${{ secrets.SMTP_FROM_NAME }}"
+
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp

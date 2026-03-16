@@ -1,0 +1,10 @@
+{
+  "name": "oralsync/adv-db",
+  "description": "OralSync multi-tenant clinic onboarding",
+  "type": "project",
+  "require": {
+    "php": ">=8.0",
+    "phpmailer/phpmailer": "^6.10"
+  }
+}
+

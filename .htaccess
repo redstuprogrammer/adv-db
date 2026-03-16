@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Route: /tenant/{slug}/login -> tenant_login.php?tenant={slug}
+RewriteRule ^tenant/([^/]+)/login/?$ tenant_login.php?tenant=$1 [L,QSA]
+
+# Route: /tenant/{slug}/dashboard -> tenant_dashboard.php?tenant={slug}
+RewriteRule ^tenant/([^/]+)/dashboard/?$ tenant_dashboard.php?tenant=$1 [L,QSA]
+
