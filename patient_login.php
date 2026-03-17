@@ -1,6 +1,6 @@
 <?php
 header('Content-Type: application/json');
-require_once '../connect.php'; // Ensure your Azure SSL connection is here
+require_once __DIR__ . '/connect.php'; // Ensure your Azure SSL connection is here
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $identifier = $_POST['identifier'] ?? ''; // Can be email or username
