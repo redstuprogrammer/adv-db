@@ -731,7 +731,11 @@ if (empty($_SESSION['superadmin_authed'])) {
             </span>
         </td>
         <td>${createdDate}</td>
-        <td>${isActive ? 'Active Now' : 'Offline'}</td>
+        <td>
+            <button class="sa-btn sa-btn-outline" onclick="viewTenantProfile(${tenant.tenant_id})">
+                Tenant Profile
+            </button>
+        </td>
         <td>
             <button class="sa-btn ${isActive ? 'sa-btn-danger' : 'sa-btn-success'} sa-btn-toggle">
                 ${isActive ? 'Deactivate' : 'Activate'}
@@ -1004,6 +1008,36 @@ tenantTableBody.addEventListener("click", (e) => {
 
 function closeDetailsModal() {
     document.getElementById('details-modal').style.display = 'none';
+}
+
+function viewTenantProfile(tenantId) {
+    // Optional: Clear old data or show a spinner so the user knows it's loading
+    document.getElementById('modal-clinic-name').textContent = "Loading...";
+
+    fetch(`get_tenant_details.php?id=${tenantId}`)
+        .then(res => res.json())
+        .then(tenant => {
+            // Fill the modal with fresh data from get_tenant_details.php
+            document.getElementById('modal-clinic-name').textContent = tenant.company_name;
+            document.getElementById('dt-owner').textContent = tenant.owner_name;
+            document.getElementById('dt-email').textContent = tenant.contact_email;
+            document.getElementById('dt-phone').textContent = tenant.phone;
+            document.getElementById('dt-status').textContent = tenant.status;
+            document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
+            
+            // Format date for the Philippine context
+            const date = new Date(tenant.created_at).toLocaleDateString('en-PH', {
+                month: 'long', day: 'numeric', year: 'numeric'
+            });
+            document.getElementById('dt-date').textContent = date;
+
+            // Open the popup
+            document.getElementById('details-modal').style.display = 'flex';
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            showToast('Error loading clinic details.');
+        });
 }
 </script>
 

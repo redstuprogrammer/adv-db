@@ -81,6 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
 
+                <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <div style="font-weight: 600; margin-bottom: 0.5rem;">Site Links</div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <a href="privacy.php" style="color: #0f172a; text-decoration: none;">Privacy Policy</a>
+                        <a href="terms.php" style="color: #0f172a; text-decoration: none;">Terms</a>
+                        <a href="contact.php" style="color: #0f172a; text-decoration: none;">Contact</a>
+                    </div>
+                </div>
+
+                <div class="t-foot" style="margin-top: 1.5rem;">
+                    This is a legitimate clinic management demo site. No software downloads are served from this domain.
+                </div>
+
                 <div class="t-foot" style="margin-top: 1.5rem; font-size: 0.8rem; opacity: 0.6;">
                     OralSync Platform Management &copy; <?php echo date('Y'); ?>
                 </div>
