@@ -6,6 +6,9 @@ $db   = "oral";
 $port = 3306;
 
 $conn = mysqli_init();
+
+$ssl_cert = __DIR__ . "/azure-combined-2026.pem";
+
 mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
 
 if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL)) {
