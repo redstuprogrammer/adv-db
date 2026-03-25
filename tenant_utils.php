@@ -100,6 +100,9 @@ function getSuperAdminAnalytics($conn): array {
         'last_7_days_tenant_activities' => 0,
         'today_superadmin_logs' => 0,
         'today_tenant_activities' => 0,
+        'daily_superadmin_logs' => [],
+        'daily_tenant_activities' => [],
+        'monthly_tenant_growth' => [],
     ];
 
     if (!$conn) {
@@ -126,6 +129,44 @@ function getSuperAdminAnalytics($conn): array {
             $stmt->close();
         }
     }
+
+    // Daily logs for last 7 days
+    $daily_sa = [];
+    $daily_tenant = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $date = date('Y-m-d', strtotime("-{$i} days"));
+        $stmt = $conn->prepare('SELECT COUNT(*) AS c FROM superadmin_logs WHERE log_date = ?');
+        $stmt->bind_param('s', $date);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res->fetch_assoc();
+        $daily_sa[] = (int)($row['c'] ?? 0);
+        $stmt->close();
+
+        $stmt = $conn->prepare('SELECT COUNT(*) AS c FROM tenant_activity_logs WHERE log_date = ?');
+        $stmt->bind_param('s', $date);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res->fetch_assoc();
+        $daily_tenant[] = (int)($row['c'] ?? 0);
+        $stmt->close();
+    }
+    $metrics['daily_superadmin_logs'] = $daily_sa;
+    $metrics['daily_tenant_activities'] = $daily_tenant;
+
+    // Monthly tenant growth for last 12 months
+    $monthly_tenants = [];
+    for ($i = 11; $i >= 0; $i--) {
+        $month = date('Y-m', strtotime("-{$i} months"));
+        $stmt = $conn->prepare('SELECT COUNT(*) AS c FROM tenants WHERE DATE_FORMAT(created_at, "%Y-%m") = ?');
+        $stmt->bind_param('s', $month);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res->fetch_assoc();
+        $monthly_tenants[] = (int)($row['c'] ?? 0);
+        $stmt->close();
+    }
+    $metrics['monthly_tenant_growth'] = $monthly_tenants;
 
     return $metrics;
 }

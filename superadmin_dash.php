@@ -12,6 +12,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
     <link rel="stylesheet" href="style1.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --sa-primary: #0d3b66;
@@ -444,15 +445,15 @@ if (empty($_SESSION['superadmin_authed'])) {
                     </div>
                     <div class="sa-card" style="padding: 16px;">
                         <div style="font-size: 0.85rem; color: var(--sa-muted);">Active Clinics</div>
-                        <div id="kpi-active" style="font-size: 2rem; font-weight: 800; color: #16a34a;">0</div>
+                        <div id="kpi-active" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
                     </div>
                     <div class="sa-card" style="padding: 16px;">
                         <div style="font-size: 0.85rem; color: var(--sa-muted);">Inactive Clinics</div>
-                        <div id="kpi-inactive" style="font-size: 2rem; font-weight: 800; color: #b91c1c;">0</div>
+                        <div id="kpi-inactive" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
                     </div>
                     <div class="sa-card" style="padding: 16px;">
                         <div style="font-size: 0.85rem; color: var(--sa-muted);">New This Month</div>
-                        <div id="kpi-new-month" style="font-size: 2rem; font-weight: 800; color: #d97706;">0</div>
+                        <div id="kpi-new-month" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
                     </div>
                 </div>
             </div>
@@ -478,6 +479,85 @@ if (empty($_SESSION['superadmin_authed'])) {
                     </div>
                     <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
                         <div id="trend-bar-today" style="width: 0%; height: 100%; background: #16a34a;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Tenant Overview</div>
+                        <div class="sa-card-subtitle">Recent clinics and their status</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="mini-tenant-table">
+                        <thead>
+                            <tr>
+                                <th>Clinic Name</th>
+                                <th>Owner Name</th>
+                                <th>Status</th>
+                                <th>View</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mini-tenant-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Super Admin Daily Activity</div>
+                        <div class="sa-card-subtitle">Super admin activities over the last 7 days</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="superadmin-activity-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="superadmin-activity-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Tenant Daily Activity</div>
+                        <div class="sa-card-subtitle">Tenant activities over the last 7 days</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="tenant-activity-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenant-activity-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Analytics Charts</div>
+                        <div class="sa-card-subtitle">User growth and tenant activity trends</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <canvas id="growthChart"></canvas>
+                    </div>
+                    <div style="flex: 1;">
+                        <canvas id="activityChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -774,6 +854,70 @@ if (empty($_SESSION['superadmin_authed'])) {
                 // Scale bars (assume max 50 for visual)
                 document.getElementById('trend-bar-7d').style.width = `${Math.min(100, (last7d / 50) * 100)}%`;
                 document.getElementById('trend-bar-today').style.width = `${Math.min(100, (today / 50) * 100)}%`;
+
+                renderSuperAdminActivityTable(analytics);
+                renderTenantActivityTable(analytics);
+
+                // Render charts
+                const growthLabels = [];
+                for (let i = 11; i >= 0; i--) {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() - i);
+                    growthLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+                }
+                const ctxGrowth = document.getElementById('growthChart');
+                if (ctxGrowth) {
+                    new Chart(ctxGrowth, {
+                        type: 'line',
+                        data: {
+                            labels: growthLabels,
+                            datasets: [{
+                                label: 'New Tenants per Month',
+                                data: analytics.monthly_tenant_growth || [],
+                                borderColor: '#0d3b66',
+                                backgroundColor: 'rgba(13, 59, 102, 0.1)',
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const activityLabels = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    activityLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                }
+                const ctxActivity = document.getElementById('activityChart');
+                if (ctxActivity) {
+                    new Chart(ctxActivity, {
+                        type: 'bar',
+                        data: {
+                            labels: activityLabels,
+                            datasets: [{
+                                label: 'Tenant Activities',
+                                data: analytics.daily_tenant_activities || [],
+                                backgroundColor: '#0d3b66'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
             })
             .catch(() => {
                 // Fallback to placeholder
@@ -837,7 +981,63 @@ if (empty($_SESSION['superadmin_authed'])) {
         document.getElementById('next-page').disabled = currentPage >= totalPages;
     }
 
-    function applyFilters() {
+    function renderSuperAdminActivityTable(analytics) {
+        const tbody = document.getElementById('superadmin-activity-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const saLogs = analytics.daily_superadmin_logs || [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const saCount = saLogs[6 - i] || 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td>${saCount}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function renderTenantActivityTable(analytics) {
+        const tbody = document.getElementById('tenant-activity-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const tenantLogs = analytics.daily_tenant_activities || [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const tenantCount = tenantLogs[6 - i] || 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td>${tenantCount}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function renderMiniTenantTable() {
+        const tbody = document.getElementById('mini-tenant-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const miniData = filteredData.slice(0, 5);
+        miniData.forEach(tenant => {
+            const tr = document.createElement('tr');
+            const isActive = (tenant.status || '').toLowerCase() === 'active';
+            tr.innerHTML = `
+                <td>${tenant.company_name}</td>
+                <td>${tenant.owner_name}</td>
+                <td><span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">${tenant.status}</span></td>
+                <td><button class="sa-btn sa-btn-outline" onclick="viewTenantProfile(${tenant.tenant_id})">View</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
         const searchInput = document.getElementById('clinic-search');
         const statusFilter = document.getElementById('status-filter');
 
@@ -851,6 +1051,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
         currentPage = 1;
         renderTenantTable(currentPage);
+        renderMiniTenantTable();
     }
 
     function refreshTenantList() {
@@ -861,6 +1062,7 @@ if (empty($_SESSION['superadmin_authed'])) {
                 filteredData = [...tenantData];
                 computeMetrics(tenantData);
                 applyFilters();
+                renderMiniTenantTable();
             })
             .catch(err => {
                 console.error('Error loading tenants:', err);
