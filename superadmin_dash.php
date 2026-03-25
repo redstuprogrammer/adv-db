@@ -403,7 +403,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="logo-white-box">
-                <img src="oral logo.png" alt="OralSync" class="main-logo">
+                <img src="oral%20logo.png" alt="OralSync" class="main-logo">
             </div>
             <nav class="menu">
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
@@ -1171,6 +1171,9 @@ if (empty($_SESSION['superadmin_authed'])) {
                 console.error('Fetch error:', err);
                 showToast('Error loading clinic details.');
             });
+    }
+
+    // Register clinic form logic (IIFE with modal workflow)
     (function () {
         const form = document.getElementById('register-form');
         const modalOverlay = document.getElementById('sa-modal-overlay');
