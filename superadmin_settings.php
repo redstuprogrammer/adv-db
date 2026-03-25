@@ -1,4 +1,5 @@
 <?php
+// Force redeployment - version 1.1
 session_start();
 require_once __DIR__ . '/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
