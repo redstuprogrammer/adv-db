@@ -538,11 +538,44 @@ require_once __DIR__ . '/connect.php';
                     document.getElementById(tabId).classList.add('active');
                 });
             });
+
+            const dateFromEl = document.getElementById('date_from');
+            const dateToEl = document.getElementById('date_to');
+
+            if (dateFromEl && dateToEl) {
+                dateFromEl.addEventListener('change', function() {
+                    dateToEl.min = this.value || '';
+                    if (dateToEl.value && this.value && dateToEl.value < this.value) {
+                        dateToEl.value = this.value;
+                    }
+                });
+
+                dateToEl.addEventListener('change', function() {
+                    if (dateFromEl.value && this.value && this.value < dateFromEl.value) {
+                        alert('Date To cannot be earlier than Date From.');
+                        this.value = dateFromEl.value;
+                    }
+                });
+            }
         });
 
         let currentReportData = [];
 
+        function isValidDateRange() {
+            const dateFrom = document.getElementById('date_from').value;
+            const dateTo = document.getElementById('date_to').value;
+            if (dateFrom && dateTo && dateTo < dateFrom) {
+                alert('Date To cannot be earlier than Date From.');
+                return false;
+            }
+            return true;
+        }
+
         function generateReport(type) {
+            if (!isValidDateRange()) {
+                return;
+            }
+
             const dateFrom = document.getElementById('date_from').value;
             const dateTo = document.getElementById('date_to').value;
             const tenantId = document.getElementById('tenant_filter').value;

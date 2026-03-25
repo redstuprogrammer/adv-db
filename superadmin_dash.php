@@ -968,8 +968,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
             const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' });
             const isActive = (tenant.status || '').toLowerCase() === 'active';
-            const baseUrl = window.location.origin;
-            const tenantUrl = `${baseUrl}/tenant/${encodeURIComponent(tenant.subdomain_slug)}/login`;
+            const tenantUrl = `tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
 
             tr.innerHTML = `
                 <td>

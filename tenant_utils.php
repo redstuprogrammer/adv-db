@@ -24,7 +24,7 @@ function requireTenantLogin(string $expectedSlug = ''): void {
     $sessionSlug = getCurrentTenantSlug();
 
     if (!tenantIsLoggedIn() || $slug === '' || $sessionSlug === '' || ($expectedSlug !== '' && $slug !== $expectedSlug) || ($expectedSlug === '' && $slug !== $sessionSlug)) {
-        $redirect = 'tenant_login.php?tenant=' . rawurlencode($slug ?: $sessionSlug ?: 'unknown');
+        $redirect = '/tenant_login.php?tenant=' . rawurlencode($slug ?: $sessionSlug ?: 'unknown');
         header('Location: ' . $redirect);
         exit;
     }

@@ -51,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Log tenant login activity
         logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $email, 'tenant_owner', 'Tenant Owner');
 
-        // Use relative redirects to avoid mixed-content / proxy scheme issues.
-        header('Location: tenant_dashboard.php?tenant=' . rawurlencode((string)$tenant['subdomain_slug']));
+        // Ensure redirects work even when current URL is rewritten from /tenant/{slug}/login
+        header('Location: /tenant_dashboard.php?tenant=' . rawurlencode((string)$tenant['subdomain_slug']));
         exit;
     }
 }

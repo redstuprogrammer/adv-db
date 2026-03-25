@@ -15,6 +15,11 @@ $date_to = $_GET['date_to'] ?? '';
 $tenant_id = $_GET['tenant_id'] ?? '';
 $activity_type = $_GET['activity_type'] ?? '';
 
+if ($date_from && $date_to && $date_to < $date_from) {
+    echo json_encode(['success' => false, 'error' => 'Date To cannot be earlier than Date From.']);
+    exit;
+}
+
 try {
     $data = [];
 
