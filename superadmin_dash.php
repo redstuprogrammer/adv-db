@@ -412,6 +412,9 @@ if (empty($_SESSION['superadmin_authed'])) {
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
+                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
+                <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
+                <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
         </div>
         <div class="sidebar-bottom">
