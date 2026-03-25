@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';
 $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
-$loginAction = 'tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+$loginAction = '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
 ?>
 <!doctype html>
 <html lang="en">
