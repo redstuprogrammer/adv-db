@@ -9,7 +9,7 @@ require_once 'tenant_utils.php';
 
 // Check session for superadmin
 session_start();
-if (!isset($_SESSION['superadmin_logged_in']) || $_SESSION['superadmin_logged_in'] !== true) {
+if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !== true) {
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }

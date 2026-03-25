@@ -692,15 +692,6 @@ if (empty($_SESSION['superadmin_authed'])) {
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         Clinic Registered Successfully!
     </div>
-    <div class="tenant-row clickable-row" data-href="view_tenant.php?id=<?php echo $row['tenant_id']; ?>">
-    <div class="col"><strong><?php echo $row['company_name']; ?></strong></div>
-    <div class="col"><?php echo $row['owner_name']; ?></div>
-    <div class="col">
-        <button class="btn-deactivate" onclick="event.stopPropagation(); deactivateTenant(<?php echo $row['tenant_id']; ?>);">
-            Deactivate
-        </button>
-    </div>
-</div>
     <div id="success-message-body" style="margin-top: 12px; font-size: 0.9rem; color: var(--sa-text-muted);">
         The clinic has been added to the database. Provide the credentials below to the owner.
     </div>
@@ -930,7 +921,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     }
 
     function renderTenantTable(page = 1) {
-        const tbody = document.querySelector('#tenant-table tbody');
+        const tbody = document.getElementById('tenant-table-body');
         if (!tbody) return;
 
         tbody.innerHTML = '';
