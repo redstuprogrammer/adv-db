@@ -412,6 +412,9 @@ if (empty($_SESSION['superadmin_authed'])) {
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
+                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
+                <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
+                <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
         </div>
         <div class="sidebar-bottom">
@@ -799,6 +802,26 @@ if (empty($_SESSION['superadmin_authed'])) {
                 });
             });
         });
+
+        // Handle URL hash on page load
+        window.addEventListener('load', function() {
+            const hash = window.location.hash.substring(1); // Remove the '#'
+            if (hash) {
+                const targetSection = document.getElementById(hash);
+                if (targetSection) {
+                    // Remove active from all menu items
+                    document.querySelectorAll('.menu-item').forEach(mi => mi.classList.remove('active'));
+                    // Add active to the corresponding menu item
+                    const menuItem = document.querySelector(`.menu-item[data-section="${hash}"]`);
+                    if (menuItem) {
+                        menuItem.classList.add('active');
+                    }
+                    // Show the target section
+                    document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
+                    targetSection.classList.add('active-section');
+                }
+            }
+        });
     })();
 
     function showToast(message, durationMs = 4500) {
@@ -945,8 +968,8 @@ if (empty($_SESSION['superadmin_authed'])) {
 
             const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' });
             const isActive = (tenant.status || '').toLowerCase() === 'active';
-            const baseUrl = window.location.origin;
-            const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
+            const appBase = window.location.pathname.replace(/\/[^\/]*$/, '');
+            const tenantUrl = `${appBase}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
 
             tr.innerHTML = `
                 <td>
@@ -1243,7 +1266,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
                 if (sampleLinkEl) {
                     const baseUrl = window.location.origin;
-                    sampleLinkEl.textContent = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(data.slug)}`;
+                    sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
                 }
 
                 const passField = document.getElementById('display-temp-password');

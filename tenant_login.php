@@ -51,15 +51,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Log tenant login activity
         logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $email, 'tenant_owner', 'Tenant Owner');
 
-        // Use relative redirects to avoid mixed-content / proxy scheme issues.
-        header('Location: tenant_dashboard.php?tenant=' . rawurlencode((string)$tenant['subdomain_slug']));
+        $base = getAppBasePath();
+        $dashboardUrl = ($base !== '' ? $base : '') . '/tenant_dashboard.php?tenant=' . rawurlencode((string)$tenant['subdomain_slug']);
+        header('Location: ' . $dashboardUrl);
         exit;
     }
 }
 
 $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';
 $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
-$loginAction = 'tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+$base = getAppBasePath();
+$loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
 ?>
 <!doctype html>
 <html lang="en">
