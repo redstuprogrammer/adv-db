@@ -802,6 +802,26 @@ if (empty($_SESSION['superadmin_authed'])) {
                 });
             });
         });
+
+        // Handle URL hash on page load
+        window.addEventListener('load', function() {
+            const hash = window.location.hash.substring(1); // Remove the '#'
+            if (hash) {
+                const targetSection = document.getElementById(hash);
+                if (targetSection) {
+                    // Remove active from all menu items
+                    document.querySelectorAll('.menu-item').forEach(mi => mi.classList.remove('active'));
+                    // Add active to the corresponding menu item
+                    const menuItem = document.querySelector(`.menu-item[data-section="${hash}"]`);
+                    if (menuItem) {
+                        menuItem.classList.add('active');
+                    }
+                    // Show the target section
+                    document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
+                    targetSection.classList.add('active-section');
+                }
+            }
+        });
     })();
 
     function showToast(message, durationMs = 4500) {

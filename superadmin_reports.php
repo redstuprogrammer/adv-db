@@ -182,6 +182,88 @@ require_once __DIR__ . '/connect.php';
             flex-wrap: wrap;
             margin-bottom: 20px;
         }
+
+        /* Tab styles */
+        .sa-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--sa-border);
+            margin-bottom: 20px;
+        }
+
+        .sa-tab {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--sa-muted);
+            transition: all 0.2s;
+        }
+
+        .sa-tab.active {
+            color: var(--sa-primary);
+            border-bottom-color: var(--sa-primary);
+        }
+
+        .sa-tab:hover {
+            color: var(--sa-primary);
+        }
+
+        .sa-tab-content {
+            display: none;
+        }
+
+        .sa-tab-content.active {
+            display: block;
+        }
+
+        .sa-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .sa-table th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sa-border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--sa-muted);
+            background: #f9fafb;
+        }
+
+        .sa-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .sa-table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        .sa-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .sa-pill-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .sa-pill-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
     </style>
 </head>
 <body>
@@ -221,51 +303,151 @@ require_once __DIR__ . '/connect.php';
             </div>
         </header>
 
-        <!-- Mini Dashboard -->
+        <!-- Reports Dashboard with Tabs -->
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
-                    <div class="sa-card-title">System Summary</div>
-                    <div class="sa-card-subtitle">Key metrics and statistics</div>
+                    <div class="sa-card-title">Reports Dashboard</div>
+                    <div class="sa-card-subtitle">Visual summary of system activities and statistics</div>
                 </div>
             </div>
-            <div class="sa-grid">
-                <?php
-                try {
-                    // Fetch tenant activities summary
-                    $stmt = $pdo->query("SELECT COUNT(*) as total_activities FROM tenant_activity_logs WHERE DATE(log_date) = CURDATE()");
-                    $today_activities = $stmt->fetch()['total_activities'];
 
-                    // User registration reports - new tenants this month
-                    $stmt = $pdo->query("SELECT COUNT(*) as new_tenants FROM tenants WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-                    $new_tenants = $stmt->fetch()['new_tenants'];
+            <!-- Tabs -->
+            <div class="sa-tabs">
+                <button class="sa-tab active" data-tab="tenant-activities">Tenant Activities</button>
+                <button class="sa-tab" data-tab="user-registrations">User Registrations</button>
+                <button class="sa-tab" data-tab="usage-statistics">Usage Statistics</button>
+            </div>
 
-                    // Usage statistics - total active tenants
-                    $stmt = $pdo->query("SELECT COUNT(*) as active_tenants FROM tenants WHERE status = 'active'");
-                    $active_tenants = $stmt->fetch()['active_tenants'];
+            <!-- Tab Content: Tenant Activities -->
+            <div class="sa-tab-content active" id="tenant-activities">
+                <div style="margin-bottom: 16px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent Tenant Activities</h3>
+                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">Latest activities across all tenants</p>
+                </div>
+                <table class="sa-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Tenant</th>
+                            <th>Activity</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenant-activities-table-body">
+                        <?php
+                        try {
+                            $stmt = $pdo->query("SELECT tal.log_date, t.company_name, tal.activity_type, tal.details 
+                                               FROM tenant_activity_logs tal 
+                                               JOIN tenants t ON tal.tenant_id = t.tenant_id 
+                                               ORDER BY tal.log_date DESC LIMIT 10");
+                            while ($activity = $stmt->fetch()) {
+                                echo "<tr>
+                                        <td>" . date('M d, Y', strtotime($activity['log_date'])) . "</td>
+                                        <td>{$activity['company_name']}</td>
+                                        <td>{$activity['activity_type']}</td>
+                                        <td>{$activity['details']}</td>
+                                      </tr>";
+                            }
+                        } catch (Exception $e) {
+                            echo "<tr><td colspan='4' style='text-align: center; color: var(--sa-muted);'>No activities found</td></tr>";
+                        }
+                        ?>
+                    </tbody>
+                </table>
+            </div>
 
-                    // Total tenants
-                    $stmt = $pdo->query("SELECT COUNT(*) as total_tenants FROM tenants");
-                    $total_tenants = $stmt->fetch()['total_tenants'];
-                } catch (Exception $e) {
-                    $today_activities = $new_tenants = $active_tenants = $total_tenants = 0;
-                }
-                ?>
-                <div class="sa-metric">
-                    <div class="sa-metric-value"><?php echo $today_activities; ?></div>
-                    <div class="sa-metric-label">Today's Activities</div>
+            <!-- Tab Content: User Registrations -->
+            <div class="sa-tab-content" id="user-registrations">
+                <div style="margin-bottom: 16px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent User Registrations</h3>
+                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">New tenant registrations and account creations</p>
                 </div>
-                <div class="sa-metric">
-                    <div class="sa-metric-value"><?php echo $new_tenants; ?></div>
-                    <div class="sa-metric-label">New Registrations (This Month)</div>
+                <table class="sa-table">
+                    <thead>
+                        <tr>
+                            <th>Registration Date</th>
+                            <th>Company Name</th>
+                            <th>Owner</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="user-registrations-table-body">
+                        <?php
+                        try {
+                            $stmt = $pdo->query("SELECT created_at, company_name, owner_name, email, status 
+                                               FROM tenants 
+                                               ORDER BY created_at DESC LIMIT 10");
+                            while ($tenant = $stmt->fetch()) {
+                                echo "<tr>
+                                        <td>" . date('M d, Y', strtotime($tenant['created_at'])) . "</td>
+                                        <td>{$tenant['company_name']}</td>
+                                        <td>{$tenant['owner_name']}</td>
+                                        <td>{$tenant['email']}</td>
+                                        <td><span class='sa-pill " . ($tenant['status'] == 'active' ? 'sa-pill-active' : 'sa-pill-inactive') . "'>{$tenant['status']}</span></td>
+                                      </tr>";
+                            }
+                        } catch (Exception $e) {
+                            echo "<tr><td colspan='5' style='text-align: center; color: var(--sa-muted);'>No registrations found</td></tr>";
+                        }
+                        ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tab Content: Usage Statistics -->
+            <div class="sa-tab-content" id="usage-statistics">
+                <div style="margin-bottom: 16px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Usage Statistics</h3>
+                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">System usage metrics and tenant activity overview</p>
                 </div>
-                <div class="sa-metric">
-                    <div class="sa-metric-value"><?php echo $active_tenants; ?>/<?php echo $total_tenants; ?></div>
-                    <div class="sa-metric-label">Active Tenants</div>
-                </div>
-                <div class="sa-metric">
-                    <div class="sa-metric-value"><?php echo $total_tenants; ?></div>
-                    <div class="sa-metric-label">Total Tenants</div>
+                <div class="sa-grid">
+                    <?php
+                    try {
+                        // Total tenants
+                        $stmt = $pdo->query("SELECT COUNT(*) as total FROM tenants");
+                        $total_tenants = $stmt->fetch()['total'];
+
+                        // Active tenants
+                        $stmt = $pdo->query("SELECT COUNT(*) as active FROM tenants WHERE status = 'active'");
+                        $active_tenants = $stmt->fetch()['active'];
+
+                        // Today's activities
+                        $stmt = $pdo->query("SELECT COUNT(*) as today FROM tenant_activity_logs WHERE DATE(log_date) = CURDATE()");
+                        $today_activities = $stmt->fetch()['today'];
+
+                        // This month's new tenants
+                        $stmt = $pdo->query("SELECT COUNT(*) as new_month FROM tenants WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
+                        $new_month = $stmt->fetch()['new_month'];
+
+                        // This week's activities
+                        $stmt = $pdo->query("SELECT COUNT(*) as week FROM tenant_activity_logs WHERE log_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
+                        $week_activities = $stmt->fetch()['week'];
+                    } catch (Exception $e) {
+                        $total_tenants = $active_tenants = $today_activities = $new_month = $week_activities = 0;
+                    }
+                    ?>
+                    <div class="sa-metric">
+                        <div class="sa-metric-value"><?php echo $total_tenants; ?></div>
+                        <div class="sa-metric-label">Total Tenants</div>
+                    </div>
+                    <div class="sa-metric">
+                        <div class="sa-metric-value"><?php echo $active_tenants; ?></div>
+                        <div class="sa-metric-label">Active Tenants</div>
+                    </div>
+                    <div class="sa-metric">
+                        <div class="sa-metric-value"><?php echo $today_activities; ?></div>
+                        <div class="sa-metric-label">Today's Activities</div>
+                    </div>
+                    <div class="sa-metric">
+                        <div class="sa-metric-value"><?php echo $new_month; ?></div>
+                        <div class="sa-metric-label">New This Month</div>
+                    </div>
+                    <div class="sa-metric">
+                        <div class="sa-metric-value"><?php echo $week_activities; ?></div>
+                        <div class="sa-metric-label">Activities This Week</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -336,6 +518,28 @@ require_once __DIR__ . '/connect.php';
     </div>
 
     <script>
+        // Tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.sa-tab');
+            const tabContents = document.querySelectorAll('.sa-tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+
+                    // Hide all tab contents
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    // Show the corresponding tab content
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+        });
+
         let currentReportData = [];
 
         function generateReport(type) {
