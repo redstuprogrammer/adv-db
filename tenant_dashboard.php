@@ -15,6 +15,7 @@ function baseUrl(): string {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+error_log("tenant_dashboard.php accessed with tenant: " . $tenantSlug);
 requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();

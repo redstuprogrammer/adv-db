@@ -4,13 +4,25 @@
 // Shared tenant session/login utilities for multi-tenant isolation.
 
 function getAppBasePath(): string {
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $scriptName = str_replace('\\', '/', $scriptName);
-    $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
-    if ($dir === '' || $dir === '.') {
-        return '';
+    // Improved base path detection for Azure/XAMPP/nginx
+    if (isset($_SERVER['SCRIPT_NAME'])) {
+        $scriptName = $_SERVER['SCRIPT_NAME'];
+        $scriptName = str_replace('\\', '/', $scriptName);
+        $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
+        if ($dir === '' || $dir === '.') {
+            return '';
+        }
+        return $dir;
     }
-    return $dir;
+    // Fallback for CLI/edge cases
+    return '';
+}
+
+function getTenantDashboardUrl(string $slug): string {
+    $base = getAppBasePath();
+    $path = ($base !== '' ? $base . '/' : '') . 'tenant_dashboard.php?tenant=' . rawurlencode($slug);
+    error_log("Tenant Dashboard URL generated: " . $path . " (base: '" . $base . "')");
+    return $path;
 }
 
 function getCurrentTenantId(): ?int {
@@ -35,7 +47,9 @@ function requireTenantLogin(string $expectedSlug = ''): void {
 
     if (!tenantIsLoggedIn() || $slug === '' || $sessionSlug === '' || ($expectedSlug !== '' && $slug !== $expectedSlug) || ($expectedSlug === '' && $slug !== $sessionSlug)) {
         $base = getAppBasePath();
-        $redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($slug ?: $sessionSlug ?: 'unknown');
+        $redirectSlug = $slug ?: $sessionSlug ?: 'unknown';
+        $redirect = ($base !== '' ? $base . '/' : '') . 'tenant_login.php?tenant=' . rawurlencode($redirectSlug);
+        error_log("Tenant login required, redirecting to: " . $redirect);
         header('Location: ' . $redirect);
         exit;
     }

@@ -51,8 +51,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Log tenant login activity
         logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $email, 'tenant_owner', 'Tenant Owner');
 
-        $base = getAppBasePath();
-        $dashboardUrl = ($base !== '' ? $base : '') . '/tenant_dashboard.php?tenant=' . rawurlencode((string)$tenant['subdomain_slug']);
+        $dashboardUrl = getTenantDashboardUrl((string)$tenant['subdomain_slug']);
+        error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
         header('Location: ' . $dashboardUrl);
         exit;
     }
