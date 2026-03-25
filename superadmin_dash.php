@@ -427,17 +427,58 @@ if (empty($_SESSION['superadmin_authed'])) {
             </div>
         </header>
 
-        <!-- Dashboard (empty for now) -->
+        <!-- Dashboard Improved -->
         <section id="dashboard-section" class="sa-section active-section">
-            <div class="sa-card">
+            <div class="sa-card" style="margin-bottom: 16px;">
                 <div class="sa-card-header">
                     <div>
-                        <div class="sa-card-title">Overview</div>
-                        <div class="sa-card-subtitle">This space is reserved for future multi-tenant insights.</div>
+                        <div class="sa-card-title">Dashboard Metrics</div>
+                        <div class="sa-card-subtitle">Real-time tenant health and activity summary.</div>
                     </div>
                 </div>
-                <div class="sa-empty-state">
-                    Dashboard widgets for tenant metrics will appear here in the next phase.
+
+                <div class="sa-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Total Clinics</div>
+                        <div id="kpi-total" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Active Clinics</div>
+                        <div id="kpi-active" style="font-size: 2rem; font-weight: 800; color: #16a34a;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Inactive Clinics</div>
+                        <div id="kpi-inactive" style="font-size: 2rem; font-weight: 800; color: #b91c1c;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">New This Month</div>
+                        <div id="kpi-new-month" style="font-size: 2rem; font-weight: 800; color: #d97706;">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Activity Trend</div>
+                        <div class="sa-card-subtitle">Last 7 days vs today volume</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.82rem; color: var(--sa-muted);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Last 7 Days</span> <span id="trend-desc-7d">0 events</span>
+                    </div>
+                    <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
+                        <div id="trend-bar-7d" style="width: 0%; height: 100%; background: #0d3b66;"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 0.82rem; color: var(--sa-muted);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Today</span> <span id="trend-desc-today">0 events</span>
+                    </div>
+                    <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
+                        <div id="trend-bar-today" style="width: 0%; height: 100%; background: #16a34a;"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -467,11 +508,25 @@ if (empty($_SESSION['superadmin_authed'])) {
                 </div>
 
                 <div style="overflow-x:auto;">
-                 <table class="sa-tenant-table" id="tenant-table">
-                <thead>
-                    </thead>
-                    <tbody id="tenant-table-body"></tbody>
-                </table>
+                    <table class="sa-tenant-table" id="tenant-table">
+                        <thead>
+                            <tr>
+                                <th>Clinic</th>
+                                <th>Owner</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenant-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="sa-form-actions" style="justify-content: flex-start; gap: 8px; margin-top: 14px;">
+                    <button id="prev-page" class="sa-btn sa-btn-outline" type="button">Previous</button>
+                    <span id="page-info" style="font-size:0.85rem; color: var(--sa-muted);">Page 1</span>
+                    <button id="next-page" class="sa-btn sa-btn-outline" type="button">Next</button>
                 </div>
             </div>
         </section>
@@ -686,151 +741,242 @@ if (empty($_SESSION['superadmin_authed'])) {
      * CORE FUNCTION: Fetches tenants and builds the table with 
      * required database hooks (data-id and sa-btn-toggle).
      */
-    function refreshTenantList() {
-    fetch('get_tenants.php')
-    .then(response => response.json())
-    .then(data => {
+    let tenantData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const rowsPerPage = 8;
+
+    function normalize(text) {
+        return (text || '').toString().trim().toLowerCase();
+    }
+
+    function computeMetrics(data) {
+        const totals = data.length;
+        const active = data.filter(t => (t.status || '').toLowerCase() === 'active').length;
+        const inactive = totals - active;
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        const newMonth = data.filter(t => new Date(t.created_at) >= monthAgo).length;
+
+        document.getElementById('kpi-total').textContent = totals;
+        document.getElementById('kpi-active').textContent = active;
+        document.getElementById('kpi-inactive').textContent = inactive;
+        document.getElementById('kpi-new-month').textContent = newMonth;
+
+        // Fetch analytics for trend bars
+        fetch('superadmin_analytics_api.php')
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(analytics => {
+                const last7d = analytics.last_7_days_superadmin_logs || 0;
+                const today = analytics.today_superadmin_logs || 0;
+                document.getElementById('trend-desc-7d').textContent = `${last7d} events`;
+                document.getElementById('trend-desc-today').textContent = `${today} events`;
+                // Scale bars (assume max 50 for visual)
+                document.getElementById('trend-bar-7d').style.width = `${Math.min(100, (last7d / 50) * 100)}%`;
+                document.getElementById('trend-bar-today').style.width = `${Math.min(100, (today / 50) * 100)}%`;
+            })
+            .catch(() => {
+                // Fallback to placeholder
+                const recent = Math.min(20, data.length);
+                document.getElementById('trend-desc-7d').textContent = `~${recent} events`;
+                document.getElementById('trend-desc-today').textContent = `${Math.floor(recent / 4)} events`;
+                document.getElementById('trend-bar-7d').style.width = `${Math.min(100, (recent / 20) * 100)}%`;
+                document.getElementById('trend-bar-today').style.width = `${Math.min(100, (Math.floor(recent / 4) / 20) * 100)}%`;
+            });
+    }
+
+    function renderTenantTable(page = 1) {
         const tbody = document.querySelector('#tenant-table tbody');
         if (!tbody) return;
 
-        tbody.innerHTML = ''; 
+        tbody.innerHTML = '';
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = filteredData.slice(start, end);
 
-        data.forEach(tenant => {
-    const tr = document.createElement('tr');
-    
-    // 1. Add the necessary hooks for the click listener
-    tr.classList.add('clickable-row'); 
-    tr.setAttribute('data-href', `view_tenant.php?id=${tenant.tenant_id}`);
-    
-    tr.setAttribute('data-id', tenant.tenant_id); 
-    tr.setAttribute('data-status', tenant.status);
-    
-    const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-        month: 'short', day: '2-digit', year: 'numeric'
-    });
+        if (!pageData.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding: 16px; text-align: center; color: var(--sa-muted);">No rows found.</td></tr>';
+        }
 
-    const isActive = (tenant.status || '').toLowerCase() === 'active';
-    const baseUrl = window.location.origin;
-    const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
+        pageData.forEach(tenant => {
+            const tr = document.createElement('tr');
+            tr.classList.add('clickable-row');
+            tr.setAttribute('data-id', tenant.tenant_id);
+            tr.setAttribute('data-status', tenant.status);
+            tr.setAttribute('data-href', `view_tenant.php?id=${tenant.tenant_id}`);
 
-    tr.innerHTML = `
-        <td>
-            <div class="sa-tenant-info">
-                <a href="${tenantUrl}" target="_blank" class="sa-tenant-link" onclick="event.stopPropagation();">
-                    <span class="sa-tenant-name">${tenant.company_name}</span>
-                </a>
-                <span class="sa-tenant-meta">${tenant.city}, ${tenant.province}</span>
-            </div>
-        </td>
-        <td>${tenant.owner_name}</td>
-        <td>${tenant.contact_email}</td>
-        <td>${tenant.phone}</td>
-        <td>
-            <span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">
-                ${tenant.status}
-            </span>
-        </td>
-        <td>${createdDate}</td>
-        <td>
-            <button class="sa-btn sa-btn-outline" onclick="viewTenantProfile(${tenant.tenant_id})">
-                Tenant Profile
-            </button>
-        </td>
-        <td>
-            <button class="sa-btn ${isActive ? 'sa-btn-danger' : 'sa-btn-success'} sa-btn-toggle">
-                ${isActive ? 'Deactivate' : 'Activate'}
-            </button>
-        </td>
-    `;
-    tbody.appendChild(tr);
-});
-    })
-    .catch(err => console.error('Error loading tenants:', err));
-}
+            const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' });
+            const isActive = (tenant.status || '').toLowerCase() === 'active';
+            const baseUrl = window.location.origin;
+            const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
 
-    // Initialize list on load
-    document.addEventListener('DOMContentLoaded', refreshTenantList);
+            tr.innerHTML = `
+                <td>
+                    <div class="sa-tenant-info">
+                        <a href="${tenantUrl}" target="_blank" class="sa-tenant-link" onclick="event.stopPropagation();">
+                            <span class="sa-tenant-name">${tenant.company_name}</span>
+                        </a>
+                        <span class="sa-tenant-meta">${tenant.city}, ${tenant.province}</span>
+                    </div>
+                </td>
+                <td>${tenant.owner_name}</td>
+                <td>${tenant.contact_email}</td>
+                <td>${tenant.phone}</td>
+                <td><span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">${tenant.status}</span></td>
+                <td>${createdDate}</td>
+                <td><button class="sa-btn ${isActive ? 'sa-btn-danger' : 'sa-btn-success'} sa-btn-toggle">${isActive ? 'Deactivate' : 'Activate'}</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-    // Tenant list: search & status toggle logic
-    (function () {
+        const pageInfo = document.getElementById('page-info');
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        document.getElementById('prev-page').disabled = currentPage <= 1;
+        document.getElementById('next-page').disabled = currentPage >= totalPages;
+    }
+
+    function applyFilters() {
         const searchInput = document.getElementById('clinic-search');
         const statusFilter = document.getElementById('status-filter');
-        const tbody = document.querySelector('#tenant-table tbody');
 
-        function normalize(text) {
-            return (text || '').toString().toLowerCase();
-        }
+        const term = normalize(searchInput?.value);
+        const status = statusFilter?.value?.toLowerCase() || 'all';
+        filteredData = tenantData.filter(tenant => {
+            const matchTerm = [tenant.company_name, tenant.owner_name, tenant.contact_email].some(val => normalize(val).includes(term));
+            const matchStatus = status === 'all' || normalize(tenant.status) === normalize(status);
+            return matchTerm && matchStatus;
+        });
 
-        function applyFilters() {
-            if (!tbody) return;
-            const term = normalize(searchInput.value);
-            const statusVal = statusFilter.value;
+        currentPage = 1;
+        renderTenantTable(currentPage);
+    }
 
-            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-                const clinic = normalize(row.querySelector('.sa-tenant-name')?.textContent);
-                const owner = normalize(row.cells[1]?.textContent);
-                const email = normalize(row.cells[2]?.textContent);
-                const rowStatus = (row.getAttribute('data-status') || '').toLowerCase();
-
-                const matchesTerm = !term || clinic.includes(term) || owner.includes(term) || email.includes(term);
-                const matchesStatus = statusVal === 'all' || rowStatus === statusVal;
-
-                row.style.display = (matchesTerm && matchesStatus) ? '' : 'none';
+    function refreshTenantList() {
+        fetch('get_tenants.php')
+            .then(response => response.json())
+            .then(data => {
+                tenantData = Array.isArray(data) ? data : [];
+                filteredData = [...tenantData];
+                computeMetrics(tenantData);
+                applyFilters();
+            })
+            .catch(err => {
+                console.error('Error loading tenants:', err);
+                showToast('Could not load tenants.');
             });
-        }
+    }
 
-        if (searchInput && statusFilter && tbody) {
-            searchInput.addEventListener('input', applyFilters);
-            statusFilter.addEventListener('change', applyFilters);
+    document.addEventListener('DOMContentLoaded', function () {
+        refreshTenantList();
+        const searchInput = document.getElementById('clinic-search');
+        const statusFilter = document.getElementById('status-filter');
 
-            tbody.addEventListener('click', function (e) {
-                const btn = e.target.closest('.sa-btn-toggle');
-                if (!btn) return;
+        searchInput?.addEventListener('input', applyFilters);
+        statusFilter?.addEventListener('change', applyFilters);
 
+        document.getElementById('prev-page')?.addEventListener('click', function () {
+            if (currentPage > 1) { currentPage--; renderTenantTable(currentPage); }
+        });
+
+        document.getElementById('next-page')?.addEventListener('click', function () {
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+            if (currentPage < totalPages) { currentPage++; renderTenantTable(currentPage); }
+        });
+
+        document.querySelector('#tenant-table tbody').addEventListener('click', function (e) {
+            const btn = e.target.closest('.sa-btn-toggle');
+            if (btn) {
                 const row = btn.closest('tr');
-                const pill = row.querySelector('.sa-pill');
-                const tenantId = row.getAttribute('data-id'); 
+                if (!row) return;
+
+                const tenantId = row.getAttribute('data-id');
                 const currentStatus = (row.getAttribute('data-status') || 'active').toLowerCase();
-                
-                const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+                const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
 
                 const formData = new FormData();
                 formData.append('tenant_id', tenantId);
                 formData.append('status', newStatus);
 
-                fetch('update_tenant_status.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        row.setAttribute('data-status', newStatus);
-                        pill.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-                        
-                        if (newStatus === 'active') {
-                            pill.classList.replace('sa-pill-inactive', 'sa-pill-active');
-                            btn.textContent = 'Deactivate';
-                            btn.classList.replace('sa-btn-success', 'sa-btn-danger');
+                fetch('update_tenant_status.php', { method: 'POST', body: formData })
+                    .then(resp => resp.json())
+                    .then(model => {
+                        if (model.success) {
+                            row.setAttribute('data-status', newStatus);
+                            const pill = row.querySelector('.sa-pill');
+                            if (pill) {
+                                pill.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                                pill.classList.toggle('sa-pill-active', newStatus === 'active');
+                                pill.classList.toggle('sa-pill-inactive', newStatus !== 'active');
+                            }
+                            btn.textContent = newStatus === 'active' ? 'Deactivate' : 'Activate';
+                            btn.classList.toggle('sa-btn-success', newStatus !== 'active');
+                            btn.classList.toggle('sa-btn-danger', newStatus === 'active');
+                            showToast(`Clinic status updated to ${newStatus}.`);
+                            refreshTenantList();
                         } else {
-                            pill.classList.replace('sa-pill-active', 'sa-pill-inactive');
-                            btn.textContent = 'Activate';
-                            btn.classList.replace('sa-btn-danger', 'sa-btn-success');
+                            showToast('Error: ' + (model.message || 'Unable to update status'));
                         }
-                        
-                        showToast(`Clinic status updated to ${newStatus}.`);
-                        applyFilters();
-                    } else {
-                        showToast('Error: ' + data.message);
-                    }
+                    }).catch(error => {
+                        console.error(error);
+                        showToast('Network error while updating status.');
+                    });
+
+                return;
+            }
+
+            const row = e.target.closest('.clickable-row');
+            if (!row) return;
+            if (e.target.closest('.sa-btn')) return;
+            if (e.target.closest('.sa-tenant-link')) return;
+
+            const tenantId = row.getAttribute('data-id');
+            if (!tenantId) return;
+
+            fetch(`get_tenant_details.php?id=${tenantId}`)
+                .then(res => res.json())
+                .then(tenant => {
+                    document.getElementById('modal-clinic-name').textContent = tenant.company_name;
+                    document.getElementById('dt-owner').textContent = tenant.owner_name;
+                    document.getElementById('dt-email').textContent = tenant.contact_email;
+                    document.getElementById('dt-phone').textContent = tenant.phone;
+                    document.getElementById('dt-status').textContent = tenant.status;
+                    document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
+                    const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+                    document.getElementById('dt-date').textContent = date;
+                    document.getElementById('details-modal').style.display = 'flex';
                 })
                 .catch(err => {
-                    console.error('Error:', err);
-                    showToast('Failed to connect to the server.');
+                    console.error('Fetch error:', err);
+                    showToast('Error loading clinic details.');
                 });
+        });
+    });
+
+    function closeDetailsModal() {
+        document.getElementById('details-modal').style.display = 'none';
+    }
+
+    function viewTenantProfile(tenantId) {
+        fetch(`get_tenant_details.php?id=${tenantId}`)
+            .then(res => res.json())
+            .then(tenant => {
+                document.getElementById('modal-clinic-name').textContent = tenant.company_name;
+                document.getElementById('dt-owner').textContent = tenant.owner_name;
+                document.getElementById('dt-email').textContent = tenant.contact_email;
+                document.getElementById('dt-phone').textContent = tenant.phone;
+                document.getElementById('dt-status').textContent = tenant.status;
+                document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
+                const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+                document.getElementById('dt-date').textContent = date;
+                document.getElementById('details-modal').style.display = 'flex';
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                showToast('Error loading clinic details.');
             });
-        }
-    })();   
+    }
 
     // Register clinic form logic
     (function () {

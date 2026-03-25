@@ -189,7 +189,7 @@ try {
             $new_id = mysqli_insert_id($conn);
             
             if (function_exists('logActivity')) {
-                logActivity($conn, 'Registration', "Registered: $clinic", $new_id);
+                logActivity($conn, (int)$new_id, 'Tenant Registration', "Registered: $clinic", $email, 'superadmin', 'Super Admin');
             }
             
             $login_url = buildTenantLoginUrl($slug);

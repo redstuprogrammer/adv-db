@@ -1,7 +1,8 @@
 <?php
 session_start();
 require_once __DIR__ . '/security_headers.php';
-require_once __DIR__ . '/connect.php'; // Using your Azure MySQLi connection
+require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/tenant_utils.php'; // Using your Azure MySQLi connection
 
 /**
  * Escapes HTML for safe output
@@ -29,7 +30,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;
                 $_SESSION['superadmin_id'] = $admin['id'];
-                
+                $_SESSION['superadmin_username'] = $inputUser;
+
+                // Log superadmin login event
+                logActivity($conn, 1, 'Superadmin Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
+
                 // Update last login timestamp
                 $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET last_login = NOW() WHERE id = ?");
                 mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
