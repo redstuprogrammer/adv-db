@@ -60,7 +60,7 @@ try {
             CONCAT(log_date, ' ', log_time) as timestamp,
             COALESCE(username, admin_name, 'System') as user,
             activity_type as action_type,
-            COALESCE(action_details, activity_description, 'N/A') as details,
+            COALESCE(action_details, 'N/A') as details,
             'Super Admin' as source
         FROM superadmin_logs
         $whereSuperAdminClause

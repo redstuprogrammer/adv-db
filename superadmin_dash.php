@@ -949,7 +949,7 @@ if (empty($_SESSION['superadmin_authed'])) {
             const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' });
             const isActive = (tenant.status || '').toLowerCase() === 'active';
             const baseUrl = window.location.origin;
-            const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
+            const tenantUrl = `${baseUrl}/tenant/${encodeURIComponent(tenant.subdomain_slug)}/login`;
 
             tr.innerHTML = `
                 <td>
@@ -1246,7 +1246,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 
                 if (sampleLinkEl) {
                     const baseUrl = window.location.origin;
-                    sampleLinkEl.textContent = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(data.slug)}`;
+                    sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
                 }
 
                 const passField = document.getElementById('display-temp-password');
