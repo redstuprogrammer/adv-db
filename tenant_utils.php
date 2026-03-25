@@ -3,6 +3,16 @@
 // tenant_utils.php
 // Shared tenant session/login utilities for multi-tenant isolation.
 
+function getAppBasePath(): string {
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $scriptName = str_replace('\\', '/', $scriptName);
+    $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
+    if ($dir === '' || $dir === '.') {
+        return '';
+    }
+    return $dir;
+}
+
 function getCurrentTenantId(): ?int {
     return isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : null;
 }
@@ -24,7 +34,8 @@ function requireTenantLogin(string $expectedSlug = ''): void {
     $sessionSlug = getCurrentTenantSlug();
 
     if (!tenantIsLoggedIn() || $slug === '' || $sessionSlug === '' || ($expectedSlug !== '' && $slug !== $expectedSlug) || ($expectedSlug === '' && $slug !== $sessionSlug)) {
-        $redirect = '/tenant_login.php?tenant=' . rawurlencode($slug ?: $sessionSlug ?: 'unknown');
+        $base = getAppBasePath();
+        $redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($slug ?: $sessionSlug ?: 'unknown');
         header('Location: ' . $redirect);
         exit;
     }
