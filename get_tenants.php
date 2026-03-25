@@ -5,7 +5,11 @@ header('Content-Type: application/json');
 // 2. Suppress errors from being displayed as HTML (they will still be in your logs)
 error_reporting(0); 
 ini_set('display_errors', 0);
-
+session_start();
+if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !== true) {
+    echo json_encode(["error" => "Unauthorized"]);
+    exit;
+}
 require_once 'connect.php';
 
 // 3. Check if connection exists

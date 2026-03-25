@@ -12,6 +12,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
     <link rel="stylesheet" href="style1.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --sa-primary: #0d3b66;
@@ -402,7 +403,10 @@ if (empty($_SESSION['superadmin_authed'])) {
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="logo-white-box">
-                <img src="oral logo.png" alt="OralSync" class="main-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+                </svg>
             </div>
             <nav class="menu">
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
@@ -427,17 +431,137 @@ if (empty($_SESSION['superadmin_authed'])) {
             </div>
         </header>
 
-        <!-- Dashboard (empty for now) -->
+        <!-- Dashboard Improved -->
         <section id="dashboard-section" class="sa-section active-section">
-            <div class="sa-card">
+            <div class="sa-card" style="margin-bottom: 16px;">
                 <div class="sa-card-header">
                     <div>
-                        <div class="sa-card-title">Overview</div>
-                        <div class="sa-card-subtitle">This space is reserved for future multi-tenant insights.</div>
+                        <div class="sa-card-title">Dashboard Metrics</div>
+                        <div class="sa-card-subtitle">Real-time tenant health and activity summary.</div>
                     </div>
                 </div>
-                <div class="sa-empty-state">
-                    Dashboard widgets for tenant metrics will appear here in the next phase.
+
+                <div class="sa-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px;">
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Total Clinics</div>
+                        <div id="kpi-total" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Active Clinics</div>
+                        <div id="kpi-active" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">Inactive Clinics</div>
+                        <div id="kpi-inactive" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
+                    </div>
+                    <div class="sa-card" style="padding: 16px;">
+                        <div style="font-size: 0.85rem; color: var(--sa-muted);">New This Month</div>
+                        <div id="kpi-new-month" style="font-size: 2rem; font-weight: 800; color: #0d3b66;">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Activity Trend</div>
+                        <div class="sa-card-subtitle">Last 7 days vs today volume</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.82rem; color: var(--sa-muted);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Last 7 Days</span> <span id="trend-desc-7d">0 events</span>
+                    </div>
+                    <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
+                        <div id="trend-bar-7d" style="width: 0%; height: 100%; background: #0d3b66;"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 12px; font-size: 0.82rem; color: var(--sa-muted);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Today</span> <span id="trend-desc-today">0 events</span>
+                    </div>
+                    <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
+                        <div id="trend-bar-today" style="width: 0%; height: 100%; background: #16a34a;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Tenant Overview</div>
+                        <div class="sa-card-subtitle">Recent clinics and their status</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="mini-tenant-table">
+                        <thead>
+                            <tr>
+                                <th>Clinic Name</th>
+                                <th>Owner Name</th>
+                                <th>Status</th>
+                                <th>View</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mini-tenant-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Super Admin Daily Activity</div>
+                        <div class="sa-card-subtitle">Super admin activities over the last 7 days</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="superadmin-activity-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="superadmin-activity-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Tenant Daily Activity</div>
+                        <div class="sa-card-subtitle">Tenant activities over the last 7 days</div>
+                    </div>
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <table class="sa-tenant-table" id="tenant-activity-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Activities</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenant-activity-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Analytics Charts</div>
+                        <div class="sa-card-subtitle">User growth and tenant activity trends</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 20px;">
+                    <div style="flex: 1;">
+                        <canvas id="growthChart"></canvas>
+                    </div>
+                    <div style="flex: 1;">
+                        <canvas id="activityChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
@@ -467,11 +591,25 @@ if (empty($_SESSION['superadmin_authed'])) {
                 </div>
 
                 <div style="overflow-x:auto;">
-                 <table class="sa-tenant-table" id="tenant-table">
-                <thead>
-                    </thead>
-                    <tbody id="tenant-table-body"></tbody>
-                </table>
+                    <table class="sa-tenant-table" id="tenant-table">
+                        <thead>
+                            <tr>
+                                <th>Clinic</th>
+                                <th>Owner</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenant-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="sa-form-actions" style="justify-content: flex-start; gap: 8px; margin-top: 14px;">
+                    <button id="prev-page" class="sa-btn sa-btn-outline" type="button">Previous</button>
+                    <span id="page-info" style="font-size:0.85rem; color: var(--sa-muted);">Page 1</span>
+                    <button id="next-page" class="sa-btn sa-btn-outline" type="button">Next</button>
                 </div>
             </div>
         </section>
@@ -557,15 +695,6 @@ if (empty($_SESSION['superadmin_authed'])) {
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
         Clinic Registered Successfully!
     </div>
-    <div class="tenant-row clickable-row" data-href="view_tenant.php?id=<?php echo $row['tenant_id']; ?>">
-    <div class="col"><strong><?php echo $row['company_name']; ?></strong></div>
-    <div class="col"><?php echo $row['owner_name']; ?></div>
-    <div class="col">
-        <button class="btn-deactivate" onclick="event.stopPropagation(); deactivateTenant(<?php echo $row['tenant_id']; ?>);">
-            Deactivate
-        </button>
-    </div>
-</div>
     <div id="success-message-body" style="margin-top: 12px; font-size: 0.9rem; color: var(--sa-text-muted);">
         The clinic has been added to the database. Provide the credentials below to the owner.
     </div>
@@ -686,181 +815,380 @@ if (empty($_SESSION['superadmin_authed'])) {
      * CORE FUNCTION: Fetches tenants and builds the table with 
      * required database hooks (data-id and sa-btn-toggle).
      */
-    function refreshTenantList() {
-    fetch('get_tenants.php')
-    .then(response => response.json())
-    .then(data => {
-        const tbody = document.querySelector('#tenant-table tbody');
+    let tenantData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const rowsPerPage = 8;
+
+    function normalize(text) {
+        return (text || '').toString().trim().toLowerCase();
+    }
+
+    function computeMetrics(data) {
+        const totals = data.length;
+        const active = data.filter(t => (t.status || '').toLowerCase() === 'active').length;
+        const inactive = totals - active;
+        const monthAgo = new Date();
+        monthAgo.setDate(monthAgo.getDate() - 30);
+        const newMonth = data.filter(t => new Date(t.created_at) >= monthAgo).length;
+
+        document.getElementById('kpi-total').textContent = totals;
+        document.getElementById('kpi-active').textContent = active;
+        document.getElementById('kpi-inactive').textContent = inactive;
+        document.getElementById('kpi-new-month').textContent = newMonth;
+
+        // Fetch analytics for trend bars
+        fetch('superadmin_analytics_api.php')
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(analytics => {
+                const last7d = analytics.last_7_days_superadmin_logs || 0;
+                const today = analytics.today_superadmin_logs || 0;
+                document.getElementById('trend-desc-7d').textContent = `${last7d} events`;
+                document.getElementById('trend-desc-today').textContent = `${today} events`;
+                // Scale bars (assume max 50 for visual)
+                document.getElementById('trend-bar-7d').style.width = `${Math.min(100, (last7d / 50) * 100)}%`;
+                document.getElementById('trend-bar-today').style.width = `${Math.min(100, (today / 50) * 100)}%`;
+
+                renderSuperAdminActivityTable(analytics);
+                renderTenantActivityTable(analytics);
+
+                // Render charts
+                const growthLabels = [];
+                for (let i = 11; i >= 0; i--) {
+                    const date = new Date();
+                    date.setMonth(date.getMonth() - i);
+                    growthLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+                }
+                const ctxGrowth = document.getElementById('growthChart');
+                if (ctxGrowth) {
+                    new Chart(ctxGrowth, {
+                        type: 'line',
+                        data: {
+                            labels: growthLabels,
+                            datasets: [{
+                                label: 'New Tenants per Month',
+                                data: analytics.monthly_tenant_growth || [],
+                                borderColor: '#0d3b66',
+                                backgroundColor: 'rgba(13, 59, 102, 0.1)',
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+
+                const activityLabels = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    activityLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                }
+                const ctxActivity = document.getElementById('activityChart');
+                if (ctxActivity) {
+                    new Chart(ctxActivity, {
+                        type: 'bar',
+                        data: {
+                            labels: activityLabels,
+                            datasets: [{
+                                label: 'Tenant Activities',
+                                data: analytics.daily_tenant_activities || [],
+                                backgroundColor: '#0d3b66'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(() => {
+                // Fallback to placeholder
+                const recent = Math.min(20, data.length);
+                document.getElementById('trend-desc-7d').textContent = `~${recent} events`;
+                document.getElementById('trend-desc-today').textContent = `${Math.floor(recent / 4)} events`;
+                document.getElementById('trend-bar-7d').style.width = `${Math.min(100, (recent / 20) * 100)}%`;
+                document.getElementById('trend-bar-today').style.width = `${Math.min(100, (Math.floor(recent / 4) / 20) * 100)}%`;
+            });
+    }
+
+    function renderTenantTable(page = 1) {
+        const tbody = document.getElementById('tenant-table-body');
         if (!tbody) return;
 
-        tbody.innerHTML = ''; 
+        tbody.innerHTML = '';
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = filteredData.slice(start, end);
 
-        data.forEach(tenant => {
-    const tr = document.createElement('tr');
-    
-    // 1. Add the necessary hooks for the click listener
-    tr.classList.add('clickable-row'); 
-    tr.setAttribute('data-href', `view_tenant.php?id=${tenant.tenant_id}`);
-    
-    tr.setAttribute('data-id', tenant.tenant_id); 
-    tr.setAttribute('data-status', tenant.status);
-    
-    const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-        month: 'short', day: '2-digit', year: 'numeric'
-    });
+        if (!pageData.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="padding: 16px; text-align: center; color: var(--sa-muted);">No rows found.</td></tr>';
+        }
 
-    const isActive = (tenant.status || '').toLowerCase() === 'active';
-    const baseUrl = window.location.origin;
-    const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
+        pageData.forEach(tenant => {
+            const tr = document.createElement('tr');
+            tr.classList.add('clickable-row');
+            tr.setAttribute('data-id', tenant.tenant_id);
+            tr.setAttribute('data-status', tenant.status);
+            tr.setAttribute('data-href', `view_tenant.php?id=${tenant.tenant_id}`);
 
-    tr.innerHTML = `
-        <td>
-            <div class="sa-tenant-info">
-                <a href="${tenantUrl}" target="_blank" class="sa-tenant-link" onclick="event.stopPropagation();">
-                    <span class="sa-tenant-name">${tenant.company_name}</span>
-                </a>
-                <span class="sa-tenant-meta">${tenant.city}, ${tenant.province}</span>
-            </div>
-        </td>
-        <td>${tenant.owner_name}</td>
-        <td>${tenant.contact_email}</td>
-        <td>${tenant.phone}</td>
-        <td>
-            <span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">
-                ${tenant.status}
-            </span>
-        </td>
-        <td>${createdDate}</td>
-        <td>
-            <button class="sa-btn sa-btn-outline" onclick="viewTenantProfile(${tenant.tenant_id})">
-                Tenant Profile
-            </button>
-        </td>
-        <td>
-            <button class="sa-btn ${isActive ? 'sa-btn-danger' : 'sa-btn-success'} sa-btn-toggle">
-                ${isActive ? 'Deactivate' : 'Activate'}
-            </button>
-        </td>
-    `;
-    tbody.appendChild(tr);
-});
-    })
-    .catch(err => console.error('Error loading tenants:', err));
-}
+            const createdDate = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'short', day: '2-digit', year: 'numeric' });
+            const isActive = (tenant.status || '').toLowerCase() === 'active';
+            const baseUrl = window.location.origin;
+            const tenantUrl = `${baseUrl}/tenant_login.php?tenant=${encodeURIComponent(tenant.subdomain_slug)}`;
 
-    // Initialize list on load
-    document.addEventListener('DOMContentLoaded', refreshTenantList);
+            tr.innerHTML = `
+                <td>
+                    <div class="sa-tenant-info">
+                        <a href="${tenantUrl}" target="_blank" class="sa-tenant-link" onclick="event.stopPropagation();">
+                            <span class="sa-tenant-name">${tenant.company_name}</span>
+                        </a>
+                        <span class="sa-tenant-meta">${tenant.city}, ${tenant.province}</span>
+                    </div>
+                </td>
+                <td>${tenant.owner_name}</td>
+                <td>${tenant.contact_email}</td>
+                <td>${tenant.phone}</td>
+                <td><span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">${tenant.status}</span></td>
+                <td>${createdDate}</td>
+                <td><button class="sa-btn ${isActive ? 'sa-btn-danger' : 'sa-btn-success'} sa-btn-toggle">${isActive ? 'Deactivate' : 'Activate'}</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-    // Tenant list: search & status toggle logic
-    (function () {
+        const pageInfo = document.getElementById('page-info');
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+        if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+
+        document.getElementById('prev-page').disabled = currentPage <= 1;
+        document.getElementById('next-page').disabled = currentPage >= totalPages;
+    }
+
+    function renderSuperAdminActivityTable(analytics) {
+        const tbody = document.getElementById('superadmin-activity-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const saLogs = analytics.daily_superadmin_logs || [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const saCount = saLogs[6 - i] || 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td>${saCount}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function renderTenantActivityTable(analytics) {
+        const tbody = document.getElementById('tenant-activity-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const tenantLogs = analytics.daily_tenant_activities || [];
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const tenantCount = tenantLogs[6 - i] || 0;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td>${tenantCount}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function renderMiniTenantTable() {
+        const tbody = document.getElementById('mini-tenant-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const miniData = filteredData.slice(0, 5);
+        miniData.forEach(tenant => {
+            const tr = document.createElement('tr');
+            const isActive = (tenant.status || '').toLowerCase() === 'active';
+            tr.innerHTML = `
+                <td>${tenant.company_name}</td>
+                <td>${tenant.owner_name}</td>
+                <td><span class="sa-pill ${isActive ? 'sa-pill-active' : 'sa-pill-inactive'}">${tenant.status}</span></td>
+                <td><button class="sa-btn sa-btn-outline" onclick="viewTenantProfile(${tenant.tenant_id})">View</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function applyFilters() {
         const searchInput = document.getElementById('clinic-search');
         const statusFilter = document.getElementById('status-filter');
-        const tbody = document.querySelector('#tenant-table tbody');
 
-        function normalize(text) {
-            return (text || '').toString().toLowerCase();
-        }
+        const term = normalize(searchInput?.value);
+        const status = statusFilter?.value?.toLowerCase() || 'all';
+        filteredData = tenantData.filter(tenant => {
+            const matchTerm = [tenant.company_name, tenant.owner_name, tenant.contact_email].some(val => normalize(val).includes(term));
+            const matchStatus = status === 'all' || normalize(tenant.status) === normalize(status);
+            return matchTerm && matchStatus;
+        });
 
-        function applyFilters() {
-            if (!tbody) return;
-            const term = normalize(searchInput.value);
-            const statusVal = statusFilter.value;
+        currentPage = 1;
+        renderTenantTable(currentPage);
+        renderMiniTenantTable();
+    }
 
-            Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-                const clinic = normalize(row.querySelector('.sa-tenant-name')?.textContent);
-                const owner = normalize(row.cells[1]?.textContent);
-                const email = normalize(row.cells[2]?.textContent);
-                const rowStatus = (row.getAttribute('data-status') || '').toLowerCase();
-
-                const matchesTerm = !term || clinic.includes(term) || owner.includes(term) || email.includes(term);
-                const matchesStatus = statusVal === 'all' || rowStatus === statusVal;
-
-                row.style.display = (matchesTerm && matchesStatus) ? '' : 'none';
+    function refreshTenantList() {
+        fetch('get_tenants.php')
+            .then(response => response.json())
+            .then(data => {
+                tenantData = Array.isArray(data) ? data : [];
+                filteredData = [...tenantData];
+                computeMetrics(tenantData);
+                applyFilters();
+                renderMiniTenantTable();
+            })
+            .catch(err => {
+                console.error('Error loading tenants:', err);
+                showToast('Could not load tenants.');
             });
-        }
+    }
 
-        if (searchInput && statusFilter && tbody) {
-            searchInput.addEventListener('input', applyFilters);
-            statusFilter.addEventListener('change', applyFilters);
+    document.addEventListener('DOMContentLoaded', function () {
+        refreshTenantList();
+        const searchInput = document.getElementById('clinic-search');
+        const statusFilter = document.getElementById('status-filter');
 
-            tbody.addEventListener('click', function (e) {
-                const btn = e.target.closest('.sa-btn-toggle');
-                if (!btn) return;
+        searchInput?.addEventListener('input', applyFilters);
+        statusFilter?.addEventListener('change', applyFilters);
 
+        document.getElementById('prev-page')?.addEventListener('click', function () {
+            if (currentPage > 1) { currentPage--; renderTenantTable(currentPage); }
+        });
+
+        document.getElementById('next-page')?.addEventListener('click', function () {
+            const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+            if (currentPage < totalPages) { currentPage++; renderTenantTable(currentPage); }
+        });
+
+        document.getElementById('tenant-table-body')?.addEventListener('click', function (e) {
+            const btn = e.target.closest('.sa-btn-toggle');
+            if (btn) {
                 const row = btn.closest('tr');
-                const pill = row.querySelector('.sa-pill');
-                const tenantId = row.getAttribute('data-id'); 
+                if (!row) return;
+
+                const tenantId = row.getAttribute('data-id');
                 const currentStatus = (row.getAttribute('data-status') || 'active').toLowerCase();
-                
-                const newStatus = (currentStatus === 'active') ? 'inactive' : 'active';
+                const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
 
                 const formData = new FormData();
                 formData.append('tenant_id', tenantId);
                 formData.append('status', newStatus);
 
-                fetch('update_tenant_status.php', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        row.setAttribute('data-status', newStatus);
-                        pill.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-                        
-                        if (newStatus === 'active') {
-                            pill.classList.replace('sa-pill-inactive', 'sa-pill-active');
-                            btn.textContent = 'Deactivate';
-                            btn.classList.replace('sa-btn-success', 'sa-btn-danger');
+                fetch('update_tenant_status.php', { method: 'POST', body: formData })
+                    .then(resp => resp.json())
+                    .then(model => {
+                        if (model.success) {
+                            row.setAttribute('data-status', newStatus);
+                            const pill = row.querySelector('.sa-pill');
+                            if (pill) {
+                                pill.textContent = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+                                pill.classList.toggle('sa-pill-active', newStatus === 'active');
+                                pill.classList.toggle('sa-pill-inactive', newStatus !== 'active');
+                            }
+                            btn.textContent = newStatus === 'active' ? 'Deactivate' : 'Activate';
+                            btn.classList.toggle('sa-btn-success', newStatus !== 'active');
+                            btn.classList.toggle('sa-btn-danger', newStatus === 'active');
+                            showToast(`Clinic status updated to ${newStatus}.`);
+                            refreshTenantList();
                         } else {
-                            pill.classList.replace('sa-pill-active', 'sa-pill-inactive');
-                            btn.textContent = 'Activate';
-                            btn.classList.replace('sa-btn-danger', 'sa-btn-success');
+                            showToast('Error: ' + (model.message || 'Unable to update status'));
                         }
-                        
-                        showToast(`Clinic status updated to ${newStatus}.`);
-                        applyFilters();
-                    } else {
-                        showToast('Error: ' + data.message);
-                    }
+                    }).catch(error => {
+                        console.error(error);
+                        showToast('Network error while updating status.');
+                    });
+
+                return;
+            }
+
+            const row = e.target.closest('.clickable-row');
+            if (!row) return;
+            if (e.target.closest('.sa-btn')) return;
+            if (e.target.closest('.sa-tenant-link')) return;
+
+            const tenantId = row.getAttribute('data-id');
+            if (!tenantId) return;
+
+            fetch(`get_tenant_details.php?id=${tenantId}`)
+                .then(res => res.json())
+                .then(tenant => {
+                    document.getElementById('modal-clinic-name').textContent = tenant.company_name;
+                    document.getElementById('dt-owner').textContent = tenant.owner_name;
+                    document.getElementById('dt-email').textContent = tenant.contact_email;
+                    document.getElementById('dt-phone').textContent = tenant.phone;
+                    document.getElementById('dt-status').textContent = tenant.status;
+                    document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
+                    const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+                    document.getElementById('dt-date').textContent = date;
+                    document.getElementById('details-modal').style.display = 'flex';
                 })
                 .catch(err => {
-                    console.error('Error:', err);
-                    showToast('Failed to connect to the server.');
+                    console.error('Fetch error:', err);
+                    showToast('Error loading clinic details.');
                 });
-            });
-        }
-    })();   
+        });
+    });
 
-    // Register clinic form logic
+    function closeDetailsModal() {
+        document.getElementById('details-modal').style.display = 'none';
+    }
+
+    function viewTenantProfile(tenantId) {
+        fetch(`get_tenant_details.php?id=${tenantId}`)
+            .then(res => res.json())
+            .then(tenant => {
+                document.getElementById('modal-clinic-name').textContent = tenant.company_name;
+                document.getElementById('dt-owner').textContent = tenant.owner_name;
+                document.getElementById('dt-email').textContent = tenant.contact_email;
+                document.getElementById('dt-phone').textContent = tenant.phone;
+                document.getElementById('dt-status').textContent = tenant.status;
+                document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
+                const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
+                document.getElementById('dt-date').textContent = date;
+                document.getElementById('details-modal').style.display = 'flex';
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                showToast('Error loading clinic details.');
+            });
+    }
+
+    // Register clinic form logic (IIFE with modal workflow)
     (function () {
         const form = document.getElementById('register-form');
+        const modalOverlay = document.getElementById('sa-modal-overlay');
+        const modalReviewContent = document.getElementById('modal-review-content');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+        
         const successPanel = document.getElementById('registration-success');
         const sampleLinkEl = document.getElementById('sample-login-link');
-        const resendBtn = document.getElementById('btn-resend-email');
-        const goTenantsBtn = document.getElementById('btn-go-tenants');
         const resendNote = document.getElementById('resend-note');
 
         if (!form) return;
-
-        function slugify(text) {
-            return text.toString().toLowerCase().trim()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-        }
-
-      (function () {
-    const form = document.getElementById('register-form');
-    const modalOverlay = document.getElementById('sa-modal-overlay');
-    const modalReviewContent = document.getElementById('modal-review-content');
-    const modalCancel = document.getElementById('modal-cancel');
-    const modalConfirm = document.getElementById('modal-confirm');
-    
-    const successPanel = document.getElementById('registration-success');
-    const sampleLinkEl = document.getElementById('sample-login-link');
-    const resendNote = document.getElementById('resend-note');
-
-    if (!form) return;
 
     // STEP 1: Intercept the form submission and show the modal
     form.addEventListener('submit', function (e) {
@@ -951,94 +1279,6 @@ if (empty($_SESSION['superadmin_authed'])) {
         });
     });
 })();
-
-        if (resendBtn && resendNote) {
-            resendBtn.addEventListener('click', () => {
-                resendNote.style.display = 'block';
-                showToast('Resend email simulated.');
-            });
-        }
-
-        if (goTenantsBtn) {
-            goTenantsBtn.addEventListener('click', () => {
-                document.querySelector('.menu-item[data-section="tenant-section"]')?.click();
-            });
-        }
-    })();
-   // Replace your existing tableBody click listener with this:
-// Get reference to the dynamic body
-const tenantTableBody = document.getElementById('tenant-table-body');
-
-tenantTableBody.addEventListener("click", (e) => {
-    const row = e.target.closest(".clickable-row");
-    
-    // Ignore clicks on the Deactivate button or the external Login link
-    if (!row || e.target.closest('.sa-btn-toggle') || e.target.closest('.sa-tenant-link')) return;
-
-    const tenantId = row.getAttribute('data-id');
-    
-    // Optional: Clear old data or show a spinner so the user knows it's loading
-    document.getElementById('modal-clinic-name').textContent = "Loading...";
-
-    fetch(`get_tenant_details.php?id=${tenantId}`)
-        .then(res => res.json())
-        .then(tenant => {
-            // Fill the modal with fresh data from get_tenant_details.php
-            document.getElementById('modal-clinic-name').textContent = tenant.company_name;
-            document.getElementById('dt-owner').textContent = tenant.owner_name;
-            document.getElementById('dt-email').textContent = tenant.contact_email;
-            document.getElementById('dt-phone').textContent = tenant.phone;
-            document.getElementById('dt-status').textContent = tenant.status;
-            document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
-            
-            // Format date for the Philippine context
-            const date = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-                month: 'long', day: 'numeric', year: 'numeric'
-            });
-            document.getElementById('dt-date').textContent = date;
-
-            // Open the popup
-            document.getElementById('details-modal').style.display = 'flex';
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            showToast('Error loading clinic details.');
-        });
-});
-
-function closeDetailsModal() {
-    document.getElementById('details-modal').style.display = 'none';
-}
-
-function viewTenantProfile(tenantId) {
-    // Optional: Clear old data or show a spinner so the user knows it's loading
-    document.getElementById('modal-clinic-name').textContent = "Loading...";
-
-    fetch(`get_tenant_details.php?id=${tenantId}`)
-        .then(res => res.json())
-        .then(tenant => {
-            // Fill the modal with fresh data from get_tenant_details.php
-            document.getElementById('modal-clinic-name').textContent = tenant.company_name;
-            document.getElementById('dt-owner').textContent = tenant.owner_name;
-            document.getElementById('dt-email').textContent = tenant.contact_email;
-            document.getElementById('dt-phone').textContent = tenant.phone;
-            document.getElementById('dt-status').textContent = tenant.status;
-            document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
-            
-            // Format date for the Philippine context
-            const date = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-                month: 'long', day: 'numeric', year: 'numeric'
-            });
-            document.getElementById('dt-date').textContent = date;
-
-            // Open the popup
-            document.getElementById('details-modal').style.display = 'flex';
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            showToast('Error loading clinic details.');
-        });
-}
 </script>
 
 </body>
