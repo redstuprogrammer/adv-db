@@ -185,15 +185,39 @@ require_once __DIR__ . '/connect.php';
     </style>
 </head>
 <body>
-    <div class="container">
+
+<div class="container">
+    <aside class="sidebar">
+        <div class="sidebar-top">
+            <div class="logo-white-box">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+                </svg>
+            </div>
+            <nav class="menu">
+                <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
+                <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
+                <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
+                <a href="superadmin_reports.php" class="menu-item active"><span>📊</span> Reports</a>
+                <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
+                <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
+            </nav>
+        </div>
+        <div class="sidebar-bottom">
+            <a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
         <header class="sa-main-header">
             <div>
                 <h1>Reports</h1>
                 <span>Generate and view system reports</span>
             </div>
             <div class="sa-profile">
-                <span>Super Admin</span>
-                <a href="superadmin_logout.php" class="sa-btn sa-btn-outline">Logout</a>
+                <span>Welcome, <strong>Super Admin</strong></span>
+                <div class="sa-profile-avatar">🛡️</div>
             </div>
         </header>
 
@@ -439,5 +463,6 @@ require_once __DIR__ . '/connect.php';
             document.body.removeChild(a);
         }
     </script>
+    </main>
 </body>
 </html>
