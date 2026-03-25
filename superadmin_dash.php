@@ -1029,6 +1029,8 @@ if (empty($_SESSION['superadmin_authed'])) {
             tbody.appendChild(tr);
         });
     }
+
+    function applyFilters() {
         const searchInput = document.getElementById('clinic-search');
         const statusFilter = document.getElementById('status-filter');
 
@@ -1078,7 +1080,7 @@ if (empty($_SESSION['superadmin_authed'])) {
             if (currentPage < totalPages) { currentPage++; renderTenantTable(currentPage); }
         });
 
-        document.querySelector('#tenant-table tbody').addEventListener('click', function (e) {
+        document.getElementById('tenant-table-body')?.addEventListener('click', function (e) {
             const btn = e.target.closest('.sa-btn-toggle');
             if (btn) {
                 const row = btn.closest('tr');
@@ -1169,37 +1171,18 @@ if (empty($_SESSION['superadmin_authed'])) {
                 console.error('Fetch error:', err);
                 showToast('Error loading clinic details.');
             });
-    }
-
-    // Register clinic form logic
     (function () {
         const form = document.getElementById('register-form');
+        const modalOverlay = document.getElementById('sa-modal-overlay');
+        const modalReviewContent = document.getElementById('modal-review-content');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+        
         const successPanel = document.getElementById('registration-success');
         const sampleLinkEl = document.getElementById('sample-login-link');
-        const resendBtn = document.getElementById('btn-resend-email');
-        const goTenantsBtn = document.getElementById('btn-go-tenants');
         const resendNote = document.getElementById('resend-note');
 
         if (!form) return;
-
-        function slugify(text) {
-            return text.toString().toLowerCase().trim()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-        }
-
-      (function () {
-    const form = document.getElementById('register-form');
-    const modalOverlay = document.getElementById('sa-modal-overlay');
-    const modalReviewContent = document.getElementById('modal-review-content');
-    const modalCancel = document.getElementById('modal-cancel');
-    const modalConfirm = document.getElementById('modal-confirm');
-    
-    const successPanel = document.getElementById('registration-success');
-    const sampleLinkEl = document.getElementById('sample-login-link');
-    const resendNote = document.getElementById('resend-note');
-
-    if (!form) return;
 
     // STEP 1: Intercept the form submission and show the modal
     form.addEventListener('submit', function (e) {
@@ -1290,94 +1273,6 @@ if (empty($_SESSION['superadmin_authed'])) {
         });
     });
 })();
-
-        if (resendBtn && resendNote) {
-            resendBtn.addEventListener('click', () => {
-                resendNote.style.display = 'block';
-                showToast('Resend email simulated.');
-            });
-        }
-
-        if (goTenantsBtn) {
-            goTenantsBtn.addEventListener('click', () => {
-                document.querySelector('.menu-item[data-section="tenant-section"]')?.click();
-            });
-        }
-    })();
-   // Replace your existing tableBody click listener with this:
-// Get reference to the dynamic body
-const tenantTableBody = document.getElementById('tenant-table-body');
-
-tenantTableBody.addEventListener("click", (e) => {
-    const row = e.target.closest(".clickable-row");
-    
-    // Ignore clicks on the Deactivate button or the external Login link
-    if (!row || e.target.closest('.sa-btn-toggle') || e.target.closest('.sa-tenant-link')) return;
-
-    const tenantId = row.getAttribute('data-id');
-    
-    // Optional: Clear old data or show a spinner so the user knows it's loading
-    document.getElementById('modal-clinic-name').textContent = "Loading...";
-
-    fetch(`get_tenant_details.php?id=${tenantId}`)
-        .then(res => res.json())
-        .then(tenant => {
-            // Fill the modal with fresh data from get_tenant_details.php
-            document.getElementById('modal-clinic-name').textContent = tenant.company_name;
-            document.getElementById('dt-owner').textContent = tenant.owner_name;
-            document.getElementById('dt-email').textContent = tenant.contact_email;
-            document.getElementById('dt-phone').textContent = tenant.phone;
-            document.getElementById('dt-status').textContent = tenant.status;
-            document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
-            
-            // Format date for the Philippine context
-            const date = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-                month: 'long', day: 'numeric', year: 'numeric'
-            });
-            document.getElementById('dt-date').textContent = date;
-
-            // Open the popup
-            document.getElementById('details-modal').style.display = 'flex';
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            showToast('Error loading clinic details.');
-        });
-});
-
-function closeDetailsModal() {
-    document.getElementById('details-modal').style.display = 'none';
-}
-
-function viewTenantProfile(tenantId) {
-    // Optional: Clear old data or show a spinner so the user knows it's loading
-    document.getElementById('modal-clinic-name').textContent = "Loading...";
-
-    fetch(`get_tenant_details.php?id=${tenantId}`)
-        .then(res => res.json())
-        .then(tenant => {
-            // Fill the modal with fresh data from get_tenant_details.php
-            document.getElementById('modal-clinic-name').textContent = tenant.company_name;
-            document.getElementById('dt-owner').textContent = tenant.owner_name;
-            document.getElementById('dt-email').textContent = tenant.contact_email;
-            document.getElementById('dt-phone').textContent = tenant.phone;
-            document.getElementById('dt-status').textContent = tenant.status;
-            document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
-            
-            // Format date for the Philippine context
-            const date = new Date(tenant.created_at).toLocaleDateString('en-PH', {
-                month: 'long', day: 'numeric', year: 'numeric'
-            });
-            document.getElementById('dt-date').textContent = date;
-
-            // Open the popup
-            document.getElementById('details-modal').style.display = 'flex';
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            showToast('Error loading clinic details.');
-        });
-}
 </script>
 
 </body>
