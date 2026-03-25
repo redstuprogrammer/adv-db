@@ -9,30 +9,38 @@ require_once __DIR__ . '/connect.php';
 
 // Load current settings
 require_once __DIR__ . '/settings.php';
-$currentSettings = getAllSettings();
+try {
+    $currentSettings = getAllSettings();
+} catch (Exception $e) {
+    $currentSettings = [];
+}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/settings.php';
 
-    // Save settings
-    setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
-    setSetting('max_tenants', $_POST['max_tenants'] ?? '');
-    setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
-    setSetting('storage_limit', $_POST['storage_limit'] ?? '');
+    try {
+        // Save settings
+        setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
+        setSetting('max_tenants', $_POST['max_tenants'] ?? '');
+        setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
+        setSetting('storage_limit', $_POST['storage_limit'] ?? '');
 
-    // Handle logo upload
-    if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-        $uploadDir = __DIR__ . '/uploads/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        // Handle logo upload
+        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = __DIR__ . '/uploads/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
+            move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
+            setSetting('logo_path', $filename);
         }
-        $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
-        move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
-        setSetting('logo_path', $filename);
-    }
 
-    $message = "Settings saved successfully!";
+        $message = "Settings saved successfully!";
+    } catch (Exception $e) {
+        $message = "Error saving settings: " . $e->getMessage();
+    }
 }
 ?>
 <!DOCTYPE html>

@@ -207,21 +207,25 @@ require_once __DIR__ . '/connect.php';
             </div>
             <div class="sa-grid">
                 <?php
-                // Fetch tenant activities summary
-                $stmt = $pdo->query("SELECT COUNT(*) as total_activities FROM tenant_activity_logs WHERE DATE(log_date) = CURDATE()");
-                $today_activities = $stmt->fetch()['total_activities'];
+                try {
+                    // Fetch tenant activities summary
+                    $stmt = $pdo->query("SELECT COUNT(*) as total_activities FROM tenant_activity_logs WHERE DATE(log_date) = CURDATE()");
+                    $today_activities = $stmt->fetch()['total_activities'];
 
-                // User registration reports - new tenants this month
-                $stmt = $pdo->query("SELECT COUNT(*) as new_tenants FROM tenants WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-                $new_tenants = $stmt->fetch()['new_tenants'];
+                    // User registration reports - new tenants this month
+                    $stmt = $pdo->query("SELECT COUNT(*) as new_tenants FROM tenants WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
+                    $new_tenants = $stmt->fetch()['new_tenants'];
 
-                // Usage statistics - total active tenants
-                $stmt = $pdo->query("SELECT COUNT(*) as active_tenants FROM tenants WHERE status = 'active'");
-                $active_tenants = $stmt->fetch()['active_tenants'];
+                    // Usage statistics - total active tenants
+                    $stmt = $pdo->query("SELECT COUNT(*) as active_tenants FROM tenants WHERE status = 'active'");
+                    $active_tenants = $stmt->fetch()['active_tenants'];
 
-                // Total tenants
-                $stmt = $pdo->query("SELECT COUNT(*) as total_tenants FROM tenants");
-                $total_tenants = $stmt->fetch()['total_tenants'];
+                    // Total tenants
+                    $stmt = $pdo->query("SELECT COUNT(*) as total_tenants FROM tenants");
+                    $total_tenants = $stmt->fetch()['total_tenants'];
+                } catch (Exception $e) {
+                    $today_activities = $new_tenants = $active_tenants = $total_tenants = 0;
+                }
                 ?>
                 <div class="sa-metric">
                     <div class="sa-metric-value"><?php echo $today_activities; ?></div>
@@ -271,9 +275,13 @@ require_once __DIR__ . '/connect.php';
                     <select id="tenant_filter">
                         <option value="">All Tenants</option>
                         <?php
-                        $stmt = $pdo->query("SELECT tenant_id, company_name FROM tenants ORDER BY company_name");
-                        while ($tenant = $stmt->fetch()) {
-                            echo "<option value='{$tenant['tenant_id']}'>{$tenant['company_name']}</option>";
+                        try {
+                            $stmt = $pdo->query("SELECT tenant_id, company_name FROM tenants ORDER BY company_name");
+                            while ($tenant = $stmt->fetch()) {
+                                echo "<option value='{$tenant['tenant_id']}'>{$tenant['company_name']}</option>";
+                            }
+                        } catch (Exception $e) {
+                            // If database fails, just show "All Tenants" option
                         }
                         ?>
                     </select>

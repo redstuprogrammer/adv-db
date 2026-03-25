@@ -2,12 +2,19 @@
 session_start();
 require_once __DIR__ . '/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit;
 }
-require_once __DIR__ . '/connect.php';
 
 header('Content-Type: application/json');
+
+try {
+    require_once __DIR__ . '/connect.php';
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => 'Database connection failed']);
+    exit;
+}
 
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 20;
