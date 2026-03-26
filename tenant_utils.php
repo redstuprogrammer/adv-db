@@ -117,7 +117,7 @@ function logTenantActivity($conn, int $tenantId, string $activityType, string $a
         return false;
     }
 
-    $stmt->bind_param('isss', $tenantId, $activityType, $activityDescription, $logDate, $logTime);
+    $stmt->bind_param('issss', $tenantId, $activityType, $activityDescription, $logDate, $logTime);
     $result = $stmt->execute();
     $stmt->close();
     return $result;
