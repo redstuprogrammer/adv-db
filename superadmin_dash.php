@@ -655,7 +655,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                         <div class="sa-form-group">
                             <label for="owner-email">Clinic / Owner Email <span class="sa-badge-required">*</span></label>
                             <input type="email" id="owner-email" required>
-                            <div class="sa-note">For this demo, use a Gmail address so the onboarding email can be delivered.</div>
+                            <div class="sa-note">Gmail only</div>
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
@@ -712,7 +712,6 @@ require_once __DIR__ . '/subscription_tiers.php';
                         <div class="sa-form-group" style="grid-column: 1 / -1;">
                             <label for="clinic-notes">Notes / Special Instructions</label>
                             <textarea id="clinic-notes" placeholder="Optional notes about billing, onboarding preferences, or setup requirements."></textarea>
-                            <div class="sa-note">You can later extend this to include billing preferences, add-ons, or EHR integrations.</div>
                         </div>
                     </div>
 
@@ -1415,7 +1414,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function(value) {
-                                        return '$' + value.toFixed(0);
+                                        return '₱' + value.toFixed(0);
                                     }
                                 }
                             }

@@ -6,6 +6,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/tenant_utils.php';
 
 header('Content-Type: application/json');
 
@@ -55,7 +56,7 @@ try {
 
         while ($row = $stmt->fetch()) {
             $data[] = [
-                'Date' => $row['log_date'],
+                'Date' => formatDateReadable($row['log_date']),
                 'Activity Type' => $row['activity_type'],
                 'Description' => $row['activity_description'],
                 'Count' => $row['activity_count'],
@@ -85,7 +86,7 @@ try {
 
         while ($row = $stmt->fetch()) {
             $data[] = [
-                'Registration Date' => $row['created_at'],
+                'Registration Date' => formatDateReadable($row['created_at']),
                 'Clinic Name' => $row['company_name'],
                 'Owner' => $row['owner_name'],
                 'Email' => $row['contact_email'],

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/tenant_utils.php';
 if (empty($_SESSION['superadmin_authed'])) {
     header('Content-Type: application/json');
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
@@ -97,7 +98,7 @@ try {
     $logs = [];
     while ($log = $stmt->fetch()) {
         $logs[] = [
-            'timestamp' => $log['timestamp'],
+            'timestamp' => formatTo12Hour($log['timestamp'], 'M d, Y g:i A'),
             'user' => $log['user'],
             'action_type' => $log['action_type'],
             'details' => $log['details']

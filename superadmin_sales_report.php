@@ -295,11 +295,11 @@ require_once __DIR__ . '/subscription_tiers.php';
                 }
                 ?>
                 <div class="sa-metric">
-                    <div class="sa-metric-value currency">$<?php echo number_format($total_revenue, 2); ?></div>
+                    <div class="sa-metric-value currency">₱<?php echo number_format($total_revenue, 2); ?></div>
                     <div class="sa-metric-label">Total Revenue (All Time)</div>
                 </div>
                 <div class="sa-metric">
-                    <div class="sa-metric-value currency">$<?php echo number_format($month_revenue, 2); ?></div>
+                    <div class="sa-metric-value currency">₱<?php echo number_format($month_revenue, 2); ?></div>
                     <div class="sa-metric-label">This Month Revenue</div>
                 </div>
                 <div class="sa-metric">
@@ -307,7 +307,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                     <div class="sa-metric-label">Active Subscriptions</div>
                 </div>
                 <div class="sa-metric">
-                    <div class="sa-metric-value currency">$<?php echo number_format($avg_revenue, 2); ?></div>
+                    <div class="sa-metric-value currency">₱<?php echo number_format($avg_revenue, 2); ?></div>
                     <div class="sa-metric-label">Average Revenue per Tenant</div>
                 </div>
             </div>
@@ -381,9 +381,9 @@ require_once __DIR__ . '/subscription_tiers.php';
                             echo "<tr>
                                     <td>{$row['company_name']}</td>
                                     <td><span class='sa-pill sa-pill-paid'>{$tierName}</span></td>
-                                    <td><span class='currency'>$" . number_format($row['total_revenue'], 2) . "</span></td>
+                                    <td><span class='currency'>₱" . number_format($row['total_revenue'], 2) . "</span></td>
                                     <td>{$row['months_active']}</td>
-                                    <td><span class='currency'>$" . number_format($row['avg_revenue'], 2) . "</span></td>
+                                    <td><span class='currency'>₱" . number_format($row['avg_revenue'], 2) . "</span></td>
                                   </tr>";
                         }
                     } catch (Exception $e) {
@@ -435,7 +435,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                                     <td>" . formatDateTimeReadable($row['payment_date']) . "</td>
                                     <td>{$row['company_name']}</td>
                                     <td>" . getTierByKey($row['subscription_tier'])['display_name'] . "</td>
-                                    <td><span class='currency'>$" . number_format($row['amount'], 2) . "</span></td>
+                                    <td><span class='currency'>₱" . number_format($row['amount'], 2) . "</span></td>
                                     <td><span class='sa-pill {$statusClass}'>" . ucfirst($row['status']) . "</span></td>
                                   </tr>";
                         }

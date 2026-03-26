@@ -39,7 +39,8 @@ function getAbsoluteBaseUrl(): string {
 
 function getTenantDashboardUrl(string $slug): string {
     $baseUrl = getAbsoluteBaseUrl();
-    $url = $baseUrl . '/tenant_dashboard.php?tenant=' . rawurlencode($slug);
+    // Use the rewrite-friendly URL format that matches .htaccess rules
+    $url = $baseUrl . '/tenant/' . rawurlencode($slug) . '/dashboard';
     error_log("Tenant Dashboard URL generated: " . $url);
     return $url;
 }

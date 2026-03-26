@@ -270,6 +270,38 @@ require_once __DIR__ . '/tenant_utils.php';
             background: #fee2e2;
             color: #991b1b;
         }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+            margin-top: 16px;
+        }
+
+        .logs-table thead {
+            background: #f9fafb;
+        }
+
+        .logs-table th {
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--sa-border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--sa-muted);
+            font-weight: 600;
+        }
+
+        .logs-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+        }
+
+        .logs-table tbody tr:hover {
+            background: #f8fafc;
+        }
     </style>
 </head>
 <body>
