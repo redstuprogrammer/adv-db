@@ -207,6 +207,7 @@ if (empty($_SESSION['superadmin_authed'])) {
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
+                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
                 <a href="superadmin_audit_logs.php" class="menu-item active"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
