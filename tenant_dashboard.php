@@ -228,19 +228,74 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
     </style>
 </head>
 <body>
-  <div class="t-wrap">
-    <div style="width:100%;max-width:1200px;margin:0 auto;padding:20px;">
-      
-      <!-- Header -->
-      <div class="dashboard-header">
-        <div>
-          <h1><?php echo h($tenantName); ?></h1>
-          <div class="dashboard-header-meta">Clinic Administration Dashboard</div>
-        </div>
-        <div style="font-size: 12px; color: #64748b;">
-          <?php echo date('l, M d, Y'); ?>
+  <div class="tenant-layout">
+    <!-- Sidebar Navigation -->
+    <nav class="tenant-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">🏥</div>
+          <div>
+            <div class="sidebar-logo-text">OralSync</div>
+            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
+          </div>
         </div>
       </div>
+
+      <div class="sidebar-nav">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
+            <span class="sidebar-nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Core Features</div>
+          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">👥</span>
+            <span>Patients</span>
+          </a>
+          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📅</span>
+            <span>Appointments</span>
+          </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">👤</span>
+            <span>Staff & Users</span>
+          </a>
+          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📈</span>
+            <span>Reports</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-logout-btn">
+          <span>🚪</span>
+          <span>Sign Out</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="tenant-main-content">
+      <!-- Header Bar -->
+      <div class="tenant-header-bar">
+        <div class="tenant-header-title"><?php echo h($tenantName); ?> Dashboard</div>
+        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+      </div>
+
+      <!-- Dashboard Content -->
 
       <!-- Stats Cards -->
       <div class="dashboard-stats">
@@ -324,6 +379,7 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
         <a class="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>">Sign out</a>
       </div>
 
+    </div>
     </div>
   </div>
 </body>

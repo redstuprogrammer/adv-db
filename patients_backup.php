@@ -19,7 +19,7 @@ $tenantId = getCurrentTenantId();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo h($tenantName); ?> | Reports</title>
+    <title><?php echo h($tenantName); ?> | Patients</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
@@ -68,31 +68,18 @@ $tenantId = getCurrentTenantId();
         box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
       }
 
-      .filters {
+      .search-bar {
         display: flex;
         gap: 12px;
         margin-bottom: 20px;
-        flex-wrap: wrap;
       }
 
-      .filters input, .filters select, .filters button {
+      .search-bar input {
+        flex: 1;
         padding: 10px 12px;
         border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 13px;
-        cursor: pointer;
-      }
-
-      .filters button {
-        background: var(--accent);
-        color: white;
-        border-color: var(--accent);
-        font-weight: 600;
-        transition: background 0.2s ease;
-      }
-
-      .filters button:hover {
-        background: #0a2d4f;
       }
 
       .module-table {
@@ -122,6 +109,25 @@ $tenantId = getCurrentTenantId();
         background: var(--bg);
       }
 
+      .action-btn {
+        display: inline-block;
+        padding: 4px 8px;
+        margin-right: 4px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 12px;
+        color: var(--accent);
+        transition: all 0.2s ease;
+      }
+
+      .action-btn:hover {
+        background: var(--accent);
+        color: white;
+      }
+
       .breadcrumb {
         font-size: 12px;
         color: #64748b;
@@ -143,78 +149,71 @@ $tenantId = getCurrentTenantId();
     <div style="width:100%;max-width:1200px;margin:0 auto;padding:20px;">
       
       <div class="breadcrumb">
-        <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>">Dashboard</a> / Reports
+        <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>">Dashboard</a> / Patients
       </div>
 
       <div class="module-header">
         <div>
-          <h1>📊 Reports & Analytics</h1>
-          <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">View activity and operation reports</p>
+          <h1>👥 Patients</h1>
+          <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">Manage all patient records</p>
         </div>
-        <a href="#" class="btn-primary">Export Report</a>
+        <a href="#" class="btn-primary">+ Add Patient</a>
       </div>
 
       <div class="module-card">
-        <h2 style="margin-top: 0; color: var(--accent); font-size: 16px;">Activity Report</h2>
+        <h2 style="margin-top: 0; color: var(--accent); font-size: 16px;">Patient Records</h2>
         
-        <div class="filters">
-          <input type="date" placeholder="From" />
-          <input type="date" placeholder="To" />
-          <select>
-            <option>All Activities</option>
-            <option>Appointments</option>
-            <option>Payments</option>
-            <option>Patients</option>
-            <option>Users</option>
-          </select>
-          <button>Apply Filter</button>
+        <div class="search-bar">
+          <input type="text" placeholder="Search by name, email, or phone..." />
         </div>
 
         <table class="module-table">
           <thead>
             <tr>
-              <th>Date & Time</th>
-              <th>Activity Type</th>
-              <th>Description</th>
-              <th>User</th>
-              <th>Details</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Date of Birth</th>
+              <th>Last Visit</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td>2026-03-20 10:45 AM</td>
-              <td>Appointment Created</td>
-              <td>New appointment scheduled</td>
-              <td>admin</td>
-              <td>Patient: Juan Dela Cruz</td>
+              <td>Juan Dela Cruz</td>
+              <td>juan@email.com</td>
+              <td>09123456789</td>
+              <td>1985-03-15</td>
+              <td>2026-03-10</td>
+              <td>
+                <a href="#" class="action-btn">View</a>
+                <a href="#" class="action-btn">Edit</a>
+                <a href="#" class="action-btn">Delete</a>
+              </td>
             </tr>
             <tr>
-              <td>2026-03-20 09:30 AM</td>
-              <td>Payment Recorded</td>
-              <td>Payment collected</td>
-              <td>admin</td>
-              <td>Amount: ₱5,000</td>
+              <td>Maria Santos</td>
+              <td>maria@email.com</td>
+              <td>09234567890</td>
+              <td>1990-07-22</td>
+              <td>2026-02-28</td>
+              <td>
+                <a href="#" class="action-btn">View</a>
+                <a href="#" class="action-btn">Edit</a>
+                <a href="#" class="action-btn">Delete</a>
+              </td>
             </tr>
             <tr>
-              <td>2026-03-19 03:15 PM</td>
-              <td>Patient Updated</td>
-              <td>Contact information updated</td>
-              <td>receptionist</td>
-              <td>Patient: Maria Santos</td>
-            </tr>
-            <tr>
-              <td>2026-03-19 02:00 PM</td>
-              <td>Appointment Confirmed</td>
-              <td>Appointment status changed</td>
-              <td>admin</td>
-              <td>Patient: Pedro Reyes</td>
-            </tr>
-            <tr>
-              <td>2026-03-18 11:20 AM</td>
-              <td>User Login</td>
-              <td>Admin login</td>
-              <td>admin</td>
-              <td>IP: 192.168.1.100</td>
+              <td>Pedro Reyes</td>
+              <td>pedro@email.com</td>
+              <td>09345678901</td>
+              <td>1992-11-08</td>
+              <td>2026-03-05</td>
+              <td>
+                <a href="#" class="action-btn">View</a>
+                <a href="#" class="action-btn">Edit</a>
+                <a href="#" class="action-btn">Delete</a>
+              </td>
             </tr>
           </tbody>
         </table>

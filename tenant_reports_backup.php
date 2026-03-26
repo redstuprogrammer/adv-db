@@ -19,7 +19,7 @@ $tenantId = getCurrentTenantId();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo h($tenantName); ?> | Patients</title>
+    <title><?php echo h($tenantName); ?> | Reports</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
@@ -53,95 +53,59 @@ $tenantId = getCurrentTenantId();
         box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
       }
 
-      .search-bar {
+      .filters {
         display: flex;
         gap: 12px;
         margin-bottom: 20px;
+        flex-wrap: wrap;
       }
 
-      .search-bar input {
-        flex: 1;
+      .filters input, .filters select, .filters button {
         padding: 10px 12px;
         border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 13px;
+        cursor: pointer;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
 
-      .search-bar button {
-        padding: 10px 16px;
+      .filters button {
         background: var(--accent);
         color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
+        border-color: var(--accent);
         font-weight: 600;
-        font-size: 13px;
         transition: background 0.2s ease;
       }
 
-      .search-bar button:hover {
+      .filters button:hover {
         background: #0a2d4f;
       }
 
-      .patient-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        max-height: 600px;
-        overflow-y: auto;
+      .module-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
       }
 
-      .patient-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
+      .module-table th {
         background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .patient-item:hover {
-        background: white;
-        border-color: var(--accent);
-        box-shadow: 0 2px 8px rgba(13, 59, 102, 0.1);
-      }
-
-      .patient-info h3 {
-        margin: 0;
-        font-size: 14px;
+        border-bottom: 2px solid var(--border);
+        padding: 12px;
+        text-align: left;
+        font-weight: 700;
         color: var(--accent);
-        font-weight: 600;
-      }
-
-      .patient-info p {
-        margin: 4px 0 0 0;
         font-size: 12px;
-        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
-      .patient-actions {
-        display: flex;
-        gap: 8px;
+      .module-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
       }
 
-      .action-btn {
-        padding: 6px 12px;
-        background: var(--accent);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 600;
-        transition: all 0.2s ease;
-      }
-
-      .action-btn:hover {
-        background: #0a2d4f;
+      .module-table tbody tr:hover {
+        background: var(--bg);
       }
     </style>
 </head>
@@ -170,7 +134,7 @@ $tenantId = getCurrentTenantId();
 
         <div class="sidebar-section">
           <div class="sidebar-section-title">Core Features</div>
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
+          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👥</span>
             <span>Patients</span>
           </a>
@@ -190,7 +154,7 @@ $tenantId = getCurrentTenantId();
             <span class="sidebar-nav-icon">👤</span>
             <span>Staff & Users</span>
           </a>
-          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
           </a>
@@ -208,66 +172,77 @@ $tenantId = getCurrentTenantId();
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👥 Patients</div>
+        <div class="tenant-header-title">📊 Reports & Analytics</div>
         <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
       </div>
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
-          <a href="#" class="btn-primary" onclick="alert('Add Patient functionality coming soon!'); return false;">+ Add Patient</a>
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Activity Report</h2>
+          <a href="#" class="btn-primary" onclick="alert('Export Report functionality coming soon!'); return false;">Export Report</a>
+        </div>
+        
+        <div class="filters">
+          <input type="date" placeholder="From" onchange="alert('Filter functionality coming soon!');" />
+          <input type="date" placeholder="To" onchange="alert('Filter functionality coming soon!');" />
+          <select onchange="alert('Filter functionality coming soon!');">
+            <option>All Activities</option>
+            <option>Appointments</option>
+            <option>Payments</option>
+            <option>Patients</option>
+            <option>Users</option>
+          </select>
+          <button onclick="alert('Filter functionality coming soon!'); return false;">Apply Filter</button>
         </div>
 
-        <div class="search-bar">
-          <input type="text" placeholder="Search patient by name or ID..." onkeyup="alert('Search functionality coming soon!');" />
-          <button onclick="alert('Search functionality coming soon!');">Search</button>
-        </div>
-
-        <div class="patient-list">
-          <div class="patient-item">
-            <div class="patient-info">
-              <h3>Juan Dela Cruz</h3>
-              <p>ID: P001 | Phone: +63-912-345-6789</p>
-            </div>
-            <div class="patient-actions">
-              <a href="#" class="action-btn" onclick="alert('View patient details - coming soon'); return false;">View</a>
-              <a href="#" class="action-btn" onclick="alert('Edit patient - coming soon'); return false;">Edit</a>
-            </div>
-          </div>
-
-          <div class="patient-item">
-            <div class="patient-info">
-              <h3>Maria Santos</h3>
-              <p>ID: P002 | Phone: +63-912-345-6790</p>
-            </div>
-            <div class="patient-actions">
-              <a href="#" class="action-btn" onclick="alert('View patient details - coming soon'); return false;">View</a>
-              <a href="#" class="action-btn" onclick="alert('Edit patient - coming soon'); return false;">Edit</a>
-            </div>
-          </div>
-
-          <div class="patient-item">
-            <div class="patient-info">
-              <h3>Pedro Reyes</h3>
-              <p>ID: P003 | Phone: +63-912-345-6791</p>
-            </div>
-            <div class="patient-actions">
-              <a href="#" class="action-btn" onclick="alert('View patient details - coming soon'); return false;">View</a>
-              <a href="#" class="action-btn" onclick="alert('Edit patient - coming soon'); return false;">Edit</a>
-            </div>
-          </div>
-
-          <div class="patient-item">
-            <div class="patient-info">
-              <h3>Rosa Garcia</h3>
-              <p>ID: P004 | Phone: +63-912-345-6792</p>
-            </div>
-            <div class="patient-actions">
-              <a href="#" class="action-btn" onclick="alert('View patient details - coming soon'); return false;">View</a>
-              <a href="#" class="action-btn" onclick="alert('Edit patient - coming soon'); return false;">Edit</a>
-            </div>
-          </div>
-        </div>
+        <table class="module-table">
+          <thead>
+            <tr>
+              <th>Date & Time</th>
+              <th>Activity Type</th>
+              <th>Description</th>
+              <th>User</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2026-03-20 10:45 AM</td>
+              <td>Appointment Created</td>
+              <td>New appointment scheduled</td>
+              <td>admin</td>
+              <td>Patient: Juan Dela Cruz</td>
+            </tr>
+            <tr>
+              <td>2026-03-20 09:30 AM</td>
+              <td>Payment Recorded</td>
+              <td>Payment collected</td>
+              <td>admin</td>
+              <td>Amount: ₱5,000</td>
+            </tr>
+            <tr>
+              <td>2026-03-19 03:15 PM</td>
+              <td>Patient Updated</td>
+              <td>Contact information updated</td>
+              <td>receptionist</td>
+              <td>Patient: Maria Santos</td>
+            </tr>
+            <tr>
+              <td>2026-03-19 02:00 PM</td>
+              <td>Appointment Confirmed</td>
+              <td>Appointment status changed</td>
+              <td>admin</td>
+              <td>Patient: Pedro Reyes</td>
+            </tr>
+            <tr>
+              <td>2026-03-18 11:20 AM</td>
+              <td>User Login</td>
+              <td>Admin login</td>
+              <td>admin</td>
+              <td>IP: 192.168.1.100</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

@@ -28,21 +28,6 @@ $tenantId = getCurrentTenantId();
         --bg: #f8fafc;
       }
 
-      .module-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        gap: 20px;
-      }
-
-      .module-header h1 {
-        font-size: 24px;
-        font-weight: 900;
-        color: var(--accent);
-        margin: 0;
-      }
-
       .btn-primary {
         background: var(--accent);
         color: white;
@@ -79,6 +64,10 @@ $tenantId = getCurrentTenantId();
         border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 13px;
+      }
+
+      .filters select {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       }
 
       .module-table {
@@ -123,61 +112,101 @@ $tenantId = getCurrentTenantId();
 
       .action-btn {
         display: inline-block;
-        padding: 4px 8px;
+        padding: 8px 12px;
         margin-right: 4px;
-        background: var(--bg);
-        border: 1px solid var(--border);
+        background: var(--accent);
+        border: 1px solid var(--accent);
         border-radius: 4px;
         cursor: pointer;
         text-decoration: none;
         font-size: 12px;
-        color: var(--accent);
+        color: white;
+        font-weight: 600;
         transition: all 0.2s ease;
       }
 
       .action-btn:hover {
-        background: var(--accent);
-        color: white;
-      }
-
-      .breadcrumb {
-        font-size: 12px;
-        color: #64748b;
-        margin-bottom: 16px;
-      }
-
-      .breadcrumb a {
-        color: var(--accent);
-        text-decoration: none;
-      }
-
-      .breadcrumb a:hover {
-        text-decoration: underline;
+        background: #0a2d4f;
+        border-color: #0a2d4f;
       }
     </style>
 </head>
 <body>
-  <div class="t-wrap">
-    <div style="width:100%;max-width:1200px;margin:0 auto;padding:20px;">
-      
-      <div class="breadcrumb">
-        <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>">Dashboard</a> / Appointments
+  <div class="tenant-layout">
+    <!-- Sidebar Navigation -->
+    <nav class="tenant-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="sidebar-logo-icon">🏥</div>
+          <div>
+            <div class="sidebar-logo-text">OralSync</div>
+            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
+          </div>
+        </div>
       </div>
 
-      <div class="module-header">
-        <div>
-          <h1>📅 Appointments</h1>
-          <p style="color: #64748b; margin: 8px 0 0 0; font-size: 14px;">Schedule and manage patient appointments</p>
+      <div class="sidebar-nav">
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Main</div>
+          <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📊</span>
+            <span>Dashboard</span>
+          </a>
         </div>
-        <a href="#" class="btn-primary">+ Schedule Appointment</a>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Core Features</div>
+          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">👥</span>
+            <span>Patients</span>
+          </a>
+          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
+            <span class="sidebar-nav-icon">📅</span>
+            <span>Appointments</span>
+          </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
+        </div>
+
+        <div class="sidebar-section">
+          <div class="sidebar-section-title">Management</div>
+          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">👤</span>
+            <span>Staff & Users</span>
+          </a>
+          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📈</span>
+            <span>Reports</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-logout-btn">
+          <span>🚪</span>
+          <span>Sign Out</span>
+        </a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="tenant-main-content">
+      <div class="tenant-header-bar">
+        <div class="tenant-header-title">📅 Appointments</div>
+        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
       </div>
 
       <div class="module-card">
-        <h2 style="margin-top: 0; color: var(--accent); font-size: 16px;">Upcoming Appointments</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Upcoming Appointments</h2>
+          <a href="#" class="btn-primary" onclick="alert('Schedule Appointment functionality coming soon!'); return false;">+ Schedule Appointment</a>
+        </div>
         
         <div class="filters">
-          <input type="date" />
-          <select>
+          <input type="date" onchange="alert('Filter functionality coming soon!');" />
+          <select onchange="alert('Filter functionality coming soon!');">
             <option>All Status</option>
             <option>Confirmed</option>
             <option>Pending</option>
@@ -204,8 +233,8 @@ $tenantId = getCurrentTenantId();
               <td><span class="badge badge-confirmed">Confirmed</span></td>
               <td>Regular Checkup</td>
               <td>
-                <a href="#" class="action-btn">Edit</a>
-                <a href="#" class="action-btn">Cancel</a>
+                <a href="#" class="action-btn" onclick="alert('Edit appointment - coming soon'); return false;">Edit</a>
+                <a href="#" class="action-btn" onclick="alert('Cancel appointment - coming soon'); return false;">Cancel</a>
               </td>
             </tr>
             <tr>
@@ -215,8 +244,8 @@ $tenantId = getCurrentTenantId();
               <td><span class="badge badge-pending">Pending</span></td>
               <td>Cleaning</td>
               <td>
-                <a href="#" class="action-btn">Edit</a>
-                <a href="#" class="action-btn">Cancel</a>
+                <a href="#" class="action-btn" onclick="alert('Edit appointment - coming soon'); return false;">Edit</a>
+                <a href="#" class="action-btn" onclick="alert('Cancel appointment - coming soon'); return false;">Cancel</a>
               </td>
             </tr>
             <tr>
@@ -226,18 +255,13 @@ $tenantId = getCurrentTenantId();
               <td><span class="badge badge-confirmed">Confirmed</span></td>
               <td>Root Canal</td>
               <td>
-                <a href="#" class="action-btn">Edit</a>
-                <a href="#" class="action-btn">Cancel</a>
+                <a href="#" class="action-btn" onclick="alert('Edit appointment - coming soon'); return false;">Edit</a>
+                <a href="#" class="action-btn" onclick="alert('Cancel appointment - coming soon'); return false;">Cancel</a>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px;">Sign out</a>
-      </div>
-
     </div>
   </div>
 </body>
