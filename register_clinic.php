@@ -2,6 +2,8 @@
 ob_start(); 
 header('Content-Type: application/json');
 require_once 'connect.php'; 
+require_once 'subscription_tiers.php';
+require_once 'tenant_utils.php';
 
 $response = [
     'success' => false, 
@@ -24,8 +26,21 @@ function buildTenantLoginUrl(string $slug): string {
     $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
     $scheme = (strtolower($forwardedProto) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    // Use query-param route to avoid reliance on server rewrite modules.
-    return $scheme . '://' . $host . '/tenant_login.php?tenant=' . rawurlencode($slug);
+    
+    // Get base path
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $scriptName = str_replace('\\', '/', $scriptName);
+    $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
+    $base = ($dir === '' || $dir === '.') ? '' : $dir;
+    
+    // Build full URL
+    $url = $scheme . '://' . $host;
+    if ($base !== '') {
+        $url .= $base;
+    }
+    $url .= '/tenant_login.php?tenant=' . rawurlencode($slug);
+    
+    return $url;
 }
 
 function sendTenantOnboardingEmail(array $params): array {
@@ -158,6 +173,12 @@ try {
         $addr   = mysqli_real_escape_string($conn, $_POST['address']);
         $city   = mysqli_real_escape_string($conn, $_POST['city']);
         $prov   = mysqli_real_escape_string($conn, $_POST['province']);
+        $tier   = trim((string)($_POST['tier'] ?? 'startup'));
+        
+        // Validate tier
+        if (!isValidTier($tier)) {
+            throw new Exception("Invalid subscription tier selected.");
+        }
         
         // 1. Generate Auto-Password
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
@@ -177,19 +198,19 @@ try {
         // 3. Generate Slug
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
 
-        // 4. Updated Insert: Removed must_change_password column and the '1' value
-        $sql = "INSERT INTO tenants (company_name, owner_name, contact_email, password, phone, address, city, province, subdomain_slug, status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')";
+        // 4. Updated Insert: Include subscription_tier
+        $sql = "INSERT INTO tenants (company_name, owner_name, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        // Ensure bind_param matches the number of '?' in the SQL above (9 total)
-        mysqli_stmt_bind_param($stmt, "sssssssss", $clinic, $owner, $email, $hashed_password, $phone, $addr, $city, $prov, $slug);
+        // Ensure bind_param matches the number of '?' in the SQL above (10 total)
+        mysqli_stmt_bind_param($stmt, "ssssssssss", $clinic, $owner, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
             
             if (function_exists('logActivity')) {
-                logActivity($conn, (int)$new_id, 'Tenant Registration', "Registered: $clinic", $email, 'superadmin', 'Super Admin');
+                logActivity($conn, (int)$new_id, 'Tenant Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
             }
             
             $login_url = buildTenantLoginUrl($slug);

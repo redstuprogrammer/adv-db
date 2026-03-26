@@ -18,11 +18,30 @@ function getAppBasePath(): string {
     return '';
 }
 
-function getTenantDashboardUrl(string $slug): string {
+function getAbsoluteBaseUrl(): string {
+    // Detect protocol - check X-Forwarded-Proto first (for Azure/proxy), then HTTPS
+    $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
+    $scheme = (strtolower($forwardedProto) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) ? 'https' : 'http';
+    
+    // Get host
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    
+    // Get base path
     $base = getAppBasePath();
-    $path = ($base !== '' ? $base . '/' : '') . 'tenant_dashboard.php?tenant=' . rawurlencode($slug);
-    error_log("Tenant Dashboard URL generated: " . $path . " (base: '" . $base . "')");
-    return $path;
+    
+    $url = $scheme . '://' . $host;
+    if ($base !== '') {
+        $url .= $base;
+    }
+    
+    return rtrim($url, '/');
+}
+
+function getTenantDashboardUrl(string $slug): string {
+    $baseUrl = getAbsoluteBaseUrl();
+    $url = $baseUrl . '/tenant_dashboard.php?tenant=' . rawurlencode($slug);
+    error_log("Tenant Dashboard URL generated: " . $url);
+    return $url;
 }
 
 function getCurrentTenantId(): ?int {
@@ -46,9 +65,9 @@ function requireTenantLogin(string $expectedSlug = ''): void {
     $sessionSlug = getCurrentTenantSlug();
 
     if (!tenantIsLoggedIn() || $slug === '' || $sessionSlug === '' || ($expectedSlug !== '' && $slug !== $expectedSlug) || ($expectedSlug === '' && $slug !== $sessionSlug)) {
-        $base = getAppBasePath();
+        $baseUrl = getAbsoluteBaseUrl();
         $redirectSlug = $slug ?: $sessionSlug ?: 'unknown';
-        $redirect = ($base !== '' ? $base . '/' : '') . 'tenant_login.php?tenant=' . rawurlencode($redirectSlug);
+        $redirect = $baseUrl . '/tenant_login.php?tenant=' . rawurlencode($redirectSlug);
         error_log("Tenant login required, redirecting to: " . $redirect);
         header('Location: ' . $redirect);
         exit;
@@ -259,3 +278,63 @@ function getTenantTodayRevenue(?int $tenantId): ?float {
     return (float)($row['total'] ?? 0);
 }
 
+/**
+ * Format timestamp to 12-hour format with AM/PM
+ * Handles both date strings and timestamps
+ * 
+ * @param string|int $dateTime - Date string or timestamp
+ * @param string $format - Date format (default: 'M d, Y g:i A')
+ * @return string Formatted datetime in 12-hour format
+ */
+function formatTo12Hour($dateTime, string $format = 'M d, Y g:i A'): string {
+    if (empty($dateTime)) {
+        return 'N/A';
+    }
+    
+    // Convert to timestamp if it's a string
+    if (is_string($dateTime)) {
+        $timestamp = strtotime($dateTime);
+    } else {
+        $timestamp = (int)$dateTime;
+    }
+    
+    if ($timestamp === false) {
+        return 'N/A';
+    }
+    
+    return date($format, $timestamp);
+}
+
+/**
+ * Format date only to readable format (e.g., "Mar 15, 2026")
+ * 
+ * @param string|int $date - Date string or timestamp
+ * @return string Formatted date
+ */
+function formatDateReadable($date): string {
+    if (empty($date)) {
+        return 'N/A';
+    }
+    
+    if (is_string($date)) {
+        $timestamp = strtotime($date);
+    } else {
+        $timestamp = (int)$date;
+    }
+    
+    if ($timestamp === false) {
+        return 'N/A';
+    }
+    
+    return date('M d, Y', $timestamp);
+}
+
+/**
+ * Format datetime with time to readable format (e.g., "Mar 15, 2026 2:30 PM")
+ * 
+ * @param string|int $dateTime - Date string or timestamp
+ * @return string Formatted datetime
+ */
+function formatDateTimeReadable($dateTime): string {
+    return formatTo12Hour($dateTime, 'M d, Y g:i A');
+}

@@ -210,18 +210,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .permissions-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
         }
 
         .permission-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 4px;
+            background: #fafbfc;
         }
 
         .permission-item input[type="checkbox"] {
             margin: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+        }
+
+        .permission-item label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #374151;
         }
 
         .logo-preview {
@@ -261,6 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
+                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item active"><span>⚙️</span> Settings</a>
             </nav>
@@ -319,21 +335,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="sa-card-header">
                     <div>
                         <h3>Tenant Limits and Rules</h3>
-                        <div class="sa-card-subtitle">Set platform-wide tenant constraints</div>
+                        <div class="sa-card-subtitle">Subscription tier-based limits and platform-wide constraints</div>
                     </div>
                 </div>
-                <div class="sa-form-grid">
-                    <div class="sa-form-group">
-                        <label for="max_tenants">Maximum Active Tenants</label>
-                        <input type="number" id="max_tenants" name="max_tenants" value="<?php echo htmlspecialchars($currentSettings['max_tenants'] ?? ''); ?>" placeholder="Leave empty for unlimited">
-                    </div>
-                    <div class="sa-form-group">
-                        <label for="max_users_per_tenant">Maximum Users per Tenant</label>
-                        <input type="number" id="max_users_per_tenant" name="max_users_per_tenant" value="<?php echo htmlspecialchars($currentSettings['max_users_per_tenant'] ?? ''); ?>" placeholder="Leave empty for unlimited">
-                    </div>
-                    <div class="sa-form-group">
-                        <label for="storage_limit">Storage Limit per Tenant (GB)</label>
-                        <input type="number" id="storage_limit" name="storage_limit" value="<?php echo htmlspecialchars($currentSettings['storage_limit'] ?? ''); ?>" placeholder="Leave empty for unlimited">
+                
+                <!-- Tier-based Limits Information -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="color: #0d3b66; margin-bottom: 15px;">Subscription Tier Limits</h4>
+                    <table class="roles-table">
+                        <thead>
+                            <tr>
+                                <th>Tier</th>
+                                <th>Max Dentists</th>
+                                <th>Max Receptionists</th>
+                                <th>Max Patients</th>
+                                <th>Storage (GB)</th>
+                                <th>Dental Chart</th>
+                                <th>SMS Reminders</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            require_once __DIR__ . '/subscription_tiers.php';
+                            foreach (getAllTiers() as $tierKey => $tier) {
+                                $tierPrice = $tier['price_min'] === 0 && $tier['price_max'] === 0 
+                                    ? 'Free' 
+                                    : '$' . $tier['price_min'] . '-' . $tier['price_max'] . '/mo';
+                                
+                                echo "<tr>
+                                    <td><strong>" . htmlspecialchars($tier['name']) . "</strong><br><small style='color: var(--sa-muted);'>" . htmlspecialchars($tierPrice) . "</small></td>
+                                    <td>" . ($tier['features']['max_dentists'] ?? 0) . "</td>
+                                    <td>" . ($tier['features']['max_receptionists'] ?? 0) . "</td>
+                                    <td>" . ($tier['features']['max_patients'] ?? 0) . "</td>
+                                    <td>" . ($tier['features']['max_storage_gb'] ?? 0) . "</td>
+                                    <td>" . (($tier['features']['dental_chart_tracking'] ?? false) ? '✓' : '✗') . "</td>
+                                    <td>" . (($tier['features']['sms_reminders'] ?? false) ? '✓' : '✗') . "</td>
+                                </tr>";
+                            }
+                            ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Platform-wide Settings -->
+                <div style="border-top: 1px solid var(--sa-border); padding-top: 20px;">
+                    <h4 style="color: #0d3b66; margin-bottom: 15px;">Platform-wide Constraints</h4>
+                    <div class="sa-form-grid">
+                        <div class="sa-form-group">
+                            <label for="max_tenants">Maximum Active Tenants</label>
+                            <input type="number" id="max_tenants" name="max_tenants" value="<?php echo htmlspecialchars($currentSettings['max_tenants'] ?? ''); ?>" placeholder="Leave empty for unlimited">
+                            <div class="sa-note">Limits the total number of active tenant subscriptions on the platform</div>
+                        </div>
+                        <div class="sa-form-group">
+                            <label for="max_users_per_tenant">Maximum Users per Tenant (Override)</label>
+                            <input type="number" id="max_users_per_tenant" name="max_users_per_tenant" value="<?php echo htmlspecialchars($currentSettings['max_users_per_tenant'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
+                            <div class="sa-note">If set, overrides tier limits for all tenants</div>
+                        </div>
+                        <div class="sa-form-group">
+                            <label for="storage_limit">Storage Limit Override (GB)</label>
+                            <input type="number" id="storage_limit" name="storage_limit" value="<?php echo htmlspecialchars($currentSettings['storage_limit'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
+                            <div class="sa-note">If set, overrides tier-based storage limits</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -360,21 +422,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <td>Full clinic management and administration</td>
                             <td>
                                 <div class="permissions-grid">
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Appointments
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Patients
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Billing
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Staff Management
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Reports
-                                    </div>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Appointments</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Patients</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Billing</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Staff Management</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Reports</span>
+                                    </label>
                                 </div>
                             </td>
                         </tr>
@@ -383,21 +445,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <td>Appointment scheduling and patient coordination</td>
                             <td>
                                 <div class="permissions-grid">
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Appointments
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Patients
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Billing
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Staff Management
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Reports
-                                    </div>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Appointments</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Patients</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Billing</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Staff Management</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Reports</span>
+                                    </label>
                                 </div>
                             </td>
                         </tr>
@@ -406,24 +468,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <td>Clinical records and patient treatment</td>
                             <td>
                                 <div class="permissions-grid">
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Appointments
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Patients
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" checked disabled> Clinical Notes
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Billing
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Staff Management
-                                    </div>
-                                    <div class="permission-item">
-                                        <input type="checkbox" disabled> Reports
-                                    </div>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Appointments</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Patients</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" checked disabled> <span>Clinical Notes</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Billing</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Staff Management</span>
+                                    </label>
+                                    <label class="permission-item">
+                                        <input type="checkbox" disabled> <span>Reports</span>
+                                    </label>
                                 </div>
                             </td>
                         </tr>

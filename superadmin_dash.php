@@ -5,6 +5,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     header('Location: superadmin_login.php');
     exit;
 }
+require_once __DIR__ . '/subscription_tiers.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -413,6 +414,7 @@ if (empty($_SESSION['superadmin_authed'])) {
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
+                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
@@ -486,6 +488,19 @@ if (empty($_SESSION['superadmin_authed'])) {
                     <div style="background: #f1f5f9; border-radius: 999px; height: 10px; margin-top: 6px; overflow:hidden;">
                         <div id="trend-bar-today" style="width: 0%; height: 100%; background: #16a34a;"></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Sales Trends Chart -->
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header">
+                    <div>
+                        <div class="sa-card-title">Revenue Trends</div>
+                        <div class="sa-card-subtitle">Monthly subscription revenue</div>
+                    </div>
+                </div>
+                <div style="position: relative; height: 250px;">
+                    <canvas id="dashboardSalesChart"></canvas>
                 </div>
             </div>
 
@@ -679,6 +694,20 @@ if (empty($_SESSION['superadmin_authed'])) {
                                 <option>Isabela</option>
                                 <option>Abra</option>
                             </select>
+                        </div>
+                        <div class="sa-form-group">
+                            <label for="clinic-tier">Subscription Tier <span class="sa-badge-required">*</span></label>
+                            <select id="clinic-tier" required>
+                                <option value="">Select a tier</option>
+                                <?php
+                                foreach (getTierOptions() as $tierKey => $tierName) {
+                                    echo "<option value=\"" . htmlspecialchars($tierKey) . "\">" . htmlspecialchars($tierName) . "</option>";
+                                }
+                                ?>
+                            </select>
+                            <div class="sa-note" id="tier-details" style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-left: 3px solid #0d3b66; display: none;">
+                                <!-- Tier details will be shown here -->
+                            </div>
                         </div>
                         <div class="sa-form-group" style="grid-column: 1 / -1;">
                             <label for="clinic-notes">Notes / Special Instructions</label>
@@ -1206,6 +1235,8 @@ if (empty($_SESSION['superadmin_authed'])) {
         const modalReviewContent = document.getElementById('modal-review-content');
         const modalCancel = document.getElementById('modal-cancel');
         const modalConfirm = document.getElementById('modal-confirm');
+        const tierSelect = document.getElementById('clinic-tier');
+        const tierDetails = document.getElementById('tier-details');
         
         const successPanel = document.getElementById('registration-success');
         const sampleLinkEl = document.getElementById('sample-login-link');
@@ -1213,95 +1244,187 @@ if (empty($_SESSION['superadmin_authed'])) {
 
         if (!form) return;
 
-    // STEP 1: Intercept the form submission and show the modal
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
+        // Tier definitions from PHP
+        const tierDefinitions = <?php echo json_encode(getAllTiers()); ?>;
 
-        // Get values for review
-        const reviewData = {
-            'Clinic Name': document.getElementById('clinic-name').value,
-            'Owner': document.getElementById('owner-name').value,
-            'Email': document.getElementById('owner-email').value,
-            'Phone': document.getElementById('clinic-phone').value,
-            'Location': `${document.getElementById('clinic-city').value}, ${document.getElementById('clinic-province').value}`
-        };
-
-        // Build the review list inside the modal
-        modalReviewContent.innerHTML = Object.entries(reviewData)
-            .map(([label, value]) => `<p style="margin: 5px 0;"><strong>${label}:</strong> ${value}</p>`)
-            .join('');
-
-        // Show the modal
-        modalOverlay.style.display = 'flex';
-    });
-
-    // STEP 2: Handle "Edit Details" (Cancel)
-    modalCancel.addEventListener('click', () => {
-        modalOverlay.style.display = 'none';
-    });
-
-    // STEP 3: Handle "Finalize & Save" (Confirm)
-    modalConfirm.addEventListener('click', function () {
-        // Disable button to prevent double submission
-        modalConfirm.disabled = true;
-        modalConfirm.textContent = 'Saving...';
-
-        const formData = new FormData();
-        formData.append('clinicName', document.getElementById('clinic-name').value.trim());
-        formData.append('ownerName', document.getElementById('owner-name').value.trim());
-        formData.append('email', document.getElementById('owner-email').value.trim());
-        formData.append('phone', document.getElementById('clinic-phone').value.trim());
-        formData.append('address', document.getElementById('clinic-address').value.trim());
-        formData.append('city', document.getElementById('clinic-city').value.trim());
-        formData.append('province', document.getElementById('clinic-province').value);
-
-        fetch('register_clinic.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                refreshTenantList();
-
-                if (sampleLinkEl) {
-                    const baseUrl = window.location.origin;
-                    sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
-                }
-
-                const passField = document.getElementById('display-temp-password');
-                if (passField) {
-                    passField.textContent = data.temp_password;
-                }
-
-                if (successPanel) {
-                    successPanel.style.display = 'block';
-                    if (resendNote) resendNote.style.display = 'none';
-                }
-
-                if (data.email_sent === false) {
-                    showToast('Clinic saved, but email failed to send. Check console for error.', 6500);
-                    if (data.email_error) console.warn('Email error:', data.email_error);
+        // Show tier details when a tier is selected
+        if (tierSelect) {
+            tierSelect.addEventListener('change', function() {
+                if (this.value && tierDefinitions[this.value]) {
+                    const tier = tierDefinitions[this.value];
+                    let detailsHTML = '<strong>' + tier['display_name'] + '</strong><br>';
+                    detailsHTML += '<small style="color: #475569;">' + tier['description'] + '</small><br><br>';
+                    detailsHTML += '<strong style="color: #0d3b66;">Key Features:</strong><ul style="margin: 5px 0; padding-left: 20px; font-size: 0.85rem;">';
+                    
+                    const features = tier['features'];
+                    detailsHTML += '<li>Max Dentists: ' + features['max_dentists'] + '</li>';
+                    detailsHTML += '<li>Max Receptionists: ' + features['max_receptionists'] + '</li>';
+                    detailsHTML += '<li>Max Patients: ' + features['max_patients'] + '</li>';
+                    detailsHTML += '<li>Storage: ' + features['max_storage_gb'] + ' GB</li>';
+                    detailsHTML += '<li>Dental Chart: ' + (features['dental_chart_tracking'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '<li>SMS Notifications: ' + (features['sms_notifications'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '</ul>';
+                    
+                    tierDetails.innerHTML = detailsHTML;
+                    tierDetails.style.display = 'block';
                 } else {
-                    showToast('Clinic saved! Email sent.');
+                    tierDetails.style.display = 'none';
                 }
-                form.reset();
-                modalOverlay.style.display = 'none'; // Close modal on success
-            } else {
-                showToast('Database Error: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Failed to connect to the server.');
-        })
-        .finally(() => {
-            // Re-enable buttons for the next time
-            modalConfirm.disabled = false;
-            modalConfirm.textContent = 'Finalize & Save';
+            });
+        }
+
+        // STEP 1: Intercept the form submission and show the modal
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // Get values for review
+            const tierValue = document.getElementById('clinic-tier').value;
+            const tierName = tierValue && tierDefinitions[tierValue] ? tierDefinitions[tierValue]['display_name'] : 'Not selected';
+            
+            const reviewData = {
+                'Clinic Name': document.getElementById('clinic-name').value,
+                'Owner': document.getElementById('owner-name').value,
+                'Email': document.getElementById('owner-email').value,
+                'Phone': document.getElementById('clinic-phone').value,
+                'Location': `${document.getElementById('clinic-city').value}, ${document.getElementById('clinic-province').value}`,
+                'Subscription Tier': tierName
+            };
+
+            // Build the review list inside the modal
+            modalReviewContent.innerHTML = Object.entries(reviewData)
+                .map(([label, value]) => `<p style="margin: 5px 0;"><strong>${label}:</strong> ${value}</p>`)
+                .join('');
+
+            // Show the modal
+            modalOverlay.style.display = 'flex';
         });
-    });
-})();
+
+        // STEP 2: Handle "Edit Details" (Cancel)
+        modalCancel.addEventListener('click', () => {
+            modalOverlay.style.display = 'none';
+        });
+
+        // STEP 3: Handle "Finalize & Save" (Confirm)
+        modalConfirm.addEventListener('click', function () {
+            // Disable button to prevent double submission
+            modalConfirm.disabled = true;
+            modalConfirm.textContent = 'Saving...';
+
+            const formData = new FormData();
+            formData.append('clinicName', document.getElementById('clinic-name').value.trim());
+            formData.append('ownerName', document.getElementById('owner-name').value.trim());
+            formData.append('email', document.getElementById('owner-email').value.trim());
+            formData.append('phone', document.getElementById('clinic-phone').value.trim());
+            formData.append('address', document.getElementById('clinic-address').value.trim());
+            formData.append('city', document.getElementById('clinic-city').value.trim());
+            formData.append('province', document.getElementById('clinic-province').value);
+            formData.append('tier', document.getElementById('clinic-tier').value);
+
+            fetch('register_clinic.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    refreshTenantList();
+
+                    if (sampleLinkEl) {
+                        const baseUrl = window.location.origin;
+                        sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
+                    }
+
+                    const passField = document.getElementById('display-temp-password');
+                    if (passField) {
+                        passField.textContent = data.temp_password;
+                    }
+
+                    if (successPanel) {
+                        successPanel.style.display = 'block';
+                        if (resendNote) resendNote.style.display = 'none';
+                    }
+
+                    if (data.email_sent === false) {
+                        showToast('Clinic saved, but email failed to send. Check console for error.', 6500);
+                        if (data.email_error) console.warn('Email error:', data.email_error);
+                    } else {
+                        showToast('Clinic saved! Email sent.');
+                    }
+                    form.reset();
+                    if (tierDetails) tierDetails.style.display = 'none';
+                    modalOverlay.style.display = 'none'; // Close modal on success
+                } else {
+                    showToast('Database Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Failed to connect to the server.');
+            })
+            .finally(() => {
+                // Re-enable buttons for the next time
+                modalConfirm.disabled = false;
+                modalConfirm.textContent = 'Finalize & Save';
+            });
+        });
+    })();
+
+    // Initialize Sales Trends Chart
+    (function() {
+        const chartCanvas = document.getElementById('dashboardSalesChart');
+        if (!chartCanvas) return;
+
+        // Generate last 12 months labels
+        const labels = [];
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date();
+            date.setMonth(date.getMonth() - i);
+            labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
+        }
+
+        // Fetch sales data
+        fetch('get_sales_data.php')
+            .then(response => response.json())
+            .then(data => {
+                new Chart(chartCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Monthly Revenue',
+                            data: data.monthlyRevenue || [],
+                            borderColor: '#0d3b66',
+                            backgroundColor: 'rgba(13, 59, 102, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#0d3b66'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading sales data:', error));
+    })();
 </script>
 
 </body>

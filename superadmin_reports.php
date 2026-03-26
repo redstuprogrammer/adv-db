@@ -6,6 +6,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/tenant_utils.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -125,19 +126,24 @@ require_once __DIR__ . '/connect.php';
 
         .sa-metric {
             text-align: center;
+            background: #f8fafc;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid var(--sa-border);
         }
 
         .sa-metric-value {
             font-size: 2rem;
             font-weight: 800;
             color: var(--sa-primary);
-            margin: 0;
+            margin: 0 0 12px 0;
         }
 
         .sa-metric-label {
             font-size: 0.875rem;
             color: var(--sa-muted);
-            margin: 5px 0 0 0;
+            margin: 0;
+            line-height: 1.5;
         }
 
         .sa-form-grid {
@@ -282,6 +288,7 @@ require_once __DIR__ . '/connect.php';
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item active"><span>📊</span> Reports</a>
+                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
@@ -328,7 +335,7 @@ require_once __DIR__ . '/connect.php';
                 <table class="sa-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th>Date & Time</th>
                             <th>Tenant</th>
                             <th>Activity</th>
                             <th>Details</th>
@@ -343,7 +350,7 @@ require_once __DIR__ . '/connect.php';
                                                ORDER BY tal.log_date DESC LIMIT 10");
                             while ($activity = $stmt->fetch()) {
                                 echo "<tr>
-                                        <td>" . date('M d, Y', strtotime($activity['log_date'])) . "</td>
+                                        <td>" . formatDateTimeReadable($activity['log_date']) . "</td>
                                         <td>{$activity['company_name']}</td>
                                         <td>{$activity['activity_type']}</td>
                                         <td>{$activity['details']}</td>
@@ -376,15 +383,15 @@ require_once __DIR__ . '/connect.php';
                     <tbody id="user-registrations-table-body">
                         <?php
                         try {
-                            $stmt = $pdo->query("SELECT created_at, company_name, owner_name, email, status 
+                            $stmt = $pdo->query("SELECT created_at, company_name, owner_name, contact_email, status 
                                                FROM tenants 
                                                ORDER BY created_at DESC LIMIT 10");
                             while ($tenant = $stmt->fetch()) {
                                 echo "<tr>
-                                        <td>" . date('M d, Y', strtotime($tenant['created_at'])) . "</td>
+                                        <td>" . formatDateReadable($tenant['created_at']) . "</td>
                                         <td>{$tenant['company_name']}</td>
                                         <td>{$tenant['owner_name']}</td>
-                                        <td>{$tenant['email']}</td>
+                                        <td>{$tenant['contact_email']}</td>
                                         <td><span class='sa-pill " . ($tenant['status'] == 'active' ? 'sa-pill-active' : 'sa-pill-inactive') . "'>{$tenant['status']}</span></td>
                                       </tr>";
                             }
