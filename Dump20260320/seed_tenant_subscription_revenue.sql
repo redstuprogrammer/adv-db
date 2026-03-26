@@ -5,9 +5,9 @@
 -- and adding the payment tracking tables (migration_add_payment_tracking.sql)
 
 -- Sample revenue amounts based on tier (using midpoint of pricing ranges)
--- Trial: $0/month (free tier)
--- Startup: $124/month (average of $99-149)
--- Professional: $349/month (average of $299-399)
+-- Trial: ₱0/month (free tier)
+-- Startup: ₱6,200/month (average of ₱4,950-₱7,450)
+-- Professional: ₱17,450/month (average of ₱14,950-₱19,950)
 
 -- Generate monthly subscription records for each tenant
 INSERT INTO `tenant_subscription_revenue` (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date, created_at)
@@ -16,9 +16,9 @@ SELECT
     t.subscription_tier,
     CASE 
         WHEN t.subscription_tier = 'trial' THEN 0.00
-        WHEN t.subscription_tier = 'startup' THEN 124.00
-        WHEN t.subscription_tier = 'professional' THEN 349.00
-        ELSE 124.00
+        WHEN t.subscription_tier = 'startup' THEN 6200.00
+        WHEN t.subscription_tier = 'professional' THEN 17450.00
+        ELSE 6200.00
     END AS amount,
     DATE_FORMAT(billing_date, '%Y-%m-01') as billing_period_start,
     LAST_DAY(billing_date) as billing_period_end,
