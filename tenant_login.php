@@ -53,7 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $dashboardUrl = getTenantDashboardUrl((string)$tenant['subdomain_slug']);
         error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
-        header('Location: ' . $dashboardUrl);
+        // DEBUG: Show the URL instead of redirecting
+        echo "<pre>";
+        echo "Login successful!\n";
+        echo "Redirect URL: " . htmlspecialchars($dashboardUrl) . "\n";
+        echo "Base URL: " . htmlspecialchars(getAbsoluteBaseUrl()) . "\n";
+        echo "Tenant slug: " . htmlspecialchars($tenantSlug) . "\n";
+        echo "</pre>";
+        echo "<a href='" . htmlspecialchars($dashboardUrl) . "'>Click here to continue</a>";
         exit;
     }
 }
