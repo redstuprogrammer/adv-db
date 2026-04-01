@@ -29,27 +29,26 @@ if ($tenantSlug !== '') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim((string)($_POST['email'] ?? ''));
+    $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
 
     if ($tenantSlug === '' || !$tenant) {
         $error = 'Invalid clinic link. Please check the URL provided to you.';
     } elseif (strtolower((string)$tenant['status']) !== 'active') {
         $error = 'This clinic is currently inactive. Please contact OralSync support.';
-    } elseif ($email === '' || $password === '') {
-        $error = 'Please enter your email and password.';
-    } elseif (strtolower($email) !== strtolower((string)$tenant['contact_email'])) {
-        $error = 'Email does not match this clinic.';
+    } elseif ($username === '' || $password === '') {
+        $error = 'Please enter your username and password.';
     } elseif (!password_verify($password, (string)$tenant['password'])) {
-        $error = 'Incorrect password.';
+        $error = 'Incorrect username or password.';
     } else {
         $_SESSION['tenant_id'] = (int)$tenant['tenant_id'];
         $_SESSION['tenant_slug'] = (string)$tenant['subdomain_slug'];
         $_SESSION['tenant_name'] = (string)$tenant['company_name'];
         $_SESSION['tenant_email'] = (string)$tenant['contact_email'];
+        $_SESSION['tenant_username'] = $username;
 
         // Log tenant login activity
-        logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $email, 'tenant_owner', 'Tenant Owner');
+        logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $username, 'tenant_owner', 'Tenant Owner');
 
         $dashboardUrl = getTenantDashboardUrl((string)$tenant['subdomain_slug']);
         error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
@@ -112,8 +111,8 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
 
                 <form class="t-form" method="POST" action="<?php echo h($loginAction); ?>">
                     <div class="t-field">
-                        <label for="email">Email</label>
-                        <input id="email" name="email" type="email" autocomplete="username" required value="<?php echo h((string)($_POST['email'] ?? '')); ?>">
+                        <label for="username">Username</label>
+                        <input id="username" name="username" type="text" autocomplete="username" required value="<?php echo h((string)($_POST['username'] ?? '')); ?>">
                     </div>
                     <div class="t-field">
                         <label for="password">Password</label>
@@ -121,7 +120,9 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
                     </div>
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
-
+                <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between;">
+                    <a href="forgot_password_tenant.php?tenant=<?php echo h(rawurlencode($tenantSlug)); ?>" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
+                </div>
                 <div class="t-foot">
                     Having trouble? Make sure you’re using the exact clinic link from your email.
                 </div>

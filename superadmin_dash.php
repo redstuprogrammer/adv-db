@@ -12,6 +12,7 @@ require_once __DIR__ . '/subscription_tiers.php';
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
+    <link rel="stylesheet" href="tenant_style.css">
     <link rel="stylesheet" href="style1.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -394,7 +395,58 @@ require_once __DIR__ . '/subscription_tiers.php';
     z-index: 999;
     align-items: center;
     justify-content: center;
-}.clickable-row { cursor: pointer; transition: background 0.2s; }
+}
+
+/* Dropdown Menu Styles */
+.menu-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.menu-dropdown-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    color: #ffffff;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    margin: 0;
+    font-family: inherit;
+}
+
+.menu-dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.menu-dropdown-items {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 3px solid #22c55e;
+    overflow: hidden;
+}
+
+.menu-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background-color 0.15s;
+}
+
+.menu-dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.clickable-row { cursor: pointer; transition: background 0.2s; }
 .clickable-row:hover { background-color: #f8fafc; }
     </style>
 </head>
@@ -413,8 +465,13 @@ require_once __DIR__ . '/subscription_tiers.php';
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
+                <div class="menu-dropdown">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: none;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
+                    </div>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
@@ -653,9 +710,14 @@ require_once __DIR__ . '/subscription_tiers.php';
                             <input type="text" id="owner-name" required>
                         </div>
                         <div class="sa-form-group">
+                            <label for="clinic-username">Clinic Username <span class="sa-badge-required">*</span></label>
+                            <input type="text" id="clinic-username" placeholder="e.g., oralsync_clinic" required>
+                            <div class="sa-note">Used for login (letters, numbers, underscores only)</div>
+                        </div>
+                        <div class="sa-form-group">
                             <label for="owner-email">Clinic / Owner Email <span class="sa-badge-required">*</span></label>
                             <input type="email" id="owner-email" required>
-                            <div class="sa-note">Gmail only</div>
+                            <div class="sa-note">Temporary email service used (no Gmail)</div>
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
@@ -850,6 +912,22 @@ require_once __DIR__ . '/subscription_tiers.php';
                 }
             }
         });
+    })();
+
+    // Dropdown menu toggle
+    (function () {
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+
+        if (dropdownToggle && dropdownItems) {
+            dropdownToggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                const isVisible = dropdownItems.style.display !== 'none';
+                dropdownItems.style.display = isVisible ? 'none' : 'flex';
+                dropdownItems.style.flexDirection = 'column';
+                dropdownToggle.classList.toggle('active');
+            });
+        }
     })();
 
     function showToast(message, durationMs = 4500) {
@@ -1312,6 +1390,7 @@ require_once __DIR__ . '/subscription_tiers.php';
             const formData = new FormData();
             formData.append('clinicName', document.getElementById('clinic-name').value.trim());
             formData.append('ownerName', document.getElementById('owner-name').value.trim());
+            formData.append('clinicUsername', document.getElementById('clinic-username').value.trim());
             formData.append('email', document.getElementById('owner-email').value.trim());
             formData.append('phone', document.getElementById('clinic-phone').value.trim());
             formData.append('address', document.getElementById('clinic-address').value.trim());

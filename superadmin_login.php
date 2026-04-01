@@ -86,6 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
 
+                <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between;">
+                    <a href="forgot_password_superadmin.php" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
+                </div>
+
                 <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e2e8f0;">
                     <div style="font-weight: 600; margin-bottom: 0.5rem;">Site Links</div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
