@@ -1,4 +1,5 @@
 <?php
+die("PHP is working! If you see this instantly, the problem is your database connection in connect.php.");
 // 1. Headers for JSON and Cross-Origin requests (CORS)
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *'); 
