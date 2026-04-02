@@ -12,8 +12,8 @@ require_once __DIR__ . '/subscription_tiers.php';
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
-    <link rel="stylesheet" href="tenant_style.css">
     <link rel="stylesheet" href="style1.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -78,48 +78,62 @@ require_once __DIR__ . '/subscription_tiers.php';
             background: #ffffff;
             border-radius: 16px;
             border: 1px solid var(--sa-border);
-            padding: 24px;
-            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+            padding: 28px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .sa-card:hover {
+            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+            border-color: #0d3b66;
         }
 
         .sa-card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--sa-border);
+            padding-bottom: 16px;
         }
 
         .sa-card-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--sa-primary);
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #0d3b66;
+            letter-spacing: -0.3px;
         }
 
         .sa-card-subtitle {
-            font-size: 0.8rem;
+            font-size: 0.9rem;
             color: var(--sa-muted);
-            margin-top: 4px;
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         .sa-empty-state {
-            padding: 40px 0;
+            padding: 60px 20px;
             text-align: center;
             color: var(--sa-muted);
-            font-size: 0.9rem;
+            font-size: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            margin: 20px 0;
         }
 
         .sa-pill {
             display: inline-flex;
             align-items: center;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 999px;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 600;
         }
 
         .sa-pill-active {
             background: #dcfce7;
             color: #166534;
+            border: 1px solid #22c55e;
         }
 
         .sa-pill-inactive {
@@ -145,11 +159,18 @@ require_once __DIR__ . '/subscription_tiers.php';
 
         .sa-search-wrapper input {
             width: 100%;
-            padding: 10px 36px 10px 32px;
+            padding: 11px 40px 11px 36px;
             border-radius: 999px;
             border: 1px solid var(--sa-border);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .sa-search-wrapper input:focus {
+            border-color: #0d3b66;
+            box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+            background: #f8fafc;
         }
 
         .sa-search-icon {
@@ -177,30 +198,37 @@ require_once __DIR__ . '/subscription_tiers.php';
 
         .sa-tenant-table th {
             text-align: left;
-            padding: 10px 14px;
-            border-bottom: 1px solid var(--sa-border);
+            padding: 13px 16px;
+            border-bottom: 2px solid var(--sa-border);
             font-size: 0.75rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: var(--sa-muted);
-            background: #f9fafb;
+            letter-spacing: 0.05em;
+            color: #475569;
+            background: #f8fafc;
         }
 
         .sa-tenant-table td {
-            padding: 12px 14px;
+            padding: 14px 16px;
             border-bottom: 1px solid #f1f5f9;
             vertical-align: middle;
         }
 
+        .sa-tenant-table tr:hover td {
+            background: #f8fafc;
+        }
+
         .sa-tenant-name {
-            font-weight: 600;
-            color: #0f172a;
+            font-weight: 700;
+            color: #0d3b66;
+            font-size: 0.95rem;
         }
 
         .sa-tenant-meta {
             display: block;
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             color: var(--sa-muted);
+            margin-top: 4px;
         }
 
         .sa-btn {
@@ -210,28 +238,52 @@ require_once __DIR__ . '/subscription_tiers.php';
             border-radius: 999px;
             border: none;
             cursor: pointer;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 7px 14px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 10px 18px;
+            transition: all 0.2s ease;
+        }
+
+        .sa-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .sa-btn:active {
+            transform: translateY(0);
         }
 
         .sa-btn-outline {
             background: #ffffff;
             border: 2px solid var(--sa-border);
-            border-color:rgb(178, 181, 190);
             color: #0f172a;
+        }
+
+        .sa-btn-outline:hover {
+            border-color: #0d3b66;
+            background: #f8fafc;
         }
 
         .sa-btn-danger {
             background: #fee2e2;
             color: #b91c1c;
-            border: 2px solid #f87171;
+            border: 2px solid #fecaca;
+        }
+
+        .sa-btn-danger:hover {
+            background: #fca5a5;
+            border-color: #dc2626;
         }
 
         .sa-btn-success {
-            background: #dcfce7;
-            color: #166534;
+            background: #22c55e;
+            color: #ffffff;
             border: 2px solid #22c55e;
+        }
+
+        .sa-btn-success:hover {
+            background: #16a34a;
+            border-color: #16a34a;
         }
 
         .sa-toast {
@@ -259,29 +311,37 @@ require_once __DIR__ . '/subscription_tiers.php';
 
         .sa-form-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px 20px;
-            margin-top: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px 24px;
+            margin-top: 20px;
         }
 
         .sa-form-group label {
             display: block;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #0f172a;
-            margin-bottom: 4px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #0d3b66;
+            margin-bottom: 8px;
         }
 
         .sa-form-group input,
         .sa-form-group select,
         .sa-form-group textarea {
             width: 100%;
-            padding: 9px 11px;
+            padding: 11px 13px;
             border-radius: 10px;
             border: 1px solid var(--sa-border);
-            border-color:rgb(178, 181, 190);
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .sa-form-group input:focus,
+        .sa-form-group select:focus,
+        .sa-form-group textarea:focus {
+            border-color: #0d3b66;
+            box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+            background: #f8fafc;
         }
 
         .sa-form-group textarea {
@@ -290,10 +350,12 @@ require_once __DIR__ . '/subscription_tiers.php';
         }
 
         .sa-form-actions {
-            margin-top: 20px;
+            margin-top: 24px;
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
+            gap: 12px;
+            border-top: 2px solid var(--sa-border);
+            padding-top: 20px;
         }
 
         .sa-badge-required {
@@ -304,14 +366,15 @@ require_once __DIR__ . '/subscription_tiers.php';
             margin-top: 20px;
             padding: 16px 18px;
             border-radius: 12px;
-            border: 1px solid #bbf7d0;
-            background: #ecfdf3;
-            font-size: 0.85rem;
+            border: 2px solid #22c55e;
+            background: #f0fdf4;
+            font-size: 0.9rem;
             display: none;
         }
 
         .sa-success-panel strong {
             color: #166534;
+            font-weight: 700;
         }
 
         .sa-success-actions {

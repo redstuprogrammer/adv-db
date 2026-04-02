@@ -224,6 +224,55 @@ require_once __DIR__ . '/subscription_tiers.php';
             color: #16a34a;
             font-weight: 600;
         }
+
+        /* Dropdown Menu Styles */
+        .menu-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .menu-dropdown-toggle {
+            width: 100%;
+            background: none;
+            border: none;
+            color: #ffffff;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            margin: 0;
+            font-family: inherit;
+        }
+
+        .menu-dropdown-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-dropdown-items {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 3px solid #22c55e;
+            overflow: hidden;
+        }
+
+        .menu-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background-color 0.15s;
+        }
+
+        .menu-dropdown-item:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -241,8 +290,13 @@ require_once __DIR__ . '/subscription_tiers.php';
                 <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item active"><span>💰</span> Sales Report</a>
+                <div class="menu-dropdown">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: flex; flex-direction: column;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item" style="font-weight: 600; border-bottom: 2px solid #22c55e;"><span>💰</span> Sales Reports</a>
+                    </div>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
