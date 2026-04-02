@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // We join 'tenants' to ensure the clinic is active
     $stmt = $conn->prepare("
         SELECT p.*, t.company_name 
-        FROM patients p
+        FROM patient p
         JOIN tenants t ON p.tenant_id = t.tenant_id
         WHERE (p.email = ? OR p.username = ?) AND t.status = 'active'
     ");
