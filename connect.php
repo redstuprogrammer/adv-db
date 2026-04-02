@@ -20,3 +20,22 @@ if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, MYSQLI_CL
 }
 
 mysqli_set_charset($conn, "utf8mb4");
+
+// PDO Connection for compatibility with other scripts
+try {
+    $pdo = new PDO(
+        "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4",
+        $user,
+        $pass,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::MYSQL_ATTR_SSL_CA => $ssl_cert,
+            PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
+            PDO::ATTR_TIMEOUT => 5
+        ]
+    );
+} catch (PDOException $e) {
+    header('Content-Type: application/json');
+    die(json_encode(["success" => false, "message" => "PDO connection failed: " . $e->getMessage()]));
+}
