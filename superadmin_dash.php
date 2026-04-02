@@ -773,14 +773,8 @@ require_once __DIR__ . '/subscription_tiers.php';
                             <input type="text" id="owner-name" required>
                         </div>
                         <div class="sa-form-group">
-                            <label for="clinic-username">Clinic Username <span class="sa-badge-required">*</span></label>
-                            <input type="text" id="clinic-username" placeholder="e.g., oralsync_clinic" required>
-                            <div class="sa-note">Used for login (letters, numbers, underscores only)</div>
-                        </div>
-                        <div class="sa-form-group">
                             <label for="owner-email">Clinic / Owner Email <span class="sa-badge-required">*</span></label>
                             <input type="email" id="owner-email" required>
-                            <div class="sa-note">Temporary email service used (no Gmail)</div>
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
@@ -1453,7 +1447,6 @@ require_once __DIR__ . '/subscription_tiers.php';
             const formData = new FormData();
             formData.append('clinicName', document.getElementById('clinic-name').value.trim());
             formData.append('ownerName', document.getElementById('owner-name').value.trim());
-            formData.append('clinicUsername', document.getElementById('clinic-username').value.trim());
             formData.append('email', document.getElementById('owner-email').value.trim());
             formData.append('phone', document.getElementById('clinic-phone').value.trim());
             formData.append('address', document.getElementById('clinic-address').value.trim());

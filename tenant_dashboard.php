@@ -260,10 +260,6 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">💳</span>
-            <span>Billing</span>
-          </a>
         </div>
 
         <div class="sidebar-section">
@@ -310,18 +306,6 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
           <div class="stat-label">Upcoming Appointments</div>
           <div class="stat-value"><?php echo $appointmentCount; ?></div>
         </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-amber">💳</div>
-          <div class="stat-label">Outstanding Invoices</div>
-          <div class="stat-value"><?php echo $outstandingInvoices; ?></div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-green">💰</div>
-          <div class="stat-label">Today's Revenue</div>
-          <div class="stat-value">₱<?php echo number_format($todayRevenue, 0); ?></div>
-        </div>
       </div>
 
       <!-- Quick Actions -->
@@ -336,14 +320,34 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
             <span class="action-icon">📅</span>
             <span>Schedule Appointment</span>
           </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
-            <span class="action-icon">💵</span>
-            <span>Create Invoice</span>
-          </a>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
             <span class="action-icon">👤</span>
-            <span>Manage Staff</span>
+            <span>Manage Staff & Users</span>
           </a>
+        </div>
+      </div>
+
+      <!-- Calendar and Today's Schedule -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+        <!-- Calendar -->
+        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+            <button onclick="prevMonth()" style="background: none; border: none; font-size: 20px; cursor: pointer;">←</button>
+            <h3 id="monthLabel" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--dashboard-accent); flex: 1; text-align: center;">March 2026</h3>
+            <button onclick="nextMonth()" style="background: none; border: none; font-size: 20px; cursor: pointer;">→</button>
+          </div>
+          <div id="calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;"></div>
+        </div>
+
+        <!-- Today's Schedule -->
+        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+          <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px; font-weight: 700; color: var(--dashboard-accent);">Today's Schedule</h3>
+          <div id="todayDate" style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Saturday, March 06, 2026</div>
+          <div id="todayAppointments" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="padding: 12px; background: var(--dashboard-bg); border-radius: 8px; border-left: 4px solid var(--dashboard-accent); font-size: 13px; color: #64748b;">
+              No appointments for today
+            </div>
+          </div>
         </div>
       </div>
 
@@ -351,37 +355,84 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
       <div style="margin-bottom: 32px;">
         <h2 style="font-size: 16px; font-weight: 700; color: var(--dashboard-accent); margin-bottom: 16px;">Core Modules</h2>
         <div class="modules-grid">
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">👤 Users & Staff</div>
-            <div class="module-desc">Manage admins, receptionists, and dentists</div>
-          </a>
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">👥 Patients</div>
-            <div class="module-desc">View and manage patient records</div>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">📅 Appointments</div>
-            <div class="module-desc">Schedule and track appointments</div>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">💳 Billing</div>
-            <div class="module-desc">Invoices and payment records</div>
-          </a>
-          <a href="reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">📊 Reports</div>
-            <div class="module-desc">Analytics and activity reports</div>
-          </a>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--dashboard-border); text-align: right;">
-        <a class="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>">Sign out</a>
+lass="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>">Sign out</a>
       </div>
 
     </div>
     </div>
   </div>
+
+  <script>
+    let currentDate = new Date(2026, 2, 6); // March 6, 2026
+
+    function renderCalendar() {
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      
+      // Update month label
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                         'July', 'August', 'September', 'October', 'November', 'December'];
+      document.getElementById('monthLabel').textContent = monthNames[month] + ' ' + year;
+      
+      // Clear calendar
+      const calendarDiv = document.getElementById('calendar');
+      calendarDiv.innerHTML = '';
+      
+      // Add day headers
+      const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.textContent = day;
+        header.style.cssText = 'text-align: center; font-weight: 700; color: var(--dashboard-accent); font-size: 12px; padding: 8px; border-bottom: 1px solid var(--dashboard-border); grid-column: 1 / -1;';
+        calendarDiv.appendChild(header);
+      });
+      
+      // Get first day of month and number of days
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const today = new Date(2026, 2, 6);
+      
+      // Add empty cells for days before month starts
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.style.cssText = 'padding: 8px; text-align: center; color: #cbd5e1; font-size: 12px;';
+        calendarDiv.appendChild(emptyCell);
+      }
+      
+      // Add day cells
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        const cellDate = new Date(year, month, day);
+        const isToday = cellDate.toDateString() === today.toDateString();
+        
+        dayCell.textContent = day;
+        dayCell.style.cssText = 'padding: 8px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; ' +
+                               (isToday ? 'background: var(--dashboard-accent); color: white;' : 'color: var(--dashboard-accent); border: 1px solid var(--dashboard-border);');
+        calendarDiv.appendChild(dayCell);
+      }
+      
+      // Update today's date display
+      const today = new Date(2026, 2, 6);
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const monthNames2 = ['January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      const dateStr = dayNames[today.getDay()] + ', ' + monthNames2[today.getMonth()] + ' ' + String(today.getDate()).padStart(2, '0') + ', ' + today.getFullYear();
+      document.getElementById('todayDate').textContent = dateStr;
+    }
+
+    function prevMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+
+    // Initialize calendar on page load
+    renderCalendar();
+  </script>
 </body>
 </html>
 

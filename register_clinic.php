@@ -170,7 +170,6 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
         $owner  = mysqli_real_escape_string($conn, $_POST['ownerName']);
-        $username = mysqli_real_escape_string($conn, trim((string)($_POST['clinicUsername'] ?? '')));
         $email  = mysqli_real_escape_string($conn, $_POST['email']);
         $phone  = mysqli_real_escape_string($conn, $_POST['phone']);
         $addr   = mysqli_real_escape_string($conn, $_POST['address']);
@@ -178,12 +177,9 @@ try {
         $prov   = mysqli_real_escape_string($conn, $_POST['province']);
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         
-        // Validate username
-        if ($username === '') {
-            throw new Exception("Username is required.");
-        }
-        if (!preg_match('/^[a-zA-Z0-9_]{3,30}$/', $username)) {
-            throw new Exception("Username must be 3-30 characters and contain only letters, numbers, and underscores.");
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception("Invalid email format. Please use a valid email address.");
         }
         
         // Validate tier
@@ -195,7 +191,7 @@ try {
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
-        // 2. Duplicate Check (clinic name and username)
+        // 2. Duplicate Check (clinic name)
         $checkQuery = "SELECT company_name FROM tenants WHERE company_name = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
         mysqli_stmt_bind_param($stmtCheck, "s", $clinic);
@@ -205,28 +201,16 @@ try {
         if ($row = mysqli_fetch_assoc($resultCheck)) {
             throw new Exception("Clinic name already exists.");
         }
-        
-        // Check if username is unique
-        $checkUserQuery = "SELECT username FROM tenants WHERE username = ? LIMIT 1";
-        $stmtUserCheck = mysqli_prepare($conn, $checkUserQuery);
-        mysqli_stmt_bind_param($stmtUserCheck, "s", $username);
-        mysqli_stmt_execute($stmtUserCheck);
-        $resultUserCheck = mysqli_stmt_get_result($stmtUserCheck);
-        
-        if (mysqli_num_rows($resultUserCheck) > 0) {
-            throw new Exception("Username already taken. Please choose a different username.");
-        }
 
         // 3. Generate Slug
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
 
-        // 4. Updated Insert: Include subscription_tier and username
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
+        // 4. Insert clinic into database
+        $sql = "INSERT INTO tenants (company_name, owner_name, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        // Ensure bind_param matches the number of '?' in the SQL above (11 total)
-        mysqli_stmt_bind_param($stmt, "sssssssssss", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
+        mysqli_stmt_bind_param($stmt, "ssssssssss", $clinic, $owner, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
@@ -239,7 +223,6 @@ try {
             $emailResult = sendTenantOnboardingEmail([
                 'clinic_name' => $clinic,
                 'owner_name' => $owner,
-                'clinic_username' => $username,
                 'owner_email' => $email,
                 'temp_password' => $temp_password,
                 'login_url' => $login_url
