@@ -151,6 +151,43 @@ try {
         foreach ($stats['activities_by_type'] as $type => $count) {
             $data[] = [$type . ' Activities', $count];
         }
+    } elseif ($type === 'revenue') {
+        $query = "SELECT p.first_name, p.last_name, py.service, py.amount, a.date as appointment_date
+                  FROM payment py
+                  JOIN appointment a ON py.appointment_id = a.appointment_id
+                  JOIN patient p ON a.patient_id = p.patient_id
+                  WHERE py.status = 'Paid'";
+
+        $params = [];
+
+        if (!$isSuperAdmin && $tenantSessionId > 0) {
+            $query .= " AND py.tenant_id = ?";
+            $params[] = $tenantSessionId;
+        }
+
+        if ($date_from) {
+            $query .= " AND a.date >= ?";
+            $params[] = $date_from;
+        }
+        if ($date_to) {
+            $query .= " AND a.date <= ?";
+            $params[] = $date_to;
+        }
+
+        $query .= " ORDER BY a.date DESC";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+
+        while ($row = $stmt->fetch()) {
+            $data[] = [
+                'appointment_date' => $row['appointment_date'],
+                'first_name' => $row['first_name'],
+                'last_name' => $row['last_name'],
+                'service' => $row['service'],
+                'amount' => $row['amount']
+            ];
+        }
     }
 
     echo json_encode(['success' => true, 'data' => $data]);

@@ -13,6 +13,24 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+
+// Handle Add User
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
+    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
+    $role = isset($_POST['role']) ? trim($_POST['role']) : '';
+
+    if ($username !== '' && $email !== '' && $rawPassword !== '' && $role !== '') {
+        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
+        $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role) VALUES (?, ?, ?, ?, ?)');
+        if ($stmt) {
+            $stmt->bind_param('issss', $tenantId, $username, $email, $password, $role);
+            $stmt->execute();
+            $stmt->close();
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -90,7 +108,7 @@ $tenantId = getCurrentTenantId();
       }
 
       .badge-admin { background: rgba(13, 59, 102, 0.15); color: #0d3b66; }
-      .badge-receptionist { background: rgba(12, 74, 110, 0.15); color: #0c4a6e; }
+      .badge-receptionist { background: rgba(245, 158, 11, 0.15); color: #d97706; }
       .badge-dentist { background: rgba(88, 28, 135, 0.15); color: #581c87; }
 
       .action-btn {
@@ -147,6 +165,10 @@ $tenantId = getCurrentTenantId();
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">
@@ -180,7 +202,7 @@ $tenantId = getCurrentTenantId();
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Staff Members</h2>
-          <a href="#" class="btn-primary" onclick="alert('Add User functionality coming soon!'); return false;">+ Add User</a>
+          <a href="#" class="btn-primary" onclick="openAddUserModal()">+ Add User</a>
         </div>
         
         <table class="module-table">
@@ -239,6 +261,61 @@ $tenantId = getCurrentTenantId();
       }
       alert('The user state has been ' + (isActive ? 'set to active' : 'set to inactive') + '.\nIf they try to log in, they will be asked to contact admin.');
     }
+
+    function openAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'block';
+      // Generate temporary password
+      const password = generateTempPassword();
+      document.getElementById('userPassword').value = password;
+    }
+
+    function generateTempPassword() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let password = '';
+      for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'none';
+    }
   </script>
+
+  <!-- Add User Modal -->
+  <div id="addUserModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 400px;">
+      <span style="font-size: 20px; font-weight: bold;">Add New User</span>
+      <button class="close" onclick="closeAddUserModal()" style="float: right; border: none; background: none; font-size: 20px;">&times;</button>
+      <form method="POST" style="margin-top: 20px;">
+        <div style="margin-bottom: 10px;">
+          <label>Username</label>
+          <input type="text" name="username" required style="width: 100%; padding: 8px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label>Email</label>
+          <input type="email" name="email" required style="width: 100%; padding: 8px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label>Temporary Password</label>
+          <input type="text" name="password" id="userPassword" readonly required style="width: 100%; padding: 8px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label>Role</label>
+          <select name="role" required style="width: 100%; padding: 8px;">
+            <option value="">Select Role</option>
+            <option value="Admin">Admin</option>
+            <option value="Receptionist">Receptionist</option>
+            <option value="Dentist">Dentist</option>
+          </select>
+        </div>
+        <div style="text-align: right; margin-top: 20px;">
+          <button type="button" onclick="closeAddUserModal()" style="padding: 8px 16px; margin-right: 10px;">Cancel</button>
+          <button type="submit" name="add_user" style="padding: 8px 16px; background: var(--accent); color: white; border: none;">Add User</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>

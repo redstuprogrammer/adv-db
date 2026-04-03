@@ -111,8 +111,8 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
 
                 <form class="t-form" method="POST" action="<?php echo h($loginAction); ?>">
                     <div class="t-field">
-                        <label for="username">Email</label>
-                        <input id="username" name="username" type="email" autocomplete="username" required value="<?php echo h((string)($_POST['username'] ?? '')); ?>">
+                        <label for="username">Email / Username</label>
+                        <input id="username" name="username" type="text" autocomplete="username" required value="<?php echo h((string)($_POST['username'] ?? '')); ?>">
                     </div>
                     <div class="t-field">
                         <label for="password">Password</label>

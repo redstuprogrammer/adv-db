@@ -29,21 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
 
     if ($firstName !== '' && $lastName !== '' && $contactNumber !== '') {
-        // Generate username from first and last name
-        $username = strtolower($firstName . '.' . $lastName);
-
-        // Generate a secure random password (fallback for older PHP versions)
-        $rawPassword = '';
-        try {
+        $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+        $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
+        if ($username === '' || $rawPassword === '') {
+            // Fallback
+            $username = strtolower($firstName . '.' . $lastName);
             $rawPassword = bin2hex(random_bytes(8));
-        } catch (Throwable $e) {
-            if (function_exists('openssl_random_pseudo_bytes')) {
-                $rawPassword = bin2hex(openssl_random_pseudo_bytes(8));
-            } else {
-                $rawPassword = substr(bin2hex(uniqid((string)mt_rand(), true)), 0, 16);
-            }
         }
-
         $password = password_hash($rawPassword, PASSWORD_BCRYPT);
 
         $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -394,6 +386,10 @@ if (isset($_GET['view_patient_id'])) {
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">
@@ -492,6 +488,17 @@ if (isset($_GET['view_patient_id'])) {
           <div class="form-group">
             <label>Email</label>
             <input type="email" name="email">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group required">
+            <label>Username</label>
+            <input type="text" name="username" id="username" required>
+          </div>
+          <div class="form-group required">
+            <label>Temporary Password</label>
+            <input type="text" name="password" id="password" readonly required>
           </div>
         </div>
 
@@ -619,6 +626,18 @@ if (isset($_GET['view_patient_id'])) {
   <script>
     function openAddPatientModal() {
       document.getElementById('addPatientModal').style.display = 'block';
+      // Generate temporary password
+      const password = generateTempPassword();
+      document.getElementById('password').value = password;
+    }
+
+    function generateTempPassword() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let password = '';
+      for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
     }
 
     function closeAddPatientModal() {

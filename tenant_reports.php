@@ -107,6 +107,50 @@ $tenantId = getCurrentTenantId();
       .module-table tbody tr:hover {
         background: var(--bg);
       }
+
+      .tabs {
+        display: flex;
+        margin-bottom: 20px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .tab {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748b;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+      }
+
+      .tab.active {
+        color: var(--accent);
+        border-bottom-color: var(--accent);
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .badge-created { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+      .badge-updated { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+      .badge-deleted { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
     </style>
 </head>
 <body>
@@ -172,188 +216,230 @@ $tenantId = getCurrentTenantId();
         <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
       </div>
 
-      <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Activity Report</h2>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn-primary" id="exportCsvBtn" type="button" onclick="exportCSV()">Export CSV</button>
-            <button class="btn-primary" id="exportPdfBtn" type="button" onclick="exportPDF()">Export PDF</button>
-          </div>
-        </div>
-        
-        <div class="filters">
-          <input type="date" id="date_from" placeholder="From" />
-          <input type="date" id="date_to" placeholder="To" />
-          <select id="activity_type">
-            <option value="">All Activities</option>
-            <option value="Appointment Scheduled">Appointments</option>
-            <option value="Payment Recorded">Payments</option>
-            <option value="Patient Created">Patients</option>
-            <option value="User Login">Users</option>
-          </select>
-          <button type="button" onclick="applyFilters();">Apply Filter</button>
-        </div>
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="activity">Activity Audit Trail</button>
+        <button class="tab" data-tab="revenue">Revenue Performance</button>
+      </div>
 
-        <table class="module-table">
-          <thead>
-            <tr>
-              <th>Date & Time</th>
-              <th>Activity Type</th>
-              <th>Description</th>
-              <th>User</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>2026-03-20 10:45 AM</td>
-              <td>Appointment Created</td>
-              <td>New appointment scheduled</td>
-              <td>admin</td>
-              <td>Patient: Juan Dela Cruz</td>
-            </tr>
-            <tr>
-              <td>2026-03-20 09:30 AM</td>
-              <td>Payment Recorded</td>
-              <td>Payment collected</td>
-              <td>admin</td>
-              <td>Amount: ₱5,000</td>
-            </tr>
-            <tr>
-              <td>2026-03-19 03:15 PM</td>
-              <td>Patient Updated</td>
-              <td>Contact information updated</td>
-              <td>receptionist</td>
-              <td>Patient: Maria Santos</td>
-            </tr>
-            <tr>
-              <td>2026-03-19 02:00 PM</td>
-              <td>Appointment Confirmed</td>
-              <td>Appointment status changed</td>
-              <td>admin</td>
-              <td>Patient: Pedro Reyes</td>
-            </tr>
-            <tr>
-              <td>2026-03-18 11:20 AM</td>
-              <td>User Login</td>
-              <td>Admin login</td>
-              <td>admin</td>
-              <td>IP: 192.168.1.100</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Activity Audit Trail Tab -->
+      <div class="tab-content active" id="activity">
+        <div class="module-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Activity Audit Trail</h2>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" onclick="exportCSV('activity')">Export CSV</button>
+              <button class="btn-primary" onclick="exportPDF('activity')">Export PDF</button>
+            </div>
+          </div>
+          
+          <div class="filters">
+            <input type="date" id="activity_date_from" />
+            <input type="date" id="activity_date_to" />
+            <select id="activity_type_filter">
+              <option value="">All Types</option>
+              <option value="Created">Created</option>
+              <option value="Updated">Updated</option>
+              <option value="Deleted">Deleted</option>
+            </select>
+            <button type="button" onclick="loadActivityReport()">Apply Filter</button>
+          </div>
+
+          <table class="module-table" id="activity-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Time</th>
+                <th>Date</th>
+                <th>Activity</th>
+                <th>Movement details</th>
+              </tr>
+            </thead>
+            <tbody id="activity-tbody">
+              <?php
+              // Load initial data from tenant_activity_logs
+              $stmt = $conn->prepare("SELECT log_id, log_time, log_date, activity_type, details FROM tenant_activity_logs WHERE tenant_id = ? ORDER BY log_date DESC, log_time DESC LIMIT 10");
+              $stmt->bind_param('i', $tenantId);
+              $stmt->execute();
+              $result = $stmt->get_result();
+              while ($row = $result->fetch_assoc()) {
+                $badge = '';
+                switch ($row['activity_type']) {
+                  case 'Created': $badge = '<span class="badge badge-created">Created</span>'; break;
+                  case 'Updated': $badge = '<span class="badge badge-updated">Updated</span>'; break;
+                  case 'Deleted': $badge = '<span class="badge badge-deleted">Deleted</span>'; break;
+                  default: $badge = $row['activity_type'];
+                }
+                echo "<tr>
+                  <td>{$row['log_id']}</td>
+                  <td>{$row['log_time']}</td>
+                  <td>{$row['log_date']}</td>
+                  <td>$badge</td>
+                  <td>{$row['details']}</td>
+                </tr>";
+              }
+              $stmt->close();
+              ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Revenue Performance Tab -->
+      <div class="tab-content" id="revenue">
+        <div class="module-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Revenue Performance</h2>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" onclick="exportCSV('revenue')">Export CSV</button>
+              <button class="btn-primary" onclick="exportPDF('revenue')">Export PDF</button>
+            </div>
+          </div>
+          
+          <div class="filters">
+            <input type="date" id="revenue_date_from" />
+            <input type="date" id="revenue_date_to" />
+            <button type="button" onclick="loadRevenueReport()">Apply Filter</button>
+          </div>
+
+          <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold;">
+            Total Revenue: ₱0
+          </div>
+
+          <table class="module-table" id="revenue-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Patient Name</th>
+                <th>Service Rendered</th>
+                <th>Amount Paid</th>
+              </tr>
+            </thead>
+            <tbody id="revenue-tbody">
+              <?php
+              // Load initial data
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.service, py.amount, py.status, a.date as appointment_date 
+                                      FROM payment py 
+                                      JOIN appointment a ON py.appointment_id = a.appointment_id 
+                                      JOIN patient p ON a.patient_id = p.patient_id 
+                                      WHERE py.tenant_id = ? AND py.status = 'Paid' 
+                                      ORDER BY a.date DESC LIMIT 10");
+              $stmt->bind_param('i', $tenantId);
+              $stmt->execute();
+              $result = $stmt->get_result();
+              $total = 0;
+              while ($row = $result->fetch_assoc()) {
+                $total += $row['amount'];
+                echo "<tr>
+                  <td>{$row['appointment_date']}</td>
+                  <td>{$row['first_name']} {$row['last_name']}</td>
+                  <td>{$row['service']}</td>
+                  <td>₱{$row['amount']}</td>
+                </tr>";
+              }
+              $stmt->close();
+              echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
+              ?>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    let tenantReportData = [];
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
 
-    function isValidTenantDateRange() {
-      const dateFrom = document.getElementById('date_from').value;
-      const dateTo = document.getElementById('date_to').value;
-      if (dateFrom && dateTo && dateTo < dateFrom) {
-        alert('End date cannot be earlier than start date.');
-        return false;
-      }
-      return true;
-    }
+    function loadActivityReport() {
+      const dateFrom = document.getElementById('activity_date_from').value;
+      const dateTo = document.getElementById('activity_date_to').value;
+      const type = document.getElementById('activity_type_filter').value;
 
-    function applyFilters() {
-      if (!isValidTenantDateRange()) return;
-
-      const dateFrom = document.getElementById('date_from').value;
-      const dateTo = document.getElementById('date_to').value;
-      const activityType = document.getElementById('activity_type').value;
-
-      fetch(`get_filtered_reports.php?type=tenant_activity&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}&activity_type=${encodeURIComponent(activityType)}`)
+      fetch(`get_filtered_reports.php?type=tenant_activity&date_from=${dateFrom}&date_to=${dateTo}&activity_type=${type}`)
         .then(resp => resp.json())
         .then(data => {
           if (data.success) {
-            tenantReportData = data.data;
-            renderTenantReport(tenantReportData);
+            renderActivityTable(data.data);
           } else {
-            alert('Report failed: ' + data.error);
+            alert('Error: ' + data.error);
           }
         })
-        .catch(err => {
-          console.error(err);
-          alert('Unable to run report at this time.');
-        });
+        .catch(err => console.error(err));
     }
 
-    function renderTenantReport(rows) {
-      const container = document.getElementById('report-results');
-      if (!rows || rows.length === 0) {
-        container.innerHTML = '<p style="color: #a855f7;">No matching records. Try a different date range or activity type.</p>';
-        return;
-      }
-
-      let totalCount = rows.reduce((sum, r) => sum + (Number(r.Count) || 0), 0);
-      const summaryHtml = `
-        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-bottom: 12px; display:flex; gap:16px; flex-wrap: wrap;">
-          <div><strong>Rows</strong><br>${rows.length}</div>
-          <div><strong>Total Units</strong><br>${totalCount}</div>
-          <div><strong>Filtered by</strong><br>${document.getElementById('activity_type').value || 'All Activities'}</div>
-        </div>`;
-
-      let html = summaryHtml + '<table class="module-table"><thead><tr>';
-      Object.keys(rows[0]).forEach(k => html += `<th>${k}</th>`);
-      html += '</tr></thead><tbody>';
-      rows.forEach(row => {
-        html += '<tr>';
-        Object.values(row).forEach(val => html += `<td>${val}</td>`);
-        html += '</tr>';
-      });
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
-
-    function exportCSV() {
-      if (!tenantReportData || tenantReportData.length === 0) {
-        alert('Please run a report first.');
-        return;
-      }
-
-      const csv = [Object.keys(tenantReportData[0]).join(','), ...tenantReportData.map(r => Object.values(r).map(v => `"${v}"`).join(','))].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'tenant_report.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function exportPDF() {
-      if (!tenantReportData || tenantReportData.length === 0) {
-        alert('Please run a report first.');
-        return;
-      }
-
-      fetch('generate_pdf.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: tenantReportData, title: 'Tenant Activity Report' })
-      }).then(response => {
-        if (!response.ok) throw new Error('PDF generation failed');
-        return response.blob();
-      }).then(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'tenant_report.pdf';
-        a.click();
-        URL.revokeObjectURL(url);
-      }).catch(error => {
-        console.error(error);
-        alert('Unable to export PDF.');
+    function renderActivityTable(data) {
+      const tbody = document.getElementById('activity-tbody');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        const badge = getBadge(row.activity_type);
+        tbody.innerHTML += `<tr>
+          <td>${row.log_id}</td>
+          <td>${row.log_time}</td>
+          <td>${row.log_date}</td>
+          <td>${badge}</td>
+          <td>${row.details}</td>
+        </tr>`;
       });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-      applyFilters();
-    });
+    function getBadge(type) {
+      switch (type) {
+        case 'Created': return '<span class="badge badge-created">Created</span>';
+        case 'Updated': return '<span class="badge badge-updated">Updated</span>';
+        case 'Deleted': return '<span class="badge badge-deleted">Deleted</span>';
+        default: return type;
+      }
+    }
+
+    function loadRevenueReport() {
+      const dateFrom = document.getElementById('revenue_date_from').value;
+      const dateTo = document.getElementById('revenue_date_to').value;
+
+      fetch(`get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`)
+        .then(resp => resp.json())
+        .then(data => {
+          if (data.success) {
+            renderRevenueTable(data.data);
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function renderRevenueTable(data) {
+      const tbody = document.getElementById('revenue-tbody');
+      tbody.innerHTML = '';
+      let total = 0;
+      data.forEach(row => {
+        total += parseFloat(row.amount);
+        tbody.innerHTML += `<tr>
+          <td>${row.appointment_date}</td>
+          <td>${row.first_name} ${row.last_name}</td>
+          <td>${row.service}</td>
+          <td>₱${row.amount}</td>
+        </tr>`;
+      });
+      document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toFixed(2);
+    }
+
+    function exportCSV(type) {
+      // Implement CSV export
+      alert('CSV export for ' + type + ' coming soon');
+    }
+
+    function exportPDF(type) {
+      // Implement PDF export
+      alert('PDF export for ' + type + ' coming soon');
+    }
   </script>
 </body>
 </html>

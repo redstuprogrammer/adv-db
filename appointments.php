@@ -292,6 +292,10 @@ $stmt->close();
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">

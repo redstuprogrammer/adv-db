@@ -328,7 +328,7 @@ require_once __DIR__ . '/subscription_tiers.php';
             </div>
             <div style="padding: 20px;">
                 <button class="sa-btn" onclick="exportSalesPDF()">Export PDF Report</button>
-                <button class="sa-btn sa-btn-outline" onclick="exportSalesCSV()">Export CSV Data</button>
+                <button class="sa-btn" onclick="exportSalesCSV()">Export CSV Data</button>
             </div>
         </div>
 

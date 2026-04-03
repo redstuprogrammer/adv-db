@@ -276,6 +276,10 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
           </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
         </div>
       </div>
 
@@ -371,27 +375,6 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
         </div>
       </div>
 
-      <!-- Core Modules -->
-      <div style="margin-bottom: 32px;">
-        <h2 style="font-size: 16px; font-weight: 700; color: var(--dashboard-accent); margin-bottom: 16px;">Core Modules</h2>
-        <div class="modules-grid">
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">Patients</div>
-            <div class="module-desc">Manage patient records and history.</div>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">Appointments</div>
-            <div class="module-desc">Schedule and track appointments.</div>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">Billing</div>
-            <div class="module-desc">Create and manage invoices/payments.</div>
-          </a>
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
-            <div class="module-title">Staff & Users</div>
-            <div class="module-desc">Manage user roles and permissions.</div>
-          </a>
-        </div>
       </div>
 
     </div>
@@ -419,7 +402,7 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
       dayHeaders.forEach(day => {
         const header = document.createElement('div');
         header.textContent = day;
-        header.style.cssText = 'text-align: center; font-weight: 700; color: var(--dashboard-accent); font-size: 12px; padding: 8px; border-bottom: 1px solid var(--dashboard-border); grid-column: 1 / -1;';
+        header.style.cssText = 'text-align: center; font-weight: 700; color: var(--dashboard-accent); font-size: 12px; padding: 8px; border-bottom: 1px solid var(--dashboard-border);';
         calendarDiv.appendChild(header);
       });
       
