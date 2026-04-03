@@ -34,18 +34,15 @@ $receptionistName = $_SESSION['username'];
 $query = "SELECT 
             a.appointment_id, 
             a.appointment_date, 
-            a.appointment_time, 
             p.first_name, 
             p.last_name, 
-            COALESCE(s.service_name, 'Unassigned') AS service_name, 
             d.last_name AS d_last, 
             a.status 
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id 
-          LEFT JOIN service s ON a.service_id = s.service_id 
           LEFT JOIN dentist d ON a.dentist_id = d.dentist_id
           WHERE a.tenant_id = ?
-          ORDER BY a.appointment_date DESC, a.appointment_time ASC";
+          ORDER BY a.appointment_date DESC, a.appointment_id ASC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
@@ -191,10 +188,9 @@ if ($stmt) {
         <table class="queue-table">
           <thead>
             <tr>
-              <th>Time & Date</th>
+              <th>Date</th>
               <th>Patient</th>
               <th>Dentist</th>
-              <th>Service</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -203,13 +199,9 @@ if ($stmt) {
             <?php if ($result && $result->num_rows > 0): ?>
               <?php while($row = $result->fetch_assoc()): ?>
                 <tr>
-                  <td>
-                    <span class="time-badge"><?php echo date('h:i A', strtotime($row['appointment_time'])); ?></span>
-                    <div style="font-size: 11px; color: #64748b; margin-top:4px;"><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></div>
-                  </td>
+                  <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
                   <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
                   <td>Dr. <?php echo h($row['d_last']); ?></td>
-                  <td><?php echo h($row['service_name']); ?></td>
                   <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
                   <td>
                     <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>

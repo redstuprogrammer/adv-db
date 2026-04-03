@@ -69,13 +69,12 @@ if ($stmt) {
    ARRIVAL LIST (QUEUE)
 ========================= */
 $queueResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_time, p.first_name, p.last_name, s.service_name, d.last_name AS d_last, a.status 
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_name, d.last_name AS d_last, a.status, a.appointment_date 
                FROM appointment a 
                JOIN patient p ON a.patient_id = p.patient_id 
-               JOIN service s ON a.service_id = s.service_id 
                JOIN dentist d ON a.dentist_id = d.dentist_id
                WHERE a.tenant_id = ? AND a.appointment_date = ? 
-               ORDER BY a.appointment_time ASC");
+               ORDER BY a.appointment_id ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -349,14 +348,12 @@ if ($stmt) {
 
       <!-- Queue Section -->
       <div class="queue-section">
-        <h2 style="margin-bottom: 16px; color: var(--dashboard-accent);">Today's Patient Arrival List</h2>
+        <h2 style="margin-bottom: 16px; color: var(--dashboard-accent);">Today's Patient Appointment Queue</h2>
         <table class="queue-table">
           <thead>
             <tr>
-              <th>Time</th>
               <th>Patient</th>
               <th>Dentist</th>
-              <th>Service</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -365,10 +362,8 @@ if ($stmt) {
             <?php if ($queueResult && $queueResult->num_rows > 0): ?>
               <?php while($row = $queueResult->fetch_assoc()): ?>
                 <tr>
-                  <td><span class="time-badge"><?php echo date('h:i A', strtotime($row['appointment_time'])); ?></span></td>
                   <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
                   <td>Dr. <?php echo h($row['d_last']); ?></td>
-                  <td><?php echo h($row['service_name']); ?></td>
                   <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
                   <td><a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>
                 </tr>

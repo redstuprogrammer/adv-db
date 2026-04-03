@@ -152,7 +152,7 @@ try {
             $data[] = [$type . ' Activities', $count];
         }
     } elseif ($type === 'revenue') {
-        $query = "SELECT p.first_name, p.last_name, py.service, py.amount, a.date as appointment_date
+        $query = "SELECT p.first_name, p.last_name, py.service, py.amount, a.appointment_date as appointment_date
                   FROM payment py
                   JOIN appointment a ON py.appointment_id = a.appointment_id
                   JOIN patient p ON a.patient_id = p.patient_id
@@ -166,15 +166,15 @@ try {
         }
 
         if ($date_from) {
-            $query .= " AND a.date >= ?";
+            $query .= " AND a.appointment_date >= ?";
             $params[] = $date_from;
         }
         if ($date_to) {
-            $query .= " AND a.date <= ?";
+            $query .= " AND a.appointment_date <= ?";
             $params[] = $date_to;
         }
 
-        $query .= " ORDER BY a.date DESC";
+        $query .= " ORDER BY a.appointment_date DESC";
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);

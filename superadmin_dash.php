@@ -523,10 +523,13 @@ require_once __DIR__ . '/subscription_tiers.php';
 <div class="container">
     <aside class="sidebar">
         <div class="sidebar-top">
-            <div class="logo-white-box">
+            <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
                 <div style="font-size: 32px;">🏥</div>
+                <div>
+                    <div class="sidebar-logo-text" style="margin: 0;">OralSync</div>
+                    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
+                </div>
             </div>
-            <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
@@ -930,6 +933,30 @@ require_once __DIR__ . '/subscription_tiers.php';
 <div id="sa-toast" class="sa-toast"></div>
 
 <script>
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+        const dropdown = document.querySelector('.menu-dropdown');
+        
+        if (dropdown && !dropdown.contains(e.target)) {
+            dropdownItems.style.display = 'none';
+            if (dropdownToggle) dropdownToggle.classList.remove('active');
+        }
+    });
+
+    // Close dropdown when clicking on external links
+    document.querySelectorAll('a:not([data-section])').forEach(link => {
+        if (link.hasAttribute('href') && !link.classList.contains('menu-dropdown-item')) {
+            link.addEventListener('click', function() {
+                const dropdownItems = document.querySelector('.menu-dropdown-items');
+                const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+                if (dropdownItems) dropdownItems.style.display = 'none';
+                if (dropdownToggle) dropdownToggle.classList.remove('active');
+            });
+        }
+    });
+
     // Sidebar navigation between sections
     (function () {
         const menuItems = document.querySelectorAll('.menu-item[data-section]');
@@ -939,6 +966,12 @@ require_once __DIR__ . '/subscription_tiers.php';
             item.addEventListener('click', function (e) {
                 e.preventDefault();
                 const target = this.getAttribute('data-section');
+
+                // Close dropdown
+                const dropdownItems = document.querySelector('.menu-dropdown-items');
+                const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+                if (dropdownItems) dropdownItems.style.display = 'none';
+                if (dropdownToggle) dropdownToggle.classList.remove('active');
 
                 menuItems.forEach(mi => mi.classList.remove('active'));
                 this.classList.add('active');

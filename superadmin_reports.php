@@ -358,20 +358,20 @@ require_once __DIR__ . '/tenant_utils.php';
 <div class="container">
     <aside class="sidebar">
         <div class="sidebar-top">
-            <div class="logo-white-box">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-                </svg>
+            <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                <div style="font-size: 32px;">🏥</div>
+                <div>
+                    <div class="sidebar-logo-text" style="margin: 0;">OralSync</div>
+                    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
+                </div>
             </div>
-            <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
                 <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
                 <div class="menu-dropdown" style="width: 100%;">
                     <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
-                    <div class="menu-dropdown-items" style="display: flex; flex-direction: column; width: 100%; overflow-x: hidden;">
+                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
                         <a href="superadmin_reports.php" class="menu-dropdown-item" style="font-weight: 600; border-bottom: 2px solid #22c55e;"><span>📈</span> Tenant Reports</a>
                         <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
                     </div>
@@ -624,6 +624,30 @@ require_once __DIR__ . '/tenant_utils.php';
     </div>
 
     <script>
+        // Close dropdown when clicking outside or on external links
+        document.addEventListener('click', function(e) {
+            const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const dropdownItems = document.querySelector('.menu-dropdown-items');
+            const dropdown = document.querySelector('.menu-dropdown');
+            
+            if (dropdown && !dropdown.contains(e.target)) {
+                dropdownItems.style.display = 'none';
+                if (dropdownToggle) dropdownToggle.classList.remove('active');
+            }
+        });
+
+        // Close dropdown when clicking on external links
+        document.querySelectorAll('a:not([data-section])').forEach(link => {
+            if (link.hasAttribute('href') && !link.classList.contains('menu-dropdown-item')) {
+                link.addEventListener('click', function() {
+                    const dropdownItems = document.querySelector('.menu-dropdown-items');
+                    const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                });
+            }
+        });
+
         // Tab functionality
         document.addEventListener('DOMContentLoaded', function() {
             const tabs = document.querySelectorAll('.sa-tab');

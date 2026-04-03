@@ -349,12 +349,12 @@ $tenantId = getCurrentTenantId();
             <tbody id="revenue-tbody">
               <?php
               // Load initial data
-              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.service, py.amount, py.status, a.date as appointment_date 
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.service, py.amount, py.status, a.appointment_date as appointment_date 
                                       FROM payment py 
                                       JOIN appointment a ON py.appointment_id = a.appointment_id 
                                       JOIN patient p ON a.patient_id = p.patient_id 
                                       WHERE py.tenant_id = ? AND py.status = 'Paid' 
-                                      ORDER BY a.date DESC LIMIT 10");
+                                      ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
               $stmt->execute();
               $result = $stmt->get_result();
