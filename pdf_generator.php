@@ -4,7 +4,7 @@ require_once __DIR__ . '/vendor/tecnickcom/tcpdf/tcpdf.php';
 class OralSyncPDF extends TCPDF {
     public function Header() {
         // Logo
-        $this->Image(__DIR__ . '/logo.png', 10, 10, 30, '', 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
+        $this->Image(__DIR__ . '/logo.png', 10, 10, 30, 0, 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
 
         // Title
         $this->SetFont('helvetica', 'B', 16);
