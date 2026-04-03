@@ -38,38 +38,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'This clinic is currently inactive. Please contact OralSync support.';
     } elseif ($username === '' || $password === '') {
         $error = 'Please enter your email and password.';
-    } elseif (!password_verify($password, (string)$tenant['password'])) {
-        $error = 'Incorrect email or password.';
     } else {
-        if (!isset($_SESSION['tenant_context']) || !is_array($_SESSION['tenant_context'])) {
-            $_SESSION['tenant_context'] = [];
+        $authenticated = false;
+        $userRole = '';
+        $userData = null;
+
+        // First, try tenant owner login
+        if (password_verify($password, (string)$tenant['password'])) {
+            $authenticated = true;
+            $userRole = 'Admin';
+            $userData = [
+                'user_id' => null, // owner has no user_id
+                'username' => $username,
+                'email' => (string)$tenant['contact_email'],
+                'role' => 'Admin'
+            ];
+        } else {
+            // Fallback: check users table for receptionist/dentist
+            $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
+                mysqli_stmt_execute($stmt);
+                $res = mysqli_stmt_get_result($stmt);
+                $user = $res ? mysqli_fetch_assoc($res) : null;
+                if ($user && password_verify($password, (string)$user['password'])) {
+                    $authenticated = true;
+                    $userRole = (string)$user['role'];
+                    $userData = $user;
+                }
+            }
         }
 
-        $context = [
-            'tenant_id' => (int)$tenant['tenant_id'],
-            'tenant_slug' => (string)$tenant['subdomain_slug'],
-            'tenant_name' => (string)$tenant['company_name'],
-            'tenant_email' => (string)$tenant['contact_email'],
-            'tenant_username' => $username,
-        ];
+        if (!$authenticated) {
+            $error = 'Incorrect email or password.';
+        } else {
+            if (!isset($_SESSION['tenant_context']) || !is_array($_SESSION['tenant_context'])) {
+                $_SESSION['tenant_context'] = [];
+            }
 
-        $_SESSION['tenant_context'][$tenant['subdomain_slug']] = $context;
-        $_SESSION['tenant_slug_current'] = $tenant['subdomain_slug'];
+            $context = [
+                'tenant_id' => (int)$tenant['tenant_id'],
+                'tenant_slug' => (string)$tenant['subdomain_slug'],
+                'tenant_name' => (string)$tenant['company_name'],
+                'tenant_email' => (string)$tenant['contact_email'],
+                'tenant_username' => $userData['username'],
+                'role' => $userRole,
+                'user_id' => $userData['user_id'],
+                'user_email' => $userData['email']
+            ];
 
-        // Mirror legacy fields for existing pages
-        $_SESSION['tenant_id'] = $context['tenant_id'];
-        $_SESSION['tenant_slug'] = $context['tenant_slug'];
-        $_SESSION['tenant_name'] = $context['tenant_name'];
-        $_SESSION['tenant_email'] = $context['tenant_email'];
-        $_SESSION['tenant_username'] = $context['tenant_username'];
+            $_SESSION['tenant_context'][$tenant['subdomain_slug']] = $context;
+            $_SESSION['tenant_slug_current'] = $tenant['subdomain_slug'];
 
-        // Log tenant login activity
-        logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $username, 'tenant_owner', 'Tenant Owner');
+            // Mirror legacy fields for existing pages
+            $_SESSION['tenant_id'] = $context['tenant_id'];
+            $_SESSION['tenant_slug'] = $context['tenant_slug'];
+            $_SESSION['tenant_name'] = $context['tenant_name'];
+            $_SESSION['tenant_email'] = $context['tenant_email'];
+            $_SESSION['tenant_username'] = $context['tenant_username'];
+            $_SESSION['role'] = $context['role'];
+            $_SESSION['user_id'] = $context['user_id'];
+            $_SESSION['email'] = $context['user_email'];
 
-        $dashboardUrl = getTenantDashboardUrl((string)$tenant['subdomain_slug']);
-        error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
-        header('Location: ' . $dashboardUrl);
-        exit;
+            // Log activity
+            $activityType = ucfirst(strtolower($userRole)) . ' Login';
+            logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $userData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+
+            $dashboardUrl = getRoleDashboardUrl($userRole, (string)$tenant['subdomain_slug']);
+            error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
+            header('Location: ' . $dashboardUrl);
+            exit;
+        }
     }
 }
 

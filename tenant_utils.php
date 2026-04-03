@@ -44,6 +44,20 @@ function getTenantDashboardUrl(string $slug): string {
     return $url;
 }
 
+function getRoleDashboardUrl(string $role, string $slug): string {
+    $baseUrl = getAbsoluteBaseUrl();
+    switch (strtolower($role)) {
+        case 'admin':
+            return $baseUrl . '/tenant_dashboard.php?tenant=' . rawurlencode($slug);
+        case 'receptionist':
+            return $baseUrl . '/receptionist_dashboard.php?tenant=' . rawurlencode($slug);
+        case 'dentist':
+            return $baseUrl . '/dentist_dashboard.php?tenant=' . rawurlencode($slug);
+        default:
+            return $baseUrl . '/tenant_dashboard.php?tenant=' . rawurlencode($slug); // fallback
+    }
+}
+
 function getTenantContext(string $slug = ''): ?array {
     if ($slug === '') {
         $slug = $_GET['tenant'] ?? $_SESSION['tenant_slug_current'] ?? $_SESSION['tenant_slug'] ?? '';
