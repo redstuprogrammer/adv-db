@@ -362,12 +362,15 @@ if (isset($_GET['view_patient_id'])) {
     <!-- Sidebar Navigation -->
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
+        <div class="logo-white-box">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">OralSync</div>
+          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
         </div>
       </div>
 
@@ -405,6 +408,10 @@ if (isset($_GET['view_patient_id'])) {
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
+          </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
           </a>
         </div>
       </div>
@@ -448,11 +455,15 @@ if (isset($_GET['view_patient_id'])) {
               <p style="font-size: 12px;">Click "Add Patient" to register your first patient.</p>
             </div>
           <?php else: ?>
-            <?php foreach ($patients as $patient): ?>
+            <?php foreach ($patients as $patient):
+                  $birthdate = $patient['birthdate'] ?? '';
+                  $age = ($birthdate && strtotime($birthdate)) ? floor((time() - strtotime($birthdate)) / (365.25 * 24 * 3600)) : 'N/A';
+                  $gender = !empty($patient['gender']) ? h($patient['gender']) : 'N/A';
+            ?>
               <div class="patient-item" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
                 <div class="patient-info">
                   <h3><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></h3>
-                  <p>ID: P<?php echo str_pad($patient['patient_id'], 3, '0', STR_PAD_LEFT); ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
+                  <p>Age: <?php echo $age; ?> | Gender: <?php echo $gender; ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
                 </div>
                 <div class="patient-actions">
                   <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View</a>

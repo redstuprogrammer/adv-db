@@ -358,17 +358,23 @@ require_once __DIR__ . '/tenant_utils.php';
 <div class="container">
     <aside class="sidebar">
         <div class="sidebar-top">
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-icon">🏥</div>
-                <div class="sidebar-logo-text">OralSync</div>
+            <div class="logo-white-box">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+                </svg>
             </div>
+            <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
                 <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item active"><span>📊</span> Reports</a>
-                <div class="menu-dropdown" style="display: flex; flex-direction: column; margin-left: 20px;">
-                    <a href="superadmin_sales_report.php" class="menu-item" style="padding-left: 16px;"><span>💰</span> Sales Reports</a>
+                <div class="menu-dropdown" style="width: 100%;">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: flex; flex-direction: column; width: 100%; overflow-x: hidden;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item" style="font-weight: 600; border-bottom: 2px solid #22c55e;"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
+                    </div>
                 </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
@@ -643,6 +649,16 @@ require_once __DIR__ . '/tenant_utils.php';
                         alert('Date To cannot be earlier than Date From.');
                         this.value = dateFromEl.value;
                     }
+                });
+            }
+
+            const reportsDropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const reportsDropdownItems = document.querySelector('.menu-dropdown-items');
+            if (reportsDropdownToggle && reportsDropdownItems) {
+                reportsDropdownToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const open = reportsDropdownItems.style.display === 'flex';
+                    reportsDropdownItems.style.display = open ? 'none' : 'flex';
                 });
             }
         });

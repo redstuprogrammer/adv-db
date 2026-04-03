@@ -518,17 +518,23 @@ require_once __DIR__ . '/subscription_tiers.php';
 <div class="container">
     <aside class="sidebar">
         <div class="sidebar-top">
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-icon">🏥</div>
-                <div class="sidebar-logo-text">OralSync</div>
+            <div class="logo-white-box">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+                </svg>
             </div>
+            <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <div class="menu-dropdown" style="display: none; flex-direction: column; margin-left: 20px;">
-                    <a href="superadmin_sales_report.php" class="menu-item" style="padding-left: 16px;"><span>💰</span> Sales Reports</a>
+                <div class="menu-dropdown" style="width: 100%;">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
+                    </div>
                 </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
@@ -978,17 +984,6 @@ require_once __DIR__ . '/subscription_tiers.php';
                 dropdownItems.style.display = isVisible ? 'none' : 'flex';
                 dropdownItems.style.flexDirection = 'column';
                 dropdownToggle.classList.toggle('active');
-            });
-        }
-
-        // New dropdown for Reports dropdown
-        const reportsLink = document.querySelector('.menu-item[href="superadmin_reports.php"]');
-        const reportsDropdown = reportsLink?.nextElementSibling;
-        if (reportsLink && reportsDropdown && reportsDropdown.classList.contains('menu-dropdown')) {
-            reportsLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                const isVisible = reportsDropdown.style.display !== 'none';
-                reportsDropdown.style.display = isVisible ? 'none' : 'flex';
             });
         }
     })();

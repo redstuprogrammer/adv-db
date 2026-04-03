@@ -600,9 +600,12 @@ require_once __DIR__ . '/subscription_tiers.php';
                     <?php
                     try {
                         $tiers = getAllTiers();
+                        $tierTotals = [];
                         foreach ($tiers as $tierKey => $tier) {
-                            $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = '" . $pdo->quote($tierKey) . "'");
-                            $total = $stmt->fetch()['total'];
+                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = ?");
+                            $stmt->execute([$tierKey]);
+                            $row = $stmt->fetch();
+                            $total = $row['total'] ?? 0;
                             echo $total . ",";
                         }
                     } catch (Exception $e) {
@@ -623,6 +626,8 @@ require_once __DIR__ . '/subscription_tiers.php';
                 }
             }
         }
+    });
+
     function exportSalesPDF() {
         // Enhanced professional report with charts and detailed data
         const salesData = [

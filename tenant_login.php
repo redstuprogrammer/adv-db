@@ -41,11 +41,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!password_verify($password, (string)$tenant['password'])) {
         $error = 'Incorrect email or password.';
     } else {
-        $_SESSION['tenant_id'] = (int)$tenant['tenant_id'];
-        $_SESSION['tenant_slug'] = (string)$tenant['subdomain_slug'];
-        $_SESSION['tenant_name'] = (string)$tenant['company_name'];
-        $_SESSION['tenant_email'] = (string)$tenant['contact_email'];
-        $_SESSION['tenant_username'] = $username;
+        if (!isset($_SESSION['tenant_context']) || !is_array($_SESSION['tenant_context'])) {
+            $_SESSION['tenant_context'] = [];
+        }
+
+        $context = [
+            'tenant_id' => (int)$tenant['tenant_id'],
+            'tenant_slug' => (string)$tenant['subdomain_slug'],
+            'tenant_name' => (string)$tenant['company_name'],
+            'tenant_email' => (string)$tenant['contact_email'],
+            'tenant_username' => $username,
+        ];
+
+        $_SESSION['tenant_context'][$tenant['subdomain_slug']] = $context;
+        $_SESSION['tenant_slug_current'] = $tenant['subdomain_slug'];
+
+        // Mirror legacy fields for existing pages
+        $_SESSION['tenant_id'] = $context['tenant_id'];
+        $_SESSION['tenant_slug'] = $context['tenant_slug'];
+        $_SESSION['tenant_name'] = $context['tenant_name'];
+        $_SESSION['tenant_email'] = $context['tenant_email'];
+        $_SESSION['tenant_username'] = $context['tenant_username'];
 
         // Log tenant login activity
         logActivity($conn, (int)$tenant['tenant_id'], 'Tenant Login', 'Tenant logged in', $username, 'tenant_owner', 'Tenant Owner');

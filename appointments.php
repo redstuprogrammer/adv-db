@@ -23,12 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
     $dentistId = isset($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : 0;
     $appointmentDate = isset($_POST['appointment_date']) ? trim($_POST['appointment_date']) : '';
-    $status = isset($_POST['status']) ? trim($_POST['status']) : 'pending';
+    $status = 'pending'; // Default status; user should not set this manually
 
     if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '') {
         $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, status) VALUES (?, ?, ?, ?, ?)');
-        $stmt->bind_param('iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);
-        if ($stmt->execute()) {
+        $stmt->bind_param('iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);        if ($stmt->execute()) {
             $successMsg = 'Appointment scheduled successfully!';
             logTenantActivity($conn, $tenantId, 'Appointment Created', "New appointment scheduled for patient ID: $patientId");
         }
@@ -38,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
 
 // Fetch appointments
 $appointments = [];
-$stmt = $conn->prepare('SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, p.first_name, p.last_name FROM appointment a LEFT JOIN patient p ON a.patient_id = p.patient_id WHERE a.tenant_id = ? ORDER BY a.appointment_date DESC');
+$stmt = $conn->prepare('SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, p.first_name AS patient_first, p.last_name AS patient_last, u.username AS dentist_name FROM appointment a LEFT JOIN patient p ON a.patient_id = p.patient_id LEFT JOIN users u ON a.dentist_id = u.user_id WHERE a.tenant_id = ? ORDER BY a.appointment_date DESC');
 $stmt->bind_param('i', $tenantId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -268,12 +267,15 @@ $stmt->close();
     <!-- Sidebar Navigation -->
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
+        <div class="logo-white-box">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">OralSync</div>
+          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
         </div>
       </div>
 
@@ -311,6 +313,10 @@ $stmt->close();
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
+          </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
           </a>
         </div>
       </div>
@@ -368,8 +374,8 @@ $stmt->close();
             <?php else: ?>
               <?php foreach ($appointments as $appt): ?>
                 <tr>
-                  <td><?php echo h($appt['first_name'] . ' ' . $appt['last_name']); ?></td>
-                  <td>Dr. John Smith</td>
+                  <td><?php echo h(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')); ?></td>
+                  <td><?php echo h($appt['dentist_name'] ?: 'N/A'); ?></td>
                   <td><?php echo h(date('M d, Y g:i A', strtotime($appt['appointment_date']))); ?></td>
                   <td><span class="badge badge-<?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
@@ -411,21 +417,23 @@ $stmt->close();
           <label>Dentist *</label>
           <select name="dentist_id" required>
             <option value="">Select Dentist</option>
-            <option value="1">Dr. John Smith</option>
-            <option value="2">Dr. Maria Johnson</option>
+            <?php
+            $dentistStmt = $conn->prepare('SELECT user_id, username FROM users WHERE tenant_id = ? AND LOWER(role) IN ("dentist", "doctor") ORDER BY username');
+            if ($dentistStmt) {
+                $dentistStmt->bind_param('i', $tenantId);
+                $dentistStmt->execute();
+                $dentistResult = $dentistStmt->get_result();
+                while ($d = $dentistResult->fetch_assoc()) {
+                    echo '<option value="' . (int)$d['user_id'] . '">' . h($d['username']) . '</option>';
+                }
+                $dentistStmt->close();
+            }
+            ?>
           </select>
         </div>
         <div class="form-group">
           <label>Appointment Date & Time *</label>
           <input type="datetime-local" name="appointment_date" required>
-        </div>
-        <div class="form-group">
-          <label>Status</label>
-          <select name="status">
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
@@ -437,6 +445,12 @@ $stmt->close();
 
   <script>
     function openScheduleModal() {
+      const dateInput = document.querySelector('input[name="appointment_date"]');
+      if (dateInput) {
+        const now = new Date();
+        const localIso = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,16);
+        dateInput.min = localIso;
+      }
       document.getElementById('scheduleModal').style.display = 'block';
     }
 

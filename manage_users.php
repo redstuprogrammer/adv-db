@@ -159,12 +159,15 @@ try {
     <!-- Sidebar Navigation -->
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
+        <div class="logo-white-box">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">OralSync</div>
+          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
         </div>
       </div>
 
@@ -202,6 +205,10 @@ try {
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
+          </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
           </a>
         </div>
       </div>

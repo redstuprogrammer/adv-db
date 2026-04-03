@@ -2,6 +2,10 @@
 require_once __DIR__ . '/vendor/tecnickcom/tcpdf/tcpdf.php';
 
 class OralSyncPDF extends TCPDF {
+    public function __construct($orientation = PDF_PAGE_ORIENTATION, $unit = PDF_UNIT, $format = PDF_PAGE_FORMAT, $unicode = true, $encoding = 'UTF-8', $diskcache = false, $pdfa = false) {
+        parent::__construct($orientation, $unit, $format, $unicode, $encoding, $diskcache, $pdfa);
+    }
+
     public function Header() {
         // Logo
         $this->Image(__DIR__ . '/logo.png', 10, 10, 30, 0, 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
