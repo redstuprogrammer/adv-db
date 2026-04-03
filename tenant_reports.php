@@ -175,20 +175,23 @@ $tenantId = getCurrentTenantId();
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Activity Report</h2>
-          <a href="#" class="btn-primary" onclick="alert('Export Report functionality coming soon!'); return false;">Export Report</a>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-primary" id="exportCsvBtn" type="button" onclick="exportCSV()">Export CSV</button>
+            <button class="btn-primary" id="exportPdfBtn" type="button" onclick="exportPDF()">Export PDF</button>
+          </div>
         </div>
         
         <div class="filters">
-          <input type="date" placeholder="From" onchange="alert('Filter functionality coming soon!');" />
-          <input type="date" placeholder="To" onchange="alert('Filter functionality coming soon!');" />
-          <select onchange="alert('Filter functionality coming soon!');">
-            <option>All Activities</option>
-            <option>Appointments</option>
-            <option>Payments</option>
-            <option>Patients</option>
-            <option>Users</option>
+          <input type="date" id="date_from" placeholder="From" />
+          <input type="date" id="date_to" placeholder="To" />
+          <select id="activity_type">
+            <option value="">All Activities</option>
+            <option value="Appointment Scheduled">Appointments</option>
+            <option value="Payment Recorded">Payments</option>
+            <option value="Patient Created">Patients</option>
+            <option value="User Login">Users</option>
           </select>
-          <button onclick="alert('Filter functionality coming soon!'); return false;">Apply Filter</button>
+          <button type="button" onclick="applyFilters();">Apply Filter</button>
         </div>
 
         <table class="module-table">
@@ -242,5 +245,115 @@ $tenantId = getCurrentTenantId();
       </div>
     </div>
   </div>
+
+  <script>
+    let tenantReportData = [];
+
+    function isValidTenantDateRange() {
+      const dateFrom = document.getElementById('date_from').value;
+      const dateTo = document.getElementById('date_to').value;
+      if (dateFrom && dateTo && dateTo < dateFrom) {
+        alert('End date cannot be earlier than start date.');
+        return false;
+      }
+      return true;
+    }
+
+    function applyFilters() {
+      if (!isValidTenantDateRange()) return;
+
+      const dateFrom = document.getElementById('date_from').value;
+      const dateTo = document.getElementById('date_to').value;
+      const activityType = document.getElementById('activity_type').value;
+
+      fetch(`get_filtered_reports.php?type=tenant_activity&date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}&activity_type=${encodeURIComponent(activityType)}`)
+        .then(resp => resp.json())
+        .then(data => {
+          if (data.success) {
+            tenantReportData = data.data;
+            renderTenantReport(tenantReportData);
+          } else {
+            alert('Report failed: ' + data.error);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert('Unable to run report at this time.');
+        });
+    }
+
+    function renderTenantReport(rows) {
+      const container = document.getElementById('report-results');
+      if (!rows || rows.length === 0) {
+        container.innerHTML = '<p style="color: #a855f7;">No matching records. Try a different date range or activity type.</p>';
+        return;
+      }
+
+      let totalCount = rows.reduce((sum, r) => sum + (Number(r.Count) || 0), 0);
+      const summaryHtml = `
+        <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-bottom: 12px; display:flex; gap:16px; flex-wrap: wrap;">
+          <div><strong>Rows</strong><br>${rows.length}</div>
+          <div><strong>Total Units</strong><br>${totalCount}</div>
+          <div><strong>Filtered by</strong><br>${document.getElementById('activity_type').value || 'All Activities'}</div>
+        </div>`;
+
+      let html = summaryHtml + '<table class="module-table"><thead><tr>';
+      Object.keys(rows[0]).forEach(k => html += `<th>${k}</th>`);
+      html += '</tr></thead><tbody>';
+      rows.forEach(row => {
+        html += '<tr>';
+        Object.values(row).forEach(val => html += `<td>${val}</td>`);
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    function exportCSV() {
+      if (!tenantReportData || tenantReportData.length === 0) {
+        alert('Please run a report first.');
+        return;
+      }
+
+      const csv = [Object.keys(tenantReportData[0]).join(','), ...tenantReportData.map(r => Object.values(r).map(v => `"${v}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'tenant_report.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportPDF() {
+      if (!tenantReportData || tenantReportData.length === 0) {
+        alert('Please run a report first.');
+        return;
+      }
+
+      fetch('generate_pdf.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: tenantReportData, title: 'Tenant Activity Report' })
+      }).then(response => {
+        if (!response.ok) throw new Error('PDF generation failed');
+        return response.blob();
+      }).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tenant_report.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      }).catch(error => {
+        console.error(error);
+        alert('Unable to export PDF.');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      applyFilters();
+    });
+  </script>
 </body>
 </html>

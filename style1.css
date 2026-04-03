@@ -243,6 +243,11 @@ body {
     transform: scale(1.05);
 }
 
+/* Hide irrelevant green indicator dot if exists */
+.status-blob, .status-bullet, .green-circle, .info-bubble, .status-dot {
+    display: none !important;
+}
+
 /* Month Navigation Adjustments */
 .calendar-controls {
     display: flex;

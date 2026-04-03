@@ -260,6 +260,10 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">
@@ -306,6 +310,18 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
           <div class="stat-label">Upcoming Appointments</div>
           <div class="stat-value"><?php echo $appointmentCount; ?></div>
         </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-amber">⏳</div>
+          <div class="stat-label">Outstanding Invoices</div>
+          <div class="stat-value"><?php echo $outstandingInvoices; ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-red">💵</div>
+          <div class="stat-label">Today's Revenue</div>
+          <div class="stat-value">₱<?php echo number_format($todayRevenue, 2); ?></div>
+        </div>
       </div>
 
       <!-- Quick Actions -->
@@ -319,6 +335,10 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
           <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
             <span class="action-icon">📅</span>
             <span>Schedule Appointment</span>
+          </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
+            <span class="action-icon">💳</span>
+            <span>Create Invoice</span>
           </a>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
             <span class="action-icon">👤</span>
@@ -355,7 +375,23 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
       <div style="margin-bottom: 32px;">
         <h2 style="font-size: 16px; font-weight: 700; color: var(--dashboard-accent); margin-bottom: 16px;">Core Modules</h2>
         <div class="modules-grid">
-lass="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>">Sign out</a>
+          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
+            <div class="module-title">Patients</div>
+            <div class="module-desc">Manage patient records and history.</div>
+          </a>
+          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
+            <div class="module-title">Appointments</div>
+            <div class="module-desc">Schedule and track appointments.</div>
+          </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
+            <div class="module-title">Billing</div>
+            <div class="module-desc">Create and manage invoices/payments.</div>
+          </a>
+          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="module-card">
+            <div class="module-title">Staff & Users</div>
+            <div class="module-desc">Manage user roles and permissions.</div>
+          </a>
+        </div>
       </div>
 
     </div>
@@ -363,7 +399,7 @@ lass="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenant
   </div>
 
   <script>
-    let currentDate = new Date(2026, 2, 6); // March 6, 2026
+    let currentDate = new Date(); // Use live current date
 
     function renderCalendar() {
       const year = currentDate.getFullYear();
@@ -390,7 +426,7 @@ lass="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenant
       // Get first day of month and number of days
       const firstDay = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const today = new Date(2026, 2, 6);
+      const today = new Date();
       
       // Add empty cells for days before month starts
       for (let i = 0; i < firstDay; i++) {
@@ -412,11 +448,11 @@ lass="footer-action" href="tenant_logout.php?tenant=<?php echo urlencode($tenant
       }
       
       // Update today's date display
-      const today = new Date(2026, 2, 6);
+      const todayLabelDate = new Date();
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
       const monthNames2 = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
-      const dateStr = dayNames[today.getDay()] + ', ' + monthNames2[today.getMonth()] + ' ' + String(today.getDate()).padStart(2, '0') + ', ' + today.getFullYear();
+      const dateStr = dayNames[todayLabelDate.getDay()] + ', ' + monthNames2[todayLabelDate.getMonth()] + ' ' + String(todayLabelDate.getDate()).padStart(2, '0') + ', ' + todayLabelDate.getFullYear();
       document.getElementById('todayDate').textContent = dateStr;
     }
 

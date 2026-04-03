@@ -37,9 +37,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (strtolower((string)$tenant['status']) !== 'active') {
         $error = 'This clinic is currently inactive. Please contact OralSync support.';
     } elseif ($username === '' || $password === '') {
-        $error = 'Please enter your username and password.';
+        $error = 'Please enter your email and password.';
     } elseif (!password_verify($password, (string)$tenant['password'])) {
-        $error = 'Incorrect username or password.';
+        $error = 'Incorrect email or password.';
     } else {
         $_SESSION['tenant_id'] = (int)$tenant['tenant_id'];
         $_SESSION['tenant_slug'] = (string)$tenant['subdomain_slug'];
@@ -111,8 +111,8 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
 
                 <form class="t-form" method="POST" action="<?php echo h($loginAction); ?>">
                     <div class="t-field">
-                        <label for="username">Username</label>
-                        <input id="username" name="username" type="text" autocomplete="username" required value="<?php echo h((string)($_POST['username'] ?? '')); ?>">
+                        <label for="username">Email</label>
+                        <input id="username" name="username" type="email" autocomplete="username" required value="<?php echo h((string)($_POST['username'] ?? '')); ?>">
                     </div>
                     <div class="t-field">
                         <label for="password">Password</label>

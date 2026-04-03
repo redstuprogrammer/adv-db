@@ -89,9 +89,9 @@ $tenantId = getCurrentTenantId();
         text-transform: uppercase;
       }
 
-      .badge-admin { background: rgba(13, 59, 102, 0.1); color: var(--accent); }
-      .badge-receptionist { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-      .badge-dentist { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+      .badge-admin { background: rgba(13, 59, 102, 0.15); color: #0d3b66; }
+      .badge-receptionist { background: rgba(12, 74, 110, 0.15); color: #0c4a6e; }
+      .badge-dentist { background: rgba(88, 28, 135, 0.15); color: #581c87; }
 
       .action-btn {
         display: inline-block;
@@ -200,8 +200,7 @@ $tenantId = getCurrentTenantId();
               <td>john@clinic.com</td>
               <td><span class="badge badge-dentist">Dentist</span></td>
               <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
+                <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
               </td>
             </tr>
             <tr>
@@ -210,8 +209,7 @@ $tenantId = getCurrentTenantId();
               <td>maria@clinic.com</td>
               <td><span class="badge badge-receptionist">Receptionist</span></td>
               <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
+                <button class="action-btn" onclick="toggleUserState(this)">Active</button>
               </td>
             </tr>
             <tr>
@@ -220,8 +218,7 @@ $tenantId = getCurrentTenantId();
               <td>admin@clinic.com</td>
               <td><span class="badge badge-admin">Admin</span></td>
               <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
+                <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
               </td>
             </tr>
           </tbody>
@@ -229,5 +226,19 @@ $tenantId = getCurrentTenantId();
       </div>
     </div>
   </div>
+  <script>
+    function toggleUserState(button) {
+      if (!button) return;
+      const isActive = button.textContent.trim().toLowerCase() === 'active';
+      if (isActive) {
+        button.textContent = 'Deactivate';
+        button.style.background = '#0a2d4f';
+      } else {
+        button.textContent = 'Active';
+        button.style.background = '#10b981';
+      }
+      alert('The user state has been ' + (isActive ? 'set to active' : 'set to inactive') + '.\nIf they try to log in, they will be asked to contact admin.');
+    }
+  </script>
 </body>
 </html>

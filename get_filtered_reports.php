@@ -1,12 +1,17 @@
 <?php
 session_start();
 require_once __DIR__ . '/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
-}
 require_once __DIR__ . '/connect.php';
 require_once __DIR__ . '/tenant_utils.php';
+
+// Allow both superadmin and logged in tenant to query reports appropriately
+if (empty($_SESSION['superadmin_authed']) && empty($_SESSION['tenant_id'])) {
+    header('Location: ' . (empty($_SESSION['superadmin_authed']) ? 'superadmin_login.php' : 'tenant_login.php'));
+    exit;
+}
+
+$isSuperAdmin = !empty($_SESSION['superadmin_authed']);
+$tenantSessionId = isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : 0;
 
 header('Content-Type: application/json');
 
@@ -40,7 +45,10 @@ try {
             $query .= " AND tal.log_date <= ?";
             $params[] = $date_to;
         }
-        if ($tenant_id) {
+        if (!$isSuperAdmin && $tenantSessionId > 0) {
+            $query .= " AND tal.tenant_id = ?";
+            $params[] = $tenantSessionId;
+        } elseif ($tenant_id) {
             $query .= " AND tal.tenant_id = ?";
             $params[] = $tenant_id;
         }
@@ -60,7 +68,7 @@ try {
                 'Activity Type' => $row['activity_type'],
                 'Description' => $row['activity_description'],
                 'Count' => $row['activity_count'],
-                'Tenant' => $tenant_id ? 'Selected Tenant' : 'All Tenants' // Privacy
+                'Tenant' => $row['company_name'] ?? ($tenant_id ? 'Selected Tenant' : 'All Tenants')
             ];
         }
     } elseif ($type === 'user_registration') {

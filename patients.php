@@ -31,7 +31,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     if ($firstName !== '' && $lastName !== '' && $contactNumber !== '') {
         // Generate username from first and last name
         $username = strtolower($firstName . '.' . $lastName);
-        $password = password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT);
+
+        // Generate a secure random password (fallback for older PHP versions)
+        $rawPassword = '';
+        try {
+            $rawPassword = bin2hex(random_bytes(8));
+        } catch (Throwable $e) {
+            if (function_exists('openssl_random_pseudo_bytes')) {
+                $rawPassword = bin2hex(openssl_random_pseudo_bytes(8));
+            } else {
+                $rawPassword = substr(bin2hex(uniqid((string)mt_rand(), true)), 0, 16);
+            }
+        }
+
+        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
 
         $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($stmt) {
@@ -505,7 +518,14 @@ if (isset($_GET['view_patient_id'])) {
 
         <div class="form-group">
           <label>Occupation</label>
-          <input type="text" name="occupation">
+          <select name="occupation">
+            <option value="">Select Occupation</option>
+            <option value="Student">Student</option>
+            <option value="Employed">Employed</option>
+            <option value="Self-employed">Self-employed</option>
+            <option value="Unemployed">Unemployed</option>
+            <option value="Retired">Retired</option>
+          </select>
         </div>
 
         <div class="form-group">

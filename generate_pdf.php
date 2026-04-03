@@ -18,6 +18,7 @@ if (!$data || !isset($data['data'])) {
 
 $reportData = $data['data'];
 $title = $data['title'] ?? 'OralSync Report';
+$type = $data['type'] ?? 'standard';
 
-generatePDF($reportData, $title, 'oralsync_report.pdf');
+generatePDF($reportData, $title, 'oralsync_report.pdf', $type);
 ?>
