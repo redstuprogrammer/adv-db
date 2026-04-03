@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
@@ -13,6 +17,42 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+
+// Handle Add User
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
+    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
+    $role = isset($_POST['role']) ? trim($_POST['role']) : '';
+
+    if ($username !== '' && $email !== '' && $rawPassword !== '' && $role !== '') {
+        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
+        $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role) VALUES (?, ?, ?, ?, ?)');
+        if ($stmt) {
+            $stmt->bind_param('issss', $tenantId, $username, $email, $password, $role);
+            if ($stmt->execute()) {
+                header('Location: manage_users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
+                exit;
+            } else {
+                error_log("Error adding user: " . $stmt->error);
+            }
+            $stmt->close();
+        }
+    }
+}
+
+// Fetch users for display
+$users = [];
+try {
+    $stmt = $conn->prepare('SELECT user_id, username, email, role FROM users WHERE tenant_id = ? ORDER BY username');
+    $stmt->bind_param('i', $tenantId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $users = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} catch (Exception $e) {
+    error_log("Error fetching users: " . $e->getMessage());
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -89,9 +129,9 @@ $tenantId = getCurrentTenantId();
         text-transform: uppercase;
       }
 
-      .badge-admin { background: rgba(13, 59, 102, 0.1); color: var(--accent); }
-      .badge-receptionist { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-      .badge-dentist { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+      .badge-admin { background: rgba(13, 59, 102, 0.15); color: #0d3b66; }
+      .badge-receptionist { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+      .badge-dentist { background: rgba(88, 28, 135, 0.15); color: #581c87; }
 
       .action-btn {
         display: inline-block;
@@ -119,12 +159,15 @@ $tenantId = getCurrentTenantId();
     <!-- Sidebar Navigation -->
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
+        <div class="logo-white-box">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">OralSync</div>
+          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
         </div>
       </div>
 
@@ -147,6 +190,10 @@ $tenantId = getCurrentTenantId();
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">
@@ -158,6 +205,10 @@ $tenantId = getCurrentTenantId();
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
+          </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
           </a>
         </div>
       </div>
@@ -180,13 +231,12 @@ $tenantId = getCurrentTenantId();
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Staff Members</h2>
-          <a href="#" class="btn-primary" onclick="alert('Add User functionality coming soon!'); return false;">+ Add User</a>
+          <a href="#" class="btn-primary" onclick="openAddUserModal()">+ Add User</a>
         </div>
         
         <table class="module-table">
           <thead>
             <tr>
-              <th>Name</th>
               <th>Username</th>
               <th>Email</th>
               <th>Role</th>
@@ -194,39 +244,101 @@ $tenantId = getCurrentTenantId();
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Dr. John Smith</td>
-              <td>jsmith</td>
-              <td>john@clinic.com</td>
-              <td><span class="badge badge-dentist">Dentist</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Maria Garcia</td>
-              <td>mgarcia</td>
-              <td>maria@clinic.com</td>
-              <td><span class="badge badge-receptionist">Receptionist</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Admin User</td>
-              <td>admin</td>
-              <td>admin@clinic.com</td>
-              <td><span class="badge badge-admin">Admin</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('Edit user - coming soon'); return false;">Edit</a>
-                <a href="#" class="action-btn" onclick="alert('Delete user - coming soon'); return false;">Delete</a>
-              </td>
-            </tr>
+            <?php if (empty($users)): ?>
+              <tr>
+                <td colspan="4" style="text-align: center; color: rgb(100, 116, 139);">No users found. Click "Add User" to create one.</td>
+              </tr>
+            <?php else: ?>
+              <?php foreach ($users as $user): 
+                $role = $user['role'];
+                $badgeClass = 'badge-admin';
+                if ($role === 'Receptionist') $badgeClass = 'badge-receptionist';
+                elseif ($role === 'Dentist') $badgeClass = 'badge-dentist';
+              ?>
+              <tr>
+                <td><?php echo h($user['username']); ?></td>
+                <td><?php echo h($user['email']); ?></td>
+                <td><span class="badge <?php echo $badgeClass; ?>"><?php echo h($role); ?></span></td>
+                <td>
+                  <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
+                </td>
+              </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+  <script>
+    function toggleUserState(button) {
+      if (!button) return;
+      const isActive = button.textContent.trim().toLowerCase() === 'active';
+      if (isActive) {
+        button.textContent = 'Deactivate';
+        button.style.background = '#0a2d4f';
+      } else {
+        button.textContent = 'Active';
+        button.style.background = '#10b981';
+      }
+      alert('The user state has been ' + (isActive ? 'set to active' : 'set to inactive') + '.\nIf they try to log in, they will be asked to contact admin.');
+    }
+
+    function openAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'flex';
+      // Generate temporary password
+      const password = generateTempPassword();
+      document.getElementById('userPassword').value = password;
+    }
+
+    function generateTempPassword() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let password = '';
+      for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    }
+
+    function closeAddUserModal() {
+      document.getElementById('addUserModal').style.display = 'none';
+    }
+  </script>
+
+  <!-- Add User Modal -->
+  <div id="addUserModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; flex-direction: column;">
+    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span style="font-size: 20px; font-weight: bold;">Add New User</span>
+        <button class="close" onclick="closeAddUserModal()" style="border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+      </div>
+      <form method="POST">
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">Username</label>
+          <input type="text" name="username" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">Email</label>
+          <input type="email" name="email" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">Temporary Password</label>
+          <input type="text" name="password" id="userPassword" readonly required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 4px;">Role</label>
+          <select name="role" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+            <option value="">Select Role</option>
+            <option value="Admin">Admin</option>
+            <option value="Receptionist">Receptionist</option>
+            <option value="Dentist">Dentist</option>
+          </select>
+        </div>
+        <div style="text-align: right;">
+          <button type="button" onclick="closeAddUserModal()" style="padding: 8px 16px; margin-right: 10px; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+          <button type="submit" name="add_user" style="padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Add User</button>
+        </div>
+      </form>
     </div>
   </div>
 </body>

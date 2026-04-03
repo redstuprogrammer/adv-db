@@ -318,6 +318,20 @@ require_once __DIR__ . '/subscription_tiers.php';
             </div>
         </header>
 
+        <!-- Export Controls -->
+        <div class="sa-card" style="margin-bottom: 20px;">
+            <div class="sa-card-header">
+                <div>
+                    <div class="sa-card-title">Export Options</div>
+                    <div class="sa-card-subtitle">Generate professional reports with charts and data</div>
+                </div>
+            </div>
+            <div style="padding: 20px;">
+                <button class="sa-btn" onclick="exportSalesPDF()">Export PDF Report</button>
+                <button class="sa-btn" onclick="exportSalesCSV()">Export CSV Data</button>
+            </div>
+        </div>
+
         <!-- Sales Summary -->
         <div class="sa-card">
             <div class="sa-card-header">
@@ -586,9 +600,12 @@ require_once __DIR__ . '/subscription_tiers.php';
                     <?php
                     try {
                         $tiers = getAllTiers();
+                        $tierTotals = [];
                         foreach ($tiers as $tierKey => $tier) {
-                            $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = '" . $pdo->quote($tierKey) . "'");
-                            $total = $stmt->fetch()['total'];
+                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = ?");
+                            $stmt->execute([$tierKey]);
+                            $row = $stmt->fetch();
+                            $total = $row['total'] ?? 0;
                             echo $total . ",";
                         }
                     } catch (Exception $e) {
@@ -610,7 +627,169 @@ require_once __DIR__ . '/subscription_tiers.php';
             }
         }
     });
-</script>
 
-</body>
-</html>
+    function exportSalesPDF() {
+        // Enhanced professional report with charts and detailed data
+        const salesData = [
+            ['OralSync Professional Sales Report'],
+            ['Generated on: <?php echo date('F j, Y'); ?>'],
+            [''],
+            ['Key Metrics'],
+            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
+            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
+            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
+            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
+            [''],
+            ['Top Performing Tenants'],
+            ['Clinic Name', 'Tier', 'Total Revenue', 'Months Active', 'Monthly Average']
+        ];
+
+        <?php
+        try {
+            $stmt = $pdo->query("
+                SELECT 
+                    t.company_name,
+                    t.subscription_tier,
+                    SUM(tsr.amount) as total_revenue,
+                    COUNT(DISTINCT MONTH(tsr.payment_date)) as months_active,
+                    AVG(tsr.amount) as avg_revenue
+                FROM tenant_subscription_revenue tsr
+                JOIN tenants t ON tsr.tenant_id = t.tenant_id
+                WHERE tsr.status = 'paid'
+                GROUP BY tsr.tenant_id, t.company_name, t.subscription_tier
+                ORDER BY total_revenue DESC
+                LIMIT 10
+            ");
+            
+            while ($row = $stmt->fetch()) {
+                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
+                echo "salesData.push(['" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['total_revenue'], 2) . "', '" . $row['months_active'] . "', '₱" . number_format($row['avg_revenue'], 2) . "']);\n";
+            }
+        } catch (Exception $e) {
+            // No data
+        }
+        ?>
+
+        salesData.push([''], ['Recent Transactions'], ['Date', 'Clinic', 'Tier', 'Amount', 'Status']);
+
+        <?php
+        try {
+            $stmt = $pdo->query("
+                SELECT 
+                    tsr.payment_date,
+                    t.company_name,
+                    tsr.subscription_tier,
+                    tsr.amount,
+                    tsr.status
+                FROM tenant_subscription_revenue tsr
+                JOIN tenants t ON tsr.tenant_id = t.tenant_id
+                ORDER BY tsr.payment_date DESC
+                LIMIT 20
+            ");
+            
+            while ($row = $stmt->fetch()) {
+                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
+                echo "salesData.push(['" . addslashes(formatDateTimeReadable($row['payment_date'])) . "', '" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['amount'], 2) . "', '" . ucfirst($row['status']) . "']);\n";
+            }
+        } catch (Exception $e) {
+            // No data
+        }
+        ?>
+
+        fetch('generate_pdf.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: salesData, title: 'OralSync Professional Sales Report', type: 'professional' })
+        }).then(response => {
+            if (!response.ok) throw new Error('PDF generation failed');
+            return response.blob();
+        }).then(blob => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'oralsync_professional_sales_report.pdf';
+            a.click();
+            URL.revokeObjectURL(url);
+        }).catch(error => {
+            console.error(error);
+            alert('Failed to export PDF');
+        });
+    }
+
+    function exportSalesCSV() {
+        const csvData = [
+            ['OralSync Sales Data Export'],
+            ['Generated on: <?php echo date('F j, Y'); ?>'],
+            [''],
+            ['Key Metrics'],
+            ['Metric', 'Value'],
+            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
+            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
+            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
+            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
+            [''],
+            ['Top Performing Tenants'],
+            ['Clinic Name', 'Tier', 'Total Revenue', 'Months Active', 'Monthly Average']
+        ];
+
+        <?php
+        try {
+            $stmt = $pdo->query("
+                SELECT 
+                    t.company_name,
+                    t.subscription_tier,
+                    SUM(tsr.amount) as total_revenue,
+                    COUNT(DISTINCT MONTH(tsr.payment_date)) as months_active,
+                    AVG(tsr.amount) as avg_revenue
+                FROM tenant_subscription_revenue tsr
+                JOIN tenants t ON tsr.tenant_id = t.tenant_id
+                WHERE tsr.status = 'paid'
+                GROUP BY tsr.tenant_id, t.company_name, t.subscription_tier
+                ORDER BY total_revenue DESC
+                LIMIT 10
+            ");
+            
+            while ($row = $stmt->fetch()) {
+                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
+                echo "csvData.push(['" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['total_revenue'], 2) . "', '" . $row['months_active'] . "', '₱" . number_format($row['avg_revenue'], 2) . "']);\n";
+            }
+        } catch (Exception $e) {
+            // No data
+        }
+        ?>
+
+        csvData.push([''], ['Recent Transactions'], ['Date', 'Clinic', 'Tier', 'Amount', 'Status']);
+
+        <?php
+        try {
+            $stmt = $pdo->query("
+                SELECT 
+                    tsr.payment_date,
+                    t.company_name,
+                    tsr.subscription_tier,
+                    tsr.amount,
+                    tsr.status
+                FROM tenant_subscription_revenue tsr
+                JOIN tenants t ON tsr.tenant_id = t.tenant_id
+                ORDER BY tsr.payment_date DESC
+                LIMIT 100
+            ");
+            
+            while ($row = $stmt->fetch()) {
+                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
+                echo "csvData.push(['" . addslashes(formatDateTimeReadable($row['payment_date'])) . "', '" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['amount'], 2) . "', '" . ucfirst($row['status']) . "']);\n";
+            }
+        } catch (Exception $e) {
+            // No data
+        }
+        ?>
+
+        const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'oralsync_professional_sales_data.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }

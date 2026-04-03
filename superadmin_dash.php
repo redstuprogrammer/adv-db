@@ -524,13 +524,14 @@ require_once __DIR__ . '/subscription_tiers.php';
                     <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
                 </svg>
             </div>
+            <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
                 <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
-                <div class="menu-dropdown">
+                <div class="menu-dropdown" style="width: 100%;">
                     <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
-                    <div class="menu-dropdown-items" style="display: none;">
+                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
                         <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
                         <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
                     </div>

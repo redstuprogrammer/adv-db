@@ -44,16 +44,47 @@ function getTenantDashboardUrl(string $slug): string {
     return $url;
 }
 
+function getTenantContext(string $slug = ''): ?array {
+    if ($slug === '') {
+        $slug = $_GET['tenant'] ?? $_SESSION['tenant_slug_current'] ?? $_SESSION['tenant_slug'] ?? '';
+    }
+    $slug = trim((string)$slug);
+
+    if ($slug === '') {
+        return null;
+    }
+
+    if (!empty($_SESSION['tenant_context'][$slug]) && is_array($_SESSION['tenant_context'][$slug])) {
+        return $_SESSION['tenant_context'][$slug];
+    }
+
+    // Fallback to legacy values
+    if (!empty($_SESSION['tenant_slug']) && $_SESSION['tenant_slug'] === $slug) {
+        return [
+            'tenant_id' => $_SESSION['tenant_id'] ?? null,
+            'tenant_slug' => $_SESSION['tenant_slug'],
+            'tenant_name' => $_SESSION['tenant_name'] ?? '',
+            'tenant_email' => $_SESSION['tenant_email'] ?? '',
+            'tenant_username' => $_SESSION['tenant_username'] ?? '',
+        ];
+    }
+
+    return null;
+}
+
 function getCurrentTenantId(): ?int {
-    return isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : null;
+    $context = getTenantContext();
+    return isset($context['tenant_id']) ? (int)$context['tenant_id'] : null;
 }
 
 function getCurrentTenantSlug(): string {
-    return isset($_SESSION['tenant_slug']) ? (string)$_SESSION['tenant_slug'] : '';
+    $context = getTenantContext();
+    return isset($context['tenant_slug']) ? (string)$context['tenant_slug'] : '';
 }
 
 function getCurrentTenantName(): string {
-    return isset($_SESSION['tenant_name']) ? (string)$_SESSION['tenant_name'] : '';
+    $context = getTenantContext();
+    return isset($context['tenant_name']) ? (string)$context['tenant_name'] : '';
 }
 
 function tenantIsLoggedIn(): bool {
@@ -62,16 +93,38 @@ function tenantIsLoggedIn(): bool {
 
 function requireTenantLogin(string $expectedSlug = ''): void {
     $slug = trim((string)($_GET['tenant'] ?? ''));
-    $sessionSlug = getCurrentTenantSlug();
+    if ($slug === '') {
+        // If no query value, consider current session-cached slug
+        $slug = $_SESSION['tenant_slug_current'] ?? $_SESSION['tenant_slug'] ?? '';
+    }
 
-    if (!tenantIsLoggedIn() || $slug === '' || $sessionSlug === '' || ($expectedSlug !== '' && $slug !== $expectedSlug) || ($expectedSlug === '' && $slug !== $sessionSlug)) {
-        $baseUrl = getAbsoluteBaseUrl();
-        $redirectSlug = $slug ?: $sessionSlug ?: 'unknown';
-        $redirect = $baseUrl . '/tenant_login.php?tenant=' . rawurlencode($redirectSlug);
-        error_log("Tenant login required, redirecting to: " . $redirect);
+    if ($slug === '') {
+        $redirect = getAbsoluteBaseUrl() . '/tenant_login.php?tenant=unknown';
         header('Location: ' . $redirect);
         exit;
     }
+
+    $context = getTenantContext($slug);
+    if (!$context) {
+        $redirect = getAbsoluteBaseUrl() . '/tenant_login.php?tenant=' . rawurlencode($slug);
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    // If expectedSlug provided, enforce it explicitly
+    if ($expectedSlug !== '' && $slug !== $expectedSlug) {
+        $redirect = getAbsoluteBaseUrl() . '/tenant_login.php?tenant=' . rawurlencode($expectedSlug);
+        header('Location: ' . $redirect);
+        exit;
+    }
+
+    // Make this tenant the current working context
+    $_SESSION['tenant_slug_current'] = $slug;
+    $_SESSION['tenant_id'] = $context['tenant_id'];
+    $_SESSION['tenant_slug'] = $context['tenant_slug'];
+    $_SESSION['tenant_name'] = $context['tenant_name'];
+    $_SESSION['tenant_email'] = $context['tenant_email'];
+    $_SESSION['tenant_username'] = $context['tenant_username'];
 }
 
 /**

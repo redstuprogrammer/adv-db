@@ -1,12 +1,17 @@
 <?php
 session_start();
 require_once __DIR__ . '/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
-}
 require_once __DIR__ . '/connect.php';
 require_once __DIR__ . '/tenant_utils.php';
+
+// Allow both superadmin and logged in tenant to query reports appropriately
+if (empty($_SESSION['superadmin_authed']) && empty($_SESSION['tenant_id'])) {
+    header('Location: ' . (empty($_SESSION['superadmin_authed']) ? 'superadmin_login.php' : 'tenant_login.php'));
+    exit;
+}
+
+$isSuperAdmin = !empty($_SESSION['superadmin_authed']);
+$tenantSessionId = isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : 0;
 
 header('Content-Type: application/json');
 
@@ -40,7 +45,10 @@ try {
             $query .= " AND tal.log_date <= ?";
             $params[] = $date_to;
         }
-        if ($tenant_id) {
+        if (!$isSuperAdmin && $tenantSessionId > 0) {
+            $query .= " AND tal.tenant_id = ?";
+            $params[] = $tenantSessionId;
+        } elseif ($tenant_id) {
             $query .= " AND tal.tenant_id = ?";
             $params[] = $tenant_id;
         }
@@ -60,7 +68,7 @@ try {
                 'Activity Type' => $row['activity_type'],
                 'Description' => $row['activity_description'],
                 'Count' => $row['activity_count'],
-                'Tenant' => $tenant_id ? 'Selected Tenant' : 'All Tenants' // Privacy
+                'Tenant' => $row['company_name'] ?? ($tenant_id ? 'Selected Tenant' : 'All Tenants')
             ];
         }
     } elseif ($type === 'user_registration') {
@@ -142,6 +150,43 @@ try {
 
         foreach ($stats['activities_by_type'] as $type => $count) {
             $data[] = [$type . ' Activities', $count];
+        }
+    } elseif ($type === 'revenue') {
+        $query = "SELECT p.first_name, p.last_name, py.service, py.amount, a.date as appointment_date
+                  FROM payment py
+                  JOIN appointment a ON py.appointment_id = a.appointment_id
+                  JOIN patient p ON a.patient_id = p.patient_id
+                  WHERE py.status = 'Paid'";
+
+        $params = [];
+
+        if (!$isSuperAdmin && $tenantSessionId > 0) {
+            $query .= " AND py.tenant_id = ?";
+            $params[] = $tenantSessionId;
+        }
+
+        if ($date_from) {
+            $query .= " AND a.date >= ?";
+            $params[] = $date_from;
+        }
+        if ($date_to) {
+            $query .= " AND a.date <= ?";
+            $params[] = $date_to;
+        }
+
+        $query .= " ORDER BY a.date DESC";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+
+        while ($row = $stmt->fetch()) {
+            $data[] = [
+                'appointment_date' => $row['appointment_date'],
+                'first_name' => $row['first_name'],
+                'last_name' => $row['last_name'],
+                'service' => $row['service'],
+                'amount' => $row['amount']
+            ];
         }
     }
 

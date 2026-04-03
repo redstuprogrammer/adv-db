@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
@@ -29,13 +33,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
 
     if ($firstName !== '' && $lastName !== '' && $contactNumber !== '') {
-        // Generate username from first and last name
-        $username = strtolower($firstName . '.' . $lastName);
-        $password = password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT);
+        $username = isset($_POST['username']) ? trim($_POST['username']) : '';
+        $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
+        if ($username === '' || $rawPassword === '') {
+            // Fallback
+            $username = strtolower($firstName . '.' . $lastName);
+            $rawPassword = bin2hex(random_bytes(8));
+        }
+        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
 
         $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($stmt) {
-            $stmt->bind_param('issssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
+            $stmt->bind_param('isssssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
             if ($stmt->execute()) {
                 $successMsg = 'Patient registered successfully! Username: ' . h($username);
                 logTenantActivity($conn, $tenantId, 'Patient Created', "New patient: " . h($firstName . ' ' . $lastName));
@@ -353,12 +362,15 @@ if (isset($_GET['view_patient_id'])) {
     <!-- Sidebar Navigation -->
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
+        <div class="logo-white-box">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
+            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
+            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-logo-text">OralSync</div>
+          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
         </div>
       </div>
 
@@ -381,6 +393,10 @@ if (isset($_GET['view_patient_id'])) {
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
+          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">💳</span>
+            <span>Billing</span>
+          </a>
         </div>
 
         <div class="sidebar-section">
@@ -392,6 +408,10 @@ if (isset($_GET['view_patient_id'])) {
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
+          </a>
+          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">⚙️</span>
+            <span>Settings</span>
           </a>
         </div>
       </div>
@@ -435,11 +455,15 @@ if (isset($_GET['view_patient_id'])) {
               <p style="font-size: 12px;">Click "Add Patient" to register your first patient.</p>
             </div>
           <?php else: ?>
-            <?php foreach ($patients as $patient): ?>
+            <?php foreach ($patients as $patient):
+                  $birthdate = $patient['birthdate'] ?? '';
+                  $age = ($birthdate && strtotime($birthdate)) ? floor((time() - strtotime($birthdate)) / (365.25 * 24 * 3600)) : 'N/A';
+                  $gender = !empty($patient['gender']) ? h($patient['gender']) : 'N/A';
+            ?>
               <div class="patient-item" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
                 <div class="patient-info">
                   <h3><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></h3>
-                  <p>ID: P<?php echo str_pad($patient['patient_id'], 3, '0', STR_PAD_LEFT); ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
+                  <p>Age: <?php echo $age; ?> | Gender: <?php echo $gender; ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
                 </div>
                 <div class="patient-actions">
                   <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View</a>
@@ -482,6 +506,17 @@ if (isset($_GET['view_patient_id'])) {
           </div>
         </div>
 
+        <div class="form-row">
+          <div class="form-group required">
+            <label>Username</label>
+            <input type="text" name="username" id="username" required>
+          </div>
+          <div class="form-group required">
+            <label>Temporary Password</label>
+            <input type="text" name="password" id="password" readonly required>
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Address</label>
           <input type="text" name="address">
@@ -505,7 +540,14 @@ if (isset($_GET['view_patient_id'])) {
 
         <div class="form-group">
           <label>Occupation</label>
-          <input type="text" name="occupation">
+          <select name="occupation">
+            <option value="">Select Occupation</option>
+            <option value="Student">Student</option>
+            <option value="Employed">Employed</option>
+            <option value="Self-employed">Self-employed</option>
+            <option value="Unemployed">Unemployed</option>
+            <option value="Retired">Retired</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -599,6 +641,18 @@ if (isset($_GET['view_patient_id'])) {
   <script>
     function openAddPatientModal() {
       document.getElementById('addPatientModal').style.display = 'block';
+      // Generate temporary password
+      const password = generateTempPassword();
+      document.getElementById('password').value = password;
+    }
+
+    function generateTempPassword() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let password = '';
+      for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
     }
 
     function closeAddPatientModal() {
