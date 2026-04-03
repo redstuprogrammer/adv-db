@@ -415,9 +415,15 @@ require_once __DIR__ . '/tenant_utils.php';
 
             <!-- Tab Content: Tenant Activities -->
             <div class="sa-tab-content active" id="tenant-activities">
-                <div style="margin-bottom: 16px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent Tenant Activities</h3>
-                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">Latest activities across all tenants</p>
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent Tenant Activities</h3>
+                        <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">Latest activities across all tenants</p>
+                    </div>
+                    <div>
+                        <button onclick="exportTable('tenant-activities-table-body', 'csv')" class="sa-btn sa-btn-outline" style="margin-right: 8px;">Export CSV</button>
+                        <button onclick="exportTable('tenant-activities-table-body', 'pdf')" class="sa-btn sa-btn-outline">Export PDF</button>
+                    </div>
                 </div>
                 <table class="sa-table">
                     <thead>
@@ -453,9 +459,15 @@ require_once __DIR__ . '/tenant_utils.php';
 
             <!-- Tab Content: User Registrations -->
             <div class="sa-tab-content" id="user-registrations">
-                <div style="margin-bottom: 16px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent User Registrations</h3>
-                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">New tenant registrations and account creations</p>
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent User Registrations</h3>
+                        <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">New tenant registrations and account creations</p>
+                    </div>
+                    <div>
+                        <button onclick="exportTable('user-registrations-table-body', 'csv')" class="sa-btn sa-btn-outline" style="margin-right: 8px;">Export CSV</button>
+                        <button onclick="exportTable('user-registrations-table-body', 'pdf')" class="sa-btn sa-btn-outline">Export PDF</button>
+                    </div>
                 </div>
                 <table class="sa-table">
                     <thead>
@@ -820,6 +832,79 @@ require_once __DIR__ . '/tenant_utils.php';
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+        }
+
+        function exportTable(tableBodyId, format) {
+            const tbody = document.getElementById(tableBodyId);
+            if (!tbody) {
+                alert('Table not found');
+                return;
+            }
+
+            const rows = tbody.querySelectorAll('tr');
+            if (rows.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            let data = [];
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length > 0) {
+                    const rowData = Array.from(cells).map(cell => cell.textContent.trim());
+                    data.push(rowData);
+                }
+            });
+
+            if (format === 'csv') {
+                let csv = '';
+                data.forEach(row => {
+                    csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'oralsync_table_export.csv';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } else if (format === 'pdf') {
+                // For PDF, we'll use a simple approach - send to server
+                fetch('generate_pdf.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        tableData: data,
+                        title: 'OralSync Table Export'
+                    })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        throw new Error('PDF generation failed');
+                    }
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'oralsync_table_export.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to export PDF');
+                });
+            }
         }
     </script>
     </main>

@@ -40,10 +40,10 @@ $query = "SELECT
             COALESCE(s.service_name, 'Unassigned') AS service_name, 
             d.last_name AS d_last, 
             a.status 
-          FROM appointments a 
-          LEFT JOIN patients p ON a.patient_id = p.patient_id 
-          LEFT JOIN services s ON a.service_id = s.service_id 
-          LEFT JOIN dentists d ON a.dentist_id = d.dentist_id
+          FROM appointment a 
+          LEFT JOIN patient p ON a.patient_id = p.patient_id 
+          LEFT JOIN service s ON a.service_id = s.service_id 
+          LEFT JOIN dentist d ON a.dentist_id = d.dentist_id
           WHERE a.tenant_id = ?
           ORDER BY a.appointment_date DESC, a.appointment_time ASC";
 

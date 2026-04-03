@@ -414,7 +414,12 @@ require_once __DIR__ . '/subscription_tiers.php';
         .sa-tenant-info {
             display: flex;
             flex-direction: column;
-                    }
+        }
+
+        /* Hide green circle indicators */
+        .green-circle, .status-dot, .status-blob {
+            display: none !important;
+        }
                     .clickable-row {
                 cursor: pointer;
                 transition: background 0.2s ease;
@@ -519,10 +524,7 @@ require_once __DIR__ . '/subscription_tiers.php';
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="logo-white-box">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-                </svg>
+                <div style="font-size: 32px;">🏥</div>
             </div>
             <div class="sidebar-logo-text">OralSync</div>
             <nav class="menu">
@@ -984,6 +986,14 @@ require_once __DIR__ . '/subscription_tiers.php';
                 dropdownItems.style.display = isVisible ? 'none' : 'flex';
                 dropdownItems.style.flexDirection = 'column';
                 dropdownToggle.classList.toggle('active');
+            });
+
+            // Close dropdown when clicking on dropdown items
+            dropdownItems.addEventListener('click', function(e) {
+                if (e.target.closest('.menu-dropdown-item')) {
+                    dropdownItems.style.display = 'none';
+                    dropdownToggle.classList.remove('active');
+                }
             });
         }
     })();

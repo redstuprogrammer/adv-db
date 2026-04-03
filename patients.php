@@ -18,48 +18,6 @@ requireTenantLogin($tenantSlug);
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
-// Handle Add Patient
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
-    $firstName = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
-    $lastName = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
-    $contactNumber = isset($_POST['contact_number']) ? trim($_POST['contact_number']) : '';
-    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $address = isset($_POST['address']) ? trim($_POST['address']) : '';
-    $birthdate = isset($_POST['birthdate']) ? trim($_POST['birthdate']) : '';
-    $gender = isset($_POST['gender']) ? trim($_POST['gender']) : '';
-    $occupation = isset($_POST['occupation']) ? trim($_POST['occupation']) : '';
-    $medicalHistory = isset($_POST['medical_history']) ? trim($_POST['medical_history']) : '';
-    $allergies = isset($_POST['allergies']) ? trim($_POST['allergies']) : '';
-    $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
-
-    if ($firstName !== '' && $lastName !== '' && $contactNumber !== '') {
-        $username = isset($_POST['username']) ? trim($_POST['username']) : '';
-        $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
-        if ($username === '' || $rawPassword === '') {
-            // Fallback
-            $username = strtolower($firstName . '.' . $lastName);
-            $rawPassword = bin2hex(random_bytes(8));
-        }
-        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-
-        $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        if ($stmt) {
-            $stmt->bind_param('isssssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
-            if ($stmt->execute()) {
-                $successMsg = 'Patient registered successfully! Username: ' . h($username);
-                logTenantActivity($conn, $tenantId, 'Patient Created', "New patient: " . h($firstName . ' ' . $lastName));
-            } else {
-                $errorMsg = 'Error registering patient. Please try again.';
-            }
-            $stmt->close();
-        } else {
-            $errorMsg = 'Database error: ' . $conn->error;
-        }
-    } else {
-        $errorMsg = 'Please fill in all required fields (First Name, Last Name, Contact Number).';
-    }
-}
-
 // Fetch all patients for this tenant
 $patients = [];
 $stmt = $conn->prepare('SELECT patient_id, first_name, last_name, contact_number, email, birthdate, gender FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
@@ -441,7 +399,6 @@ if (isset($_GET['view_patient_id'])) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
-          <button class="btn-primary" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 
         <div class="search-bar">
@@ -452,7 +409,6 @@ if (isset($_GET['view_patient_id'])) {
           <?php if (empty($patients)): ?>
             <div class="empty-state">
               <p>No patients registered yet.</p>
-              <p style="font-size: 12px;">Click "Add Patient" to register your first patient.</p>
             </div>
           <?php else: ?>
             <?php foreach ($patients as $patient):
@@ -473,103 +429,6 @@ if (isset($_GET['view_patient_id'])) {
           <?php endif; ?>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Add Patient Modal -->
-  <div id="addPatientModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <span>Add New Patient</span>
-        <button class="close" onclick="closeAddPatientModal()">&times;</button>
-      </div>
-      <form method="POST">
-        <div class="form-row">
-          <div class="form-group required">
-            <label>First Name</label>
-            <input type="text" name="first_name" required>
-          </div>
-          <div class="form-group required">
-            <label>Last Name</label>
-            <input type="text" name="last_name" required>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group required">
-            <label>Contact Number</label>
-            <input type="tel" name="contact_number" required>
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="email">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group required">
-            <label>Username</label>
-            <input type="text" name="username" id="username" required>
-          </div>
-          <div class="form-group required">
-            <label>Temporary Password</label>
-            <input type="text" name="password" id="password" readonly required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Address</label>
-          <input type="text" name="address">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Birthdate</label>
-            <input type="date" name="birthdate">
-          </div>
-          <div class="form-group">
-            <label>Gender</label>
-            <select name="gender">
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Occupation</label>
-          <select name="occupation">
-            <option value="">Select Occupation</option>
-            <option value="Student">Student</option>
-            <option value="Employed">Employed</option>
-            <option value="Self-employed">Self-employed</option>
-            <option value="Unemployed">Unemployed</option>
-            <option value="Retired">Retired</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Medical History</label>
-          <textarea name="medical_history"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Allergies</label>
-          <textarea name="allergies"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Notes</label>
-          <textarea name="notes"></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
-          <button type="submit" name="add_patient" class="btn-submit">Register Patient</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -639,26 +498,6 @@ if (isset($_GET['view_patient_id'])) {
   <?php endif; ?>
 
   <script>
-    function openAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'block';
-      // Generate temporary password
-      const password = generateTempPassword();
-      document.getElementById('password').value = password;
-    }
-
-    function generateTempPassword() {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let password = '';
-      for (let i = 0; i < 8; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return password;
-    }
-
-    function closeAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'none';
-    }
-
     function closeViewPatientModal() {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';
     }
@@ -675,13 +514,6 @@ if (isset($_GET['view_patient_id'])) {
           item.style.display = 'none';
         }
       });
-    }
-
-    window.onclick = function(event) {
-      const modal = document.getElementById('addPatientModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
-      }
     }
   </script>
 </body>

@@ -37,9 +37,9 @@ $today = date('Y-m-d');
 // Query Logic
 $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name, s.service_name, 
                  a.appointment_date, a.appointment_time, a.status 
-          FROM appointments a
-          JOIN patients p ON a.patient_id = p.patient_id
-          JOIN services s ON a.service_id = s.service_id
+          FROM appointment a
+          JOIN patient p ON a.patient_id = p.patient_id
+          JOIN service s ON a.service_id = s.service_id
           WHERE a.tenant_id = ? AND a.dentist_id = ?";
 
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";

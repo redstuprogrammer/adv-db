@@ -37,7 +37,7 @@ $todayDate = date('Y-m-d');
 ========================= */
 // 1. Pending Appointments (Patients yet to arrive/be seen)
 $pendingCount = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointments WHERE tenant_id = ? AND appointment_date = ? AND status = 'Pending'");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Pending'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -47,7 +47,7 @@ if ($stmt) {
 
 // 2. Completed Today (Patients who finished their session)
 $completedCount = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointments WHERE tenant_id = ? AND appointment_date = ? AND status = 'Completed'");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Completed'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -57,7 +57,7 @@ if ($stmt) {
 
 // 3. New Patients Added This Month
 $newPatients = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM patients WHERE tenant_id = ? AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM patient WHERE tenant_id = ? AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
@@ -70,10 +70,10 @@ if ($stmt) {
 ========================= */
 $queueResult = null;
 $stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_time, p.first_name, p.last_name, s.service_name, d.last_name AS d_last, a.status 
-               FROM appointments a 
-               JOIN patients p ON a.patient_id = p.patient_id 
-               JOIN services s ON a.service_id = s.service_id 
-               JOIN dentists d ON a.dentist_id = d.dentist_id
+               FROM appointment a 
+               JOIN patient p ON a.patient_id = p.patient_id 
+               JOIN service s ON a.service_id = s.service_id 
+               JOIN dentist d ON a.dentist_id = d.dentist_id
                WHERE a.tenant_id = ? AND a.appointment_date = ? 
                ORDER BY a.appointment_time ASC");
 if ($stmt) {

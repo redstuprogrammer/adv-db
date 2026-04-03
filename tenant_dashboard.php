@@ -28,8 +28,22 @@ $tenantId = getCurrentTenantId();
 // Fetch metrics for dashboard
 $patientCount = getTenantPatientCount($tenantId) ?? 0;
 $appointmentCount = getTenantUpcomingAppointmentCount($tenantId) ?? 0;
-$outstandingInvoices = getTenantOutstandingInvoiceCount($tenantId) ?? 0;
-$todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
+$outstandingInvoices = 12; // Sample data
+$todayRevenue = 15450.00; // Sample data
+
+// Fetch recent patients for mini table
+$recentPatients = [];
+$stmt = mysqli_prepare($conn, "SELECT patient_id, first_name, last_name, phone FROM patient WHERE tenant_id = ? ORDER BY patient_id DESC LIMIT 5");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $recentPatients[] = $row;
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -38,6 +52,7 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Dashboard</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       :root {
         --dashboard-accent: #0d3b66;
@@ -332,31 +347,42 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="quick-actions">
-        <h2>Quick Actions</h2>
-        <div class="actions-grid">
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
-            <span class="action-icon">➕</span>
-            <span>Add Patient</span>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
-            <span class="action-icon">📅</span>
-            <span>Schedule Appointment</span>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
-            <span class="action-icon">💳</span>
-            <span>Create Invoice</span>
-          </a>
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn">
-            <span class="action-icon">👤</span>
-            <span>Manage Staff & Users</span>
-          </a>
+      <!-- Mini Patient Table and Sales Chart -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+        <!-- Mini Patient Table -->
+        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+          <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Recent Patients</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--dashboard-border);">
+                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Name</th>
+                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Phone</th>
+                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php foreach ($recentPatients as $patient): ?>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 8px; font-size: 14px;"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
+                <td style="padding: 8px; font-size: 14px;"><?php echo h($patient['phone']); ?></td>
+                <td style="padding: 8px;">
+                  <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view=<?php echo $patient['patient_id']; ?>" class="action-link" style="font-size: 12px; padding: 4px 8px;">View</a>
+                </td>
+              </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sales Chart -->
+        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+          <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
+          <canvas id="salesChart" style="max-height: 200px;"></canvas>
         </div>
       </div>
 
       <!-- Calendar and Today's Schedule -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; min-height: 400px;">
         <!-- Calendar -->
         <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
@@ -455,6 +481,41 @@ $todayRevenue = getTenantTodayRevenue($tenantId) ?? 0;
 
     // Initialize calendar on page load
     renderCalendar();
+
+    // Sales Chart
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Sales',
+          data: [12000, 19000, 15000, 25000, 22000, 30000],
+          borderColor: 'var(--dashboard-accent)',
+          backgroundColor: 'rgba(13, 59, 102, 0.1)',
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '₱' + (value / 1000) + 'k';
+              }
+            }
+          }
+        }
+      }
+    });
   </script>
 </body>
 </html>

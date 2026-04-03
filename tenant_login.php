@@ -153,11 +153,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
             <section class="t-card">
                 <h1 class="t-cardTitle">Clinic Login</h1>
                 <div class="t-cardSub">
-                    <?php if ($ownerName): ?>
-                        Welcome, <?php echo h($ownerName); ?>. Please sign in to continue.
-                    <?php else: ?>
-                        Use the email and temporary password sent to you.
-                    <?php endif; ?>
+                    Please sign in to access your clinic portal.
                 </div>
 
                 <?php if ($error): ?>
