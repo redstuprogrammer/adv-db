@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
@@ -26,10 +30,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role) VALUES (?, ?, ?, ?, ?)');
         if ($stmt) {
             $stmt->bind_param('issss', $tenantId, $username, $email, $password, $role);
-            $stmt->execute();
+            if ($stmt->execute()) {
+                header('Location: manage_users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
+                exit;
+            } else {
+                error_log("Error adding user: " . $stmt->error);
+            }
             $stmt->close();
         }
     }
+}
+
+// Fetch users for display
+$users = [];
+try {
+    $stmt = $conn->prepare('SELECT user_id, username, email, role FROM users WHERE tenant_id = ? ORDER BY username');
+    $stmt->bind_param('i', $tenantId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $users = $result->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} catch (Exception $e) {
+    error_log("Error fetching users: " . $e->getMessage());
 }
 ?>
 <!doctype html>
@@ -208,7 +230,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         <table class="module-table">
           <thead>
             <tr>
-              <th>Name</th>
               <th>Username</th>
               <th>Email</th>
               <th>Role</th>
@@ -216,33 +237,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Dr. John Smith</td>
-              <td>jsmith</td>
-              <td>john@clinic.com</td>
-              <td><span class="badge badge-dentist">Dentist</span></td>
-              <td>
-                <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
-              </td>
-            </tr>
-            <tr>
-              <td>Maria Garcia</td>
-              <td>mgarcia</td>
-              <td>maria@clinic.com</td>
-              <td><span class="badge badge-receptionist">Receptionist</span></td>
-              <td>
-                <button class="action-btn" onclick="toggleUserState(this)">Active</button>
-              </td>
-            </tr>
-            <tr>
-              <td>Admin User</td>
-              <td>admin</td>
-              <td>admin@clinic.com</td>
-              <td><span class="badge badge-admin">Admin</span></td>
-              <td>
-                <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
-              </td>
-            </tr>
+            <?php if (empty($users)): ?>
+              <tr>
+                <td colspan="4" style="text-align: center; color: rgb(100, 116, 139);">No users found. Click "Add User" to create one.</td>
+              </tr>
+            <?php else: ?>
+              <?php foreach ($users as $user): 
+                $role = $user['role'];
+                $badgeClass = 'badge-admin';
+                if ($role === 'Receptionist') $badgeClass = 'badge-receptionist';
+                elseif ($role === 'Dentist') $badgeClass = 'badge-dentist';
+              ?>
+              <tr>
+                <td><?php echo h($user['username']); ?></td>
+                <td><?php echo h($user['email']); ?></td>
+                <td><span class="badge <?php echo $badgeClass; ?>"><?php echo h($role); ?></span></td>
+                <td>
+                  <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
+                </td>
+              </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
@@ -263,7 +278,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     }
 
     function openAddUserModal() {
-      document.getElementById('addUserModal').style.display = 'block';
+      document.getElementById('addUserModal').style.display = 'flex';
       // Generate temporary password
       const password = generateTempPassword();
       document.getElementById('userPassword').value = password;
@@ -284,35 +299,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
   </script>
 
   <!-- Add User Modal -->
-  <div id="addUserModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 400px;">
-      <span style="font-size: 20px; font-weight: bold;">Add New User</span>
-      <button class="close" onclick="closeAddUserModal()" style="float: right; border: none; background: none; font-size: 20px;">&times;</button>
-      <form method="POST" style="margin-top: 20px;">
+  <div id="addUserModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; flex-direction: column;">
+    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <span style="font-size: 20px; font-weight: bold;">Add New User</span>
+        <button class="close" onclick="closeAddUserModal()" style="border: none; background: none; font-size: 20px; cursor: pointer;">&times;</button>
+      </div>
+      <form method="POST">
         <div style="margin-bottom: 10px;">
-          <label>Username</label>
-          <input type="text" name="username" required style="width: 100%; padding: 8px;">
+          <label style="display: block; margin-bottom: 4px;">Username</label>
+          <input type="text" name="username" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
         <div style="margin-bottom: 10px;">
-          <label>Email</label>
-          <input type="email" name="email" required style="width: 100%; padding: 8px;">
+          <label style="display: block; margin-bottom: 4px;">Email</label>
+          <input type="email" name="email" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
         <div style="margin-bottom: 10px;">
-          <label>Temporary Password</label>
-          <input type="text" name="password" id="userPassword" readonly required style="width: 100%; padding: 8px;">
+          <label style="display: block; margin-bottom: 4px;">Temporary Password</label>
+          <input type="text" name="password" id="userPassword" readonly required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
-        <div style="margin-bottom: 10px;">
-          <label>Role</label>
-          <select name="role" required style="width: 100%; padding: 8px;">
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 4px;">Role</label>
+          <select name="role" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
             <option value="">Select Role</option>
             <option value="Admin">Admin</option>
             <option value="Receptionist">Receptionist</option>
             <option value="Dentist">Dentist</option>
           </select>
         </div>
-        <div style="text-align: right; margin-top: 20px;">
-          <button type="button" onclick="closeAddUserModal()" style="padding: 8px 16px; margin-right: 10px;">Cancel</button>
-          <button type="submit" name="add_user" style="padding: 8px 16px; background: var(--accent); color: white; border: none;">Add User</button>
+        <div style="text-align: right;">
+          <button type="button" onclick="closeAddUserModal()" style="padding: 8px 16px; margin-right: 10px; border: 1px solid var(--border); background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+          <button type="submit" name="add_user" style="padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">Add User</button>
         </div>
       </form>
     </div>

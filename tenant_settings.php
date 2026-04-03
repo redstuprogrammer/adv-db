@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';

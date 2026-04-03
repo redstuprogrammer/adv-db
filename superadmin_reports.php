@@ -359,7 +359,7 @@ require_once __DIR__ . '/tenant_utils.php';
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="sidebar-logo">
-                <div class="sidebar-logo-icon">🛡️</div>
+                <div class="sidebar-logo-icon">🏥</div>
                 <div class="sidebar-logo-text">OralSync</div>
             </div>
             <nav class="menu">
@@ -367,7 +367,9 @@ require_once __DIR__ . '/tenant_utils.php';
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item active"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Reports</a>
+                <div class="menu-dropdown" style="display: flex; flex-direction: column; margin-left: 20px;">
+                    <a href="superadmin_sales_report.php" class="menu-item" style="padding-left: 16px;"><span>💰</span> Sales Reports</a>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>

@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
@@ -40,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
 
         $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($stmt) {
-            $stmt->bind_param('issssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
+            $stmt->bind_param('isssssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
             if ($stmt->execute()) {
                 $successMsg = 'Patient registered successfully! Username: ' . h($username);
                 logTenantActivity($conn, $tenantId, 'Patient Created', "New patient: " . h($firstName . ' ' . $lastName));

@@ -519,7 +519,7 @@ require_once __DIR__ . '/subscription_tiers.php';
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="sidebar-logo">
-                <div class="sidebar-logo-icon">🛡️</div>
+                <div class="sidebar-logo-icon">🏥</div>
                 <div class="sidebar-logo-text">OralSync</div>
             </div>
             <nav class="menu">
@@ -527,7 +527,9 @@ require_once __DIR__ . '/subscription_tiers.php';
                 <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
                 <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
                 <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Reports</a>
+                <div class="menu-dropdown" style="display: none; flex-direction: column; margin-left: 20px;">
+                    <a href="superadmin_sales_report.php" class="menu-item" style="padding-left: 16px;"><span>💰</span> Sales Reports</a>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>
@@ -976,6 +978,17 @@ require_once __DIR__ . '/subscription_tiers.php';
                 dropdownItems.style.display = isVisible ? 'none' : 'flex';
                 dropdownItems.style.flexDirection = 'column';
                 dropdownToggle.classList.toggle('active');
+            });
+        }
+
+        // New dropdown for Reports dropdown
+        const reportsLink = document.querySelector('.menu-item[href="superadmin_reports.php"]');
+        const reportsDropdown = reportsLink?.nextElementSibling;
+        if (reportsLink && reportsDropdown && reportsDropdown.classList.contains('menu-dropdown')) {
+            reportsLink.addEventListener('click', function (e) {
+                e.preventDefault();
+                const isVisible = reportsDropdown.style.display !== 'none';
+                reportsDropdown.style.display = isVisible ? 'none' : 'flex';
             });
         }
     })();
