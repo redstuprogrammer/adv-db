@@ -15,9 +15,6 @@ if (!$conn && (!isset($pdo) || !$pdo)) {
     die("Database connection error. Please try again later.");
 }
 
-// Wrap login logic in try-catch to better handle errors
-try {
-
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
@@ -52,7 +49,8 @@ if ($tenantSlug !== '') {
     } catch (Exception $e) {
         error_log("Exception in tenant lookup: " . $e->getMessage());
         $error = "An error occurred. Please try again.";
-    }\n}
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
@@ -156,10 +154,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
-} catch (Exception $e) {
-    error_log("CRITICAL ERROR in tenant_login.php: " . $e->getMessage() . " Stack: " . $e->getTraceAsString());
-    http_response_code(500);
-    $error = "An error occurred during login. Our team has been notified. Please try again in a few moments.";
 }
 
 $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';

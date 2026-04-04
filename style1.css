@@ -114,6 +114,26 @@ body {
     color: var(--white);
 }
 
+/* Dropdown toggle styling - no background to prevent white glitch */
+.menu-dropdown-toggle {
+    border-left: 3px solid transparent !important;
+}
+
+.menu-dropdown-toggle.active {
+    background: none !important;
+    border-left: 3px solid #22c55e !important;
+}
+
+.menu-dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-left: 3px solid transparent !important;
+}
+
+.menu-dropdown-toggle.active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-left: 3px solid #22c55e !important;
+}
+
 .sidebar-bottom {
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }

@@ -6,6 +6,14 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 require_once __DIR__ . '/subscription_tiers.php';
+require_once __DIR__ . '/settings.php';
+
+// Load settings for logo display
+try {
+    $currentSettings = getAllSettings();
+} catch (Exception $e) {
+    $currentSettings = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -487,14 +495,16 @@ require_once __DIR__ . '/subscription_tiers.php';
     transition: background-color 0.2s;
     margin: 0;
     font-family: inherit;
+    border-left: 3px solid transparent;
 }
 
 .menu-dropdown-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .menu-dropdown-toggle.active {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.1);
+    border-left: 3px solid #22c55e;
 }
 
 .menu-dropdown-items {
@@ -529,9 +539,18 @@ require_once __DIR__ . '/subscription_tiers.php';
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="font-size: 32px;">🏥</div>
+                <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px;">
+                    <?php
+                    $logoPath = $currentSettings['logo_path'] ?? '';
+                    if ($logoPath && file_exists(__DIR__ . '/uploads/' . $logoPath)) {
+                        echo '<img src="uploads/' . htmlspecialchars($logoPath) . '?t=' . time() . '" style="width: 100%; height: 100%; object-fit: cover;" alt="Logo" />';
+                    } else {
+                        echo '🏥';
+                    }
+                    ?>
+                </div>
                 <div>
-                    <div class="sidebar-logo-text" style="margin: 0;">OralSync</div>
+                    <div class="sidebar-logo-text" style="margin: 0;"><?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?></div>
                     <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
                 </div>
             </div>
@@ -950,35 +969,23 @@ require_once __DIR__ . '/subscription_tiers.php';
         }
     });
 
-    // Close dropdown when clicking on external links
-    document.querySelectorAll('a:not([data-section])').forEach(link => {
-        if (link.hasAttribute('href') && !link.classList.contains('menu-dropdown-item')) {
-            link.addEventListener('click', function() {
-                const dropdownItems = document.querySelector('.menu-dropdown-items');
-                const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
-                if (dropdownItems) dropdownItems.style.display = 'none';
-                if (dropdownToggle) dropdownToggle.classList.remove('active');
-            });
-        }
-    });
-
     // Sidebar navigation between sections
     (function () {
         const menuItems = document.querySelectorAll('.menu-item[data-section]');
         const sections = document.querySelectorAll('.sa-section');
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
 
         menuItems.forEach(item => {
             item.addEventListener('click', function (e) {
                 e.preventDefault();
                 const target = this.getAttribute('data-section');
 
-                // Close dropdown
-                const dropdownItems = document.querySelector('.menu-dropdown-items');
-                const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
-                if (dropdownItems) dropdownItems.style.display = 'none';
-                if (dropdownToggle) dropdownToggle.classList.remove('active');
-
+                // Remove active from all menu items (including Reports dropdown)
                 menuItems.forEach(mi => mi.classList.remove('active'));
+                if (dropdownToggle) dropdownToggle.classList.remove('active');
+                if (dropdownItems) dropdownItems.style.display = 'none';
+
                 this.classList.add('active');
 
                 sections.forEach(sec => {
@@ -997,8 +1004,11 @@ require_once __DIR__ . '/subscription_tiers.php';
             if (hash) {
                 const targetSection = document.getElementById(hash);
                 if (targetSection) {
-                    // Remove active from all menu items
-                    document.querySelectorAll('.menu-item').forEach(mi => mi.classList.remove('active'));
+                    // Remove active from all menu items (including Reports dropdown)
+                    document.querySelectorAll('.menu-item[data-section]').forEach(mi => mi.classList.remove('active'));
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    
                     // Add active to the corresponding menu item
                     const menuItem = document.querySelector(`.menu-item[data-section="${hash}"]`);
                     if (menuItem) {

@@ -347,7 +347,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <aside class="sidebar">
         <div class="sidebar-top">
             <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
-                <div style="font-size: 32px;">🏥</div>
+                <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px;">
+                    <?php
+                    $logoPath = $currentSettings['logo_path'] ?? '';
+                    if ($logoPath && file_exists(__DIR__ . '/uploads/' . $logoPath)) {
+                        echo '<img src="uploads/' . htmlspecialchars($logoPath) . '?t=' . time() . '" style="width: 100%; height: 100%; object-fit: cover;" alt="Logo" />';
+                    } else {
+                        echo '🏥';
+                    }
+                    ?>
+                </div>
                 <div>
                     <div class="sidebar-logo-text" style="margin: 0;"><?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?></div>
                     <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
