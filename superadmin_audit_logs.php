@@ -426,6 +426,41 @@ if (empty($_SESSION['superadmin_authed'])) {
                 loadLogs(newPage);
             }
         }
+
+        // Dropdown toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const dropdownItems = document.querySelector('.menu-dropdown-items');
+            const dropdown = document.querySelector('.menu-dropdown');
+
+            if (dropdownToggle) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (dropdownItems.style.display === 'none' || dropdownItems.style.display === '') {
+                        dropdownItems.style.display = 'flex';
+                        dropdownToggle.classList.add('active');
+                    } else {
+                        dropdownItems.style.display = 'none';
+                        dropdownToggle.classList.remove('active');
+                    }
+                });
+            }
+
+            // Prevent dropdown from closing when clicking dropdown items
+            if (dropdownItems) {
+                dropdownItems.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (dropdown && !dropdown.contains(e.target)) {
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                }
+            });
+        });
     </script>
     </main>
 </body>

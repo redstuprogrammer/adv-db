@@ -4,6 +4,12 @@ require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 require_once 'tenant_utils.php';
 
+// Check connection
+if (!$conn) {
+    error_log("CRITICAL: Database connection failed in tenant_login.php");
+    die("Database connection error. Please try again later.");
+}
+
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
@@ -19,14 +25,26 @@ $error = '';
 $tenant = null;
 
 if ($tenantSlug !== '') {
-    $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, password, status, subdomain_slug FROM tenants WHERE subdomain_slug = ? LIMIT 1");
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "s", $tenantSlug);
-        mysqli_stmt_execute($stmt);
-        $res = mysqli_stmt_get_result($stmt);
-        $tenant = $res ? mysqli_fetch_assoc($res) : null;
-    }
-}
+    try {
+        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, password, status, subdomain_slug FROM tenants WHERE subdomain_slug = ? LIMIT 1");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "s", $tenantSlug);
+            if (mysqli_stmt_execute($stmt)) {
+                $res = mysqli_stmt_get_result($stmt);
+                $tenant = $res ? mysqli_fetch_assoc($res) : null;
+            } else {
+                error_log("Query execution failed in tenant_login for slug: " . $tenantSlug . " - Error: " . mysqli_error($conn));
+                $error = "Database error. Please try again.";
+            }
+            mysqli_stmt_close($stmt);
+        } else {
+            error_log("Statement preparation failed in tenant_login: " . mysqli_error($conn));
+            $error = "Database error. Please try again.";
+        }
+    } catch (Exception $e) {
+        error_log("Exception in tenant lookup: " . $e->getMessage());
+        $error = "An error occurred. Please try again.";
+    }\n}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
@@ -55,17 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         } else {
             // Fallback: check users table for receptionist/dentist
-            $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
-            if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
-                mysqli_stmt_execute($stmt);
-                $res = mysqli_stmt_get_result($stmt);
-                $user = $res ? mysqli_fetch_assoc($res) : null;
-                if ($user && password_verify($password, (string)$user['password'])) {
-                    $authenticated = true;
-                    $userRole = (string)$user['role'];
-                    $userData = $user;
+            try {
+                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
+                    if (mysqli_stmt_execute($stmt)) {
+                        $res = mysqli_stmt_get_result($stmt);
+                        $user = $res ? mysqli_fetch_assoc($res) : null;
+                        if ($user && password_verify($password, (string)$user['password'])) {
+                            $authenticated = true;
+                            $userRole = (string)$user['role'];
+                            $userData = $user;
+                        }
+                    } else {
+                        error_log("Users query execution failed: " . mysqli_error($conn));
+                    }
+                    mysqli_stmt_close($stmt);
+                } else {
+                    error_log("Users statement preparation failed: " . mysqli_error($conn));
                 }
+            } catch (Exception $e) {
+                error_log("Exception checking users table: " . $e->getMessage());
             }
         }
 
@@ -102,12 +130,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Log activity
             $activityType = ucfirst(strtolower($userRole)) . ' Login';
-            logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $userData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+            try {
+                logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $userData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+            } catch (Exception $e) {
+                error_log('Activity logging failed: ' . $e->getMessage());
+                // Don't break login flow if logging fails
+            }
 
             $dashboardUrl = getRoleDashboardUrl($userRole, (string)$tenant['subdomain_slug']);
             error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
-            header('Location: ' . $dashboardUrl);
-            exit;
+            if (!$dashboardUrl || empty($dashboardUrl)) {
+                $error = 'Dashboard URL could not be generated. Please contact support.';
+                error_log("ERROR: Dashboard URL is empty for role: " . $userRole);
+            } else {
+                header('Location: ' . $dashboardUrl);
+                exit;
+            }
         }
     }
 }

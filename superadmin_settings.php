@@ -357,8 +357,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
+                <div class="menu-dropdown" style="width: 100%;">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
+                    </div>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item active"><span>⚙️</span> Settings</a>
             </nav>
@@ -384,7 +389,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="success-message"><?php echo $message; ?></div>
         <?php endif; ?>
 
-        <form method="POST">
+        <form method="POST" id="settingsForm" enctype="multipart/form-data">
             <!-- System Name and Branding -->
             <div class="sa-card settings-section">
                 <div class="sa-card-header">
@@ -399,13 +404,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="text" id="system_name" name="system_name" value="<?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?>">
                     </div>
                     <div class="sa-form-group">
-                        <label for="logo">Logo Upload</label>
-                        <input type="file" id="logo" name="logo" accept="image/png, image/jpeg">
+                        <label for="logo">Logo / Icon Upload</label>
+                        <input type="file" id="logo" name="logo" accept="image/png, image/jpeg, image/jpg">
                         <div class="logo-preview" id="logo-preview">
                             <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . '/uploads/' . $currentSettings['logo_path'])): ?>
-                                <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>" style="max-width: 100%; max-height: 100%;">
+                                <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
                             <?php else: ?>
-                                No logo uploaded
+                                <span id="logo-placeholder">No logo uploaded</span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -500,7 +505,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Owner (Admin)</td>
+                            <td>Admin</td>
                             <td>Full clinic management and administration</td>
                             <td>
                                 <div class="permissions-grid">
@@ -511,7 +516,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <input type="checkbox" checked disabled> <span>Patients</span>
                                     </label>
                                     <label class="permission-item">
-                                        <input type="checkbox" checked disabled> <span>Billing</span>
+                                        <input type="checkbox" disabled> <span>Billing</span>
                                     </label>
                                     <label class="permission-item">
                                         <input type="checkbox" checked disabled> <span>Staff Management</span>
@@ -523,7 +528,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </td>
                         </tr>
                         <tr>
-                            <td>Front Desk (Receptionist)</td>
+                            <td>Front Desk / Receptionist</td>
                             <td>Appointment scheduling and patient coordination</td>
                             <td>
                                 <div class="permissions-grid">
@@ -534,7 +539,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <input type="checkbox" checked disabled> <span>Patients</span>
                                     </label>
                                     <label class="permission-item">
-                                        <input type="checkbox" disabled> <span>Billing</span>
+                                        <input type="checkbox" checked disabled> <span>Billing</span>
                                     </label>
                                     <label class="permission-item">
                                         <input type="checkbox" disabled> <span>Staff Management</span>
@@ -583,23 +588,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <script>
-        // Logo preview
+        // Logo preview during upload
         document.getElementById('logo').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById('logo-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 100%;">';
+                    const preview = document.getElementById('logo-preview');
+                    preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">';
                 };
                 reader.readAsDataURL(file);
             }
+        });
+
+        // Handle form submission with auto-refresh
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Auto-refresh after 500ms to show updated logo and system name
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving settings');
+            });
+        });
+
+        // Dropdown toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const dropdownItems = document.querySelector('.menu-dropdown-items');
+            const dropdown = document.querySelector('.menu-dropdown');
+
+            if (dropdownToggle) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (dropdownItems.style.display === 'none' || dropdownItems.style.display === '') {
+                        dropdownItems.style.display = 'flex';
+                        dropdownToggle.classList.add('active');
+                    } else {
+                        dropdownItems.style.display = 'none';
+                        dropdownToggle.classList.remove('active');
+                    }
+                });
+            }
+
+            // Prevent dropdown from closing when clicking dropdown items
+            if (dropdownItems) {
+                dropdownItems.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (dropdown && !dropdown.contains(e.target)) {
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                }
+            });
         });
 
         function resetSettings() {
             if (confirm('Are you sure you want to reset all settings to defaults?')) {
                 // Reset form
                 document.querySelector('form').reset();
-                document.getElementById('logo-preview').innerHTML = 'No logo uploaded';
+                document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder">No logo uploaded</span>';
             }
         }
     </script>
