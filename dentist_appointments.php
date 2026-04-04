@@ -36,15 +36,17 @@ $today = date('Y-m-d');
 
 // Query Logic
 $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name, 
-                 a.appointment_date, a.status 
+                 COALESCE(s.service_name, 'General Checkup') AS service_name, 
+                 a.appointment_date, a.appointment_time, a.status 
           FROM appointment a
           JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN service s ON a.service_id = s.service_id
           WHERE a.tenant_id = ? AND a.dentist_id = ?";
 
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";
 elseif ($filter == 'upcoming') $query .= " AND a.appointment_date > ?";
 
-$query .= " ORDER BY a.appointment_date ASC, a.appointment_id ASC";
+$query .= " ORDER BY a.appointment_date ASC, a.appointment_time ASC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
@@ -276,11 +278,13 @@ if ($stmt) {
             <?php while($row = $result->fetch_assoc()): ?>
               <div class="appt-card" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
                 <div class="time-badge">
+                  <h4><?php echo $row['appointment_time'] ? date('h:i A', strtotime($row['appointment_time'])) : 'TBD'; ?></h4>
                   <p><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></p>
                 </div>
                 
                 <div class="patient-details">
                   <h3><?php echo h($row['first_name'] . " " . $row['last_name']); ?></h3>
+                  <span class="service-tag"><?php echo h($row['service_name']); ?></span>
                   <span class="status-indicator status-<?php echo strtolower($row['status']); ?>">
                     ● <?php echo h($row['status']); ?>
                   </span>

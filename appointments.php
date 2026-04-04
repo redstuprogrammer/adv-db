@@ -35,9 +35,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     }
 }
 
-// Fetch appointments
+// Handle Update Appointment Status
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
+    $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
+    $newStatus = isset($_POST['new_status']) ? trim($_POST['new_status']) : '';
+    $newNotes = isset($_POST['new_notes']) ? trim($_POST['new_notes']) : '';
+
+    if ($appointmentId > 0 && $newStatus !== '') {
+        $stmt = $conn->prepare('UPDATE appointment SET status = ?, notes = ? WHERE appointment_id = ? AND tenant_id = ?');
+        $stmt->bind_param('ssii', $newStatus, $newNotes, $appointmentId, $tenantId);
+        if ($stmt->execute()) {
+            $successMsg = 'Appointment updated successfully!';
+            logTenantActivity($conn, $tenantId, 'Appointment Updated', "Appointment ID: $appointmentId updated to $newStatus");
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch appointments with service info (if available)
 $appointments = [];
-$stmt = $conn->prepare('SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, p.first_name AS patient_first, p.last_name AS patient_last, u.username AS dentist_name FROM appointment a LEFT JOIN patient p ON a.patient_id = p.patient_id LEFT JOIN users u ON a.dentist_id = u.user_id WHERE a.tenant_id = ? ORDER BY a.appointment_date DESC');
+$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, a.notes, 
+                 p.first_name AS patient_first, p.last_name AS patient_last, 
+                 u.username AS dentist_name,
+                 COALESCE(s.service_name, 'General Checkup') AS service_name
+          FROM appointment a 
+          LEFT JOIN patient p ON a.patient_id = p.patient_id 
+          LEFT JOIN users u ON a.dentist_id = u.user_id 
+          LEFT JOIN service s ON a.service_id = s.service_id
+          WHERE a.tenant_id = ? 
+          ORDER BY a.appointment_date DESC";
+$stmt = $conn->prepare($query);
 $stmt->bind_param('i', $tenantId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -141,6 +168,138 @@ $stmt->close();
       .badge-confirmed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
       .badge-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
       .badge-cancelled { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+      /* Status Pills */
+      .status-pill {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+      }
+
+      .status-pill.pending { background: #fffbeb; color: #92400e; }
+      .status-pill.completed { background: #f0fdf4; color: #166534; }
+      .status-pill.cancelled { background: #fef2f2; color: #991b1b; }
+
+      /* Search and Filter */
+      .search-container {
+        margin-bottom: 20px;
+      }
+
+      .search-input {
+        width: 100%;
+        max-width: 400px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 25px;
+        outline: none;
+        font-size: 14px;
+      }
+
+      .search-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
+      /* Edit Modal Styles */
+      .edit-modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.7);
+        align-items: center;
+        justify-content: center;
+      }
+
+      .edit-modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        width: 400px;
+        position: relative;
+      }
+
+      .edit-form-group {
+        margin-bottom: 18px;
+      }
+
+      .edit-form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .edit-form-group input,
+      .edit-form-group select,
+      .edit-form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-sizing: border-box;
+        font-size: 14px;
+      }
+
+      .edit-form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      .edit-modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .edit-btn-cancel {
+        flex: 1;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        cursor: pointer;
+        background: white;
+        color: #64748b;
+      }
+
+      .edit-btn-save {
+        flex: 2;
+        padding: 12px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .action-btn {
+        display: inline-block;
+        padding: 8px 12px;
+        margin-right: 4px;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 12px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+
+      .action-btn:hover {
+        background: #0a2d4f;
+        border-color: #0a2d4f;
+      }
 
       .action-btn {
         display: inline-block;
@@ -342,45 +501,43 @@ $stmt->close();
         <?php endif; ?>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Upcoming Appointments</h2>
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Appointment Management</h2>
           <button class="btn-primary" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
         
-        <div class="filters">
-          <input type="date" placeholder="Filter by date" />
-          <select>
-            <option>All Status</option>
-            <option>Confirmed</option>
-            <option>Pending</option>
-            <option>Cancelled</option>
-          </select>
+        <div class="search-container">
+          <input type="text" id="appointmentSearch" class="search-input" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
         </div>
 
-        <table class="module-table">
+        <table class="module-table" id="appointmentTable">
           <thead>
             <tr>
+              <th>Schedule</th>
               <th>Patient</th>
               <th>Dentist</th>
-              <th>Date & Time</th>
+              <th>Treatment</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($appointments)): ?>
               <tr>
-                <td colspan="5" style="text-align: center; color: #64748b;">No appointments scheduled</td>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">No appointments found in the schedule.</td>
               </tr>
             <?php else: ?>
               <?php foreach ($appointments as $appt): ?>
                 <tr>
-                  <td><?php echo h(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')); ?></td>
-                  <td><?php echo h($appt['dentist_name'] ?: 'N/A'); ?></td>
-                  <td><?php echo h(date('M d, Y g:i A', strtotime($appt['appointment_date']))); ?></td>
-                  <td><span class="badge badge-<?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
-                    <a href="#" class="action-btn" onclick="alert('View appointment - coming soon'); return false;">View</a>
-                    <a href="#" class="action-btn" onclick="alert('Edit appointment - coming soon'); return false;">Edit</a>
+                    <strong><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></strong>
+                    <div style="font-size: 12px; color: #94a3b8;"><?php echo date('h:i A', strtotime($appt['appointment_date'])); ?></div>
+                  </td>
+                  <td><?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?></td>
+                  <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
+                  <td><?php echo h($appt['service_name']); ?></td>
+                  <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
+                  <td>
+                    <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>', '<?php echo h($appt['notes'] ?? ''); ?>')">Manage</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -443,6 +600,36 @@ $stmt->close();
     </div>
   </div>
 
+  <!-- Edit Appointment Modal -->
+  <div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <h3 style="margin-top:0; color: var(--accent);">Update Treatment Status</h3>
+      <form action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" method="POST">
+        <input type="hidden" name="update_id" id="edit_id">
+        <div class="edit-form-group">
+          <label>Patient</label>
+          <input type="text" id="edit_name_display" disabled style="background:#f1f5f9; border:none; font-weight:bold; color:#475569;">
+        </div>
+        <div class="edit-form-group">
+          <label>Status</label>
+          <select name="new_status" id="edit_status">
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="edit-form-group">
+          <label>Clinical Notes</label>
+          <textarea name="new_notes" id="edit_notes" rows="4" placeholder="Enter findings or procedure notes..."></textarea>
+        </div>
+        <div class="edit-modal-actions">
+          <button type="button" class="edit-btn-cancel" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" name="update_appointment" class="edit-btn-save">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     function openScheduleModal() {
       const dateInput = document.querySelector('input[name="appointment_date"]');
@@ -462,6 +649,43 @@ $stmt->close();
       const modal = document.getElementById('scheduleModal');
       if (event.target == modal) {
         modal.style.display = 'none';
+      }
+    }
+
+    // Edit Modal Functions
+    function openEditModal(id, name, status, notes) {
+      document.getElementById("edit_id").value = id;
+      document.getElementById("edit_name_display").value = name;
+      document.getElementById("edit_status").value = status;
+      document.getElementById("edit_notes").value = notes;
+      document.getElementById("editModal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
+
+    // Filter Appointments
+    function filterAppointments() {
+      const query = document.getElementById('appointmentSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#appointmentTable tbody tr');
+      
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    // Close edit modal when clicking outside
+    window.onclick = function(event) {
+      const scheduleModal = document.getElementById('scheduleModal');
+      const editModal = document.getElementById('editModal');
+      
+      if (event.target == scheduleModal) {
+        scheduleModal.style.display = 'none';
+      }
+      if (event.target == editModal) {
+        editModal.style.display = 'none';
       }
     }
   </script>

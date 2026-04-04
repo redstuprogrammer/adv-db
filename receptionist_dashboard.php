@@ -28,7 +28,7 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
-$receptionistName = $_SESSION['username'];
+$receptionistName = $_SESSION['username'] ?? 'Receptionist';
 
 $todayDate = date('Y-m-d');
 
@@ -55,9 +55,9 @@ if ($stmt) {
     $completedCount = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
 
-// 3. New Patients Added This Month
+// 3. Total Patients
 $newPatients = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM patient WHERE tenant_id = ? AND MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE())");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM patient WHERE tenant_id = ?");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
@@ -322,7 +322,7 @@ if ($stmt) {
 
         <div class="stat-card">
           <div class="stat-icon icon-blue">👥</div>
-          <div class="stat-label">New Patients (Month)</div>
+          <div class="stat-label">Total Patients</div>
           <div class="stat-value"><?php echo $newPatients; ?></div>
         </div>
       </div>

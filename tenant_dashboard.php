@@ -44,6 +44,27 @@ if ($stmt) {
         }
     }
 }
+
+// Fetch all patients with last visit for patient directory
+$allPatients = [];
+$query = "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, 
+                 MAX(a.appointment_date) as last_visit 
+          FROM patient p 
+          LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id
+          WHERE p.tenant_id = ? 
+          GROUP BY p.patient_id, p.first_name, p.last_name, p.contact_number, p.email
+          ORDER BY p.patient_id DESC";
+$stmt = mysqli_prepare($conn, $query);
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $allPatients[] = $row;
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -244,6 +265,123 @@ if ($stmt) {
           grid-template-columns: 1fr;
         }
       }
+
+      /* Patient Directory Styles */
+      .patient-directory {
+        background: white;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 32px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      }
+
+      .directory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .directory-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--dashboard-accent);
+        margin: 0;
+      }
+
+      .directory-count {
+        font-size: 14px;
+        color: #64748b;
+      }
+
+      .directory-search {
+        margin-bottom: 20px;
+      }
+
+      .search-input {
+        width: 100%;
+        max-width: 400px;
+        padding: 12px 16px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 25px;
+        outline: none;
+        font-size: 14px;
+      }
+
+      .search-input:focus {
+        border-color: var(--dashboard-accent);
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+
+      .patient-table th {
+        background: var(--dashboard-bg);
+        color: #64748b;
+        padding: 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 2px solid var(--dashboard-border);
+      }
+
+      .patient-table td {
+        padding: 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+        color: #334155;
+      }
+
+      .patient-table tr:hover {
+        background-color: #f8fafc;
+        cursor: pointer;
+      }
+
+      .patient-id {
+        font-family: monospace;
+        font-weight: bold;
+        color: var(--dashboard-accent);
+      }
+
+      .patient-name {
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      .status-pill {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+      }
+
+      .status-active {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .status-inactive {
+        background: #f1f5f9;
+        color: #64748b;
+      }
+
+      .last-visit {
+        color: #64748b;
+        font-size: 13px;
+      }
+
+      .no-visits {
+        color: #cbd5e1;
+        font-style: italic;
+      }
     </style>
 </head>
 <body>
@@ -291,21 +429,10 @@ if ($stmt) {
             <span class="sidebar-nav-icon">👤</span>
             <span>Staff & Users</span>
           </a>
-          <div class="sidebar-dropdown-container">
-            <button class="sidebar-nav-item sidebar-dropdown-toggle" onclick="toggleReportsDropdown(event)" data-tenant="<?php echo urlencode($tenantSlug); ?>">
-              <span class="sidebar-nav-icon">📈</span>
-              <span>Reports</span>
-              <span class="dropdown-arrow">▼</span>
-            </button>
-            <div class="sidebar-dropdown-menu" id="reports-dropdown">
-              <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-dropdown-item">
-                <span>📊 Activity & Audit Trail</span>
-              </a>
-              <a href="tenant_reports.php?tab=revenue&tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-dropdown-item">
-                <span>💰 Revenue Performance</span>
-              </a>
-            </div>
-          </div>
+          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📈</span>
+            <span>Reports</span>
+          </a>
           <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">⚙️</span>
             <span>Settings</span>
@@ -356,6 +483,59 @@ if ($stmt) {
           <div class="stat-label">Today's Revenue</div>
           <div class="stat-value">₱<?php echo number_format($todayRevenue, 2); ?></div>
         </div>
+      </div>
+
+      <!-- Patient Directory -->
+      <div class="patient-directory">
+        <div class="directory-header">
+          <div>
+            <h2 class="directory-title">Patient Directory</h2>
+            <div class="directory-count"><?php echo count($allPatients); ?> registered patients</div>
+          </div>
+        </div>
+
+        <div class="directory-search">
+          <input type="text" id="patientSearch" class="search-input" placeholder="🔍 Search patients by name, ID, or contact..." onkeyup="filterPatients()">
+        </div>
+
+        <table class="patient-table" id="patientTable">
+          <thead>
+            <tr>
+              <th>Patient ID</th>
+              <th>Full Name</th>
+              <th>Contact</th>
+              <th>Last Visit</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($allPatients as $patient): 
+              $isActive = ($patient['last_visit'] && strtotime($patient['last_visit']) > strtotime('-1 year'));
+            ?>
+            <tr onclick="window.location='patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view=<?php echo $patient['patient_id']; ?>'">
+              <td>
+                <span class="patient-id">#<?php echo str_pad($patient['patient_id'], 4, '0', STR_PAD_LEFT); ?></span>
+              </td>
+              <td>
+                <span class="patient-name"><?php echo h($patient['first_name'] . " " . $patient['last_name']); ?></span>
+              </td>
+              <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
+              <td>
+                <?php if ($patient['last_visit']): ?>
+                  <span class="last-visit"><?php echo date('M d, Y', strtotime($patient['last_visit'])); ?></span>
+                <?php else: ?>
+                  <span class="no-visits">No visits</span>
+                <?php endif; ?>
+              </td>
+              <td>
+                <span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>">
+                  <?php echo $isActive ? 'Active' : 'Inactive'; ?>
+                </span>
+              </td>
+            </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
       </div>
 
       <!-- Mini Patient Table and Sales Chart -->
@@ -493,90 +673,6 @@ if ($stmt) {
     // Initialize calendar on page load
     renderCalendar();
 
-    // Reports Dropdown Toggle
-    function toggleReportsDropdown(e) {
-      e.preventDefault();
-      const dropdown = document.getElementById('reports-dropdown');
-      const toggle = e.currentTarget;
-      
-      dropdown.classList.toggle('open');
-      toggle.classList.toggle('open');
-      
-      // Save state to localStorage
-      if (dropdown.classList.contains('open')) {
-        localStorage.setItem('reportsDropdownOpen', 'true');
-      } else {
-        localStorage.setItem('reportsDropdownOpen', 'false');
-      }
-    }
-
-    // Initialize dropdown state on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      const isOpen = localStorage.getItem('reportsDropdownOpen') === 'true';
-      const dropdown = document.getElementById('reports-dropdown');
-      const toggle = document.querySelector('.sidebar-dropdown-toggle');
-      
-      if (isOpen) {
-        dropdown.classList.add('open');
-        toggle.classList.add('open');
-      }
-      
-      // Set active state based on current page
-      setActiveMenuItems();
-    });
-
-    // Function to set active menu items
-    function setActiveMenuItems() {
-      const currentPage = window.location.pathname.split('/').pop() || 'tenant_dashboard.php';
-      const hasTab = window.location.search.includes('tab=');
-      
-      // Remove all active classes from sidebar items
-      document.querySelectorAll('.sidebar-nav-item').forEach(item => {
-        item.classList.remove('active');
-      });
-      document.querySelectorAll('.sidebar-dropdown-item').forEach(item => {
-        item.classList.remove('active');
-      });
-      
-      // Activate based on current page
-      if (currentPage.includes('tenant_reports.php')) {
-        const dropdown = document.getElementById('reports-dropdown');
-        const toggle = document.querySelector('.sidebar-dropdown-toggle');
-        dropdown.classList.add('open');
-        toggle.classList.add('open');
-        localStorage.setItem('reportsDropdownOpen', 'true');
-        
-        // Remove active from toggle button itself
-        toggle.classList.remove('active');
-        
-        // Activate correct dropdown item based on tab
-        if (hasTab && window.location.search.includes('tab=revenue')) {
-          document.querySelectorAll('.sidebar-dropdown-item')[1]?.classList.add('active');
-        } else {
-          document.querySelectorAll('.sidebar-dropdown-item')[0]?.classList.add('active');
-        }
-      } else {
-        // For non-Reports pages, close dropdown and set appropriate active item
-        const toggle = document.querySelector('.sidebar-dropdown-toggle');
-        const dropdown = document.getElementById('reports-dropdown');
-        
-        if (currentPage.includes('tenant_settings.php')) {
-          // Settings page clicked - keep dropdown open but don't set it as active
-          toggle.classList.remove('active');
-          dropdown.classList.add('open');
-          localStorage.setItem('reportsDropdownOpen', 'true');
-        } else {
-          // Other pages - set their active state
-          document.querySelectorAll('.sidebar-nav-item').forEach(item => {
-            const href = item.getAttribute('href') || '';
-            if (href.includes(currentPage) && !item.classList.contains('sidebar-dropdown-toggle')) {
-              item.classList.add('active');
-            }
-          });
-        }
-      }
-    }
-
     // Sales Chart
     const ctx = document.getElementById('salesChart').getContext('2d');
     new Chart(ctx, {
@@ -611,6 +707,17 @@ if ($stmt) {
         }
       }
     });
+
+    // Patient filtering function
+    function filterPatients() {
+      const input = document.getElementById('patientSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#patientTable tbody tr');
+      
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(input) ? '' : 'none';
+      });
+    }
   </script>
 </body>
 </html>

@@ -76,11 +76,13 @@ if ($stmt) {
    TODAY'S SCHEDULE
 ========================= */
 $scheduleResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_name 
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_time, a.appointment_date, p.first_name, p.last_name, 
+                                     COALESCE(s.service_name, 'General Checkup') AS service_name, a.status, a.notes 
                   FROM appointment a 
                   JOIN patient p ON a.patient_id = p.patient_id 
+                  LEFT JOIN service s ON a.service_id = s.service_id 
                   WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.dentist_id = ? 
-                  ORDER BY a.appointment_id ASC");
+                  ORDER BY a.appointment_time ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "isi", $tenantId, $todayDate, $dentistId);
     mysqli_stmt_execute($stmt);
@@ -394,12 +396,17 @@ if ($stmt) {
           <?php if ($scheduleResult && $scheduleResult->num_rows > 0): ?>
             <?php while($row = $scheduleResult->fetch_assoc()): ?>
               <div class="schedule-item-pop">
+                <small>⏰ <?php echo date('h:i A', strtotime($row['appointment_time'])); ?></small><br>
+                <strong><?php echo h($row['service_name']); ?></strong><br>
                 <span>Patient: <?php echo h($row['first_name'] . " " . $row['last_name']); ?></span>
+                <?php if ($row['notes']): ?>
+                  <br><small style="color: #64748b;">Notes: <?php echo h(substr($row['notes'], 0, 50)); ?><?php echo strlen($row['notes']) > 50 ? '...' : ''; ?></small>
+                <?php endif; ?>
               </div>
             <?php endwhile; ?>
           <?php else: ?>
             <div style="text-align:center; padding: 40px 0;">
-              <p style="color:#94a3b8;">You have no appointments today.</p>
+              <p style="color:#94a3b8;">You have no appointments scheduled for today.</p>
             </div>
           <?php endif; ?>
         </div>

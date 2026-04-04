@@ -1,34 +1,52 @@
 <?php
-session_start();
-include "db.php"; 
-date_default_timezone_set('Asia/Manila');
+// Extend session timeout
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
-// 1. SECURITY CHECK (Adjust role names as per your database)
-if (!isset($_SESSION['role'])) {
-    header("Location: login.php");
-    exit();
+session_start();
+require_once __DIR__ . '/security_headers.php';
+require_once 'connect.php';
+require_once 'tenant_utils.php';
+
+function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+requireTenantLogin($tenantSlug);
+
+$tenantName = getCurrentTenantName();
+$tenantId = getCurrentTenantId();
+$receptionistName = $_SESSION['username'] ?? 'Receptionist';
+
 /* =========================================
-   2. DATA FETCHING (Billing List)
+   2. DATA FETCHING (Billing List) - Corrected for current schema
+   NOTE: service_id and service_name columns don't exist in current appointment table
+   BYPASS: Show appointment_date instead of service name
 ========================================= */
 $query = "SELECT 
             py.payment_id, 
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            COALESCE(s.service_name, py.service) AS service_name, 
             py.amount, 
             py.mode, 
             py.status,
-            a.appointment_id
+            a.appointment_id,
+            a.appointment_date
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
-          LEFT JOIN service s ON a.service_id = s.service_id
+          WHERE py.tenant_id = ? 
           ORDER BY py.payment_id DESC";
 
-$result = $conn->query($query);
+$result = null;
+$stmt = mysqli_prepare($conn, $query);
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+}
 ?>
 
 <!DOCTYPE html>
@@ -73,13 +91,13 @@ $result = $conn->query($query);
         <div class="sidebar-top">
             <div class="logo-white-box"><img src="oral logo.png" alt="OralSync" class="main-logo"></div>
             <nav class="menu">
-                <a href="receptionist_dashboard.php" class="menu-item"><span>🏠</span> Front Desk</a>
-                <a href="receptionist_appoinment.php" class="menu-item"><span>📅</span> Schedule Manager</a>
-                <a href="patients.php" class="menu-item"><span>👤</span> Patient Records</a>
-                <a href="receptionist_billing.php" class="menu-item active"><span>💳</span> Billing/Payments</a>
+                <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>🏠</span> Front Desk</a>
+                <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>📅</span> Appointments</a>
+                <a href="patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>👤</span> Patient Records</a>
+                <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item active"><span>💳</span> Billing/Payments</a>
             </nav>
         </div>
-        <div class="sidebar-bottom"><a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a></div>
+        <div class="sidebar-bottom"><a href="receptionist_logout.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sign-out"><span>🚪</span> Sign Out</a></div>
     </aside>
 
     <main class="main-content">
@@ -92,15 +110,9 @@ $result = $conn->query($query);
         </header>
 
         <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
-            <input type="text" id="tableSearch" placeholder="Search patient or service..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">
-            <button class="add-btn-main" onclick="toggleAddModal(true)">+ Create Invoice</button>
+            <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">
+            <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
         </section>
-
-        <?php if(isset($_GET['msg'])): ?>
-            <div style="background:#dcfce7; color:#15803d; padding:15px; border-radius:8px; margin-bottom:20px; font-weight:600;">
-                ✅ Action processed successfully!
-            </div>
-        <?php endif; ?>
 
         <div class="content-card">
             <table class="data-table" id="paymentTable">
@@ -108,7 +120,7 @@ $result = $conn->query($query);
                     <tr>
                         <th>Inv #</th>
                         <th>Patient Name</th>
-                        <th>Service</th>
+                        <th>Appointment Date</th>
                         <th>Amount</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -118,19 +130,19 @@ $result = $conn->query($query);
                     <?php if($result->num_rows > 0): ?>
                         <?php while($row = $result->fetch_assoc()): ?>
                         <tr>
-                            <td>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></td>
-                            <td><strong><?= htmlspecialchars($row['first_name'] . " " . $row['last_name']) ?></strong></td>
-                            <td><?= htmlspecialchars($row['service_name']) ?></td>
-                            <td style="font-weight:bold;">₱<?= number_format($row['amount'], 2) ?></td>
-                            <td><span class="status-pill <?= strtolower($row['status']) ?>"><?= $row['status'] ?></span></td>
+                            <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
+                            <td><?= h($row['first_name'] . " " . $row['last_name']) ?></td>
+                            <td><?= $row['appointment_date'] ? date('M d, Y', strtotime($row['appointment_date'])) : 'N/A' ?></td>
+                            <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
+                            <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'])) ?>"><?= h($row['status']) ?></span></td>
                             <td>
-                                <a href="print_invoice.php?id=<?= $row['payment_id'] ?>" class="btn-action btn-print" target="_blank">Print</a>
-                                <button class="btn-action btn-edit" onclick='openEditModal(<?= json_encode($row) ?>)'>Edit</button>
+                                <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
+                                <a onclick="openEditModal(<?= htmlspecialchars(json_encode($row)) ?>)" class="action-link">Edit</a>
                             </td>
                         </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <tr><td colspan="6" style="text-align:center;">No records found.</td></tr>
+                        <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -140,51 +152,62 @@ $result = $conn->query($query);
 
 <div id="paymentModal" class="modal">
     <div class="modal-content">
-        <span class="close-x" onclick="toggleAddModal(false)">&times;</span>
+        <span class="close-x" onclick="closeModal()">&times;</span>
         <h3 id="modalTitle" style="color: #0d3b66; margin:0 0 20px 0;">Create Invoice</h3>
         
         <form action="process_payment.php" method="POST" id="paymentForm">
+            <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
             <input type="hidden" name="payment_id" id="payment_id">
             
             <div class="form-group">
-                <label>Patient</label>
-                <select name="patient_id" id="patient_dropdown" onchange="loadPatientServices(this.value)" required>
+                <label>Patient <span style="color: red;">*</span></label>
+                <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
                     <option value="">-- Select Patient --</option>
                     <?php 
-                    $patients = $conn->query("SELECT patient_id, first_name, last_name FROM patient ORDER BY last_name ASC");
-                    while($p = $patients->fetch_assoc()) {
-                        echo "<option value='".$p['patient_id']."'>".$p['first_name']." ".$p['last_name']."</option>";
+                    $pStmt = mysqli_prepare($conn, "SELECT patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                    if ($pStmt) {
+                        mysqli_stmt_bind_param($pStmt, "i", $tenantId);
+                        mysqli_stmt_execute($pStmt);
+                        $pResult = mysqli_stmt_get_result($pStmt);
+                        while($p = mysqli_fetch_assoc($pResult)) {
+                            echo "<option value='".$p['patient_id']."'>".h($p['first_name']." ".$p['last_name'])."</option>";
+                        }
+                        mysqli_stmt_close($pStmt);
                     }
                     ?>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Related Appointment</label>
-                <select name="appointment_id" id="service_dropdown" required>
+                <label>Related Appointment <span style="color: red;">*</span></label>
+                <select name="appointment_id" id="appointment_dropdown" required>
                     <option value="">-- Choose Patient First --</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Total Amount (₱)</label>
-                <input type="number" name="amount" id="amount_input" step="0.01" required>
+                <label>Total Amount (₱) <span style="color: red;">*</span></label>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required>
             </div>
 
             <div class="form-group">
-                <label>Payment Mode</label>
-                <select name="mode" id="mode">
+                <label>Payment Mode <span style="color: red;">*</span></label>
+                <select name="mode" id="mode" required>
+                    <option value="">-- Select --</option>
                     <option value="Cash">Cash</option>
                     <option value="GCash">GCash</option>
                     <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Check">Check</option>
                 </select>
             </div>
 
             <div class="form-group">
-                <label>Status</label>
-                <select name="status" id="status">
+                <label>Status <span style="color: red;">*</span></label>
+                <select name="status" id="status" required>
+                    <option value="">-- Select --</option>
                     <option value="Paid">Fully Paid</option>
                     <option value="Installment">Installment</option>
+                    <option value="Pending">Pending</option>
                 </select>
             </div>
 
@@ -201,16 +224,15 @@ $result = $conn->query($query);
     setInterval(updateClock, 1000); updateClock();
 
     // 2. Modal Toggle
-    function toggleAddModal(show) {
-        const modal = document.getElementById("paymentModal");
-        if(show) {
-            document.getElementById('paymentForm').reset();
-            document.getElementById('payment_id').value = "";
-            document.getElementById('modalTitle').innerText = "Create New Invoice";
-            modal.style.display = "flex";
-        } else {
-            modal.style.display = "none";
-        }
+    function openAddModal() {
+      document.getElementById('paymentForm').reset();
+      document.getElementById('payment_id').value = "";
+      document.getElementById('modalTitle').innerText = "Create New Invoice";
+      document.getElementById("paymentModal").style.display = "flex";
+    }
+
+    function closeModal() {
+      document.getElementById("paymentModal").style.display = "none";
     }
 
     // 3. Edit Modal Trigger
@@ -222,28 +244,34 @@ $result = $conn->query($query);
         document.getElementById('mode').value = data.mode;
         document.getElementById('status').value = data.status;
         
-        // Load services and pre-select the current one
-        loadPatientServices(data.patient_id, data.appointment_id);
+        loadPatientAppointments(data.patient_id, data.appointment_id);
         document.getElementById("paymentModal").style.display = "flex";
     }
 
-    // 4. Dynamic Service Loading
-    function loadPatientServices(patientId, selectedApptId = null) {
-        const serviceSelect = document.getElementById('service_dropdown');
-        if (!patientId) return;
+    // 4. Dynamic Appointment Loading
+    function loadPatientAppointments(patientId, selectedApptId = null) {
+      const apptSelect = document.getElementById('appointment_dropdown');
+      apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
+      
+      if (!patientId) return;
 
-        fetch('get_patient_services.php?patient_id=' + patientId)
-            .then(res => res.json())
-            .then(data => {
-                serviceSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
-                data.forEach(item => {
-                    let opt = document.createElement('option');
-                    opt.value = item.appointment_id;
-                    opt.textContent = item.service_name + " (" + item.appointment_date + ")";
-                    if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
-                    serviceSelect.appendChild(opt);
-                });
-            });
+      const params = new URLSearchParams({
+        patient_id: patientId,
+        tenant_id: <?php echo $tenantId; ?>
+      });
+      
+      fetch('get_patient_services.php?' + params)
+        .then(res => res.json())
+        .then(data => {
+          data.forEach(item => {
+            let opt = document.createElement('option');
+            opt.value = item.appointment_id;
+            opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
+            if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
+            apptSelect.appendChild(opt);
+          });
+        })
+        .catch(err => console.error('Error loading appointments:', err));
     }
 
     // 5. Search Filter
@@ -257,7 +285,7 @@ $result = $conn->query($query);
 
     // Close modal if clicking outside
     window.onclick = function(e) {
-        if (e.target.className === 'modal') toggleAddModal(false);
+        if (e.target.id === 'paymentModal') closeModal();
     }
 </script>
 </body>

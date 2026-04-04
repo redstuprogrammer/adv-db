@@ -17,6 +17,53 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+
+// Fetch payment records with patient and appointment info
+$payments = [];
+$query = "SELECT 
+            py.payment_id, 
+            p.patient_id,
+            p.first_name, 
+            p.last_name, 
+            COALESCE(s.service_name, py.service, 'General Service') AS service_name, 
+            py.amount, 
+            py.mode, 
+            py.status,
+            a.appointment_id,
+            a.appointment_date
+          FROM payment py
+          LEFT JOIN appointment a ON py.appointment_id = a.appointment_id AND a.tenant_id = py.tenant_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = py.tenant_id
+          LEFT JOIN service s ON py.service_id = s.service_id
+          WHERE py.tenant_id = ?
+          ORDER BY py.payment_id DESC";
+
+$stmt = $conn->prepare($query);
+if ($stmt) {
+    $stmt->bind_param('i', $tenantId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $payments[] = $row;
+    }
+    $stmt->close();
+}
+
+// Calculate summary statistics
+$totalRevenue = 0;
+$pendingAmount = 0;
+$paidCount = 0;
+$pendingCount = 0;
+
+foreach ($payments as $payment) {
+    $totalRevenue += (float)$payment['amount'];
+    if (strtolower($payment['status']) === 'paid') {
+        $paidCount++;
+    } else {
+        $pendingAmount += (float)$payment['amount'];
+        $pendingCount++;
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -142,6 +189,40 @@ $tenantId = getCurrentTenantId();
       .badge-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
       .badge-overdue { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
+      /* Status Pills */
+      .status-pill {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+      }
+
+      .status-pill.status-paid { background: #dcfce7; color: #166534; }
+      .status-pill.status-installment,
+      .status-pill.status-pending { background: #fef9c3; color: #854d0e; }
+
+      /* Search */
+      .search-container {
+        margin-bottom: 20px;
+      }
+
+      .search-input {
+        width: 100%;
+        max-width: 400px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 25px;
+        outline: none;
+        font-size: 14px;
+      }
+
+      .search-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
       .action-btn {
         display: inline-block;
         padding: 8px 12px;
@@ -237,67 +318,70 @@ $tenantId = getCurrentTenantId();
       <div class="summary-grid">
         <div class="summary-card">
           <div class="summary-label">Total Revenue</div>
-          <div class="summary-value">₱45,250.00</div>
+          <div class="summary-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
         </div>
         <div class="summary-card">
           <div class="summary-label">Pending Payments</div>
-          <div class="summary-value">₱8,500.00</div>
+          <div class="summary-value">₱<?php echo number_format($pendingAmount, 2); ?></div>
         </div>
         <div class="summary-card">
-          <div class="summary-label">Overdue</div>
-          <div class="summary-value">₱2,100.00</div>
+          <div class="summary-label">Paid Invoices</div>
+          <div class="summary-value"><?php echo $paidCount; ?></div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-label">Total Transactions</div>
+          <div class="summary-value"><?php echo count($payments); ?></div>
         </div>
       </div>
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Payment Records</h2>
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Transaction Audit</h2>
           <a href="#" class="btn-primary" onclick="alert('Create Invoice functionality coming soon!'); return false;">+ Create Invoice</a>
         </div>
         
-        <div class="filters">
-          <input type="date" onchange="alert('Filter functionality coming soon!');" />
-          <select onchange="alert('Filter functionality coming soon!');">
-            <option>All Status</option>
-            <option>Paid</option>
-            <option>Pending</option>
-            <option>Overdue</option>
-          </select>
+        <div class="search-container">
+          <input type="text" id="paymentSearch" class="search-input" placeholder="🔍 Search patient, invoice, or status..." onkeyup="filterPayments()">
         </div>
 
-        <table class="module-table">
+        <table class="module-table" id="paymentTable">
           <thead>
             <tr>
-              <th>Invoice #</th>
-              <th>Patient</th>
+              <th>Invoice</th>
+              <th>Patient Name</th>
+              <th>Treatment</th>
               <th>Amount</th>
-              <th>Date</th>
+              <th>Mode</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th style="text-align: right;">Action</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>INV-001</td>
-              <td>Juan Dela Cruz</td>
-              <td>₱5,000.00</td>
-              <td>2026-03-10</td>
-              <td><span class="badge badge-paid">Paid</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('View Invoice - coming soon'); return false;">View</a>
-                <a href="#" class="action-btn" onclick="alert('Print Invoice - coming soon'); return false;">Print</a>
-              </td>
-            </tr>
-            <tr>
-              <td>INV-002</td>
-              <td>Maria Santos</td>
-              <td>₱3,500.00</td>
-              <td>2026-03-15</td>
-              <td><span class="badge badge-pending">Pending</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('View Invoice - coming soon'); return false;">View</a>
-                <a href="#" class="action-btn" onclick="alert('Print Invoice - coming soon'); return false;">Print</a>
-              </td>
+            <?php if (empty($payments)): ?>
+              <tr>
+                <td colspan="7" style="text-align: center; color: #64748b; padding: 40px;">No financial records found in the database.</td>
+              </tr>
+            <?php else: ?>
+              <?php foreach ($payments as $payment): ?>
+                <tr>
+                  <td style="font-family: monospace; font-weight: bold; color: var(--accent);">#<?php echo str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT); ?></td>
+                  <td><strong><?php echo h($payment['first_name'] . " " . $payment['last_name']); ?></strong></td>
+                  <td>
+                    <div style="font-weight: 500;"><?php echo h($payment['service_name']); ?></div>
+                    <div style="font-size: 11px; color: #94a3b8;"><?php echo $payment['appointment_date'] ? date('M d, Y', strtotime($payment['appointment_date'])) : 'N/A'; ?></div>
+                  </td>
+                  <td style="font-weight:700; color: var(--accent);">₱<?php echo number_format($payment['amount'], 2); ?></td>
+                  <td style="font-size: 13px;"><?php echo h($payment['mode'] ?? 'N/A'); ?></td>
+                  <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
+                  <td style="text-align: right;">
+                    <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
             </tr>
             <tr>
               <td>INV-003</td>
@@ -315,5 +399,17 @@ $tenantId = getCurrentTenantId();
       </div>
     </div>
   </div>
+
+  <script>
+    function filterPayments() {
+      const query = document.getElementById('paymentSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#paymentTable tbody tr');
+      
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+  </script>
 </body>
 </html>
