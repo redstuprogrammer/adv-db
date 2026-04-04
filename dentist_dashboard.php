@@ -38,7 +38,7 @@ requireTenantLogin($tenantSlug);
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'];
-$dentistName = $_SESSION['username'];
+$dentistName = $_SESSION['username'] ?? 'Dentist';
 
 $todayDate = date('Y-m-d');
 
@@ -100,6 +100,8 @@ $monthAppt = 18; // Mock value
 //     $pendingInvoices = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 // }
 $pendingInvoices = 2; // Mock value
+$totalPatients = 28; // Mock value for dashboard summary
+$monthlyRevenue = 112500.00; // Mock revenue for dashboard summary
 
 /* =========================
    TODAY'S SCHEDULE
@@ -408,21 +410,21 @@ $calendarAppts = array_filter($mockCalendarAppts, function($date) use ($month, $
       <!-- Stats Cards -->
       <div class="dashboard-stats">
         <div class="stat-card">
-          <div class="stat-icon icon-blue">�</div>
-          <div class="stat-label">Total Patients</div>
-          <div class="stat-value"><?php echo $totalAppt; ?></div>
+          <div class="stat-icon icon-blue">👥</div>
+          <div class="stat-label">Patients</div>
+          <div class="stat-value"><?php echo $totalPatients; ?></div>
         </div>
 
         <div class="stat-card">
           <div class="stat-icon icon-green">📅</div>
-          <div class="stat-label">Today's Appointments</div>
-          <div class="stat-value"><?php echo $todayAppt; ?></div>
+          <div class="stat-label">Appointments</div>
+          <div class="stat-value"><?php echo $totalAppt; ?></div>
         </div>
 
         <div class="stat-card">
           <div class="stat-icon icon-amber">💰</div>
-          <div class="stat-label">Pending Invoices</div>
-          <div class="stat-value"><?php echo $pendingInvoices; ?></div>
+          <div class="stat-label">Revenue</div>
+          <div class="stat-value">₱<?php echo number_format($monthlyRevenue, 2); ?></div>
         </div>
       </div>
 

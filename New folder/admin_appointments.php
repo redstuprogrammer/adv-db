@@ -64,7 +64,10 @@ if (isset($_POST['update_appointment'])) {
 <div class="container">
     <aside class="sidebar">
         <div class="sidebar-top">
-            <div class="logo-white-box"><img src="oral logo.png" alt="OralSync" class="main-logo"></div>
+            <div class="logo-white-box" style="position: relative;">
+                <img src="oral%20logo.png" alt="OralSync" class="main-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
+                <span style="display:none; font-weight: 900; color: #0d3b66;">OralSync</span>
+            </div>
             <nav class="menu">
                  <a href="dashboard.php" class="menu-item"><span>📊</span> Overview</a>
                 <a href="manage_users.php" class="menu-item"><span>👥</span> Users</a>

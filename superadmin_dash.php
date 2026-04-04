@@ -502,9 +502,19 @@ try {
     background-color: rgba(255, 255, 255, 0.05);
 }
 
+.menu-dropdown-toggle::after {
+    content: '▸';
+    margin-left: auto;
+    transition: transform 0.2s ease;
+}
+
 .menu-dropdown-toggle.active {
     background-color: rgba(255, 255, 255, 0.1);
     border-left: 3px solid #22c55e;
+}
+
+.menu-dropdown-toggle.active::after {
+    transform: rotate(90deg);
 }
 
 .menu-dropdown-items {
@@ -966,6 +976,16 @@ try {
         if (dropdown && !dropdown.contains(e.target)) {
             dropdownItems.style.display = 'none';
             if (dropdownToggle) dropdownToggle.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('load', function() {
+        const currentPage = window.location.pathname.toLowerCase();
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+        if ((currentPage.includes('superadmin_reports') || currentPage.includes('superadmin_sales_report') || currentPage.includes('tenant_reports') || currentPage.includes('sales_reports')) && dropdownToggle && dropdownItems) {
+            dropdownItems.style.display = 'flex';
+            dropdownToggle.classList.add('active');
         }
     });
 

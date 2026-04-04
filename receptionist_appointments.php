@@ -26,7 +26,7 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Receptionist' || $_SESSI
 
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
-$receptionistName = $_SESSION['username'];
+$receptionistName = $_SESSION['username'] ?? 'Receptionist';
 
 /* ============================================================
    DATA FETCHING

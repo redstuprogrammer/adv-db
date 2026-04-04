@@ -339,6 +339,16 @@ try {
             background-color: rgba(255, 255, 255, 0.1);
         }
 
+        .menu-dropdown-toggle::after {
+            content: '▸';
+            margin-left: auto;
+            transition: transform 0.2s ease;
+        }
+
+        .menu-dropdown-toggle.active::after {
+            transform: rotate(90deg);
+        }
+
         .menu-dropdown-items {
             background-color: rgba(255, 255, 255, 0.1);
             border-left: 3px solid #22c55e;
