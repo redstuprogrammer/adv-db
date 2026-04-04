@@ -31,9 +31,7 @@ $tenantId = getCurrentTenantId();
 $receptionistName = $_SESSION['username'] ?? 'Receptionist';
 
 /* =========================================
-   2. DATA FETCHING (Billing List) - Corrected for current schema
-   NOTE: service_id and service_name columns don't exist in current appointment table
-   BYPASS: Show appointment_date instead of service name
+   2. DATA FETCHING (Billing List)
 ========================================= */
 
 $query = "SELECT 
@@ -41,6 +39,7 @@ $query = "SELECT
             p.patient_id,
             p.first_name, 
             p.last_name, 
+            COALESCE(s.service_name, 'General Service') AS service_name,
             py.amount, 
             py.mode, 
             py.status,
@@ -48,6 +47,10 @@ $query = "SELECT
             a.appointment_date
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN service s ON a.service_id = s.service_id
+          WHERE py.tenant_id = ?
+          ORDER BY py.payment_id DESC";
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           WHERE py.tenant_id = ? 
           ORDER BY py.payment_id DESC";
@@ -135,7 +138,7 @@ if ($stmt) {
                     <tr>
                         <th>Inv #</th>
                         <th>Patient Name</th>
-                        <th>Appointment Date</th>
+                        <th>Service</th>
                         <th>Amount</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -146,10 +149,10 @@ if ($stmt) {
                             <?php while($row = $result->fetch_assoc()): ?>
                             <tr>
                                 <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
-                                <td><?= h($row['first_name'] . " " . $row['last_name']) ?></td>
-                                <td><?= $row['appointment_date'] ? date('M d, Y', strtotime($row['appointment_date'])) : 'N/A' ?></td>
+                                <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
+                                <td><?= h($row['service_name'] ?? 'N/A') ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
-                                <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'])) ?>"><?= h($row['status']) ?></span></td>
+                                <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
                                     <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
                                     <a onclick="openEditModal(<?= htmlspecialchars(json_encode($row)) ?>)" class="action-link">Edit</a>
@@ -185,7 +188,7 @@ if ($stmt) {
                         mysqli_stmt_execute($pStmt);
                         $pResult = mysqli_stmt_get_result($pStmt);
                         while($p = mysqli_fetch_assoc($pResult)) {
-                            echo "<option value='".$p['patient_id']."'>".h($p['first_name']." ".$p['last_name'])."</option>";
+                            echo "<option value='".$p['patient_id']."'>".h(($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
                         }
                         mysqli_stmt_close($pStmt);
                     }

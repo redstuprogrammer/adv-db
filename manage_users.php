@@ -166,10 +166,7 @@ try {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="logo-white-box">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-          </svg>
+          <img src="oral logo.png" alt="OralSync" class="main-logo">
         </div>
         <div>
           <div class="sidebar-logo-text">OralSync</div>

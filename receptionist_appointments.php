@@ -138,7 +138,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
+          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -217,9 +217,9 @@ if ($stmt) {
               <?php while($row = $result->fetch_assoc()): ?>
                 <tr>
                   <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
-                  <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
-                  <td>Dr. <?php echo h($row['d_last']); ?></td>
-                  <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
+                  <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
+                  <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
+                  <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
                   <td>
                     <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>
                   </td>

@@ -232,7 +232,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
+          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -303,14 +303,14 @@ if ($stmt) {
               <div class="appt-card" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
                 <div class="time-badge">
                   <h4><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></h4>
-                  <p>Status: <?php echo h($row['status']); ?></p>
+                  <p>Status: <?php echo h($row['status'] ?? ''); ?></p>
                 </div>
                 
                 <div class="patient-details">
-                  <h3><?php echo h($row['first_name'] . " " . $row['last_name']); ?></h3>
-                  <span class="service-tag"><?php echo h($row['service_name']); ?></span>
-                  <span class="status-indicator status-<?php echo strtolower($row['status']); ?>">
-                    ● <?php echo h($row['status']); ?>
+                  <h3><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></h3>
+                  <span class="service-tag"><?php echo h($row['service_name'] ?? 'Not assigned'); ?></span>
+                  <span class="status-indicator status-<?php echo strtolower($row['status'] ?? ''); ?>">
+                    ● <?php echo h($row['status'] ?? ''); ?>
                   </span>
                 </div>
                 

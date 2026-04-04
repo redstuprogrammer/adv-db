@@ -40,7 +40,7 @@ $tenantId = getCurrentTenantId();
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT patient_id, first_name, last_name, contact_number, email, birthdate, gender FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) as last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id WHERE p.tenant_id = ? GROUP BY p.patient_id ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -350,9 +350,10 @@ if (isset($_GET['view_patient_id'])) {
           <?php else: ?>
             <?php foreach ($patients as $patient): ?>
               <div class="patient-item" data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>" data-patient-contact="<?php echo strtolower($patient['contact_number']); ?>">
-                <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
+                <div class="patient-name"><?php echo h(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></div>
                 <div class="patient-contact">📞 <?php echo h($patient['contact_number'] ?? 'N/A'); ?></div>
                 <div class="patient-email">✉ <?php echo h($patient['email'] ?? 'N/A'); ?></div>
+                <div class="patient-last-visit">Last Visit: <?php echo h($patient['last_visit'] ?? 'Never'); ?></div>
                 <div class="patient-actions">
                   <button onclick="viewPatient(<?php echo (int)$patient['patient_id']; ?>)">View Details</button>
                 </div>

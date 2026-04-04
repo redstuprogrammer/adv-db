@@ -118,9 +118,10 @@ if ($stmt) {
 ========================= */
 
 $scheduleResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, p.first_name, p.last_name, a.status
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, p.first_name, p.last_name, a.status, s.service_name
                   FROM appointment a
                   JOIN patient p ON a.patient_id = p.patient_id
+                  LEFT JOIN service s ON a.service_id = s.service_id
                   WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.dentist_id = ?
                   ORDER BY a.appointment_date ASC");
 if ($stmt) {
@@ -307,7 +308,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
+          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -334,6 +335,10 @@ if ($stmt) {
             <span class="sidebar-nav-icon">👥</span>
             <span>My Patients</span>
           </a>
+          <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">📋</span>
+            <span>Dental Charts</span>
+          </a>
         </div>
       </div>
 
@@ -358,7 +363,7 @@ if ($stmt) {
 
       <!-- Dashboard Content -->
       <div class="dashboard-header">
-        <h1>Welcome, Dr. <?php echo h($dentistName); ?></h1>
+        <h1>Welcome, Dr. <?php echo h($dentistName ?? 'Doctor'); ?></h1>
         <div class="dashboard-header-meta">Here is your clinical overview for today.</div>
       </div>
 
@@ -446,9 +451,9 @@ if ($stmt) {
               <?php while($row = $scheduleResult->fetch_assoc()): ?>
                 <div class="schedule-item-pop">
                   <small>📅 <?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></small><br>
-                  <strong>General Consultation</strong><br>
-                  <span>Patient: <?php echo h($row['first_name'] . " " . $row['last_name']); ?></span><br>
-                  <small>Status: <?php echo h($row['status']); ?></small>
+                  <strong><?php echo h($row['service_name'] ?? 'General Consultation'); ?></strong><br>
+                  <span>Patient: <?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></span><br>
+                  <small>Status: <?php echo h($row['status'] ?? ''); ?></small>
                 </div>
               <?php endwhile; ?>
             <?php else: ?>
