@@ -286,6 +286,7 @@ if ($stmt) {
     console.log('UI Parity Active - Version 2.0');
     console.log('Receptionist Appointments Page Initialized');
     console.log('FINAL UI SYNC COMPLETE');
+    console.log('Anti-Crash System Active - V2');
   </script>
 </body>
 </html>

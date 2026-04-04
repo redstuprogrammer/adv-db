@@ -330,8 +330,8 @@ if ($stmt) {
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Front Desk</div>
         <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+          <div class="tenant-header-date text-xl font-bold"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge text-xl font-bold">00:00:00 AM</div>
         </div>
       </div>
 
@@ -450,6 +450,7 @@ if ($stmt) {
   console.log('UI Parity Active - Version 2.0');
   console.log('Receptionist Dashboard Initialized');
   console.log('FINAL UI SYNC COMPLETE');
+  console.log('Anti-Crash System Active - V2');
   </script>
 </body>
 </html>
