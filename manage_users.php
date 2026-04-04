@@ -59,7 +59,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo h($tenantName); ?> | Staff & Users</title>
+    <title><?php echo h($tenantName); ?> | Staff Management</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
@@ -200,7 +200,7 @@ try {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
+            <span>Staff Management</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -224,7 +224,7 @@ try {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👤 Staff & Users</div>
+        <div class="tenant-header-title">👤 Staff Management</div>
         <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
       </div>
 

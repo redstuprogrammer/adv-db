@@ -376,5 +376,6 @@ if ($stmt) {
       </div>
     </div>
   </div>
+  <script>console.log("Tenant Logic Active");</script>
 </body>
 </html>

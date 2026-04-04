@@ -48,11 +48,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
     $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
     $newStatus = isset($_POST['new_status']) ? trim($_POST['new_status']) : '';
-    $newNotes = isset($_POST['new_notes']) ? trim($_POST['new_notes']) : '';
 
     if ($appointmentId > 0 && $newStatus !== '') {
-        $stmt = $conn->prepare('UPDATE appointment SET status = ?, notes = ? WHERE appointment_id = ? AND tenant_id = ?');
-        $stmt->bind_param('ssii', $newStatus, $newNotes, $appointmentId, $tenantId);
+        $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
+        $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
         if ($stmt->execute()) {
             $successMsg = 'Appointment updated successfully!';
             logTenantActivity($conn, $tenantId, 'Appointment Updated', "Appointment ID: $appointmentId updated to $newStatus");
@@ -63,14 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 
 // Fetch appointments with service info (if available)
 $appointments = [];
-$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, a.notes, 
+$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, 
                  p.first_name AS patient_first, p.last_name AS patient_last, 
                  u.username AS dentist_name,
-                 COALESCE(s.service_name, 'General Checkup') AS service_name
+                 'General Consultation' AS service_name
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id 
           LEFT JOIN users u ON a.dentist_id = u.user_id 
-          LEFT JOIN service s ON a.service_id = s.service_id
           WHERE a.tenant_id = ? 
           ORDER BY a.appointment_date DESC";
 $stmt = $conn->prepare($query);
@@ -476,7 +474,7 @@ $stmt->close();
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
+            <span>Staff Management</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -539,14 +537,14 @@ $stmt->close();
                 <tr>
                   <td>
                     <strong><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></strong>
-                    <div style="font-size: 12px; color: #94a3b8;"><?php echo date('h:i A', strtotime($appt['appointment_date'])); ?></div>
+                    <div style="font-size: 12px; color: #94a3b8;">Date only (time not available)</div>
                   </td>
                   <td><?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?></td>
                   <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
                   <td><?php echo h($appt['service_name']); ?></td>
                   <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
-                    <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>', '<?php echo h($appt['notes'] ?? ''); ?>')">Manage</button>
+                    <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>')">Manage</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -629,7 +627,7 @@ $stmt->close();
         </div>
         <div class="edit-form-group">
           <label>Clinical Notes</label>
-          <textarea name="new_notes" id="edit_notes" rows="4" placeholder="Enter findings or procedure notes..."></textarea>
+          <p style="color:#64748b; margin: 0;">Clinical notes are not available in the current appointment schema.</p>
         </div>
         <div class="edit-modal-actions">
           <button type="button" class="edit-btn-cancel" onclick="closeEditModal()">Cancel</button>
@@ -666,11 +664,10 @@ $stmt->close();
     }
 
     // Edit Modal Functions
-    function openEditModal(id, name, status, notes) {
+    function openEditModal(id, name, status) {
       document.getElementById("edit_id").value = id;
       document.getElementById("edit_name_display").value = name;
       document.getElementById("edit_status").value = status;
-      document.getElementById("edit_notes").value = notes;
       document.getElementById("editModal").style.display = "flex";
     }
 

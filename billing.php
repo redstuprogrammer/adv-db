@@ -34,16 +34,14 @@ $query = "SELECT
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            COALESCE(s.service_name, py.service, 'General Service') AS service_name, 
+            'General Service' AS service_name, 
             py.amount, 
-            py.mode, 
             py.status,
             a.appointment_id,
             a.appointment_date
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id AND a.tenant_id = py.tenant_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = py.tenant_id
-          LEFT JOIN service s ON py.service_id = s.service_id
           WHERE py.tenant_id = ?
           ORDER BY py.payment_id DESC";
 
@@ -296,7 +294,7 @@ foreach ($payments as $payment) {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
+            <span>Staff Management</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -360,7 +358,6 @@ foreach ($payments as $payment) {
               <th>Patient Name</th>
               <th>Treatment</th>
               <th>Amount</th>
-              <th>Mode</th>
               <th>Status</th>
               <th style="text-align: right;">Action</th>
             </tr>
@@ -380,7 +377,6 @@ foreach ($payments as $payment) {
                     <div style="font-size: 11px; color: #94a3b8;"><?php echo $payment['appointment_date'] ? date('M d, Y', strtotime($payment['appointment_date'])) : 'N/A'; ?></div>
                   </td>
                   <td style="font-weight:700; color: var(--accent);">₱<?php echo number_format($payment['amount'], 2); ?></td>
-                  <td style="font-size: 13px;"><?php echo h($payment['mode'] ?? 'N/A'); ?></td>
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
                   <td style="text-align: right;">
                     <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
