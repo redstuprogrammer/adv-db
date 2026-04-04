@@ -1,4 +1,14 @@
 <?php
+/**
+ * ============================================
+ * TENANT ADMIN DASHBOARD - ENHANCED WITH PATIENT DIRECTORY & APPOINTMENT MANAGEMENT
+ * Last Updated: April 4, 2026
+ * Features: Patient Directory Search, Appointment Status Updates, Billing Audit, Dentist Dashboard with Calendar
+ * Multi-Tenant Isolation: YES | Security: PREPARED STATEMENTS
+ * ✓ FLAG TEST: This file has been successfully updated for Azure deployment
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
@@ -603,6 +613,10 @@ if ($stmt) {
   </div>
 
   <script>
+    // ✓ FLAG TEST: Tenant dashboard logic active
+    console.log("Tenant Logic Active - ENHANCED DASHBOARD LOADED");
+    console.log("Features: Patient Directory, Appointment Management, Billing Audit");
+    
     let currentDate = new Date(); // Use live current date
 
     function renderCalendar() {

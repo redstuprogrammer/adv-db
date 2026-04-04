@@ -1,4 +1,13 @@
 <?php
+/**
+ * ============================================
+ * DENTIST APPOINTMENTS - ENHANCED WITH FILTERING & SERVICE DETAILS
+ * Last Updated: April 4, 2026
+ * Features: Appointment Cards, Service Filtering, Time Display, Clinical Access
+ * ✓ FLAG TEST: Dentist appointments successfully updated for Azure
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
@@ -308,6 +317,10 @@ if ($stmt) {
   </div>
 
   <script>
+    // ✓ FLAG TEST: Dentist appointments module logic active
+    console.log("Dentist Appointments Module Active - ENHANCED APPOINTMENT VIEW LOADED");
+    console.log("Features: Service Filtering, Time Display, Patient Search, Clinical Access");
+    
     function filterAppointments() {
       let input = document.getElementById('apptSearch').value.toLowerCase();
       let cards = document.getElementsByClassName('appt-card');

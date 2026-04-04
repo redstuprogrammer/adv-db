@@ -1,4 +1,13 @@
 <?php
+/**
+ * ============================================
+ * TENANT BILLING & PAYMENT AUDIT - ENHANCED WITH TRANSACTION TRACKING
+ * Last Updated: April 4, 2026
+ * Features: Payment Records, Revenue Summary, Transaction Audit, PDF Export
+ * ✓ FLAG TEST: Billing module successfully updated for Azure
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
@@ -401,6 +410,10 @@ foreach ($payments as $payment) {
   </div>
 
   <script>
+    // ✓ FLAG TEST: Billing module logic active
+    console.log("Billing Module Active - ENHANCED BILLING & PAYMENT AUDIT LOADED");
+    console.log("Features: Transaction Audit, Revenue Tracking, Search/Filter, PDF Export");
+    
     function filterPayments() {
       const query = document.getElementById('paymentSearch').value.toLowerCase();
       const rows = document.querySelectorAll('#paymentTable tbody tr');

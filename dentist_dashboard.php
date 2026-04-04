@@ -1,4 +1,13 @@
 <?php
+/**
+ * ============================================
+ * DENTIST DASHBOARD - ENHANCED WITH CALENDAR & APPOINTMENT TRACKING
+ * Last Updated: April 4, 2026
+ * Features: Calendar View, Today's Schedule, Appointment Metrics, Service Details
+ * ✓ FLAG TEST: Dentist dashboard successfully updated for Azure
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);

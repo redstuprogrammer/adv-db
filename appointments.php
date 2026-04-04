@@ -1,4 +1,13 @@
 <?php
+/**
+ * ============================================
+ * TENANT APPOINTMENT MANAGEMENT - ENHANCED WITH STATUS UPDATES & CLINICAL NOTES
+ * Last Updated: April 4, 2026
+ * Features: Appointment Scheduling, Status Updates, Clinical Notes, Search/Filter
+ * ✓ FLAG TEST: Appointment management module successfully updated for Azure
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
@@ -631,6 +640,10 @@ $stmt->close();
   </div>
 
   <script>
+    // ✓ FLAG TEST: Appointment management logic active
+    console.log("Appointment Module Active - ENHANCED APPOINTMENT MANAGEMENT LOADED");
+    console.log("Features: Schedule, Status Updates, Modal Management, Search/Filter");
+    
     function openScheduleModal() {
       const dateInput = document.querySelector('input[name="appointment_date"]');
       if (dateInput) {
