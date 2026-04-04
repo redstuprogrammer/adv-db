@@ -274,6 +274,99 @@ body{
   min-width: 20px;
 }
 
+/* Dropdown Menu Styles */
+.sidebar-dropdown-container {
+  position: relative;
+}
+
+.sidebar-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+  width: 100%;
+  border-left: 3px solid transparent;
+  font-family: inherit;
+}
+
+.sidebar-dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Only show active background when on Reports page */
+.sidebar-dropdown-toggle.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-left-color: #ffffff;
+  font-weight: 600;
+}
+
+/* When dropdown is just open (not necessarily active page) */
+.sidebar-dropdown-toggle.open:not(.active) {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border-left-color: transparent;
+}
+
+.dropdown-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-dropdown-toggle.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.sidebar-dropdown-menu {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  margin: 4px 0;
+  overflow: hidden;
+}
+
+.sidebar-dropdown-menu.open {
+  display: block;
+}
+
+.sidebar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 32px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.95);
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-dropdown-item.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-left-color: #ffffff;
+  font-weight: 600;
+}
+
 .sidebar-footer {
   padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);

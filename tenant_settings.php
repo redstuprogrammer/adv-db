@@ -233,10 +233,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <span class="sidebar-nav-icon">👤</span>
             <span>Staff & Users</span>
           </a>
-          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📈</span>
-            <span>Reports</span>
-          </a>
+          <div class="sidebar-dropdown-container">
+            <button class="sidebar-nav-item sidebar-dropdown-toggle" onclick="toggleReportsDropdown(event)" data-tenant="<?php echo urlencode($tenantSlug); ?>">
+              <span class="sidebar-nav-icon">📈</span>
+              <span>Reports</span>
+              <span class="dropdown-arrow">▼</span>
+            </button>
+            <div class="sidebar-dropdown-menu" id="reports-dropdown">
+              <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-dropdown-item">
+                <span>📊 Activity & Audit Trail</span>
+              </a>
+              <a href="tenant_reports.php?tab=revenue&tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-dropdown-item">
+                <span>💰 Revenue Performance</span>
+              </a>
+            </div>
+          </div>
           <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
             <span class="sidebar-nav-icon">⚙️</span>
             <span>Settings</span>
@@ -315,7 +326,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="login-preview" id="custom_preview">
-          <div class="preview-logo" id="preview_logo"><span>Logo</span></div>
+          <div class="preview-logo" id="preview_logo"><span style="font-size: 32px;">🏥</span></div>
           <div style="font-weight: 700; margin-bottom: 10px;" id="preview_welcome">Welcome to Your Clinic</div>
           <a href="#" class="preview-button" id="preview_button">Login</a>
           <div style="margin-top: 12px; color: var(--border);" id="preview_support">Contact support team at support@oral-sync.com</div>
@@ -325,6 +336,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <script>
+    // Reports Dropdown Toggle
+    function toggleReportsDropdown(e) {
+      e.preventDefault();
+      const dropdown = document.getElementById('reports-dropdown');
+      const toggle = e.currentTarget;
+      
+      dropdown.classList.toggle('open');
+      toggle.classList.toggle('open');
+      
+      // Save state to localStorage
+      if (dropdown.classList.contains('open')) {
+        localStorage.setItem('reportsDropdownOpen', 'true');
+      } else {
+        localStorage.setItem('reportsDropdownOpen', 'false');
+      }
+    }
+
+    // Initialize dropdown state on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      const isOpen = localStorage.getItem('reportsDropdownOpen') === 'true';
+      const dropdown = document.getElementById('reports-dropdown');
+      const toggle = document.querySelector('.sidebar-dropdown-toggle');
+      
+      if (isOpen) {
+        dropdown.classList.add('open');
+        toggle.classList.add('open');
+      }
+    });
+
     function updateCustomizerPreview() {
       const accent = document.getElementById('custom_accent').value;
       document.getElementById('preview_button').style.backgroundColor = accent;
@@ -347,7 +387,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         };
         reader.readAsDataURL(file);
       } else {
-        previewLogo.innerHTML = '<span>Logo</span>';
+        previewLogo.innerHTML = '<span style="font-size: 32px;">🏥</span>';
       }
     });
 
@@ -361,7 +401,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       document.getElementById('custom_accent').value = '#0d3b66';
       document.getElementById('custom_welcome').value = '';
       document.getElementById('custom_support').value = '';
-      document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
+      document.getElementById('preview_logo').innerHTML = '<span style="font-size: 32px;">🏥</span>';
       updateCustomizerPreview();
     });
   </script>
