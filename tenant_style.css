@@ -274,9 +274,10 @@ body{
   min-width: 20px;
 }
 
-/* Dropdown Menu Styles */
+/* Dropdown Menu Styles - FIXED VERSION WITH Z-INDEX */
 .sidebar-dropdown-container {
   position: relative;
+  z-index: 50;  /* FIX: Ensure dropdown stays above other content */
 }
 
 .sidebar-dropdown-toggle {
@@ -295,12 +296,15 @@ body{
   width: 100%;
   border-left: 3px solid transparent;
   font-family: inherit;
+  position: relative;
+  z-index: 51;
 }
 
 .sidebar-dropdown-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
   border-left-color: rgba(255, 255, 255, 0.3);
+  /* FIX: Removed bg-white that was causing overlap */
 }
 
 /* Only show active background when on Reports page */
@@ -330,10 +334,12 @@ body{
 
 .sidebar-dropdown-menu {
   display: none;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.08);  /* FIX: Transparent overlay, not white */
   border-left: 3px solid rgba(255, 255, 255, 0.2);
   margin: 4px 0;
   overflow: hidden;
+  position: relative;
+  z-index: 50;
 }
 
 .sidebar-dropdown-menu.open {
@@ -352,10 +358,11 @@ body{
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.05);  /* FIX: Subtle dark overlay base */
 }
 
 .sidebar-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(13, 59, 102, 0.3);  /* FIX: Dark navy overlay instead of white */
   color: rgba(255, 255, 255, 0.95);
   border-left-color: rgba(255, 255, 255, 0.3);
 }

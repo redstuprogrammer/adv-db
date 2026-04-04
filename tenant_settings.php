@@ -216,6 +216,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         margin-top: 14px;
         font-weight: 600;
       }
+
+      /* High-Fidelity Preview Styles */
+      .login-preview-container {
+        background: #f8fafc;
+        border: 2px solid var(--border);
+        border-radius: 12px;
+        padding: 0;
+        margin-top: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.1);
+      }
+
+      .preview-label {
+        background: var(--accent);
+        color: white;
+        padding: 12px 16px;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      .preview-split-layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        min-height: 400px;
+      }
+
+      .preview-left-panel {
+        background-size: cover;
+        background-position: center;
+        position: relative;
+        padding: 40px 30px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .preview-left-panel::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 1;
+      }
+
+      .preview-left-content {
+        position: relative;
+        z-index: 2;
+      }
+
+      .preview-clinic-logo {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+
+      .preview-clinic-name {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 8px;
+      }
+
+      .preview-subtitle {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+
+      .preview-right-panel {
+        background: white;
+        padding: 40px 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+
+      .preview-login-title {
+        font-size: 24px;
+        font-weight: 900;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+
+      .preview-description {
+        font-size: 13px;
+        color: #64748b;
+        margin-bottom: 24px;
+        line-height: 1.5;
+      }
+
+      .preview-signin-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: white;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+        cursor: pointer;
+        margin-bottom: 16px;
+        transition: opacity 0.2s ease;
+        width: 100%;
+        text-align: center;
+      }
+
+      .preview-signin-btn:hover {
+        opacity: 0.9;
+      }
+
+      .preview-forgot-link {
+        color: #2563eb;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .preview-forgot-link:hover {
+        text-decoration: underline;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .btn-secondary {
+        background: #6b7280;
+      }
+
+      .btn-secondary:hover {
+        background: #4b5563;
+      }
+
+      .hint-text {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+        font-style: italic;
+      }
+
+      @media (max-width: 768px) {
+        .preview-split-layout {
+          grid-template-columns: 1fr;
+          min-height: 500px;
+        }
+      }
     </style>
 </head>
 <body>
@@ -331,51 +487,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tenantSettings = getAllTenantSettings($tenantId);
         ?>
 
-        <form method="POST" id="loginSettingsForm">
+        <form method="POST" id="loginSettingsForm" onsubmit="return validateForm()">
           <input type="hidden" name="save_login_settings" value="1">
+          
           <div class="customizer-grid">
             <div class="form-group">
-              <label for="login_brand_bg">Brand Card Background Color</label>
-              <input type="color" id="login_brand_bg" name="login_brand_bg" class="preview-input" data-target="#preview-brand-card" data-style="backgroundColor" value="<?php echo htmlspecialchars($tenantSettings['login_brand_bg'] ?? '#0d3b66'); ?>">
+              <label for="login_brand_bg">Brand Card Background</label>
+              <input type="color" id="login_brand_bg" name="login_brand_bg" class="live-update" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['login_brand_bg'] ?? '#001f3f'); ?>">
+              <div class="hint-text">Default: #001f3f (Navy Blue)</div>
             </div>
+
             <div class="form-group">
-              <label for="login_branding_subtitle">Branding Subtitle</label>
-              <input type="text" id="login_branding_subtitle" name="login_branding_subtitle" class="preview-input" data-target="#preview-brand-subtitle" data-property="textContent" value="<?php echo htmlspecialchars($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?>" placeholder="Powered by OralSync">
+              <label for="login_button_color">Sign In Button Color</label>
+              <input type="color" id="login_button_color" name="login_button_color" class="live-update" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['login_button_color'] ?? '#22c55e'); ?>">
+              <div class="hint-text">Default: #22c55e (Green)</div>
             </div>
-            <div class="form-group">
-              <label for="login_title">Login Title</label>
-              <input type="text" id="login_title" name="login_title" class="preview-input" data-target="#preview-login-title" data-property="textContent" value="<?php echo htmlspecialchars($tenantSettings['login_title'] ?? 'Clinic Login'); ?>" placeholder="Clinic Login">
-            </div>
-            <div class="form-group">
-              <label for="login_button_color">Primary Button Color</label>
-              <input type="color" id="login_button_color" name="login_button_color" class="preview-input" data-target="#preview-signin-btn" data-style="backgroundColor" value="<?php echo htmlspecialchars($tenantSettings['login_button_color'] ?? '#0d3b66'); ?>">
-            </div>
+
             <div class="form-group">
               <label for="login_text_link_color">Text Link Color</label>
-              <input type="color" id="login_text_link_color" name="login_text_link_color" class="preview-input" data-target="#preview-forgot-link" data-style="color" value="<?php echo htmlspecialchars($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>">
+              <input type="color" id="login_text_link_color" name="login_text_link_color" class="live-update" data-target="preview-forgot-link" data-style="color" value="<?php echo h($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>">
             </div>
           </div>
 
-          <div class="sa-form-actions" style="margin-top: 20px;">
+          <div class="customizer-grid">
+            <div class="form-group">
+              <label for="login_title">Login Page Title</label>
+              <input type="text" id="login_title" name="login_title" class="live-update" data-target="preview-login-title" data-property="textContent" value="<?php echo h($tenantSettings['login_title'] ?? 'Clinic Login'); ?>" placeholder="Clinic Login" maxlength="255">
+              <div class="hint-text">Displayed above the login form</div>
+            </div>
+
+            <div class="form-group">
+              <label for="login_branding_subtitle">Brand Card Subtitle</label>
+              <input type="text" id="login_branding_subtitle" name="login_branding_subtitle" class="live-update" data-target="preview-subtitle" data-property="textContent" value="<?php echo h($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?>" placeholder="Powered by OralSync" maxlength="255">
+              <div class="hint-text">Small text on the left branding card</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="custom_bg_image_url">Background Image URL (Optional)</label>
+            <textarea id="custom_bg_image_url" name="custom_bg_image_url" class="live-update" data-target="preview-left-panel" data-style="backgroundImage" rows="3" placeholder="https://example.com/path/to/image.jpg"><?php echo h($tenantSettings['custom_bg_image_url'] ?? ''); ?></textarea>
+            <div class="hint-text">Leave empty to use solid color. Full HTTPS URL required. Image will be applied to the left card with a dark overlay for text readability.</div>
+          </div>
+
+          <div class="form-actions">
             <button type="submit" class="btn-primary">Save Login Settings</button>
-            <button type="button" class="btn-primary" style="background: #6b7280;" onclick="resetLoginPreview()">Reset to Defaults</button>
+            <button type="button" class="btn-primary btn-secondary" onclick="resetLoginPreview()">Reset to Defaults</button>
           </div>
         </form>
 
-        <div class="login-preview" id="login-preview-container">
-          <div class="preview-title">Live Login Preview</div>
-          <div class="login-preview-frame">
-            <div class="login-preview-split">
-              <div class="preview-left" id="preview-brand-card">
-                <div class="preview-logo-spot"><?php echo h($tenantName); ?></div>
-                <div class="preview-subtitle" id="preview-brand-subtitle"><?php echo htmlspecialchars($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?></div>
+        <!-- WYSIWYG Login Preview -->
+        <div class="login-preview-container">
+          <div class="preview-label">📱 Live Preview - How Your Login Will Look</div>
+          <div class="preview-split-layout">
+            <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['login_brand_bg'] ?? '#001f3f'); ?>; background-image: <?php echo $tenantSettings['custom_bg_image_url'] ? "url('" . h($tenantSettings['custom_bg_image_url']) . "')" : 'none'; ?>;">
+              <div class="preview-left-content">
+                <div class="preview-clinic-logo">🏥</div>
+                <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
               </div>
-              <div class="preview-right">
-                <div class="preview-welcome" id="preview-login-title"><?php echo htmlspecialchars($tenantSettings['login_title'] ?? 'Clinic Login'); ?></div>
-                <div class="preview-description">Use the login button and forgot password link to preview styling instantly.</div>
-                <button type="button" class="preview-button" id="preview-signin-btn">Sign in</button>
-                <div class="preview-link-row"><a href="#" id="preview-forgot-link">Forgot password?</a></div>
-              </div>
+              <div class="preview-subtitle" id="preview-subtitle"><?php echo h($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?></div>
+            </div>
+
+            <div class="preview-right-panel">
+              <div class="preview-login-title" id="preview-login-title"><?php echo h($tenantSettings['login_title'] ?? 'Clinic Login'); ?></div>
+              <div class="preview-description">Enter your credentials to access your clinic account.</div>
+              <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['login_button_color'] ?? '#22c55e'); ?>;">Sign in</button>
+              <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>;">Forgot password?</a>
             </div>
           </div>
         </div>
@@ -384,43 +560,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <script>
-    function applyPreviewChange(input) {
-      const targetSelector = input.dataset.target;
-      const target = document.querySelector(targetSelector);
-      if (!target) return;
+    // Live update preview as user types/selects colors
+    document.querySelectorAll('.live-update').forEach(input => {
+      input.addEventListener('input', function() {
+        const targetId = this.dataset.target;
+        const target = document.getElementById(targetId);
+        if (!target) return;
 
-      const style = input.dataset.style;
-      const property = input.dataset.property;
-      const value = input.value;
+        const style = this.dataset.style;
+        const property = this.dataset.property;
+        const value = this.value;
 
-      if (style) {
-        target.style[style] = value;
-      } else if (property) {
-        target[property] = value || target.dataset.default || '';
-      }
-    }
+        if (style === 'backgroundImage') {
+          // Handle background image with overlay
+          if (value.trim()) {
+            target.style.backgroundImage = `url('${value}')`;
+          } else {
+            target.style.backgroundImage = 'none';
+          }
+        } else if (style) {
+          target.style[style] = value;
+        } else if (property) {
+          target[property] = value;
+        }
+      });
 
-    function initializeLoginPreview() {
-      const previewInputs = document.querySelectorAll('.preview-input');
-      previewInputs.forEach(input => {
-        input.addEventListener('input', () => applyPreviewChange(input));
-        input.addEventListener('change', () => applyPreviewChange(input));
-        applyPreviewChange(input);
+      // Trigger initial update
+      input.dispatchEvent(new Event('input'));
+    });
+
+    function resetLoginPreview() {
+      if (!confirm('Reset all login settings to defaults?')) return;
+
+      document.getElementById('login_brand_bg').value = '#001f3f';
+      document.getElementById('login_branding_subtitle').value = 'Powered by OralSync';
+      document.getElementById('login_title').value = 'Clinic Login';
+      document.getElementById('login_button_color').value = '#22c55e';
+      document.getElementById('login_text_link_color').value = '#2563eb';
+      document.getElementById('custom_bg_image_url').value = '';
+
+      // Trigger updates
+      document.querySelectorAll('.live-update').forEach(input => {
+        input.dispatchEvent(new Event('input'));
       });
     }
 
-    function resetLoginPreview() {
-      document.getElementById('login_brand_bg').value = '#0d3b66';
-      document.getElementById('login_branding_subtitle').value = 'Powered by OralSync';
-      document.getElementById('login_title').value = 'Clinic Login';
-      document.getElementById('login_button_color').value = '#0d3b66';
-      document.getElementById('login_text_link_color').value = '#2563eb';
-
-      const previewInputs = document.querySelectorAll('.preview-input');
-      previewInputs.forEach(input => applyPreviewChange(input));
+    function validateForm() {
+      const bgImageUrl = document.getElementById('custom_bg_image_url').value.trim();
+      if (bgImageUrl && !bgImageUrl.startsWith('http')) {
+        alert('Background image URL must start with http:// or https://');
+        return false;
+      }
+      return true;
     }
-
-    initializeLoginPreview();
   </script>
 </body>
 </html>

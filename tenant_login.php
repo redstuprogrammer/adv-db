@@ -9,14 +9,41 @@ require_once 'connect.php';
 require_once 'tenant_utils.php';
 require_once 'tenant_settings_functions.php';
 
-// Load tenant-specific login customization settings
+// Load tenant-specific login customization settings from tenant_configs
 $loginSettings = [
-    'brand_card_bg' => getTenantSetting($tenant['tenant_id'], 'login_brand_bg') ?: '#0d3b66',
-    'branding_subtitle' => getTenantSetting($tenant['tenant_id'], 'login_branding_subtitle') ?: 'Powered by OralSync',
-    'login_title' => getTenantSetting($tenant['tenant_id'], 'login_title') ?: 'Clinic Login',
-    'button_color' => getTenantSetting($tenant['tenant_id'], 'login_button_color') ?: '#0d3b66',
-    'text_link_color' => getTenantSetting($tenant['tenant_id'], 'login_text_link_color') ?: '#2563eb'
+    'brand_card_bg' => '#0d3b66',
+    'branding_subtitle' => 'Powered by OralSync',
+    'login_title' => 'Clinic Login',
+    'button_color' => '#0d3b66',
+    'text_link_color' => '#2563eb',
+    'bg_image_url' => ''
 ];
+
+if ($tenant) {
+    try {
+        $stmt = $conn->prepare("SELECT brand_bg_color, brand_subtitle, login_title, primary_btn_color, link_color, custom_bg_image_url FROM tenant_configs WHERE tenant_id = ?");
+        if ($stmt) {
+            $stmt->bind_param('i', $tenant['tenant_id']);
+            if ($stmt->execute()) {
+                $result = $stmt->get_result();
+                $config = $result ? $result->fetch_assoc() : null;
+                if ($config) {
+                    $loginSettings = [
+                        'brand_card_bg' => $config['brand_bg_color'] ?: '#0d3b66',
+                        'branding_subtitle' => $config['brand_subtitle'] ?: 'Powered by OralSync',
+                        'login_title' => $config['login_title'] ?: 'Clinic Login',
+                        'button_color' => $config['primary_btn_color'] ?: '#0d3b66',
+                        'text_link_color' => $config['link_color'] ?: '#2563eb',
+                        'bg_image_url' => $config['custom_bg_image_url'] ?: ''
+                    ];
+                }
+            }
+            $stmt->close();
+        }
+    } catch (Exception $e) {
+        error_log("Error loading tenant config: " . $e->getMessage());
+    }
+}
 
 // Check connection
 if (!$conn && (!isset($pdo) || !$pdo)) {
@@ -240,7 +267,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
                     <a href="forgot_password_tenant.php?tenant=<?php echo h(rawurlencode($tenantSlug)); ?>" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
                 </div>
                 <div class="t-foot">
-                    Having trouble? Make sure you’re using the exact clinic link from your email.
+                    Don't have an account? Contact your clinic for access.
                 </div>
             </section>
         </div>

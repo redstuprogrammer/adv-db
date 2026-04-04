@@ -1,0 +1,180 @@
+// ============================================================================
+// 📋 FINAL SYNC: Sidebar CSS/JS Fixes
+// ============================================================================
+// File to Update: tenant_style.css
+// Issue: Reports dropdown is covered by white block when hovering Audit Logs/Settings
+// Solution: Set z-index on dropdown container + change hover background to dark overlay
+// ============================================================================
+
+// ============================================================================
+// LOCATE IN tenant_style.css: Search for ".sidebar-dropdown-container"
+// ============================================================================
+// This is approximate line location - search for "Dropdown Menu Styles"
+
+// REPLACE THE ENTIRE DROPDOWN SECTION with this code:
+
+/* ========================================
+   Dropdown Menu Styles - FIXED VERSION
+   ======================================== */
+
+.sidebar-dropdown-container {
+  position: relative;
+  z-index: 50;  /* FIX: Ensure dropdown stays above other content */
+}
+
+.sidebar-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+  width: 100%;
+  border-left: 3px solid transparent;
+  font-family: inherit;
+  position: relative;
+  z-index: 51;
+}
+
+.sidebar-dropdown-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-left-color: rgba(255, 255, 255, 0.3);
+  /* FIX: Removed bg-white that was causing overlap */
+}
+
+/* Only show active background when on Reports page */
+.sidebar-dropdown-toggle.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-left-color: #ffffff;
+  font-weight: 600;
+}
+
+/* When dropdown is just open (not necessarily active page) */
+.sidebar-dropdown-toggle.open:not(.active) {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  border-left-color: transparent;
+}
+
+.dropdown-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.sidebar-dropdown-toggle.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.sidebar-dropdown-menu {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);  /* FIX: Transparent overlay, not white */
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  margin: 4px 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 50;
+}
+
+.sidebar-dropdown-menu.open {
+  display: block;
+}
+
+.sidebar-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 32px;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.05);  /* FIX: Subtle dark overlay base */
+}
+
+.sidebar-dropdown-item:hover {
+  background: rgba(13, 59, 102, 0.3);  /* FIX: Dark navy overlay instead of white */
+  color: rgba(255, 255, 255, 0.95);
+  border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-dropdown-item.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-left-color: #ffffff;
+  font-weight: 600;
+}
+
+/* ========================================
+   END OF DROPDOWN STYLES
+   ======================================== */
+
+// ============================================================================
+// KEY FIXES MADE:
+// ============================================================================
+// 1. Added z-index: 50 to .sidebar-dropdown-container
+//    → Prevents other elements from overlapping the dropdown menu
+//
+// 2. Changed .sidebar-dropdown-toggle:hover background from white to transparent
+//    background: rgba(255, 255, 255, 0.1)
+//    → Light transparent overlay instead of solid white block
+//
+// 3. Changed .sidebar-dropdown-item:hover background to dark navy:
+//    background: rgba(13, 59, 102, 0.3)
+//    → Navy overlay maintains dark theme when hovering menu items
+//
+// 4. Added z-index: 51 to .sidebar-dropdown-toggle
+//    → Ensures toggle button is above dropdown menu
+//
+// 5. Added z-index: 50 to .sidebar-dropdown-menu
+//    → Ensures menu stays visible above siblings
+//
+// 6. Set .sidebar-dropdown-menu background to transparent:
+//    background: rgba(255, 255, 255, 0.08)
+//    → Subtle overlay instead of solid white
+
+// ============================================================================
+// VALIDATION CHECKLIST:
+// ============================================================================
+// ☐ Locate ".sidebar-dropdown-container" in tenant_style.css
+// ☐ Replace entire dropdown styles section with code above
+// ☐ Save the file
+// ☐ Clear browser cache (Ctrl+Shift+Delete)
+// ☐ Reload page in browser
+// ☐ Navigate to Audit Logs page (superadmin_audit_logs.php)
+// ☐ Click on "Audit Logs" or "Settings" menu items
+// ☐ Verify Reports dropdown appears WITHOUT white block covering it
+// ☐ Hover over dropdown items - should show dark navy highlight, not white
+// ☐ Sidebar remains in original blue gradient
+// ☐ All text remains readable
+
+// ============================================================================
+// COLOR REFERENCE:
+// ============================================================================
+// Sidebar Primary: Linear gradient 0d3b66 → 0f172a
+// Hover/Overlay: rgba(255, 255, 255, 0.1) - light semi-transparent
+// Item Hover: rgba(13, 59, 102, 0.3) - dark navy semi-transparent
+// Active Item: rgba(255, 255, 255, 0.15) - light highlight
+// Border Hover: rgba(255, 255, 255, 0.3) - light border
+
+// ============================================================================
+// IF DROPDOWN STILL NOT WORKING:
+// ============================================================================
+// 1. Check browser DevTools (F12) → Elements
+// 2. Look for .sidebar-dropdown-menu element
+// 3. Verify z-index is applied in the Styles panel
+// 4. Check for CSS conflicts (search for "menu-dropdown" in other files)
+// 5. Clear all browser caches and restart browser
+// 6. Try in incognito/private window
+// 7. Verify no JavaScript errors in Console tab

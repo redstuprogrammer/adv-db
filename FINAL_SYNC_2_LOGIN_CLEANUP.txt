@@ -1,0 +1,100 @@
+// ============================================================================
+// 📋 FINAL SYNC: Login Page Cleanup
+// ============================================================================
+// Files to Update:
+// 1. tenant_login.php - Update config loading section
+// 2. tenant_login.php - Remove "Having trouble?" text from help section
+// ============================================================================
+
+// ============================================================================
+// CHANGE 1: UPDATE tenant_login.php (Lines ~8-20)
+// ============================================================================
+// BEFORE: Remove this section...
+/*
+// Load tenant-specific login customization settings
+$loginSettings = [
+    'brand_card_bg' => getTenantSetting($tenant['tenant_id'], 'login_brand_bg') ?: '#0d3b66',
+    'branding_subtitle' => getTenantSetting($tenant['tenant_id'], 'login_branding_subtitle') ?: 'Powered by OralSync',
+    'login_title' => getTenantSetting($tenant['tenant_id'], 'login_title') ?: 'Clinic Login',
+    'button_color' => getTenantSetting($tenant['tenant_id'], 'login_button_color') ?: '#0d3b66',
+    'text_link_color' => getTenantSetting($tenant['tenant_id'], 'login_text_link_color') ?: '#2563eb'
+];
+*/
+
+// AFTER: Replace with this...
+
+// Load tenant-specific login customization settings from tenant_configs
+$loginSettings = [
+    'brand_card_bg' => '#0d3b66',
+    'branding_subtitle' => 'Powered by OralSync',
+    'login_title' => 'Clinic Login',
+    'button_color' => '#0d3b66',
+    'text_link_color' => '#2563eb',
+    'bg_image_url' => ''
+];
+
+if ($tenant) {
+    try {
+        $stmt = $conn->prepare("
+            SELECT brand_bg_color, brand_subtitle, login_title, primary_btn_color, link_color, custom_bg_image_url
+            FROM tenant_configs 
+            WHERE tenant_id = ?
+        ");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "i", $tenant['tenant_id']);
+            if (mysqli_stmt_execute($stmt)) {
+                $res = mysqli_stmt_get_result($stmt);
+                $config = $res ? mysqli_fetch_assoc($res) : null;
+                if ($config) {
+                    $loginSettings = [
+                        'brand_card_bg' => $config['brand_bg_color'] ?: '#0d3b66',
+                        'branding_subtitle' => $config['brand_subtitle'] ?: 'Powered by OralSync',
+                        'login_title' => $config['login_title'] ?: 'Clinic Login',
+                        'button_color' => $config['primary_btn_color'] ?: '#0d3b66',
+                        'text_link_color' => $config['link_color'] ?: '#2563eb',
+                        'bg_image_url' => $config['custom_bg_image_url'] ?: ''
+                    ];
+                }
+            }
+            mysqli_stmt_close($stmt);
+        }
+    } catch (Exception $e) {
+        error_log("Error loading tenant config: " . $e->getMessage());
+    }
+}
+
+// ============================================================================
+// CHANGE 2: REMOVE "Having trouble?" TEXT from tenant_login.php
+// ============================================================================
+// LOCATE (around line 240-245): This help text section
+/*
+                    <div class="t-foot">
+                      <div style="margin-top: 12px;">
+                        Having trouble? Make sure you're using the exact clinic link from your email.
+                      </div>
+                    </div>
+*/
+
+// REPLACE WITH: This cleaner message
+/*
+                    <div class="t-foot">
+                      <div style="margin-top: 12px;">
+                        Don't have an account? Contact your clinic for access.
+                      </div>
+                    </div>
+*/
+
+// ALSO CHECK: admin_settings.php preview section
+// If there's preview text that says "Having trouble?", remove it from there too
+// Replace it with generic instruction text or leave it blank
+
+// ============================================================================
+// TESTING CHECKLIST:
+// ============================================================================
+// ☐ Save both file changes
+// ☐ Login as a test tenant
+// ☐ Verify custom colors from tenant_configs are displayed
+// ☐ Check that "Having trouble?" text is gone
+// ☐ Verify fallback colors (#0d3b66, #22c55e) work if no config exists
+// ☐ Test with a tenant that has no config record (should use defaults)
+// ============================================================================
