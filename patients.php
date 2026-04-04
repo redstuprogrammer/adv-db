@@ -534,6 +534,7 @@ if (isset($_GET['view_patient_id'])) {
     // Verification logs
     console.log('UI Parity Active - Version 2.0');
     console.log('Patients Page Initialized');
+    console.log('FINAL UI SYNC COMPLETE');
 
     function closeViewPatientModal() {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';

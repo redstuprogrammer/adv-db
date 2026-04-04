@@ -8,6 +8,12 @@ require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 require_once 'tenant_utils.php';
 
+// Role Check Implementation - Ensure user is logged in
+if (!isset($_SESSION['role'])) {
+    header("Location: tenant_login.php");
+    exit();
+}
+
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }

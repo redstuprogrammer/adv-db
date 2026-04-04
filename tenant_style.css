@@ -431,7 +431,8 @@ body{
 }
 
 .tenant-header-date {
-  font-size: 12px;
+  font-size: 14.4px;
+  font-weight: 700;
   color: var(--tenant-muted);
 }
 
