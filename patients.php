@@ -15,6 +15,17 @@ function h(string $s): string {
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
+// Role Check Implementation - Ensure user is an Admin
+if (!isset($_SESSION['role'])) {
+    header("Location: tenant_login.php");
+    exit();
+}
+
+if ($_SESSION['role'] !== 'Admin') {
+    header("Location: tenant_login.php");
+    exit();
+}
+
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 

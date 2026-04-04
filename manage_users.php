@@ -14,6 +14,12 @@ if (!isset($_SESSION['role'])) {
     exit();
 }
 
+// Role Check Implementation - Ensure user is an Admin
+if ($_SESSION['role'] !== 'Admin') {
+    header("Location: tenant_login.php");
+    exit();
+}
+
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }

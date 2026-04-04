@@ -161,11 +161,11 @@ if ($stmt) {
             <span class="sidebar-nav-icon">📅</span>
             <span>Appointments</span>
           </a>
-          <a href="patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+          <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👥</span>
             <span>Patients</span>
           </a>
-          <a href="billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+          <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">💳</span>
             <span>Billing</span>
           </a>
@@ -199,7 +199,6 @@ if ($stmt) {
       <div class="content-section">
         <div class="content-header">
           <h2 class="content-title">All Appointments Master List</h2>
-          <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="add-btn">+</a>
         </div>
 
         <table class="queue-table">
@@ -209,7 +208,6 @@ if ($stmt) {
               <th>Patient</th>
               <th>Dentist</th>
               <th>Status</th>
-              <th>Action</th>
             </tr>
           </thead>
           <tbody>
@@ -220,13 +218,10 @@ if ($stmt) {
                   <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
                   <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
                   <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
-                  <td>
-                    <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>
-                  </td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>
-              <tr><td colspan="6" style="text-align:center; padding:30px;">No appointments found.</td></tr>
+              <tr><td colspan="5" style="text-align:center; padding:30px;">No appointments found.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>

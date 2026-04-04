@@ -51,9 +51,6 @@ $query = "SELECT
           LEFT JOIN service s ON a.service_id = s.service_id
           WHERE py.tenant_id = ?
           ORDER BY py.payment_id DESC";
-          LEFT JOIN patient p ON a.patient_id = p.patient_id
-          WHERE py.tenant_id = ? 
-          ORDER BY py.payment_id DESC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
@@ -110,8 +107,8 @@ if ($stmt) {
             </div>
             <nav class="menu">
                 <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>🏠</span> Front Desk</a>
-                <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>📅</span> Appointments</a>
-                <a href="patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>👤</span> Patient Records</a>
+                <a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>📅</span> Appointments</a>
+                <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>👤</span> Patient Records</a>
                 <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item active"><span>💳</span> Billing/Payments</a>
             </nav>
         </div>
