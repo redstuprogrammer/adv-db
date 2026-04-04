@@ -15,6 +15,7 @@ mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
 mysqli_options($conn, MYSQLI_OPT_CONNECT_TIMEOUT, 5);
 
 if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL)) {
+    error_log('MySQLi connection failed: ' . mysqli_connect_error());
     header('Content-Type: application/json');
     die(json_encode(["success" => false, "message" => "Database connection failed"]));
 }
@@ -23,19 +24,28 @@ mysqli_set_charset($conn, "utf8mb4");
 
 // PDO Connection for compatibility with other scripts
 try {
+    $pdoOptions = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_TIMEOUT => 5
+    ];
+
+    if (file_exists($ssl_cert)) {
+        $pdoOptions[PDO::MYSQL_ATTR_SSL_CA] = $ssl_cert;
+        $pdoOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+    } else {
+        error_log('Warning: SSL CA file missing: ' . $ssl_cert);
+        $pdoOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+    }
+
     $pdo = new PDO(
         "mysql:host=$host;port=$port;dbname=$db;charset=utf8mb4",
         $user,
         $pass,
-        [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::MYSQL_ATTR_SSL_CA => $ssl_cert,
-            PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
-            PDO::ATTR_TIMEOUT => 5
-        ]
+        $pdoOptions
     );
 } catch (PDOException $e) {
+    error_log('PDO connection failed: ' . $e->getMessage());
     header('Content-Type: application/json');
     die(json_encode(["success" => false, "message" => "PDO connection failed: " . $e->getMessage()]));
 }

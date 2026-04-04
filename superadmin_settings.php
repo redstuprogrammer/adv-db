@@ -349,7 +349,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
                 <div style="font-size: 32px;">🏥</div>
                 <div>
-                    <div class="sidebar-logo-text" style="margin: 0;">OralSync</div>
+                    <div class="sidebar-logo-text" style="margin: 0;"><?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?></div>
                     <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
                 </div>
             </div>
@@ -396,11 +396,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="sa-form-grid">
                     <div class="sa-form-group">
                         <label for="system_name">System Name</label>
-                        <input type="text" id="system_name" name="system_name" value="<?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?>" readonly>
+                        <input type="text" id="system_name" name="system_name" value="<?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?>">
                     </div>
                     <div class="sa-form-group">
                         <label for="logo">Logo Upload</label>
-                        <input type="file" id="logo" name="logo" accept="image/*">
+                        <input type="file" id="logo" name="logo" accept="image/png, image/jpeg">
                         <div class="logo-preview" id="logo-preview">
                             <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . '/uploads/' . $currentSettings['logo_path'])): ?>
                                 <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>" style="max-width: 100%; max-height: 100%;">
@@ -575,48 +575,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </table>
             </div>
 
-            <div class="sa-card settings-section">
-                <div class="sa-card-header">
-                    <div>
-                        <h3>Login Customizer (Preview only)</h3>
-                        <div class="sa-card-subtitle">Front-end prototype for clinic login page theming</div>
-                    </div>
-                </div>
-                <div class="login-customizer">
-                    <div class="customizer-panel">
-                        <h3>Inputs</h3>
-                        <div class="sa-form-group">
-                            <label for="custom_logo">Clinic Logo</label>
-                            <input type="file" id="custom_logo" accept="image/*">
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_accent">Accent Color</label>
-                            <input type="color" id="custom_accent" value="#0d3b66">
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_welcome">Welcome Message</label>
-                            <textarea id="custom_welcome" rows="3" placeholder="Welcome to your clinic portal..."></textarea>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_support">Support Details</label>
-                            <input type="text" id="custom_support" placeholder="e.g., support@clinic.com | (123) 456 7890">
-                        </div>
-                        <div class="sa-form-actions" style="margin-top: 16px; gap: 10px;">
-                            <button type="button" class="sa-btn" id="custom_save">Save Customization</button>
-                            <button type="button" class="sa-btn sa-btn-outline" id="custom_reset">Reset Preview</button>
-                        </div>
-                    </div>
-                    <div class="customizer-panel login-preview" id="custom_preview">
-                        <div class="preview-card">
-                            <div class="preview-logo" id="preview_logo"><span>Logo</span></div>
-                            <div class="preview-welcome" id="preview_welcome">Welcome to Your Clinic</div>
-                            <a href="#" class="preview-button" id="preview_button">Login</a>
-                            <div class="preview-footer" id="preview_support">Contact support team at support@oral-sync.com</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="sa-form-actions">
                 <button type="submit" class="sa-btn">Save Settings</button>
                 <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Defaults</button>
@@ -644,59 +602,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 document.getElementById('logo-preview').innerHTML = 'No logo uploaded';
             }
         }
-
-        function updateCustomizerPreview() {
-            const accent = document.getElementById('custom_accent').value;
-            const welcome = document.getElementById('custom_welcome').value || 'Welcome to Your Clinic';
-            const support = document.getElementById('custom_support').value || 'Contact support team at support@oral-sync.com';
-
-            document.documentElement.style.setProperty('--login-preview-accent', accent);
-            const previewBtn = document.getElementById('preview_button');
-            if (previewBtn) {
-                previewBtn.style.backgroundColor = accent;
-                previewBtn.style.borderColor = accent;
-            }
-
-            document.getElementById('preview_welcome').textContent = welcome;
-            document.getElementById('preview_support').textContent = support;
-        }
-
-        document.getElementById('custom_accent').addEventListener('input', updateCustomizerPreview);
-        document.getElementById('custom_welcome').addEventListener('input', updateCustomizerPreview);
-        document.getElementById('custom_support').addEventListener('input', updateCustomizerPreview);
-
-        document.getElementById('custom_logo').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) {
-                document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                document.getElementById('preview_logo').innerHTML = '<img src="' + event.target.result + '" alt="Logo">';
-            };
-            reader.readAsDataURL(file);
-        });
-
-        document.getElementById('custom_save').addEventListener('click', function () {
-            const state = {
-                logo: document.getElementById('custom_logo').value,
-                accentColor: document.getElementById('custom_accent').value,
-                welcomeText: document.getElementById('custom_welcome').value,
-                supportText: document.getElementById('custom_support').value,
-            };
-            console.log('Login customizer state:', state);
-            alert('Login customization preview saved (client-side only).');
-        });
-
-        document.getElementById('custom_reset').addEventListener('click', function () {
-            document.getElementById('custom_logo').value = '';
-            document.getElementById('custom_accent').value = '#0d3b66';
-            document.getElementById('custom_welcome').value = '';
-            document.getElementById('custom_support').value = '';
-            document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
-            updateCustomizerPreview();
-        });
     </script>
     </main>
 </body>

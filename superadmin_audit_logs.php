@@ -207,8 +207,13 @@ if (empty($_SESSION['superadmin_authed'])) {
                 <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
                 <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
                 <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
+                <div class="menu-dropdown" style="width: 100%;">
+                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
+                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
+                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
+                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
+                    </div>
+                </div>
                 <a href="superadmin_audit_logs.php" class="menu-item active"><span>📋</span> Audit Logs</a>
                 <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
             </nav>

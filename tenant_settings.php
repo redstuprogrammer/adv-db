@@ -129,6 +129,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         color: #dc2626;
         border: 1px solid rgba(239, 68, 68, 0.2);
       }
+
+      .login-customizer {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .login-customizer h3 {
+        margin-top: 0;
+        color: var(--accent);
+        font-size: 1.1rem;
+      }
+
+      .customizer-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .login-preview {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .preview-logo {
+        width: 80px;
+        height: 80px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #e2e8f0;
+        margin-bottom: 14px;
+        overflow: hidden;
+      }
+
+      .preview-logo img {
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      .preview-button {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: white;
+        text-decoration: none;
+        margin-top: 14px;
+        font-weight: 600;
+      }
     </style>
 </head>
 <body>
@@ -230,7 +287,83 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <button type="submit" class="btn-primary">Change Password</button>
         </form>
       </div>
+
+      <div class="login-customizer">
+        <h3>Login Customizer (Tenant Admin)</h3>
+        <div class="customizer-grid">
+          <div class="form-group">
+            <label for="custom_logo">Clinic Logo</label>
+            <input type="file" id="custom_logo" accept="image/png, image/jpeg">
+          </div>
+          <div class="form-group">
+            <label for="custom_accent">Accent Color</label>
+            <input type="color" id="custom_accent" value="#0d3b66">
+          </div>
+          <div class="form-group">
+            <label for="custom_welcome">Welcome Message</label>
+            <input type="text" id="custom_welcome" placeholder="Welcome to your clinic portal...">
+          </div>
+          <div class="form-group">
+            <label for="custom_support">Support Details</label>
+            <input type="text" id="custom_support" placeholder="support@clinic.com | (123) 456 7890">
+          </div>
+        </div>
+
+        <div class="sa-form-actions" style="margin-top: 20px;">
+          <button type="button" class="btn-primary" id="custom_apply">Apply Preview</button>
+          <button type="button" class="btn-primary" id="custom_reset">Reset Preview</button>
+        </div>
+
+        <div class="login-preview" id="custom_preview">
+          <div class="preview-logo" id="preview_logo"><span>Logo</span></div>
+          <div style="font-weight: 700; margin-bottom: 10px;" id="preview_welcome">Welcome to Your Clinic</div>
+          <a href="#" class="preview-button" id="preview_button">Login</a>
+          <div style="margin-top: 12px; color: var(--border);" id="preview_support">Contact support team at support@oral-sync.com</div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <script>
+    function updateCustomizerPreview() {
+      const accent = document.getElementById('custom_accent').value;
+      document.getElementById('preview_button').style.backgroundColor = accent;
+      document.getElementById('preview_button').style.borderColor = accent;
+      document.getElementById('preview_welcome').textContent = document.getElementById('custom_welcome').value || 'Welcome to Your Clinic';
+      document.getElementById('preview_support').textContent = document.getElementById('custom_support').value || 'Contact support team at support@oral-sync.com';
+    }
+
+    document.getElementById('custom_accent').addEventListener('input', updateCustomizerPreview);
+    document.getElementById('custom_welcome').addEventListener('input', updateCustomizerPreview);
+    document.getElementById('custom_support').addEventListener('input', updateCustomizerPreview);
+
+    document.getElementById('custom_logo').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      const previewLogo = document.getElementById('preview_logo');
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          previewLogo.innerHTML = '<img src="' + event.target.result + '" alt="Logo">';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        previewLogo.innerHTML = '<span>Logo</span>';
+      }
+    });
+
+    document.getElementById('custom_apply').addEventListener('click', function() {
+      updateCustomizerPreview();
+      alert('Preview applied. This is a tenant-side login preview only.');
+    });
+
+    document.getElementById('custom_reset').addEventListener('click', function() {
+      document.getElementById('custom_logo').value = '';
+      document.getElementById('custom_accent').value = '#0d3b66';
+      document.getElementById('custom_welcome').value = '';
+      document.getElementById('custom_support').value = '';
+      document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
+      updateCustomizerPreview();
+    });
+  </script>
 </body>
 </html>
