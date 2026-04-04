@@ -38,7 +38,19 @@ requireTenantLogin($tenantSlug);
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'];
-$dentistName = $_SESSION['username'] ?? 'Dentist';
+$dentistName = $_SESSION['username'] ?? 'Doctor';
+
+// Get dentist's first name
+$dentistFirstName = 'Doctor';
+$stmt = mysqli_prepare($conn, "SELECT first_name FROM users WHERE user_id = ? AND tenant_id = ?");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "ii", $dentistId, $tenantId);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    if ($res && $row = $res->fetch_assoc()) {
+        $dentistFirstName = $row['first_name'] ?? 'Doctor';
+    }
+}
 
 $todayDate = date('Y-m-d');
 
@@ -308,7 +320,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -335,10 +347,7 @@ if ($stmt) {
             <span class="sidebar-nav-icon">👥</span>
             <span>My Patients</span>
           </a>
-          <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📋</span>
-            <span>Dental Charts</span>
-          </a>
+
         </div>
       </div>
 
@@ -363,28 +372,28 @@ if ($stmt) {
 
       <!-- Dashboard Content -->
       <div class="dashboard-header">
-        <h1>Welcome, Dr. <?php echo h($dentistName ?? 'Doctor'); ?></h1>
+        <h1>Welcome, Dr. <?php echo h($dentistFirstName); ?></h1>
         <div class="dashboard-header-meta">Here is your clinical overview for today.</div>
       </div>
 
       <!-- Stats Cards -->
       <div class="dashboard-stats">
         <div class="stat-card">
-          <div class="stat-icon icon-blue">👥</div>
-          <div class="stat-label">Patients</div>
-          <div class="stat-value"><?php echo $totalPatients; ?></div>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-icon icon-green">📅</div>
-          <div class="stat-label">Appointments</div>
+          <div class="stat-icon icon-blue">�</div>
+          <div class="stat-label">Your Total Cases</div>
           <div class="stat-value"><?php echo $totalAppt; ?></div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon icon-amber">💰</div>
-          <div class="stat-label">Revenue</div>
-          <div class="stat-value">₱<?php echo number_format($monthlyRevenue, 2); ?></div>
+          <div class="stat-icon icon-green">👥</div>
+          <div class="stat-label">Today's Patients</div>
+          <div class="stat-value"><?php echo $todayAppt; ?></div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon icon-amber">📅</div>
+          <div class="stat-label">Upcoming Appointments (Week)</div>
+          <div class="stat-value"><?php echo $weekAppt; ?></div>
         </div>
       </div>
 

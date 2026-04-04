@@ -117,67 +117,50 @@ if (isset($_GET['view_patient_id'])) {
         font-size: 14px;
       }
 
-      .patient-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 16px;
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
       }
 
-      .patient-item {
-        background: white;
-        border: 1px solid var(--border);
-        border-radius: 10px;
+      .patient-table th,
+      .patient-table td {
         padding: 16px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        flex-direction: column;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        color: #334155;
       }
 
-      .patient-item:hover {
-        box-shadow: 0 4px 12px rgba(13, 59, 102, 0.15);
-        border-color: var(--accent);
-      }
-
-      .patient-name {
-        font-weight: 700;
-        font-size: 16px;
-        color: var(--accent);
-        margin-bottom: 8px;
-      }
-
-      .patient-contact {
-        font-size: 13px;
+      .patient-table th {
+        background: var(--bg);
         color: #64748b;
-        margin-bottom: 4px;
-      }
-
-      .patient-email {
         font-size: 12px;
-        color: #94a3b8;
-        margin-bottom: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
 
-      .patient-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: auto;
+      .patient-table tbody tr:hover {
+        background: #f8fafc;
       }
 
-      .patient-actions button {
-        flex: 1;
-        padding: 6px 12px;
+      .patient-table td:last-child {
+        white-space: nowrap;
+      }
+
+      .view-button {
+        padding: 10px 14px;
+        border-radius: 8px;
         border: 1px solid var(--accent);
         background: white;
         color: var(--accent);
-        border-radius: 6px;
-        cursor: pointer;
+        text-decoration: none;
         font-weight: 600;
-        font-size: 12px;
-        transition: all 0.2s ease;
+        font-size: 13px;
+        transition: background 0.2s ease, color 0.2s ease;
       }
 
-      .patient-actions button:hover {
+      .view-button:hover {
         background: var(--accent);
         color: white;
       }
@@ -341,25 +324,35 @@ if (isset($_GET['view_patient_id'])) {
           <input type="text" id="searchInput" placeholder="🔍 Search patient by name or contact..." class="search-input" onkeyup="filterPatients()" />
         </div>
 
-        <div class="patient-list" id="patientList">
-          <?php if (empty($patients)): ?>
-            <div class="empty-state" style="grid-column: 1 / -1;">
-              <div class="empty-icon">📂</div>
-              <p>No patients registered in this clinic yet.</p>
-            </div>
-          <?php else: ?>
-            <?php foreach ($patients as $patient): ?>
-              <div class="patient-item" data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>" data-patient-contact="<?php echo strtolower($patient['contact_number']); ?>">
-                <div class="patient-name"><?php echo h(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></div>
-                <div class="patient-contact">📞 <?php echo h($patient['contact_number'] ?? 'N/A'); ?></div>
-                <div class="patient-email">✉ <?php echo h($patient['email'] ?? 'N/A'); ?></div>
-                <div class="patient-last-visit">Last Visit: <?php echo h($patient['last_visit'] ?? 'Never'); ?></div>
-                <div class="patient-actions">
-                  <button onclick="viewPatient(<?php echo (int)$patient['patient_id']; ?>)">View Details</button>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
+        <div style="overflow-x:auto;">
+          <table class="patient-table" id="patientTable">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Last Visit</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($patients)): ?>
+                <tr>
+                  <td colspan="5" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($patients as $patient): ?>
+                  <tr data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>" data-patient-contact="<?php echo strtolower($patient['contact_number']); ?>">
+                    <td><strong><?php echo h(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></strong></td>
+                    <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($patient['last_visit'] ?? 'Never'); ?></td>
+                    <td><a href="javascript:void(0);" class="view-button" onclick="viewPatient(<?php echo (int)$patient['patient_id']; ?>)">View Details</a></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -398,16 +391,11 @@ if (isset($_GET['view_patient_id'])) {
 
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const patientItems = document.querySelectorAll('.patient-item');
-      
-      patientItems.forEach(item => {
-        const name = item.getAttribute('data-patient-name');
-        const contact = item.getAttribute('data-patient-contact');
-        if (name.includes(searchInput) || contact.includes(searchInput)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
+      const rows = document.querySelectorAll('#patientTable tbody tr');
+
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchInput) ? '' : 'none';
       });
     }
 

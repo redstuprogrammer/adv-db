@@ -458,8 +458,8 @@ $stmt->close();
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="logo-white-box">
-        <div class="sidebar-logo-icon">
-          <img src="oral logo.png" alt="OralSync" class="main-logo">
+        <div class="sidebar-logo-icon" style="font-size: 24px; font-weight: 900; color: #0d3b66;">
+          Ⓞ
         </div>
         <div>
           <div class="sidebar-logo-text">OralSync</div>
@@ -496,7 +496,7 @@ $stmt->close();
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -534,7 +534,6 @@ $stmt->close();
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Appointment Management</h2>
-          <button class="btn-primary" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
         
         <div class="search-container">
@@ -577,58 +576,6 @@ $stmt->close();
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
-
-  <!-- Schedule Appointment Modal -->
-  <div id="scheduleModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeScheduleModal()">&times;</span>
-      <div class="modal-header">Schedule Appointment</div>
-      <form method="POST">
-        <div class="form-group">
-          <label>Patient *</label>
-          <select name="patient_id" required>
-            <option value="">Select Patient</option>
-            <?php
-            $patientStmt = $conn->prepare('SELECT patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name');
-            $patientStmt->bind_param('i', $tenantId);
-            $patientStmt->execute();
-            $patientResult = $patientStmt->get_result();
-            while ($p = $patientResult->fetch_assoc()) {
-                echo '<option value="' . $p['patient_id'] . '">' . h($p['first_name'] . ' ' . $p['last_name']) . '</option>';
-            }
-            $patientStmt->close();
-            ?>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Dentist *</label>
-          <select name="dentist_id" required>
-            <option value="">Select Dentist</option>
-            <?php
-            $dentistStmt = $conn->prepare('SELECT user_id, username FROM users WHERE tenant_id = ? AND LOWER(role) IN ("dentist", "doctor") ORDER BY username');
-            if ($dentistStmt) {
-                $dentistStmt->bind_param('i', $tenantId);
-                $dentistStmt->execute();
-                $dentistResult = $dentistStmt->get_result();
-                while ($d = $dentistResult->fetch_assoc()) {
-                    echo '<option value="' . (int)$d['user_id'] . '">' . h($d['username']) . '</option>';
-                }
-                $dentistStmt->close();
-            }
-            ?>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Appointment Date & Time *</label>
-          <input type="datetime-local" name="appointment_date" required>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
-          <button type="submit" name="add_appointment" class="btn-submit">Schedule</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -696,17 +643,6 @@ $stmt->close();
       document.getElementById('scheduleModal').style.display = 'block';
     }
 
-    function closeScheduleModal() {
-      document.getElementById('scheduleModal').style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-      const modal = document.getElementById('scheduleModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
-      }
-    }
-
     // Edit Modal Functions
     function openEditModal(id, name, status) {
       document.getElementById("edit_id").value = id;
@@ -732,12 +668,8 @@ $stmt->close();
 
     // Close edit modal when clicking outside
     window.onclick = function(event) {
-      const scheduleModal = document.getElementById('scheduleModal');
       const editModal = document.getElementById('editModal');
       
-      if (event.target == scheduleModal) {
-        scheduleModal.style.display = 'none';
-      }
       if (event.target == editModal) {
         editModal.style.display = 'none';
       }

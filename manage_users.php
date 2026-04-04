@@ -34,14 +34,16 @@ $tenantId = getCurrentTenantId();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $firstName = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
+    $lastName = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
     $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
     $role = isset($_POST['role']) ? trim($_POST['role']) : '';
 
     if ($username !== '' && $email !== '' && $rawPassword !== '' && $role !== '') {
         $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-        $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role) VALUES (?, ?, ?, ?, ?)');
+        $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)');
         if ($stmt) {
-            $stmt->bind_param('issss', $tenantId, $username, $email, $password, $role);
+            $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
             if ($stmt->execute()) {
                 header('Location: manage_users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
                 exit;
@@ -56,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 // Fetch users for display
 $users = [];
 try {
-    $stmt = $conn->prepare('SELECT user_id, username, email, role FROM users WHERE tenant_id = ? ORDER BY username');
+    $stmt = $conn->prepare('SELECT user_id, username, email, role, first_name, last_name, created_at FROM users WHERE tenant_id = ? ORDER BY username');
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -71,7 +73,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo h($tenantName); ?> | Staff Management</title>
+    <title><?php echo h($tenantName); ?> | Users</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
@@ -172,7 +174,7 @@ try {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="logo-white-box">
-          <img src="oral logo.png" alt="OralSync" class="main-logo">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
         </div>
         <div>
           <div class="sidebar-logo-text">OralSync</div>
@@ -209,7 +211,7 @@ try {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -233,13 +235,13 @@ try {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👤 Staff Management</div>
+        <div class="tenant-header-title">👤 Users</div>
         <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
       </div>
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Staff Members</h2>
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Team Members</h2>
           <a href="#" class="btn-primary" onclick="openAddUserModal()">+ Add User</a>
         </div>
         
@@ -247,15 +249,17 @@ try {
           <thead>
             <tr>
               <th>Username</th>
+              <th>Name</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Joined Date</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($users)): ?>
               <tr>
-                <td colspan="4" style="text-align: center; color: rgb(100, 116, 139);">No users found. Click "Add User" to create one.</td>
+                <td colspan="6" style="text-align: center; color: rgb(100, 116, 139);">No users found. Click "Add User" to create one.</td>
               </tr>
             <?php else: ?>
               <?php foreach ($users as $user): 
@@ -263,11 +267,16 @@ try {
                 $badgeClass = 'badge-admin';
                 if ($role === 'Receptionist') $badgeClass = 'badge-receptionist';
                 elseif ($role === 'Dentist') $badgeClass = 'badge-dentist';
+                $createdAt = isset($user['created_at']) ? date('M d, Y', strtotime($user['created_at'])) : 'N/A';
+                $userFullName = trim((isset($user['first_name']) ? $user['first_name'] : '') . ' ' . (isset($user['last_name']) ? $user['last_name'] : ''));
+                if (empty($userFullName)) $userFullName = '(not provided)';
               ?>
               <tr>
                 <td><?php echo h($user['username']); ?></td>
+                <td><?php echo h($userFullName); ?></td>
                 <td><?php echo h($user['email']); ?></td>
                 <td><span class="badge <?php echo $badgeClass; ?>"><?php echo h($role); ?></span></td>
+                <td><?php echo h($createdAt); ?></td>
                 <td>
                   <button class="action-btn" onclick="toggleUserState(this)">Deactivate</button>
                 </td>
@@ -325,6 +334,14 @@ try {
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">Username</label>
           <input type="text" name="username" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">First Name</label>
+          <input type="text" name="first_name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">Last Name</label>
+          <input type="text" name="last_name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">Email</label>

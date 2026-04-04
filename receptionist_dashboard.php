@@ -30,6 +30,18 @@ $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
 $receptionistName = $_SESSION['username'] ?? 'Receptionist';
 
+// Get receptionist's first name
+$receptionistFirstName = 'Receptionist';
+$stmt = mysqli_prepare($conn, "SELECT first_name FROM users WHERE user_id = ? AND tenant_id = ?");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "ii", $_SESSION['user_id'], $tenantId);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    if ($res && ($row = $res->fetch_assoc())) {
+        $receptionistFirstName = $row['first_name'] ?? 'Receptionist';
+    }
+}
+
 $todayDate = date('Y-m-d');
 
 /* =========================
@@ -264,7 +276,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -319,8 +331,8 @@ if ($stmt) {
 
       <!-- Dashboard Content -->
       <div class="dashboard-header">
-        <h1>Front Desk Overview</h1>
-        <div class="dashboard-header-meta">Welcome back, <?php echo h($receptionistName ?? 'Receptionist'); ?></div>
+        <h1 style="font-size: 32px; margin-bottom: 8px;">Welcome back, <?php echo h($receptionistFirstName); ?></h1>
+        <div class="dashboard-header-meta">Your front desk dashboard for today's operations.</div>
       </div>
 
       <!-- Stats Cards -->
@@ -365,7 +377,10 @@ if ($stmt) {
 
       <!-- Queue Section -->
       <div class="queue-section">
-        <h2 style="margin-bottom: 16px; color: var(--dashboard-accent);">Today's Patient Appointment Queue</h2>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0; color: var(--dashboard-accent);">Today's Patient Appointment Queue</h2>
+          <a href="receptionist_appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&action=add" style="background: var(--dashboard-accent); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px;">+ Add Appointment</a>
+        </div>
         <table class="queue-table">
           <thead>
             <tr>

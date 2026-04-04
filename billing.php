@@ -281,7 +281,7 @@ foreach ($payments as $payment) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -318,7 +318,7 @@ foreach ($payments as $payment) {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -349,33 +349,29 @@ foreach ($payments as $payment) {
         </div>
       </div>
 
-      <div class="summary-grid">
-        <div class="summary-card">
-          <div class="summary-label">Total Revenue</div>
-          <div class="summary-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">Pending Payments</div>
-          <div class="summary-value">₱<?php echo number_format($pendingAmount, 2); ?></div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">Paid Invoices</div>
-          <div class="summary-value"><?php echo $paidCount; ?></div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-label">Total Transactions</div>
-          <div class="summary-value"><?php echo count($payments); ?></div>
+      <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center; margin-bottom:24px;">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; flex:1;">
+          <div class="summary-card">
+            <div class="summary-label">Total Revenue</div>
+            <div class="summary-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Pending Amount</div>
+            <div class="summary-value">₱<?php echo number_format($pendingAmount, 2); ?></div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-label">Paid Invoices</div>
+            <div class="summary-value"><?php echo $paidCount; ?></div>
+          </div>
         </div>
       </div>
 
       <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Transaction Audit</h2>
-          <a href="#" class="btn-primary" onclick="alert('Create Invoice functionality coming soon!'); return false;">+ Create Invoice</a>
-        </div>
-        
-        <div class="search-container">
-          <input type="text" id="paymentSearch" class="search-input" placeholder="🔍 Search patient, invoice, or status..." onkeyup="filterPayments()">
+          <div class="search-container">
+            <input type="text" id="paymentSearch" class="search-input" placeholder="🔍 Search patient, invoice, or status..." onkeyup="filterPayments()">
+          </div>
         </div>
 
         <table class="module-table" id="paymentTable">
@@ -392,7 +388,7 @@ foreach ($payments as $payment) {
           <tbody>
             <?php if (empty($payments)): ?>
               <tr>
-                <td colspan="7" style="text-align: center; color: #64748b; padding: 40px;">No financial records found in the database.</td>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">No financial records found in the database.</td>
               </tr>
             <?php else: ?>
               <?php foreach ($payments as $payment): ?>
@@ -411,21 +407,6 @@ foreach ($payments as $payment) {
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
-            </tr>
-            <tr>
-              <td>INV-003</td>
-              <td>Pedro Reyes</td>
-              <td>₱7,200.00</td>
-              <td>2026-02-20</td>
-              <td><span class="badge badge-overdue">Overdue</span></td>
-              <td>
-                <a href="#" class="action-btn" onclick="alert('View Invoice - coming soon'); return false;">View</a>
-                <a href="#" class="action-btn" onclick="alert('Print Invoice - coming soon'); return false;">Print</a>
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>

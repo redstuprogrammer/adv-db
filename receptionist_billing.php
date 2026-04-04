@@ -66,7 +66,7 @@ if ($stmt) {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Billing Management</title>
-    <link rel="stylesheet" href="style1.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
@@ -98,31 +98,34 @@ if ($stmt) {
 </head>
 <body>
 
-<div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="logo-white-box" style="position: relative;">
-                <img src="New%20folder/oral%20logo.png" alt="OralSync" class="main-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';">
-                <span style="display:none; font-weight: 900; color: #0d3b66;">OralSync</span>
+<div class="tenant-layout">
+    <nav class="tenant-sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="sidebar-logo-icon">🏥</div>
+                <div>
+                    <div class="sidebar-logo-text">OralSync</div>
+                    <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
+                </div>
             </div>
-            <nav class="menu">
-                <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>🏠</span> Front Desk</a>
-                <a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>📅</span> Appointments</a>
-                <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item"><span>👤</span> Patient Records</a>
-                <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item active"><span>💳</span> Billing/Payments</a>
-            </nav>
         </div>
-        <div class="sidebar-bottom"><a href="receptionist_logout.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sign-out"><span>🚪</span> Sign Out</a></div>
-    </aside>
+        <div class="sidebar-nav">
+            <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>🏠</span> Front Desk</a>
+            <a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>📅</span> Appointments</a>
+            <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>👥</span> Patients</a>
+            <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item active"><span>💳</span> Billing</a>
+        </div>
+        <div class="sidebar-footer"><a href="receptionist_logout.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-logout-btn"><span>🚪</span> Sign Out</a></div>
+    </nav>
 
-    <main class="main-content">
-        <header class="top-bar">
-            <div class="header-left">
+    <div class="tenant-main-content">
+        <div class="tenant-header-bar">
+            <div>
                 <h1 style="color: #0d3b66; margin:0;">Billing & Payments</h1>
-                <p style="color: #64748b;">Manage invoices and transaction records</p>
+                <p style="color: #64748b; margin: 6px 0 0;">Manage invoices and transaction records</p>
             </div>
-            <div id="liveClock" class="clock" style="font-weight:bold; color:#0d3b66;">00:00:00 AM</div>
-        </header>
+            <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
 
         <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
             <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">

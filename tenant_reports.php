@@ -212,7 +212,7 @@ $tenantId = getCurrentTenantId();
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
             <span class="sidebar-nav-icon">📈</span>
@@ -251,10 +251,7 @@ $tenantId = getCurrentTenantId();
         <div class="module-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Activity Audit Trail</h2>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" onclick="exportCSV('activity')">Export CSV</button>
-              <button class="btn-primary" onclick="exportPDF('activity')">Export PDF</button>
-            </div>
+            <div style="color: #64748b; font-size: 13px;">Latest clinic activity is displayed here for review.</div>
           </div>
           
           <div class="filters">
@@ -333,10 +330,7 @@ $tenantId = getCurrentTenantId();
         <div class="module-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Revenue Performance</h2>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-primary" onclick="exportCSV('revenue')">Export CSV</button>
-              <button class="btn-primary" onclick="exportPDF('revenue')">Export PDF</button>
-            </div>
+            <div style="color: #64748b; font-size: 13px;">Revenue trends and payment status are tracked here.</div>
           </div>
           
           <div class="filters">
@@ -495,15 +489,7 @@ $tenantId = getCurrentTenantId();
       document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toFixed(2);
     }
 
-    function exportCSV(type) {
-      // Implement CSV export
-      alert('CSV export for ' + type + ' coming soon');
-    }
-
-    function exportPDF(type) {
-      // Implement PDF export
-      alert('PDF export for ' + type + ' coming soon');
-    }
+    // Export functions have been removed to keep the reports page streamlined and focused on review only.
   </script>
 </body>
 </html>

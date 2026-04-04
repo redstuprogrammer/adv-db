@@ -109,30 +109,105 @@ if (isset($_GET['view_patient_id'])) {
         font-size: 13px;
       }
 
-      .patient-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        max-height: 600px;
-        overflow-y: auto;
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
       }
 
-      .patient-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
-        background: var(--bg);
+      .patient-table th,
+      .patient-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        color: #334155;
+      }
+
+      .patient-table th {
+        background: #f8fafc;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .patient-table tbody tr:hover {
+        background: #f1f5f9;
+      }
+
+      .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .patient-card {
+        background: white;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        cursor: pointer;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
         transition: all 0.2s ease;
       }
 
-      .patient-item:hover {
-        background: white;
+      .patient-card:hover {
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
         border-color: var(--accent);
-        box-shadow: 0 2px 8px rgba(13, 59, 102, 0.1);
+      }
+
+      .patient-card-header {
+        margin-bottom: 16px;
+      }
+
+      .patient-id {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+
+      .patient-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .patient-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .patient-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .info-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .info-value {
+        font-size: 14px;
+        color: #102a43;
+        font-weight: 500;
+      }
+
+      .patient-actions {
+        display: flex;
+        justify-content: flex-end;
       }
 
       .patient-info h3 {
@@ -385,7 +460,7 @@ if (isset($_GET['view_patient_id'])) {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -432,24 +507,36 @@ if (isset($_GET['view_patient_id'])) {
           <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
         </div>
 
-        <div class="patient-list" id="patientList">
+        <div class="patient-grid" id="patientGrid">
           <?php if (empty($patients)): ?>
-            <div class="empty-state">
-              <p>No patients registered yet.</p>
-            </div>
+            <div class="no-patients" style="text-align:center; padding: 32px; color: #64748b; grid-column: 1 / -1;">No patients registered yet.</div>
           <?php else: ?>
             <?php foreach ($patients as $patient):
-                  $birthdate = $patient['birthdate'] ?? '';
-                  $age = ($birthdate && strtotime($birthdate)) ? floor((time() - strtotime($birthdate)) / (365.25 * 24 * 3600)) : 'N/A';
-                  $gender = !empty($patient['gender']) ? h($patient['gender']) : 'N/A';
+                  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
             ?>
-              <div class="patient-item" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
-                <div class="patient-info">
-                  <h3><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></h3>
-                  <p>Age: <?php echo $age; ?> | Gender: <?php echo $gender; ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
+              <div class="patient-card" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
+                <div class="patient-card-header">
+                  <div class="patient-id">#<?php echo str_pad($patient['patient_id'], 4, '0', STR_PAD_LEFT); ?></div>
+                  <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
                 </div>
-                <div class="patient-actions">
-                  <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View</a>
+                <div class="patient-card-body">
+                  <div class="patient-info">
+                    <div class="info-item">
+                      <span class="info-label">Contact:</span>
+                      <span class="info-value"><?php echo h($patient['contact_number'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Email:</span>
+                      <span class="info-value"><?php echo h($patient['email'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Last Visit:</span>
+                      <span class="info-value"><?php echo $lastVisit; ?></span>
+                    </div>
+                  </div>
+                  <div class="patient-actions">
+                    <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View Details</a>
+                  </div>
                 </div>
               </div>
             <?php endforeach; ?>
@@ -553,15 +640,11 @@ if (isset($_GET['view_patient_id'])) {
 
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const patientItems = document.querySelectorAll('.patient-item');
-      
-      patientItems.forEach(item => {
-        const patientName = item.getAttribute('data-patient-name');
-        if (patientName.includes(searchInput)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
+      const patientCards = document.querySelectorAll('.patient-card');
+
+      patientCards.forEach(card => {
+        const cardText = card.textContent.toLowerCase();
+        card.style.display = cardText.includes(searchInput) ? '' : 'none';
       });
     }
   </script>

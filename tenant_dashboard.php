@@ -44,20 +44,17 @@ $tenantId = getCurrentTenantId();
 // Fetch metrics for dashboard
 $patientCount = getTenantPatientCount($tenantId) ?? 0;
 $appointmentCount = getTenantUpcomingAppointmentCount($tenantId) ?? 0;
-$outstandingInvoices = 12; // Sample data
-$todayRevenue = 15450.00; // Sample data
 
-// Fetch recent patients for mini table
-$recentPatients = [];
-$stmt = mysqli_prepare($conn, "SELECT patient_id, first_name, last_name, contact_number FROM patient WHERE tenant_id = ? ORDER BY patient_id DESC LIMIT 5");
+// Calculate total revenue from all payments
+$totalRevenue = 0.00;
+$stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ?");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
-            $recentPatients[] = $row;
-        }
+        $row = mysqli_fetch_assoc($result);
+        $totalRevenue = $row['total'] ?? 0.00;
     }
 }
 
@@ -69,7 +66,7 @@ $query = "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.em
           LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id
           WHERE p.tenant_id = ? 
           GROUP BY p.patient_id, p.first_name, p.last_name, p.contact_number, p.email
-          ORDER BY p.patient_id DESC";
+          ORDER BY p.patient_id DESC LIMIT 7";
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
@@ -406,7 +403,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div class="sidebar-logo-icon" style="font-size: 28px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -443,7 +440,7 @@ if ($stmt) {
           <div class="sidebar-section-title">Management</div>
           <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">👤</span>
-            <span>Staff Management</span>
+            <span>Users</span>
           </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
@@ -488,20 +485,14 @@ if ($stmt) {
 
         <div class="stat-card">
           <div class="stat-icon icon-green">📅</div>
-          <div class="stat-label">Upcoming Appointments</div>
+          <div class="stat-label">Appointments</div>
           <div class="stat-value"><?php echo $appointmentCount; ?></div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon icon-amber">⏳</div>
-          <div class="stat-label">Outstanding Invoices</div>
-          <div class="stat-value"><?php echo $outstandingInvoices; ?></div>
-        </div>
-
-        <div class="stat-card">
           <div class="stat-icon icon-red">💵</div>
-          <div class="stat-label">Today's Revenue</div>
-          <div class="stat-value">₱<?php echo number_format($todayRevenue, 2); ?></div>
+          <div class="stat-label">Total Revenue</div>
+          <div class="stat-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
         </div>
       </div>
 

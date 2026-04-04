@@ -138,7 +138,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>

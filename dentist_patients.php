@@ -67,27 +67,29 @@ if ($stmt) {
         --bg: #f8fafc;
       }
 
-      .patient-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 20px;
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
         margin-top: 24px;
       }
 
-      .patient-card {
-        background: white;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-        transition: all 0.2s ease;
-        cursor: pointer;
+      .patient-table th,
+      .patient-table td {
+        padding: 14px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: #334155;
       }
 
-      .patient-card:hover {
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
-        border-color: var(--accent);
-        transform: translateY(-2px);
+      .patient-table th {
+        background: #f8fafc;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .patient-table tbody tr:hover {
+        background: #eef2ff;
       }
 
       .patient-name {
@@ -134,6 +136,93 @@ if ($stmt) {
         max-width: 400px;
       }
 
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .patient-table th,
+      .patient-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        color: #334155;
+      }
+
+      .patient-table th {
+        background: var(--bg);
+        color: var(--accent);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .patient-table tbody tr:hover {
+        background: #f8fafc;
+      }
+
+      .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .patient-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        transition: all 0.2s ease;
+      }
+
+      .patient-card:hover {
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+        border-color: var(--accent);
+      }
+
+      .patient-card-header {
+        margin-bottom: 16px;
+      }
+
+      .patient-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .patient-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .patient-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .info-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .info-value {
+        font-size: 14px;
+        color: #102a43;
+        font-weight: 500;
+      }
+
       .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -153,7 +242,7 @@ if ($stmt) {
     <nav class="tenant-sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <img src="oral logo.png" alt="OralSync" class="sidebar-logo-icon">
+          <div style="font-size: 24px; font-weight: 900; color: #0d3b66;">Ⓞ</div>
           <div>
             <div class="sidebar-logo-text">OralSync</div>
             <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
@@ -214,25 +303,28 @@ if ($stmt) {
           <?php if (!empty($patientList)): ?>
             <?php foreach ($patientList as $patient): ?>
               <div class="patient-card" data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>">
-                <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
-
-                <div class="patient-detail">
-                  <span class="patient-detail-icon">📞</span>
-                  <?php echo h($patient['contact_number'] ?? 'N/A'); ?>
+                <div class="patient-card-header">
+                  <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
                 </div>
-
-                <div class="patient-detail">
-                  <span class="patient-detail-icon">✉️</span>
-                  <?php echo h($patient['email'] ?? 'N/A'); ?>
-                </div>
-
-                <div class="patient-detail">
-                  <span class="patient-detail-icon">🎂</span>
-                  <?php echo $patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'; ?>
-                </div>
-
-                <div class="patient-last-visit">
-                  📅 Last Visit: <?php echo $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never'; ?>
+                <div class="patient-card-body">
+                  <div class="patient-info">
+                    <div class="info-item">
+                      <span class="info-label">Contact:</span>
+                      <span class="info-value"><?php echo h($patient['contact_number'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Email:</span>
+                      <span class="info-value"><?php echo h($patient['email'] ?? 'N/A'); ?></span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Birthdate:</span>
+                      <span class="info-value"><?php echo $patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'; ?></span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Last Visit:</span>
+                      <span class="info-value"><?php echo $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never'; ?></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             <?php endforeach; ?>
@@ -270,12 +362,8 @@ if ($stmt) {
       const patientCards = document.querySelectorAll('.patient-card');
 
       patientCards.forEach(card => {
-        const name = card.getAttribute('data-patient-name');
-        if (name.includes(searchInput)) {
-          card.style.display = 'block';
-        } else {
-          card.style.display = 'none';
-        }
+        const cardText = card.textContent.toLowerCase();
+        card.style.display = cardText.includes(searchInput) ? '' : 'none';
       });
     }
 
