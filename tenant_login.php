@@ -1,14 +1,22 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 require_once 'tenant_utils.php';
 
 // Check connection
-if (!$conn) {
+if (!$conn && (!isset($pdo) || !$pdo)) {
     error_log("CRITICAL: Database connection failed in tenant_login.php");
+    http_response_code(500);
     die("Database connection error. Please try again later.");
 }
+
+// Wrap login logic in try-catch to better handle errors
+try {
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -148,6 +156,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+} catch (Exception $e) {
+    error_log("CRITICAL ERROR in tenant_login.php: " . $e->getMessage() . " Stack: " . $e->getTraceAsString());
+    http_response_code(500);
+    $error = "An error occurred during login. Our team has been notified. Please try again in a few moments.";
 }
 
 $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';

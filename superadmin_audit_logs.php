@@ -460,6 +460,13 @@ if (empty($_SESSION['superadmin_authed'])) {
                     if (dropdownToggle) dropdownToggle.classList.remove('active');
                 }
             });
+            
+            // Expand dropdown if on a reports page
+            const currentPage = window.location.pathname;
+            if ((currentPage.includes('superadmin_reports') || currentPage.includes('superadmin_sales_report')) && dropdownToggle && dropdownItems) {
+                dropdownItems.style.display = 'flex';
+                dropdownToggle.classList.add('active');
+            }
         });
     </script>
     </main>

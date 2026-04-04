@@ -706,9 +706,15 @@ require_once __DIR__ . '/tenant_utils.php';
             if (reportsDropdownToggle && reportsDropdownItems) {
                 reportsDropdownToggle.addEventListener('click', function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
                     const open = reportsDropdownItems.style.display === 'flex';
                     reportsDropdownItems.style.display = open ? 'none' : 'flex';
+                    reportsDropdownToggle.classList.toggle('active');
                 });
+                
+                // Expand dropdown since we're on a reports page
+                reportsDropdownItems.style.display = 'flex';
+                reportsDropdownToggle.classList.add('active');
             }
         });
 

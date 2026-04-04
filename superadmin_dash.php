@@ -493,10 +493,15 @@ require_once __DIR__ . '/subscription_tiers.php';
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.menu-dropdown-toggle.active {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
 .menu-dropdown-items {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
     border-left: 3px solid #22c55e;
     overflow: hidden;
+    flex-direction: column;
 }
 
 .menu-dropdown-item {
@@ -511,7 +516,7 @@ require_once __DIR__ . '/subscription_tiers.php';
 }
 
 .menu-dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .clickable-row { cursor: pointer; transition: background 0.2s; }
@@ -1015,18 +1020,17 @@ require_once __DIR__ . '/subscription_tiers.php';
         if (dropdownToggle && dropdownItems) {
             dropdownToggle.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
                 const isVisible = dropdownItems.style.display !== 'none';
                 dropdownItems.style.display = isVisible ? 'none' : 'flex';
                 dropdownItems.style.flexDirection = 'column';
                 dropdownToggle.classList.toggle('active');
             });
 
-            // Close dropdown when clicking on dropdown items
+            // Prevent dropdown from closing when clicking on dropdown items (allow page navigation)
             dropdownItems.addEventListener('click', function(e) {
-                if (e.target.closest('.menu-dropdown-item')) {
-                    dropdownItems.style.display = 'none';
-                    dropdownToggle.classList.remove('active');
-                }
+                e.stopPropagation();
+                // Let the link navigate naturally - don't prevent default
             });
         }
     })();
