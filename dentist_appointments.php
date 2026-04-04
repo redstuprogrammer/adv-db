@@ -211,6 +211,19 @@ if ($stmt) {
       /* Status Colors */
       .status-pending { color: #f59e0b; }
       .status-completed { color: #10b981; }
+
+      .live-clock-badge {
+        background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+        border: 2px solid var(--dashboard-accent);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--dashboard-accent);
+        font-family: 'Courier New', monospace;
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
     </style>
 </head>
 <body>
@@ -262,7 +275,10 @@ if ($stmt) {
       <!-- Header Bar -->
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Dentist Portal</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
       </div>
 
       <!-- Content -->
@@ -316,9 +332,26 @@ if ($stmt) {
   </div>
 
   <script>
-    // ✓ FLAG TEST: Dentist appointments module logic active
-    console.log("Dentist Appointments Module Active - ENHANCED APPOINTMENT VIEW LOADED");
-    console.log("Features: Service Filtering, Time Display, Patient Search, Clinical Access");
+    // Live Clock Update Function
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      const clockElement = document.getElementById('liveClock');
+      if (clockElement) {
+        clockElement.textContent = timeString;
+      }
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // Verification logs
+    console.log('UI Parity Active - Version 2.0');
+    console.log('Dentist Appointments Module Active');
     
     function filterAppointments() {
       let input = document.getElementById('apptSearch').value.toLowerCase();

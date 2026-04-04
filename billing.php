@@ -196,6 +196,19 @@ foreach ($payments as $payment) {
       .badge-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
       .badge-overdue { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 
+      .live-clock-badge {
+        background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+        border: 2px solid var(--accent);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: 'Courier New', monospace;
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
+
       /* Status Pills */
       .status-pill {
         padding: 4px 12px;
@@ -319,7 +332,10 @@ foreach ($payments as $payment) {
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">💳 Billing & Payments</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
       </div>
 
       <div class="summary-grid">
@@ -407,8 +423,26 @@ foreach ($payments as $payment) {
 
   <script>
     // ✓ FLAG TEST: Billing module logic active
-    console.log("Billing Module Active - ENHANCED BILLING & PAYMENT AUDIT LOADED");
-    console.log("Features: Transaction Audit, Revenue Tracking, Search/Filter, PDF Export");
+    console.log("Billing Module Active");
+    console.log('UI Parity Active - Version 2.0');
+    console.log('Billing Page Initialized');
+    
+    // Live Clock Update Function
+    function updateClock() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+      const clockElement = document.getElementById('liveClock');
+      if (clockElement) {
+        clockElement.textContent = timeString;
+      }
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
     
     function filterPayments() {
       const query = document.getElementById('paymentSearch').value.toLowerCase();

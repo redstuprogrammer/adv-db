@@ -228,6 +228,19 @@ if ($stmt) {
         font-size: 24px;
       }
 
+      .live-clock-badge {
+        background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+        border: 2px solid var(--dashboard-accent);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--dashboard-accent);
+        font-family: 'Courier New', monospace;
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
+
       @media (max-width: 768px) {
         .dashboard-header {
           flex-direction: column;
@@ -297,7 +310,10 @@ if ($stmt) {
       <!-- Header Bar -->
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Front Desk</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
       </div>
 
       <!-- Dashboard Content -->
@@ -376,6 +392,29 @@ if ($stmt) {
       </div>
     </div>
   </div>
-  <script>console.log("Tenant Logic Active");</script>
+
+  <script>
+  // Live Clock Update Function
+  function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const clockElement = document.getElementById('liveClock');
+    if (clockElement) {
+      clockElement.textContent = timeString;
+    }
+  }
+  // Update clock immediately and then every second
+  updateClock();
+  setInterval(updateClock, 1000);
+  
+  // Verification logs
+  console.log('UI Parity Active - Version 2.0');
+  console.log('Receptionist Dashboard Initialized');
+  </script>
 </body>
 </html>

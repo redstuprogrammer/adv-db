@@ -64,25 +64,44 @@ if ($stmt) {
         .status-pill { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #0d3b66; background: #dbeafe; }
         .top-row { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
         .top-row p { margin: 0; color: #64748b; }
+        
+        .live-clock-badge {
+          background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+          border: 2px solid #0d3b66;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          font-weight: 700;
+          color: #0d3b66;
+          font-family: 'Courier New', monospace;
+          letter-spacing: 1px;
+          white-space: nowrap;
+        }
+        
+        .header-time-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
     </style>
 </head>
 <body>
 <div class="page-shell">
     <aside class="page-sidebar">
         <h2>OralSync Dentist</h2>
-        <a href="dentist_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📊 Dashboard</a>
-        <a href="dentist_appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📅 Appointments</a>
-        <a href="dentist_patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item active">👤 My Patients</a>
-        <a href="dentist_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">🚪 Logout</a>
+        <a href="dentist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item">📊 Dashboard</a>
+        <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item">📅 Appointments</a>
+        <a href="dentist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item active">👤 My Patients</a>
+        <a href="dentist_logout.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="menu-item">🚪 Logout</a>
     </aside>
 
     <main class="page-content">
-        <div class="top-row">
-            <div>
-                <h1 class="page-title">My Patients</h1>
-                <p>Patients assigned to Dr. <?php echo h($dentistName); ?>.</p>
-            </div>
-            <div class="status-pill"><?php echo h($tenantName); ?></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h2 style="color: #0d3b66; font-size: 20px; margin: 0;">My Patients</h2>
+            <p style="color: #64748b; margin: 0; font-size: 13px;">Patients assigned to Dr. <?php echo h($dentistName); ?></p>
+          </div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
         </div>
 
         <div class="table-card">
@@ -115,5 +134,28 @@ if ($stmt) {
         </div>
     </main>
 </div>
+
+<script>
+  // Live Clock Update Function
+  function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const clockElement = document.getElementById('liveClock');
+    if (clockElement) {
+      clockElement.textContent = timeString;
+    }
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+  
+  // Verification logs
+  console.log('UI Parity Active - Version 2.0');
+  console.log('Dentist Patients Page Initialized');
+</script>
 </body>
 </html>

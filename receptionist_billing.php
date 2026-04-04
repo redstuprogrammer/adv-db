@@ -223,6 +223,10 @@ if ($stmt) {
     }
     setInterval(updateClock, 1000); updateClock();
 
+    // Verification log
+    console.log('UI Parity Active - Version 2.0');
+    console.log('Receptionist Billing Page Initialized');
+
     // 2. Modal Toggle
     function openAddModal() {
       document.getElementById('paymentForm').reset();
