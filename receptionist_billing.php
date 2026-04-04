@@ -23,6 +23,10 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+    return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
@@ -44,7 +48,8 @@ $query = "SELECT
             py.mode, 
             py.status,
             a.appointment_id,
-            a.appointment_date
+            a.appointment_date,
+            s.service_id AS service_id
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
@@ -58,6 +63,18 @@ if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
+}
+
+$services = [];
+$serviceStmt = mysqli_prepare($conn, "SELECT service_id, service_name, price FROM service WHERE tenant_id = ? ORDER BY service_name ASC");
+if ($serviceStmt) {
+    mysqli_stmt_bind_param($serviceStmt, 'i', $tenantId);
+    mysqli_stmt_execute($serviceStmt);
+    $serviceResult = mysqli_stmt_get_result($serviceStmt);
+    while ($serviceRow = mysqli_fetch_assoc($serviceResult)) {
+        $services[] = $serviceRow;
+    }
+    mysqli_stmt_close($serviceStmt);
 }
 ?>
 
@@ -110,10 +127,29 @@ if ($stmt) {
             </div>
         </div>
         <div class="sidebar-nav">
-            <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>🏠</span> Front Desk</a>
-            <a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>📅</span> Appointments</a>
-            <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item"><span>👥</span> Patients</a>
-            <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item active"><span>💳</span> Billing</a>
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">Front Desk</div>
+            <a href="receptionist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+              <span class="sidebar-nav-icon">📊</span>
+              <span>Dashboard</span>
+            </a>
+          </div>
+
+          <div class="sidebar-section">
+            <div class="sidebar-section-title">Core Features</div>
+            <a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+              <span class="sidebar-nav-icon">📅</span>
+              <span>Appointments</span>
+            </a>
+            <a href="receptionist_patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
+              <span class="sidebar-nav-icon">👥</span>
+              <span>Patients</span>
+            </a>
+            <a href="receptionist_billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item active">
+              <span class="sidebar-nav-icon">💳</span>
+              <span>Billing</span>
+            </a>
+          </div>
         </div>
         <div class="sidebar-footer"><a href="receptionist_logout.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-logout-btn"><span>🚪</span> Sign Out</a></div>
     </nav>
@@ -182,17 +218,27 @@ if ($stmt) {
                 <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
                     <option value="">-- Select Patient --</option>
                     <?php 
-                    $pStmt = mysqli_prepare($conn, "SELECT patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                    $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
                     if ($pStmt) {
                         mysqli_stmt_bind_param($pStmt, "i", $tenantId);
                         mysqli_stmt_execute($pStmt);
                         $pResult = mysqli_stmt_get_result($pStmt);
                         while($p = mysqli_fetch_assoc($pResult)) {
-                            echo "<option value='".$p['patient_id']."'>".h(($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
+                            echo "<option value='".$p['patient_id']."'>".h(formatTenantPatientId($p['tenant_patient_id']) . ' - ' . ($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
                         }
                         mysqli_stmt_close($pStmt);
                     }
                     ?>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Service <span style="color: red;">*</span></label>
+                <select name="service_id" id="service_dropdown" onchange="updateAmountFromService()" required>
+                    <option value="">-- Select Service --</option>
+                    <?php foreach ($services as $service): ?>
+                        <option value="<?php echo (int)$service['service_id']; ?>" data-price="<?php echo number_format((float)$service['price'], 2, '.', ''); ?>"><?php echo h($service['service_name']); ?> — ₱<?php echo number_format((float)$service['price'], 2); ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -205,7 +251,7 @@ if ($stmt) {
 
             <div class="form-group">
                 <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required readonly>
             </div>
 
             <div class="form-group">
@@ -240,6 +286,17 @@ if ($stmt) {
         document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
     }
     setInterval(updateClock, 1000); updateClock();
+
+    function updateAmountFromService() {
+        const serviceSelect = document.getElementById('service_dropdown');
+        const selectedOption = serviceSelect.selectedOptions[0];
+        const amountInput = document.getElementById('amount_input');
+        if (selectedOption && selectedOption.dataset.price) {
+            amountInput.value = parseFloat(selectedOption.dataset.price).toFixed(2);
+        } else {
+            amountInput.value = '';
+        }
+    }
 
     // Verification log
     console.log('UI Parity Active - Version 2.0');

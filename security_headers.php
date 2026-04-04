@@ -2,6 +2,12 @@
 // Basic security headers to reduce false-positive phishing/malware signals and harden the app.
 // Safe defaults for a PHP-only app (no external JS/CDN).
 
+// Session configuration to prevent random logouts
+ini_set('session.gc_maxlifetime', 3600); // 1 hour
+ini_set('session.cookie_lifetime', 3600); // 1 hour
+ini_set('session.gc_probability', 1);
+ini_set('session.gc_divisor', 100);
+
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('Referrer-Policy: strict-origin-when-cross-origin');

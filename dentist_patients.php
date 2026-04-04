@@ -28,6 +28,10 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+    return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 $tenantName = $_SESSION['tenant_name'];
@@ -36,11 +40,11 @@ $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'];
 
 $patientList = [];
-$stmt = mysqli_prepare($conn, "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, MAX(a.appointment_date) AS last_visit
+$stmt = mysqli_prepare($conn, "SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, MAX(a.appointment_date) AS last_visit
     FROM patient p
     INNER JOIN appointment a ON p.patient_id = a.patient_id
     WHERE a.tenant_id = ? AND a.dentist_id = ?
-    GROUP BY p.patient_id
+    GROUP BY p.patient_id, p.tenant_patient_id
     ORDER BY p.first_name ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'ii', $tenantId, $dentistId);
@@ -299,41 +303,40 @@ if ($stmt) {
           <input type="text" id="searchInput" placeholder="🔍 Search patients by name..." class="search-input" onkeyup="filterPatients()" />
         </div>
 
-        <div class="patient-grid" id="patientGrid">
-          <?php if (!empty($patientList)): ?>
-            <?php foreach ($patientList as $patient): ?>
-              <div class="patient-card" data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>">
-                <div class="patient-card-header">
-                  <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
-                </div>
-                <div class="patient-card-body">
-                  <div class="patient-info">
-                    <div class="info-item">
-                      <span class="info-label">Contact:</span>
-                      <span class="info-value"><?php echo h($patient['contact_number'] ?? 'N/A'); ?></span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">Email:</span>
-                      <span class="info-value"><?php echo h($patient['email'] ?? 'N/A'); ?></span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">Birthdate:</span>
-                      <span class="info-value"><?php echo $patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'; ?></span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">Last Visit:</span>
-                      <span class="info-value"><?php echo $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never'; ?></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          <?php else: ?>
-            <div class="empty-state">
-              <div class="empty-icon">👥</div>
-              <p>No patients found in your records.</p>
-            </div>
-          <?php endif; ?>
+        <div style="overflow-x:auto;">
+          <table class="patient-table" id="patientGrid">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Patient</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Birthdate</th>
+                <th>Last Visit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (!empty($patientList)): ?>
+                <?php foreach ($patientList as $patient):
+                  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
+                  $isActive = ($patient['last_visit'] && strtotime($patient['last_visit']) > strtotime('-1 year'));
+                ?>
+                  <tr data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>">
+                    <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
+                    <td><strong><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></strong></td>
+                    <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
+                    <td><?php echo $patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'; ?></td>
+                    <td><?php echo $lastVisit; ?></td>
+                    <td><span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <tr><td colspan="7" style="text-align:center; padding: 40px; color: #64748b;">No patients found in your records.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -359,11 +362,11 @@ if ($stmt) {
 
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const patientCards = document.querySelectorAll('.patient-card');
+      const rows = document.querySelectorAll('#patientGrid tbody tr');
 
-      patientCards.forEach(card => {
-        const cardText = card.textContent.toLowerCase();
-        card.style.display = cardText.includes(searchInput) ? '' : 'none';
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchInput) ? '' : 'none';
       });
     }
 

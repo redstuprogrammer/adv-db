@@ -213,6 +213,10 @@ try {
             <span class="sidebar-nav-icon">👤</span>
             <span>Users</span>
           </a>
+          <a href="services.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">🦷</span>
+            <span>Services</span>
+          </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>

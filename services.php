@@ -30,22 +30,45 @@ requireTenantLogin($tenantSlug);
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
+// Ensure service category column exists for the dropdown support
+$serviceTableResult = mysqli_query($conn, "SHOW COLUMNS FROM service LIKE 'category'");
+$categoryColumnExists = ($serviceTableResult && mysqli_num_rows($serviceTableResult) > 0);
+if (!$categoryColumnExists) {
+    @mysqli_query($conn, "ALTER TABLE service ADD COLUMN category varchar(100) DEFAULT 'General'");
+    $serviceTableResult = mysqli_query($conn, "SHOW COLUMNS FROM service LIKE 'category'");
+    $categoryColumnExists = ($serviceTableResult && mysqli_num_rows($serviceTableResult) > 0);
+}
+
 // Handle form submissions
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_service'])) {
         $serviceName = trim($_POST['service_name'] ?? '');
         $price = floatval($_POST['price'] ?? 0);
+        $category = trim($_POST['category'] ?? 'General') ?: 'General';
+        $description = trim($_POST['description'] ?? '');
         
         if (!empty($serviceName) && $price > 0) {
-            $stmt = mysqli_prepare($conn, "INSERT INTO service (tenant_id, service_name, price) VALUES (?, ?, ?)");
+            if ($categoryColumnExists) {
+                $stmt = mysqli_prepare($conn, "INSERT INTO service (tenant_id, service_name, price, category, description) VALUES (?, ?, ?, ?, ?)");
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, "isdss", $tenantId, $serviceName, $price, $category, $description);
+                }
+            } else {
+                $stmt = mysqli_prepare($conn, "INSERT INTO service (tenant_id, service_name, price, description) VALUES (?, ?, ?, ?)");
+                if ($stmt) {
+                    mysqli_stmt_bind_param($stmt, "isds", $tenantId, $serviceName, $price, $description);
+                }
+            }
             if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "isd", $tenantId, $serviceName, $price);
                 if (mysqli_stmt_execute($stmt)) {
                     $message = 'Service added successfully!';
                 } else {
                     $message = 'Error adding service.';
                 }
+                mysqli_stmt_close($stmt);
+            } else {
+                $message = 'Error preparing service insert.';
             }
         } else {
             $message = 'Please provide valid service name and price.';
@@ -63,7 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch services
 $services = [];
-$stmt = mysqli_prepare($conn, "SELECT service_id, service_name, price FROM service WHERE tenant_id = ? ORDER BY service_name");
+$selectSql = "SELECT service_id, service_name, price, description";
+if ($categoryColumnExists) {
+    $selectSql .= ", category";
+}
+$selectSql .= " FROM service WHERE tenant_id = ? ORDER BY service_name";
+$stmt = mysqli_prepare($conn, $selectSql);
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
@@ -256,12 +284,29 @@ if ($stmt) {
         <h2>Add New Service</h2>
         <form method="post">
           <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" name="category" required>
+              <option value="Preventive">Preventive</option>
+              <option value="Pediatric">Pediatric</option>
+              <option value="Prosthodontics">Prosthodontics</option>
+              <option value="Cosmetic">Cosmetic</option>
+              <option value="Orthodontics">Orthodontics</option>
+              <option value="Surgery">Surgery</option>
+              <option value="Restorative">Restorative</option>
+              <option value="Others">Others</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="service_name">Service Name</label>
             <input type="text" id="service_name" name="service_name" required>
           </div>
           <div class="form-group">
-            <label for="price">Price ($)</label>
+            <label for="price">Price (₱)</label>
             <input type="number" id="price" name="price" step="0.01" min="0" required>
+          </div>
+          <div class="form-group">
+            <label for="description">Full Description</label>
+            <textarea id="description" name="description" rows="4" placeholder="Describe the service in detail"></textarea>
           </div>
           <button type="submit" name="add_service" class="btn-primary">Add Service</button>
         </form>
@@ -276,7 +321,9 @@ if ($stmt) {
           <thead>
             <tr>
               <th>Service Name</th>
+              <th>Category</th>
               <th>Price</th>
+              <th>Description</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -284,7 +331,9 @@ if ($stmt) {
             <?php foreach ($services as $service): ?>
             <tr>
               <td><?php echo h($service['service_name']); ?></td>
-              <td>$<?php echo number_format($service['price'], 2); ?></td>
+              <td><?php echo h($service['category'] ?? 'General'); ?></td>
+              <td>₱<?php echo number_format($service['price'], 2); ?></td>
+              <td><?php echo h($service['description'] ?? ''); ?></td>
               <td>
                 <form method="post" style="display: inline;">
                   <input type="hidden" name="service_id" value="<?php echo $service['service_id']; ?>">

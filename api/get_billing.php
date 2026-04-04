@@ -34,39 +34,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     // 5. Database Query
-    // Only using columns confirmed in the DB screenshot:
-    // appointment: appointment_id, tenant_id, patient_id, dentist_id, appointment_date, status
-    // TODO (Saturday): Ask DB dev to add appointment_time + procedure_name to appointment table
+    // Get billing info (payments) for the patient's appointments
     $stmt = $conn->prepare("
         SELECT
+            p.payment_id,
+            p.amount,
+            p.mode,
+            p.status,
+            p.payment_date,
             a.appointment_id,
-            a.appointment_date  AS date,
-            a.appointment_time  AS time,
-            a.status,
+            a.appointment_date,
             a.procedure_name,
-            a.tenant_id,
-            CONCAT(d.first_name, ' ', d.last_name) AS doctor
-        FROM appointment a
-        JOIN tenants t       ON a.tenant_id  = t.tenant_id
-        LEFT JOIN dentist d  ON a.dentist_id = d.dentist_id
+            t.name AS clinic_name
+        FROM payment p
+        JOIN appointment a ON p.appointment_id = a.appointment_id
+        JOIN tenants t ON p.tenant_id = t.tenant_id
         WHERE a.patient_id = ?
           AND t.status = 'active'
-        ORDER BY a.appointment_date ASC
+        ORDER BY p.payment_date DESC
     ");
 
     $stmt->bind_param("i", $patient_id);
     $stmt->execute();
     $result = $stmt->get_result();
 
-    $appointments = [];
+    $billings = [];
     while ($row = $result->fetch_assoc()) {
-        $appointments[] = $row;
+        $billings[] = $row;
     }
 
     echo json_encode([
-        'success'      => true,
-        'message'      => 'Appointments fetched successfully',
-        'appointments' => $appointments
+        'success'   => true,
+        'message'   => 'Billing info fetched successfully',
+        'billings'  => $billings
     ]);
 
     $stmt->close();

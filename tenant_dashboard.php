@@ -58,6 +58,19 @@ if ($stmt) {
     }
 }
 
+// Fetch total system users for the current tenant
+$systemUserCount = 0;
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM users WHERE tenant_id = ?");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        $row = mysqli_fetch_assoc($result);
+        $systemUserCount = $row['total'] ?? 0;
+    }
+}
+
 // Fetch all patients with last visit for patient directory
 $allPatients = [];
 $query = "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, 
@@ -490,6 +503,12 @@ if ($stmt) {
         </div>
 
         <div class="stat-card">
+          <div class="stat-icon icon-amber">👤</div>
+          <div class="stat-label">System Users</div>
+          <div class="stat-value"><?php echo $systemUserCount; ?></div>
+        </div>
+
+        <div class="stat-card">
           <div class="stat-icon icon-red">💵</div>
           <div class="stat-label">Total Revenue</div>
           <div class="stat-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
@@ -549,62 +568,9 @@ if ($stmt) {
         </table>
       </div>
 
-      <!-- Mini Patient Table and Sales Chart -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
-        <!-- Mini Patient Table -->
-        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
-          <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Recent Patients</h3>
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead>
-              <tr style="border-bottom: 1px solid var(--dashboard-border);">
-                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Name</th>
-                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Phone</th>
-                <th style="padding: 8px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php foreach ($recentPatients as $patient): ?>
-              <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 8px; font-size: 14px;"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
-                <td style="padding: 8px; font-size: 14px;"><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
-                <td style="padding: 8px;">
-                  <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view=<?php echo $patient['patient_id']; ?>" class="action-link" style="font-size: 12px; padding: 4px 8px;">View</a>
-                </td>
-              </tr>
-              <?php endforeach; ?>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Sales Chart -->
-        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+      <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); margin-bottom: 32px;">
           <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
-          <canvas id="salesChart" style="max-height: 200px;"></canvas>
-        </div>
-      </div>
-
-      <!-- Calendar and Today's Schedule -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; min-height: 400px;">
-        <!-- Calendar -->
-        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-            <button onclick="prevMonth()" style="background: none; border: none; font-size: 20px; cursor: pointer;">←</button>
-            <h3 id="monthLabel" style="margin: 0; font-size: 16px; font-weight: 700; color: var(--dashboard-accent); flex: 1; text-align: center;">March 2026</h3>
-            <button onclick="nextMonth()" style="background: none; border: none; font-size: 20px; cursor: pointer;">→</button>
-          </div>
-          <div id="calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;"></div>
-        </div>
-
-        <!-- Today's Schedule -->
-        <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
-          <h3 style="margin-top: 0; margin-bottom: 12px; font-size: 15px; font-weight: 700; color: var(--dashboard-accent);">Today's Schedule</h3>
-          <div id="todayDate" style="font-size: 12px; color: #64748b; margin-bottom: 16px;">Saturday, March 06, 2026</div>
-          <div id="todayAppointments" style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="padding: 12px; background: var(--dashboard-bg); border-radius: 8px; border-left: 4px solid var(--dashboard-accent); font-size: 13px; color: #64748b;">
-              No appointments for today
-            </div>
-          </div>
-        </div>
+          <canvas id="salesChart" style="width: 100%; min-height: 240px;"></canvas>
       </div>
 
       </div>

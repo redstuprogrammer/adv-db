@@ -218,6 +218,10 @@ $tenantId = getCurrentTenantId();
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
           </a>
+          <a href="services.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">🦷</span>
+            <span>Services</span>
+          </a>
           <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">⚙️</span>
             <span>Settings</span>
@@ -309,16 +313,6 @@ $tenantId = getCurrentTenantId();
                 echo "<tr><td>2</td><td>09:30:15</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-updated'>Updated</span></td><td>Payment recorded</td></tr>";
                 echo "<tr><td>3</td><td>08:15:00</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Patient registered</td></tr>";
               }
-              ?>
-            </tbody>
-                  <td>{$row['log_id']}</td>
-                  <td>{$row['log_time']}</td>
-                  <td>{$row['log_date']}</td>
-                  <td>$badge</td>
-                  <td>{$row['details']}</td>
-                </tr>";
-              }
-              $stmt->close();
               ?>
             </tbody>
           </table>

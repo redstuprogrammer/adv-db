@@ -7,6 +7,16 @@ session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 require_once 'tenant_utils.php';
+require_once 'tenant_settings_functions.php';
+
+// Load tenant-specific login customization settings
+$loginSettings = [
+    'brand_card_bg' => getTenantSetting($tenant['tenant_id'], 'login_brand_bg') ?: '#0d3b66',
+    'branding_subtitle' => getTenantSetting($tenant['tenant_id'], 'login_branding_subtitle') ?: 'Powered by OralSync',
+    'login_title' => getTenantSetting($tenant['tenant_id'], 'login_title') ?: 'Clinic Login',
+    'button_color' => getTenantSetting($tenant['tenant_id'], 'login_button_color') ?: '#0d3b66',
+    'text_link_color' => getTenantSetting($tenant['tenant_id'], 'login_text_link_color') ?: '#2563eb'
+];
 
 // Check connection
 if (!$conn && (!isset($pdo) || !$pdo)) {
@@ -168,6 +178,17 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <style>
+        .t-brandPanel {
+            background: linear-gradient(135deg, <?php echo h($loginSettings['brand_card_bg']); ?>, <?php echo h($loginSettings['brand_card_bg']); ?>dd) !important;
+        }
+        .t-btnPrimary {
+            background: <?php echo h($loginSettings['button_color']); ?> !important;
+        }
+        .t-card a[href*="forgot_password"] {
+            color: <?php echo h($loginSettings['text_link_color']); ?> !important;
+        }
+    </style>
 </head>
 <body>
     <div class="t-wrap">
@@ -177,7 +198,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
                     <div class="t-logo">OS</div>
                     <div>
                         <div class="t-brandTitle"><?php echo h($clinicName); ?></div>
-                        <div class="t-brandSub">Powered by OralSync</div>
+                        <div class="t-brandSub"><?php echo h($loginSettings['branding_subtitle']); ?></div>
                     </div>
                 </div>
 
@@ -195,7 +216,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
             </section>
 
             <section class="t-card">
-                <h1 class="t-cardTitle">Clinic Login</h1>
+                <h1 class="t-cardTitle"><?php echo h($loginSettings['login_title']); ?></h1>
                 <div class="t-cardSub">
                     Please sign in to access your clinic portal.
                 </div>

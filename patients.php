@@ -12,6 +12,10 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+    return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
@@ -31,7 +35,7 @@ $tenantId = getCurrentTenantId();
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT patient_id, first_name, last_name, contact_number, email, birthdate, gender FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -156,6 +160,27 @@ if (isset($_GET['view_patient_id'])) {
 
       .patient-card-header {
         margin-bottom: 16px;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .status-active {
+        background: #d1fae5;
+        color: #065f46;
+      }
+
+      .status-inactive {
+        background: #fef3c7;
+        color: #92400e;
       }
 
       .patient-id {
@@ -462,6 +487,10 @@ if (isset($_GET['view_patient_id'])) {
             <span class="sidebar-nav-icon">👤</span>
             <span>Users</span>
           </a>
+          <a href="services.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">🦷</span>
+            <span>Services</span>
+          </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
@@ -507,40 +536,40 @@ if (isset($_GET['view_patient_id'])) {
           <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
         </div>
 
-        <div class="patient-grid" id="patientGrid">
-          <?php if (empty($patients)): ?>
-            <div class="no-patients" style="text-align:center; padding: 32px; color: #64748b; grid-column: 1 / -1;">No patients registered yet.</div>
-          <?php else: ?>
-            <?php foreach ($patients as $patient):
+        <div style="overflow-x:auto;">
+          <table class="patient-table" id="patientGrid">
+            <thead>
+              <tr>
+                <th>Patient ID</th>
+                <th>Full Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Last Visit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($patients)): ?>
+                <tr>
+                  <td colspan="6" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($patients as $patient):
                   $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
-            ?>
-              <div class="patient-card" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
-                <div class="patient-card-header">
-                  <div class="patient-id">#<?php echo str_pad($patient['patient_id'], 4, '0', STR_PAD_LEFT); ?></div>
-                  <div class="patient-name"><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></div>
-                </div>
-                <div class="patient-card-body">
-                  <div class="patient-info">
-                    <div class="info-item">
-                      <span class="info-label">Contact:</span>
-                      <span class="info-value"><?php echo h($patient['contact_number'] ?? 'N/A'); ?></span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">Email:</span>
-                      <span class="info-value"><?php echo h($patient['email'] ?? 'N/A'); ?></span>
-                    </div>
-                    <div class="info-item">
-                      <span class="info-label">Last Visit:</span>
-                      <span class="info-value"><?php echo $lastVisit; ?></span>
-                    </div>
-                  </div>
-                  <div class="patient-actions">
-                    <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View Details</a>
-                  </div>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
+                  $isActive = ($patient['last_visit'] && strtotime($patient['last_visit']) > strtotime('-1 year'));
+                ?>
+                  <tr data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
+                    <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
+                    <td><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
+                    <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($lastVisit); ?></td>
+                    <td><span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -640,11 +669,11 @@ if (isset($_GET['view_patient_id'])) {
 
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const patientCards = document.querySelectorAll('.patient-card');
+      const rows = document.querySelectorAll('#patientGrid tbody tr');
 
-      patientCards.forEach(card => {
-        const cardText = card.textContent.toLowerCase();
-        card.style.display = cardText.includes(searchInput) ? '' : 'none';
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchInput) ? '' : 'none';
       });
     }
   </script>

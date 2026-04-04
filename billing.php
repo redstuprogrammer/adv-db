@@ -320,6 +320,10 @@ foreach ($payments as $payment) {
             <span class="sidebar-nav-icon">👤</span>
             <span>Users</span>
           </a>
+          <a href="services.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">🦷</span>
+            <span>Services</span>
+          </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
@@ -349,22 +353,6 @@ foreach ($payments as $payment) {
         </div>
       </div>
 
-      <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between; align-items:center; margin-bottom:24px;">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; flex:1;">
-          <div class="summary-card">
-            <div class="summary-label">Total Revenue</div>
-            <div class="summary-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Pending Amount</div>
-            <div class="summary-value">₱<?php echo number_format($pendingAmount, 2); ?></div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-label">Paid Invoices</div>
-            <div class="summary-value"><?php echo $paidCount; ?></div>
-          </div>
-        </div>
-      </div>
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">

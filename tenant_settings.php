@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/security_headers.php';
 require_once 'connect.php';
 require_once 'tenant_utils.php';
+require_once 'tenant_settings_functions.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -33,36 +34,53 @@ $tenantId = getCurrentTenantId();
 $message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $currentPassword = $_POST['current_password'] ?? '';
-    $newPassword = $_POST['new_password'] ?? '';
-    $confirmPassword = $_POST['confirm_password'] ?? '';
+    if (isset($_POST['change_password'])) {
+        $currentPassword = $_POST['current_password'] ?? '';
+        $newPassword = $_POST['new_password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
 
-    if ($newPassword !== $confirmPassword) {
-        $message = 'New passwords do not match.';
-    } elseif (strlen($newPassword) < 8) {
-        $message = 'Password must be at least 8 characters long.';
-    } else {
-        // Verify current password
-        $stmt = $conn->prepare("SELECT password FROM tenants WHERE tenant_id = ?");
-        $stmt->bind_param('i', $tenantId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $tenant = $result->fetch_assoc();
-
-        if ($tenant && password_verify($currentPassword, $tenant['password'])) {
-            $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-            $updateStmt = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
-            $updateStmt->bind_param('si', $hashedPassword, $tenantId);
-            if ($updateStmt->execute()) {
-                $message = 'Password changed successfully!';
-            } else {
-                $message = 'Error updating password.';
-            }
-            $updateStmt->close();
+        if ($newPassword !== $confirmPassword) {
+            $message = 'New passwords do not match.';
+        } elseif (strlen($newPassword) < 8) {
+            $message = 'Password must be at least 8 characters long.';
         } else {
-            $message = 'Current password is incorrect.';
+            // Verify current password
+            $stmt = $conn->prepare("SELECT password FROM tenants WHERE tenant_id = ?");
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $tenant = $result->fetch_assoc();
+
+            if ($tenant && password_verify($currentPassword, $tenant['password'])) {
+                $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+                $updateStmt = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
+                $updateStmt->bind_param('si', $hashedPassword, $tenantId);
+                if ($updateStmt->execute()) {
+                    $message = 'Password changed successfully!';
+                } else {
+                    $message = 'Error updating password.';
+                }
+                $updateStmt->close();
+            } else {
+                $message = 'Current password is incorrect.';
+            }
+            $stmt->close();
         }
-        $stmt->close();
+    } elseif (isset($_POST['save_login_settings'])) {
+        // Save login customization settings
+        $loginBrandBg = $_POST['login_brand_bg'] ?? '#0d3b66';
+        $loginBrandingSubtitle = $_POST['login_branding_subtitle'] ?? 'Powered by OralSync';
+        $loginTitle = $_POST['login_title'] ?? 'Clinic Login';
+        $loginButtonColor = $_POST['login_button_color'] ?? '#0d3b66';
+        $loginTextLinkColor = $_POST['login_text_link_color'] ?? '#2563eb';
+
+        setTenantSetting($tenantId, 'login_brand_bg', $loginBrandBg);
+        setTenantSetting($tenantId, 'login_branding_subtitle', $loginBrandingSubtitle);
+        setTenantSetting($tenantId, 'login_title', $loginTitle);
+        setTenantSetting($tenantId, 'login_button_color', $loginButtonColor);
+        setTenantSetting($tenantId, 'login_text_link_color', $loginTextLinkColor);
+
+        $message = 'Login customization settings saved successfully!';
     }
 }
 ?>
@@ -245,6 +263,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <span class="sidebar-nav-icon">👤</span>
             <span>Users</span>
           </a>
+          <a href="services.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
+            <span class="sidebar-nav-icon">🦷</span>
+            <span>Services</span>
+          </a>
           <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
             <span class="sidebar-nav-icon">📈</span>
             <span>Reports</span>
@@ -301,81 +323,104 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
       <div class="login-customizer">
-        <h3>Login Customizer (Tenant Admin)</h3>
-        <div class="customizer-grid">
-          <div class="form-group">
-            <label for="custom_logo">Clinic Logo</label>
-            <input type="file" id="custom_logo" accept="image/png, image/jpeg">
-          </div>
-          <div class="form-group">
-            <label for="custom_accent">Accent Color</label>
-            <input type="color" id="custom_accent" value="#0d3b66">
-          </div>
-          <div class="form-group">
-            <label for="custom_welcome">Welcome Message</label>
-            <input type="text" id="custom_welcome" placeholder="Welcome to your clinic portal...">
-          </div>
-          <div class="form-group">
-            <label for="custom_support">Support Details</label>
-            <input type="text" id="custom_support" placeholder="support@clinic.com | (123) 456 7890">
-          </div>
-        </div>
+        <h3>Login Page Customization</h3>
+        <p style="color: #64748b; margin-bottom: 20px;">Customize your clinic's login page appearance. Changes will be visible to all users logging into your clinic.</p>
 
-        <div class="sa-form-actions" style="margin-top: 20px;">
-          <button type="button" class="btn-primary" id="custom_apply">Apply Preview</button>
-          <button type="button" class="btn-primary" id="custom_reset">Reset Preview</button>
-        </div>
+        <?php
+        // Load current tenant settings
+        $tenantSettings = getAllTenantSettings($tenantId);
+        ?>
 
-        <div class="login-preview" id="custom_preview">
-          <div class="preview-logo" id="preview_logo"><span style="font-size: 32px;">🏥</span></div>
-          <div style="font-weight: 700; margin-bottom: 10px;" id="preview_welcome">Welcome to Your Clinic</div>
-          <a href="#" class="preview-button" id="preview_button">Login</a>
-          <div style="margin-top: 12px; color: var(--border);" id="preview_support">Contact support team at support@oral-sync.com</div>
+        <form method="POST" id="loginSettingsForm">
+          <input type="hidden" name="save_login_settings" value="1">
+          <div class="customizer-grid">
+            <div class="form-group">
+              <label for="login_brand_bg">Brand Card Background Color</label>
+              <input type="color" id="login_brand_bg" name="login_brand_bg" class="preview-input" data-target="#preview-brand-card" data-style="backgroundColor" value="<?php echo htmlspecialchars($tenantSettings['login_brand_bg'] ?? '#0d3b66'); ?>">
+            </div>
+            <div class="form-group">
+              <label for="login_branding_subtitle">Branding Subtitle</label>
+              <input type="text" id="login_branding_subtitle" name="login_branding_subtitle" class="preview-input" data-target="#preview-brand-subtitle" data-property="textContent" value="<?php echo htmlspecialchars($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?>" placeholder="Powered by OralSync">
+            </div>
+            <div class="form-group">
+              <label for="login_title">Login Title</label>
+              <input type="text" id="login_title" name="login_title" class="preview-input" data-target="#preview-login-title" data-property="textContent" value="<?php echo htmlspecialchars($tenantSettings['login_title'] ?? 'Clinic Login'); ?>" placeholder="Clinic Login">
+            </div>
+            <div class="form-group">
+              <label for="login_button_color">Primary Button Color</label>
+              <input type="color" id="login_button_color" name="login_button_color" class="preview-input" data-target="#preview-signin-btn" data-style="backgroundColor" value="<?php echo htmlspecialchars($tenantSettings['login_button_color'] ?? '#0d3b66'); ?>">
+            </div>
+            <div class="form-group">
+              <label for="login_text_link_color">Text Link Color</label>
+              <input type="color" id="login_text_link_color" name="login_text_link_color" class="preview-input" data-target="#preview-forgot-link" data-style="color" value="<?php echo htmlspecialchars($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>">
+            </div>
+          </div>
+
+          <div class="sa-form-actions" style="margin-top: 20px;">
+            <button type="submit" class="btn-primary">Save Login Settings</button>
+            <button type="button" class="btn-primary" style="background: #6b7280;" onclick="resetLoginPreview()">Reset to Defaults</button>
+          </div>
+        </form>
+
+        <div class="login-preview" id="login-preview-container">
+          <div class="preview-title">Live Login Preview</div>
+          <div class="login-preview-frame">
+            <div class="login-preview-split">
+              <div class="preview-left" id="preview-brand-card">
+                <div class="preview-logo-spot"><?php echo h($tenantName); ?></div>
+                <div class="preview-subtitle" id="preview-brand-subtitle"><?php echo htmlspecialchars($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?></div>
+              </div>
+              <div class="preview-right">
+                <div class="preview-welcome" id="preview-login-title"><?php echo htmlspecialchars($tenantSettings['login_title'] ?? 'Clinic Login'); ?></div>
+                <div class="preview-description">Use the login button and forgot password link to preview styling instantly.</div>
+                <button type="button" class="preview-button" id="preview-signin-btn">Sign in</button>
+                <div class="preview-link-row"><a href="#" id="preview-forgot-link">Forgot password?</a></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    function updateCustomizerPreview() {
-      const accent = document.getElementById('custom_accent').value;
-      document.getElementById('preview_button').style.backgroundColor = accent;
-      document.getElementById('preview_button').style.borderColor = accent;
-      document.getElementById('preview_welcome').textContent = document.getElementById('custom_welcome').value || 'Welcome to Your Clinic';
-      document.getElementById('preview_support').textContent = document.getElementById('custom_support').value || 'Contact support team at support@oral-sync.com';
+    function applyPreviewChange(input) {
+      const targetSelector = input.dataset.target;
+      const target = document.querySelector(targetSelector);
+      if (!target) return;
+
+      const style = input.dataset.style;
+      const property = input.dataset.property;
+      const value = input.value;
+
+      if (style) {
+        target.style[style] = value;
+      } else if (property) {
+        target[property] = value || target.dataset.default || '';
+      }
     }
 
-    document.getElementById('custom_accent').addEventListener('input', updateCustomizerPreview);
-    document.getElementById('custom_welcome').addEventListener('input', updateCustomizerPreview);
-    document.getElementById('custom_support').addEventListener('input', updateCustomizerPreview);
+    function initializeLoginPreview() {
+      const previewInputs = document.querySelectorAll('.preview-input');
+      previewInputs.forEach(input => {
+        input.addEventListener('input', () => applyPreviewChange(input));
+        input.addEventListener('change', () => applyPreviewChange(input));
+        applyPreviewChange(input);
+      });
+    }
 
-    document.getElementById('custom_logo').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      const previewLogo = document.getElementById('preview_logo');
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          previewLogo.innerHTML = '<img src="' + event.target.result + '" alt="Logo">';
-        };
-        reader.readAsDataURL(file);
-      } else {
-        previewLogo.innerHTML = '<span style="font-size: 32px;">🏥</span>';
-      }
-    });
+    function resetLoginPreview() {
+      document.getElementById('login_brand_bg').value = '#0d3b66';
+      document.getElementById('login_branding_subtitle').value = 'Powered by OralSync';
+      document.getElementById('login_title').value = 'Clinic Login';
+      document.getElementById('login_button_color').value = '#0d3b66';
+      document.getElementById('login_text_link_color').value = '#2563eb';
 
-    document.getElementById('custom_apply').addEventListener('click', function() {
-      updateCustomizerPreview();
-      alert('Preview applied. This is a tenant-side login preview only.');
-    });
+      const previewInputs = document.querySelectorAll('.preview-input');
+      previewInputs.forEach(input => applyPreviewChange(input));
+    }
 
-    document.getElementById('custom_reset').addEventListener('click', function() {
-      document.getElementById('custom_logo').value = '';
-      document.getElementById('custom_accent').value = '#0d3b66';
-      document.getElementById('custom_welcome').value = '';
-      document.getElementById('custom_support').value = '';
-      document.getElementById('preview_logo').innerHTML = '<span style="font-size: 32px;">🏥</span>';
-      updateCustomizerPreview();
-    });
+    initializeLoginPreview();
   </script>
 </body>
 </html>

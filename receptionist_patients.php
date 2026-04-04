@@ -32,15 +32,60 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+    return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$successMessage = '';
+$errorMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
+    $contactNumber = trim($_POST['contact_number'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $birthdate = trim($_POST['birthdate'] ?? '');
+    $gender = trim($_POST['gender'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+
+    if ($firstName === '' || $lastName === '' || $contactNumber === '') {
+        $errorMessage = 'First name, last name, and contact number are required.';
+    } else {
+        // Step A: Fetch the current maximum tenant_patient_id for this tenant
+        $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
+        $maxIdStmt->bind_param('i', $tenantId);
+        $maxIdStmt->execute();
+        $maxIdResult = $maxIdStmt->get_result();
+        $maxIdRow = $maxIdResult->fetch_assoc();
+        $maxIdStmt->close();
+        
+        // Step B: Calculate the new tenant_patient_id
+        $newTenantPatientId = ($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1;
+        
+        // Step C: Include in the INSERT statement
+        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        if ($insertStmt) {
+            $insertStmt->bind_param('iisssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address);
+            if ($insertStmt->execute()) {
+                $successMessage = 'Patient added successfully.';
+            } else {
+                $errorMessage = 'Unable to add patient. Please try again.';
+            }
+            $insertStmt->close();
+        } else {
+            $errorMessage = 'Unable to prepare patient insert statement.';
+        }
+    }
+}
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) as last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id WHERE p.tenant_id = ? GROUP BY p.patient_id ORDER BY p.first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) as last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -148,21 +193,108 @@ if (isset($_GET['view_patient_id'])) {
         white-space: nowrap;
       }
 
-      .view-button {
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid var(--accent);
-        background: white;
-        color: var(--accent);
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        transition: background 0.2s ease, color 0.2s ease;
+      .message {
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        font-size: 14px;
       }
 
-      .view-button:hover {
+      .message.success {
+        background: #ecfdf5;
+        color: #115e59;
+        border: 1px solid #a7f3d0;
+      }
+
+      .message.error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+      }
+
+      .status-paid {
+        background: #d1fae5;
+        color: #065f46;
+      }
+
+      .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .form-group.required label::after {
+        content: ' *';
+        color: #dc2626;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+      }
+
+      .btn-cancel,
+      .btn-submit {
+        padding: 12px 18px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .btn-cancel {
+        background: #f1f5f9;
+        color: #334155;
+      }
+
+      .btn-cancel:hover {
+        background: #e2e8f0;
+      }
+
+      .btn-submit {
         background: var(--accent);
         color: white;
+      }
+
+      .btn-submit:hover {
+        background: #0a2d4f;
       }
 
       .empty-state {
@@ -315,9 +447,15 @@ if (isset($_GET['view_patient_id'])) {
       </div>
 
       <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <?php if ($successMessage): ?>
+          <div class="message success"><?php echo h($successMessage); ?></div>
+        <?php endif; ?>
+        <?php if ($errorMessage): ?>
+          <div class="message error"><?php echo h($errorMessage); ?></div>
+        <?php endif; ?>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
-          <span style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase;">👁️ View Only</span>
+          <button class="btn-primary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 
         <div class="search-container">
@@ -328,26 +466,28 @@ if (isset($_GET['view_patient_id'])) {
           <table class="patient-table" id="patientTable">
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Patient</th>
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
-                <th>Action</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
                 <tr>
-                  <td colspan="5" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
+                  <td colspan="6" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($patients as $patient): ?>
                   <tr data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>" data-patient-contact="<?php echo strtolower($patient['contact_number']); ?>">
+                    <td><strong><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></strong></td>
                     <td><strong><?php echo h(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></strong></td>
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['last_visit'] ?? 'Never'); ?></td>
-                    <td><a href="javascript:void(0);" class="view-button" onclick="viewPatient(<?php echo (int)$patient['patient_id']; ?>)">View Details</a></td>
+                    <td><span class="status-pill <?php echo (!empty($patient['last_visit']) && strtotime($patient['last_visit']) > strtotime('-1 year')) ? 'status-paid' : 'status-pending'; ?>"><?php echo (!empty($patient['last_visit']) && strtotime($patient['last_visit']) > strtotime('-1 year')) ? 'Active' : 'Inactive'; ?></span></td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -358,16 +498,58 @@ if (isset($_GET['view_patient_id'])) {
     </div>
   </div>
 
-  <!-- View Patient Modal -->
-  <div id="viewPatientModal" class="modal">
+  <!-- Add Patient Modal -->
+  <div id="addPatientModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 class="modal-title">Patient Details</h2>
-        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2 class="modal-title">Add Patient</h2>
+        <button class="modal-close" onclick="closeAddPatientModal()">&times;</button>
       </div>
-      <div id="patientDetailsContainer">
-        <!-- Patient details will be loaded here -->
-      </div>
+      <form method="POST" class="patient-form">
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" required>
+          </div>
+          <div class="form-group required">
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="contact_number">Contact Number</label>
+            <input type="text" id="contact_number" name="contact_number" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="birthdate">Birthdate</label>
+            <input type="date" id="birthdate" name="birthdate">
+          </div>
+          <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender" name="gender">
+              <option value="">-- Select Gender --</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="address">Address</label>
+          <input type="text" id="address" name="address">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
+          <button type="submit" class="btn-submit" name="add_patient">Save Patient</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -399,55 +581,17 @@ if (isset($_GET['view_patient_id'])) {
       });
     }
 
-    function viewPatient(patientId) {
-      // Fetch patient details via AJAX
-      fetch('get_patient_details.php?tenant=<?php echo urlencode($tenantSlug); ?>&patient_id=' + patientId)
-        .then(response => response.json())
-        .then(data => {
-          let html = '';
-          if (data.success) {
-            const p = data.patient;
-            html = `
-              <div class="patient-detail-row">
-                <div class="patient-detail-label">Name</div>
-                <div class="patient-detail-value">${p.first_name} ${p.last_name}</div>
-              </div>
-              <div class="patient-detail-row">
-                <div class="patient-detail-label">Contact</div>
-                <div class="patient-detail-value">${p.contact_number || 'N/A'}</div>
-              </div>
-              <div class="patient-detail-row">
-                <div class="patient-detail-label">Email</div>
-                <div class="patient-detail-value">${p.email || 'N/A'}</div>
-              </div>
-              <div class="patient-detail-row">
-                <div class="patient-detail-label">Birthdate</div>
-                <div class="patient-detail-value">${p.birthdate || 'N/A'}</div>
-              </div>
-              <div class="patient-detail-row">
-                <div class="patient-detail-label">Gender</div>
-                <div class="patient-detail-value">${p.gender || 'N/A'}</div>
-              </div>
-            `;
-          } else {
-            html = '<p style="color: #ef4444;">Unable to load patient details.</p>';
-          }
-          document.getElementById('patientDetailsContainer').innerHTML = html;
-          document.getElementById('viewPatientModal').classList.add('active');
-        })
-        .catch(err => {
-          console.error('Error:', err);
-          document.getElementById('patientDetailsContainer').innerHTML = '<p style="color: #ef4444;">Error loading patient details.</p>';
-        });
+    function openAddPatientModal() {
+      document.getElementById('addPatientModal').classList.add('active');
     }
 
-    function closeModal() {
-      document.getElementById('viewPatientModal').classList.remove('active');
+    function closeAddPatientModal() {
+      document.getElementById('addPatientModal').classList.remove('active');
     }
 
     // Click outside modal to close
     window.onclick = function(e) {
-      const modal = document.getElementById('viewPatientModal');
+      const modal = document.getElementById('addPatientModal');
       if (e.target === modal) {
         modal.classList.remove('active');
       }
