@@ -36,13 +36,6 @@ $todayDate = date('Y-m-d');
    RECEPTIONIST METRICS
 ========================= */
 
-// Mock data for queue (used if database table missing or empty)
-$mockQueueData = [
-    ['appointment_id' => 1, 'first_name' => 'John', 'last_name' => 'Doe', 'd_last' => 'Smith', 'status' => 'Pending'],
-    ['appointment_id' => 2, 'first_name' => 'Jane', 'last_name' => 'Smith', 'd_last' => 'Johnson', 'status' => 'In Progress'],
-    ['appointment_id' => 3, 'first_name' => 'Michael', 'last_name' => 'Johnson', 'd_last' => 'Williams', 'status' => 'Completed']
-];
-
 // 1. Pending Appointments (Patients yet to arrive/be seen)
 $pendingCount = 0;
 $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Pending'");
@@ -52,8 +45,6 @@ if ($stmt) {
     $res = mysqli_stmt_get_result($stmt);
     $pendingCount = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
-// Use mock value if empty
-if ($pendingCount === 0) { $pendingCount = 2; }
 
 // 2. Completed Today (Patients who finished their session)
 $completedCount = 0;
@@ -64,8 +55,6 @@ if ($stmt) {
     $res = mysqli_stmt_get_result($stmt);
     $completedCount = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
-// Use mock value if empty
-if ($completedCount === 0) { $completedCount = 5; }
 
 // 3. Total Patients
 $newPatients = 0;
@@ -76,14 +65,11 @@ if ($stmt) {
     $res = mysqli_stmt_get_result($stmt);
     $newPatients = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
-// Use mock value if empty
-if ($newPatients === 0) { $newPatients = 42; }
 
 /* =========================
    ARRIVAL LIST (QUEUE)
 ========================= */
 $queueResult = null;
-$useMockQueue = false;
 $stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_name, d.last_name AS d_last, a.status, a.appointment_date 
                FROM appointment a 
                JOIN patient p ON a.patient_id = p.patient_id 
@@ -94,10 +80,6 @@ if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
     $queueResult = mysqli_stmt_get_result($stmt);
-    // Use mock data if result is empty
-    if (!$queueResult || $queueResult->num_rows === 0) {
-        $useMockQueue = true;
-    }
 }
 ?>
 <!doctype html>
@@ -394,32 +376,17 @@ if ($stmt) {
             </tr>
           </thead>
           <tbody>
-            <?php if ($useMockQueue): ?>
-              <?php if (!empty($mockQueueData)): ?>
-                <?php foreach($mockQueueData as $row): ?>
-                  <tr>
-                    <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
-                    <td>Dr. <?php echo h($row['d_last']); ?></td>
-                    <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
-                    <td><a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <tr><td colspan="6" style="text-align:center; padding:20px;">No patients scheduled for today.</td></tr>
-              <?php endif; ?>
+            <?php if ($queueResult && $queueResult->num_rows > 0): ?>
+              <?php while($row = $queueResult->fetch_assoc()): ?>
+                <tr>
+                  <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
+                  <td>Dr. <?php echo h($row['d_last']); ?></td>
+                  <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
+                  <td><a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>
+                </tr>
+              <?php endwhile; ?>
             <?php else: ?>
-              <?php if ($queueResult && $queueResult->num_rows > 0): ?>
-                <?php while($row = $queueResult->fetch_assoc()): ?>
-                  <tr>
-                    <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
-                    <td>Dr. <?php echo h($row['d_last']); ?></td>
-                    <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
-                    <td><a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>
-                  </tr>
-                <?php endwhile; ?>
-              <?php else: ?>
-                <tr><td colspan="6" style="text-align:center; padding:20px;">No patients scheduled for today.</td></tr>
-              <?php endif; ?>
+              <tr><td colspan="6" style="text-align:center; padding:20px;">No patients scheduled for today.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>

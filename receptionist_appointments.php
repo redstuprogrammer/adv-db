@@ -32,13 +32,6 @@ $receptionistName = $_SESSION['username'] ?? 'Receptionist';
    DATA FETCHING
 ============================================================ */
 
-// Mock data for appointments (used if database table missing or empty)
-$mockAppointmentsData = [
-    ['appointment_id' => 1, 'appointment_date' => date('Y-m-d'), 'first_name' => 'John', 'last_name' => 'Doe', 'd_last' => 'Smith', 'status' => 'Pending'],
-    ['appointment_id' => 2, 'appointment_date' => date('Y-m-d', strtotime('+1 day')), 'first_name' => 'Jane', 'last_name' => 'Smith', 'd_last' => 'Johnson', 'status' => 'Scheduled'],
-    ['appointment_id' => 3, 'appointment_date' => date('Y-m-d', strtotime('+2 days')), 'first_name' => 'Michael', 'last_name' => 'Johnson', 'd_last' => 'Williams', 'status' => 'Completed']
-];
-
 $query = "SELECT 
             a.appointment_id, 
             a.appointment_date, 
@@ -53,16 +46,11 @@ $query = "SELECT
           ORDER BY a.appointment_date DESC, a.appointment_id ASC";
 
 $result = null;
-$useMockAppointments = false;
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
-    // Use mock data if result is empty
-    if (!$result || $result->num_rows === 0) {
-        $useMockAppointments = true;
-    }
 }
 ?>
 
@@ -225,38 +213,20 @@ if ($stmt) {
             </tr>
           </thead>
           <tbody>
-            <?php if ($useMockAppointments): ?>
-              <?php if (!empty($mockAppointmentsData)): ?>
-                <?php foreach($mockAppointmentsData as $row): ?>
-                  <tr>
-                    <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
-                    <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
-                    <td>Dr. <?php echo h($row['d_last']); ?></td>
-                    <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
-                    <td>
-                      <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>
-                    </td>
-                  </tr>
-                <?php endforeach; ?>
-              <?php else: ?>
-                <tr><td colspan="6" style="text-align:center; padding:30px;">No appointments found.</td></tr>
-              <?php endif; ?>
+            <?php if ($result && $result->num_rows > 0): ?>
+              <?php while($row = $result->fetch_assoc()): ?>
+                <tr>
+                  <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
+                  <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
+                  <td>Dr. <?php echo h($row['d_last']); ?></td>
+                  <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
+                  <td>
+                    <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>
+                  </td>
+                </tr>
+              <?php endwhile; ?>
             <?php else: ?>
-              <?php if ($result && $result->num_rows > 0): ?>
-                <?php while($row = $result->fetch_assoc()): ?>
-                  <tr>
-                    <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
-                    <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
-                    <td>Dr. <?php echo h($row['d_last']); ?></td>
-                    <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
-                    <td>
-                      <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['appointment_id']; ?>" class="action-link">Manage</a>
-                    </td>
-                  </tr>
-                <?php endwhile; ?>
-              <?php else: ?>
-                <tr><td colspan="6" style="text-align:center; padding:30px;">No appointments found.</td></tr>
-              <?php endif; ?>
+              <tr><td colspan="6" style="text-align:center; padding:30px;">No appointments found.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>

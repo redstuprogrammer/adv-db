@@ -4,7 +4,7 @@
  * DENTIST PATIENT DIRECTORY - MODERN CARD UI
  * Last Updated: April 4, 2026
  * Features: Patient Cards, Contact Management, Appointment History
- * ✓ MODERN UI: Card-based layout with mock data
+ * ✓ MODERN UI: Card-based layout
  * ============================================
  */
 
@@ -35,73 +35,23 @@ $dentistName = $_SESSION['username'] ?? 'Dentist';
 $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'];
 
-// Mock patient data to prevent DB crashes
-$patientList = [
-    [
-        'patient_id' => 1,
-        'first_name' => 'John',
-        'last_name' => 'Doe',
-        'contact_number' => '+1-555-0123',
-        'email' => 'john.doe@email.com',
-        'birthdate' => '1985-03-15',
-        'last_visit' => '2026-04-02'
-    ],
-    [
-        'patient_id' => 2,
-        'first_name' => 'Jane',
-        'last_name' => 'Smith',
-        'contact_number' => '+1-555-0456',
-        'email' => 'jane.smith@email.com',
-        'birthdate' => '1990-07-22',
-        'last_visit' => '2026-03-28'
-    ],
-    [
-        'patient_id' => 3,
-        'first_name' => 'Michael',
-        'last_name' => 'Johnson',
-        'contact_number' => '+1-555-0789',
-        'email' => 'michael.j@email.com',
-        'birthdate' => '1978-11-10',
-        'last_visit' => '2026-04-01'
-    ],
-    [
-        'patient_id' => 4,
-        'first_name' => 'Sarah',
-        'last_name' => 'Williams',
-        'contact_number' => '+1-555-0321',
-        'email' => 'sarah.w@email.com',
-        'birthdate' => '1995-01-05',
-        'last_visit' => '2026-03-25'
-    ],
-    [
-        'patient_id' => 5,
-        'first_name' => 'David',
-        'last_name' => 'Brown',
-        'contact_number' => '+1-555-0654',
-        'email' => 'david.brown@email.com',
-        'birthdate' => '1982-09-18',
-        'last_visit' => '2026-03-30'
-    ]
-];
-
-// Comment out real SQL to prevent 500 errors
-// $patientList = [];
-// $stmt = mysqli_prepare($conn, "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, MAX(a.appointment_date) AS last_visit
-//     FROM patient p
-//     INNER JOIN appointment a ON p.patient_id = a.patient_id
-//     WHERE a.tenant_id = ? AND a.dentist_id = ?
-//     GROUP BY p.patient_id
-//     ORDER BY p.first_name ASC");
-// if ($stmt) {
-//     mysqli_stmt_bind_param($stmt, 'ii', $tenantId, $dentistId);
-//     mysqli_stmt_execute($stmt);
-//     $result = mysqli_stmt_get_result($stmt);
-//     if ($result) {
-//         while ($row = mysqli_fetch_assoc($result)) {
-//             $patientList[] = $row;
-//         }
-//     }
-// }
+$patientList = [];
+$stmt = mysqli_prepare($conn, "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, MAX(a.appointment_date) AS last_visit
+    FROM patient p
+    INNER JOIN appointment a ON p.patient_id = a.patient_id
+    WHERE a.tenant_id = ? AND a.dentist_id = ?
+    GROUP BY p.patient_id
+    ORDER BY p.first_name ASC");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, 'ii', $tenantId, $dentistId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        while ($row = mysqli_fetch_assoc($result)) {
+            $patientList[] = $row;
+        }
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
