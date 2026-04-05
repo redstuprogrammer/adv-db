@@ -14,6 +14,12 @@ require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
 require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
 
+// Check if superadmin is logged in - redirect to dashboard
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+    header('Location: superadmin_dash.php');
+    exit();
+}
+
 // Load tenant-specific login customization settings from tenant_configs
 $loginSettings = [
     'brand_card_bg' => '#001f3f',

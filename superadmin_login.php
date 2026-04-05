@@ -9,7 +9,8 @@ require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'settings.php';
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
-    redirect('superadmin_dash.php');
+    header('Location: superadmin_dash.php');
+    exit();
 }
 
 require_once ROOT_PATH . 'includes/connect.php';
@@ -55,7 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
                 mysqli_stmt_execute($updateStmt);
 
-                redirect('superadmin_dash.php');
+                header('Location: superadmin_dash.php');
+                exit();
             }
         }
         

@@ -10,14 +10,18 @@ require_once ROOT_PATH . 'settings.php';
 
 // Routing logic
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
-    redirect('superadmin_dash.php');
+    header('Location: superadmin_dash.php');
+    exit();
 }
 
 // Check for tenant slug in URL (assuming query parameter)
-if (isset($_GET['tenant'])) {
-    redirect('tenant_login.php');
+$tenantParam = trim($_GET['tenant'] ?? '');
+if (!empty($tenantParam)) {
+    header('Location: tenant_login.php?tenant=' . rawurlencode($tenantParam));
+    exit();
 }
 
 // Default to superadmin login
-redirect('superadmin_login.php');
+header('Location: superadmin_login.php');
+exit();
 ?>
