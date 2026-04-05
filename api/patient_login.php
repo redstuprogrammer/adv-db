@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 2. Database Connection
 // Ensure connect.php handles the Azure SSL certificate
-require_once ROOT_PATH . 'includes/connect.php';
+require_once __DIR__ . '/../includes/connect.php';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // 3. Capture Inputs
