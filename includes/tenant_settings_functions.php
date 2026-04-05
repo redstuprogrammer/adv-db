@@ -33,4 +33,3 @@ function getAllTenantSettings($tenantId) {
         return [];
     }
 }
-}
