@@ -13,7 +13,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
     exit();
 }
 
-// Load settings for logo display
+// Load settings and tiers
+require_once ROOT_PATH . 'includes/subscription_tiers.php';
 try {
     $currentSettings = getAllSettings();
 } catch (Exception $e) {
@@ -980,28 +981,6 @@ try {
         const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
         const dropdownItems = document.querySelector('.menu-dropdown-items');
 
-        menuItems.forEach(item => {
-            item.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = this.getAttribute('data-section');
-
-                // Remove active from all menu items (including Reports dropdown)
-                menuItems.forEach(mi => mi.classList.remove('active'));
-                if (dropdownToggle) dropdownToggle.classList.remove('active');
-                if (dropdownItems) dropdownItems.style.display = 'none';
-
-                this.classList.add('active');
-
-                sections.forEach(sec => {
-                    if (sec.id === target) {
-                        sec.classList.add('active-section');
-                    } else {
-                        sec.classList.remove('active-section');
-                    }
-                });
-            });
-        });
-
         function activateSuperAdminSection(sectionId) {
             if (!sectionId) return;
             const targetSection = document.getElementById(sectionId);
@@ -1037,7 +1016,7 @@ try {
             });
         });
 
-        // Handle URL hash on page load
+        // Handle URL hash on page load and hash changes
         window.addEventListener('load', handleSuperAdminHash);
         window.addEventListener('hashchange', handleSuperAdminHash);
     })();

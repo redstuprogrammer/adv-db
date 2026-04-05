@@ -22,8 +22,23 @@ if (function_exists('getAllSettings')) {
     <div class="sidebar-top">
         <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); height: 80px;">
             <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px; background: #ffffff;">
-                <?php if ($logoUrl && file_exists(__DIR__ . '/../' . ltrim($logoUrl, '/'))): ?>
-                    <img src="<?php echo htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                <?php 
+                $logoPath = trim($currentSettings['logo_path'] ?? '');
+                if ($logoPath !== '' && (strpos($logoPath, 'http') === 0 || strpos($logoPath, '/') === 0)): 
+                    // Check if logo file exists
+                    $fullPath = $logoPath;
+                    if (strpos($fullPath, '/') === 0 && !strpos($fullPath, 'http') === 0) {
+                        // It's a relative path
+                        $localPath = __DIR__ . '/../../' . ltrim($fullPath, '/');
+                    } else {
+                        $localPath = '';
+                    }
+                    if ($localPath && file_exists($localPath)): 
+                ?>
+                    <img src="<?php echo htmlspecialchars($logoPath, ENT_QUOTES, 'UTF-8'); ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                <?php else: ?>
+                    🏥
+                <?php endif; ?>
                 <?php else: ?>
                     🏥
                 <?php endif; ?>

@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
             move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
-            setSetting('logo_path', $filename);
+            setSetting('logo_path', '/uploads/' . $filename);
         }
 
         $message = "Settings saved successfully!";
