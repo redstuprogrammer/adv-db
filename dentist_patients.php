@@ -250,7 +250,7 @@ if ($stmt) {
         <div class="tenant-header-title">👥 My Patients</div>
         <div style="display: flex; align-items: center; gap: 16px;">
           <div class="tenant-header-date text-xl font-bold"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge text-xl font-bold">00:00:00 AM</div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
         </div>
       </div>
 

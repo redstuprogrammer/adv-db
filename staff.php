@@ -165,7 +165,10 @@ if ($stmt) {
     <main class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">Staff Directory</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
       </div>
 
       <div class="module-card">
@@ -195,5 +198,19 @@ if ($stmt) {
       </div>
     </main>
   </div>
+
+  <script>
+    // Live Clock - Update every second
+    function updateClock() {
+      const clockElement = document.getElementById('liveClock');
+      if (clockElement) {
+        clockElement.textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
+      }
+    }
+    // Initialize clock immediately
+    updateClock();
+    // Update every second
+    setInterval(updateClock, 1000);
+  </script>
 </body>
 </html>

@@ -531,9 +531,7 @@ $stmt->close();
         <div class="edit-form-group">
           <label>Status</label>
           <select name="new_status" id="edit_status">
-            <option value="Pending">Pending</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
+            <!-- Options populated dynamically by JavaScript -->
           </select>
         </div>
         <div class="edit-form-group">
@@ -586,7 +584,30 @@ $stmt->close();
     function openEditModal(id, name, status) {
       document.getElementById("edit_id").value = id;
       document.getElementById("edit_name_display").value = name;
-      document.getElementById("edit_status").value = status;
+      
+      // Dynamically populate status dropdown
+      const statusSelect = document.getElementById("edit_status");
+      statusSelect.innerHTML = ''; // Clear existing options
+      
+      // Always include Completed and Cancelled
+      const options = ['Completed', 'Cancelled'];
+      
+      // Only include Pending if current status is not Pending
+      if (status !== 'Pending') {
+        options.unshift('Pending'); // Add to beginning
+      }
+      
+      // Create option elements
+      options.forEach(optionValue => {
+        const option = document.createElement('option');
+        option.value = optionValue;
+        option.textContent = optionValue;
+        if (optionValue === status) {
+          option.selected = true;
+        }
+        statusSelect.appendChild(option);
+      });
+      
       document.getElementById("editModal").style.display = "flex";
     }
 
