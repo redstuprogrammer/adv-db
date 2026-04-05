@@ -645,10 +645,15 @@ if ($stmt) {
 
     // Live Clock - Update every second
     function updateClock() {
-      document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
+      const clockElement = document.getElementById('liveClock');
+      if (clockElement) {
+        clockElement.textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
+      }
     }
-    setInterval(updateClock, 1000); 
+    // Initialize clock immediately
     updateClock();
+    // Update every second
+    setInterval(updateClock, 1000);
   </script>
 </body>
 </html>

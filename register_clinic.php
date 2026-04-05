@@ -215,6 +215,30 @@ try {
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
             
+            // Seed revenue data for the new tenant
+            $tier_prices = [
+                'startup' => 124.00,
+                'professional' => 249.00,
+                'enterprise' => 499.00
+            ];
+            $amount = $tier_prices[$tier] ?? 50.00;
+            
+            // Create 12 months of historical revenue data
+            for ($i = 0; $i < 12; $i++) {
+                $month_ago = date('Y-m-d', strtotime("-" . (12 - $i) . " months", strtotime('first day of this month')));
+                $period_start = $month_ago;
+                $period_end = date('Y-m-d', strtotime('last day of month', strtotime($month_ago)));
+                $payment_date = $period_end;
+                
+                $revenue_sql = "INSERT INTO tenant_subscription_revenue (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date) 
+                               VALUES (?, ?, ?, ?, ?, 'paid', ?)";
+                
+                $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
+                mysqli_stmt_bind_param($revenue_stmt, "isdsss", $new_id, $tier, $amount, $period_start, $period_end, $payment_date);
+                mysqli_stmt_execute($revenue_stmt);
+                mysqli_stmt_close($revenue_stmt);
+            }
+            
             if (function_exists('logActivity')) {
                 logActivity($conn, (int)$new_id, 'Tenant Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
             }
