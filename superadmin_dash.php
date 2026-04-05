@@ -6,7 +6,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 require_once __DIR__ . '/includes/subscription_tiers.php';
-require_once __DIR__ . '/../settings.php';
+require_once __DIR__ . '/settings.php';
 
 // Load settings for logo display
 try {
@@ -20,8 +20,8 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
-    <link rel="stylesheet" href="/style1.css">
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="style1.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -868,14 +868,17 @@ try {
     <div class="sa-credential-box">
         <div class="sa-credential-item">
             <span class="sa-label">Temporary Password:</span>
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <code id="display-temp-password" class="sa-temp-pass">Generating...</code>
-                <button type="button" class="sa-copy-btn" onclick="copyPassword()">Copy</button>
+                <button type="button" class="sa-copy-btn" onclick="copyTemporaryPassword()" aria-label="Copy temporary password">📋</button>
             </div>
         </div>
         <div class="sa-credential-item">
             <span class="sa-label">Login URL:</span>
-            <div id="sample-login-link" class="sa-link-sample"></div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <a id="display-login-url" class="sa-link-sample" target="_blank" rel="noopener noreferrer" href="#">Loading...</a>
+                <button type="button" class="sa-copy-btn" onclick="copyLoginUrl()" aria-label="Copy login URL">📋</button>
+            </div>
         </div>
     </div>
 
@@ -1518,8 +1521,10 @@ try {
                     refreshTenantList();
 
                     if (sampleLinkEl) {
-                        const baseUrl = window.location.origin;
-                        sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
+                        const loginUrl = data.login_url || `${window.location.origin}/tenant/${encodeURIComponent(data.slug)}/login`;
+                        sampleLinkEl.innerHTML = `
+                            <a id="display-login-url" class="sa-link-sample" href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a>
+                        `;
                     }
 
                     const passField = document.getElementById('display-temp-password');
@@ -1556,6 +1561,51 @@ try {
             });
         });
     })();
+
+    function copyToClipboard(text, successText = 'Copied to clipboard') {
+        if (!text) {
+            showToast?.('Nothing to copy.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => showToast?.(successText))
+                .catch(() => showToast?.('Copy failed. Please use Ctrl+C.'));
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast?.(successText);
+            } catch (err) {
+                showToast?.('Copy failed. Please use Ctrl+C.');
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+
+    function copyTemporaryPassword() {
+        const passwordElement = document.getElementById('display-temp-password');
+        if (!passwordElement) return;
+        copyToClipboard(passwordElement.textContent.trim(), 'Temporary password copied.');
+    }
+
+    function copyLoginUrl() {
+        const linkElement = document.getElementById('display-login-url');
+        if (!linkElement) return;
+        const url = linkElement.getAttribute('href') || linkElement.textContent.trim();
+        if (!url || url === '#') {
+            showToast?.('No login URL available yet.');
+            return;
+        }
+        copyToClipboard(url, 'Login URL copied.');
+    }
 
     // Initialize Sales Trends Chart
     (function() {

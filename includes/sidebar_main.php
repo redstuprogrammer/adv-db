@@ -53,12 +53,13 @@ switch ($role) {
             ]],
             ['section' => 'Management', 'items' => [
                 ['href' => 'users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
+                ['href' => 'staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
                 ['href' => 'services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
                 ['href' => 'reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
                 ['href' => 'settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];
-        $logoutLink = '/tenant_logout.php' . $baseTenantQuery;
+        $logoutLink = 'tenant_logout.php' . $baseTenantQuery;
         break;
 }
 ?>

@@ -11,13 +11,13 @@ require_once __DIR__ . '/includes/tenant_settings_functions.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 // Role Check Implementation - Ensure user is an Admin
 if ($_SESSION['role'] !== 'Admin') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Settings</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
         --accent: #0d3b66;

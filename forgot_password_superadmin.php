@@ -34,7 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Store token in database
                 $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
                 if ($updateStmt) {
-                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, (int)$admin['id']);
+                    $adminId = (int)$admin['id'];
+                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $adminId);
                     mysqli_stmt_execute($updateStmt);
                     
                     // Build reset link
@@ -202,7 +203,7 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Forgot Password | OralSync Super Admin</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
 </head>
 <body>
     <div class="t-wrap">

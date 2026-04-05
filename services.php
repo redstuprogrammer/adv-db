@@ -10,13 +10,13 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 // Role Check Implementation - Ensure user is an Admin
 if ($_SESSION['role'] !== 'Admin') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -109,7 +109,7 @@ if ($stmt) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Services</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
         --accent: #0d3b66;
@@ -169,12 +169,40 @@ if ($stmt) {
         color: var(--accent);
       }
 
-      .form-group input {
+      .form-group input,
+      .form-group select,
+      .form-group textarea {
         width: 100%;
-        padding: 10px;
+        padding: 12px 14px;
         border: 1px solid var(--border);
-        border-radius: 8px;
+        border-radius: 12px;
         font-size: 14px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .form-group select {
+        appearance: none;
+        background-color: white;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2364788b' stroke-linecap='round' stroke-linejoin='round' stroke-width='2'%3E%3Cpolyline points='6 8 8 10 10 8'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+        background-size: 14px;
+      }
+
+      .form-group textarea {
+        min-height: 120px;
+        resize: vertical;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      .form-group input:focus,
+      .form-group select:focus,
+      .form-group textarea:focus {
+        border-color: rgba(13, 59, 102, 0.65);
+        box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.08);
+        outline: none;
       }
 
       .module-table {

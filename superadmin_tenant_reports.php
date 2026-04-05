@@ -7,7 +7,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 }
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
-require_once __DIR__ . '/../settings.php';
+require_once __DIR__ . '/settings.php';
 
 // Load settings for logo display
 try {
@@ -21,7 +21,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin Reports</title>
-    <link rel="stylesheet" href="/style1.css">
+    <link rel="stylesheet" href="style1.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {

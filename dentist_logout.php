@@ -15,7 +15,7 @@ if (isset($_SESSION['tenant_id']) && isset($_SESSION['username'])) {
 session_unset();
 session_destroy();
 
-header('Location: /tenant_login.php?tenant=' . rawurlencode($tenantSlug));
+header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug));
 exit();
 ?>
 

@@ -10,12 +10,12 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 if ($_SESSION['role'] !== 'Receptionist') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -83,7 +83,7 @@ if ($serviceStmt) {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Billing Management</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
@@ -131,6 +131,24 @@ if ($serviceStmt) {
             <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">
             <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
         </section>
+
+        <!-- Message Display -->
+        <?php if (isset($_SESSION['success'])): ?>
+            <div style="background: #dcfce7; color: #166534; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbf7d0;">
+                <?php echo h($_SESSION['success']); unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['errors']) && is_array($_SESSION['errors'])): ?>
+            <div style="background: #fef2f2; color: #dc2626; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #fecaca;">
+                <ul style="margin: 0; padding-left: 20px;">
+                    <?php foreach ($_SESSION['errors'] as $error): ?>
+                        <li><?php echo h($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php unset($_SESSION['errors']); ?>
+            </div>
+        <?php endif; ?>
 
         <div class="content-card">
             <table class="data-table" id="paymentTable">
@@ -197,14 +215,31 @@ if ($serviceStmt) {
             </div>
 
             <div class="form-group">
-                <label>Service <span style="color: red;">*</span></label>
-                <select name="service_id" id="service_dropdown" onchange="updateAmountFromService()" required>
-                    <option value="">-- Select Service --</option>
-                    <?php foreach ($services as $service): ?>
-                        <option value="<?php echo (int)$service['service_id']; ?>" data-price="<?php echo number_format((float)$service['price'], 2, '.', ''); ?>"><?php echo h($service['service_name']); ?> — ₱<?php echo number_format((float)$service['price'], 2); ?></option>
-                    <?php endforeach; ?>
-                </select>
+                <label>Add Services to Cart</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="service_dropdown">
+                        <option value="">-- Select Service --</option>
+                        <?php foreach ($services as $service): ?>
+                            <option value="<?php echo (int)$service['service_id']; ?>" data-name="<?php echo h($service['service_name']); ?>" data-price="<?php echo number_format((float)$service['price'], 2, '.', ''); ?>"><?php echo h($service['service_name']); ?> — ₱<?php echo number_format((float)$service['price'], 2); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="button" onclick="addToCart()" style="padding: 8px 16px; background: #0d3b66; color: white; border: none; border-radius: 6px; cursor: pointer;">Add to Cart</button>
+                </div>
             </div>
+
+            <div class="form-group">
+                <label>Selected Services</label>
+                <div id="cart-list" style="border: 1px solid #e2e8f0; border-radius: 8px; min-height: 100px; padding: 10px; background: #f8fafc;">
+                    <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Total Amount (₱) <span style="color: red;">*</span></label>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required readonly>
+            </div>
+
+            <input type="hidden" name="procedures_json" id="procedures_json">
 
             <div class="form-group">
                 <label>Related Appointment <span style="color: red;">*</span></label>
@@ -245,21 +280,69 @@ if ($serviceStmt) {
 </div>
 
 <script>
+    let cart = [];
+
     // 1. Live Clock
     function updateClock() {
         document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
     }
     setInterval(updateClock, 1000); updateClock();
 
-    function updateAmountFromService() {
+    function addToCart() {
         const serviceSelect = document.getElementById('service_dropdown');
         const selectedOption = serviceSelect.selectedOptions[0];
-        const amountInput = document.getElementById('amount_input');
-        if (selectedOption && selectedOption.dataset.price) {
-            amountInput.value = parseFloat(selectedOption.dataset.price).toFixed(2);
-        } else {
-            amountInput.value = '';
+        if (!selectedOption || !selectedOption.value) return;
+
+        const serviceId = selectedOption.value;
+        const serviceName = selectedOption.dataset.name;
+        const price = parseFloat(selectedOption.dataset.price);
+
+        // Check if already in cart
+        if (cart.some(item => item.service_id == serviceId)) {
+            alert('Service already in cart.');
+            return;
         }
+
+        cart.push({ service_id: serviceId, name: serviceName, price: price });
+        updateCartDisplay();
+        updateTotal();
+        serviceSelect.value = '';
+    }
+
+    function removeFromCart(serviceId) {
+        cart = cart.filter(item => item.service_id != serviceId);
+        updateCartDisplay();
+        updateTotal();
+    }
+
+    function updateCartDisplay() {
+        const cartList = document.getElementById('cart-list');
+        const cartEmpty = document.getElementById('cart-empty');
+        cartList.innerHTML = '';
+
+        if (cart.length === 0) {
+            cartList.appendChild(cartEmpty);
+            return;
+        }
+
+        cart.forEach(item => {
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.justifyContent = 'space-between';
+            div.style.alignItems = 'center';
+            div.style.padding = '5px 0';
+            div.innerHTML = `
+                <span>${item.name} - ₱${item.price.toFixed(2)}</span>
+                <button type="button" onclick="removeFromCart(${item.service_id})" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Remove</button>
+            `;
+            cartList.appendChild(div);
+        });
+    }
+
+    function updateTotal() {
+        const total = cart.reduce((sum, item) => sum + item.price, 0);
+        document.getElementById('amount_input').value = total.toFixed(2);
+        document.getElementById('procedures_json').value = JSON.stringify(cart);
     }
 
     // Verification log
@@ -273,6 +356,9 @@ if ($serviceStmt) {
       document.getElementById('paymentForm').reset();
       document.getElementById('payment_id').value = "";
       document.getElementById('modalTitle').innerText = "Create New Invoice";
+      cart = [];
+      updateCartDisplay();
+      updateTotal();
       document.getElementById("paymentModal").style.display = "flex";
     }
 
@@ -280,17 +366,11 @@ if ($serviceStmt) {
       document.getElementById("paymentModal").style.display = "none";
     }
 
-    // 3. Edit Modal Trigger
+    // 3. Edit Modal Trigger - Simplified for now
     function openEditModal(data) {
-        document.getElementById('modalTitle').innerText = "Edit Invoice #" + data.payment_id;
-        document.getElementById('payment_id').value = data.payment_id;
-        document.getElementById('patient_dropdown').value = data.patient_id;
-        document.getElementById('amount_input').value = data.amount;
-        document.getElementById('mode').value = data.mode;
-        document.getElementById('status').value = data.status;
-        
-        loadPatientAppointments(data.patient_id, data.appointment_id);
-        document.getElementById("paymentModal").style.display = "flex";
+        alert('Editing existing invoices with cart system is not yet implemented. Please create a new invoice.');
+        return;
+        // Future: Load cart from procedures_json
     }
 
     // 4. Dynamic Appointment Loading

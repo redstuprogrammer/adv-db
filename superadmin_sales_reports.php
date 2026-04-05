@@ -8,7 +8,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/subscription_tiers.php';
-require_once __DIR__ . '/../settings.php';
+require_once __DIR__ . '/settings.php';
 
 // Load settings for logo display
 try {
@@ -22,7 +22,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Sales Report</title>
-    <link rel="stylesheet" href="/style1.css">
+    <link rel="stylesheet" href="style1.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -578,13 +578,8 @@ try {
                             $revenueData[] = (int)$result['total'];
                         }
                         
-                        // If all zeros, use sample data
-                        if (array_sum($revenueData) === 0) {
-                            $revenueData = [12000, 15500, 14800, 18200, 19500, 21000, 22500, 20800, 23100, 24500, 26000, 28500];
-                        }
                     } catch (Exception $e) {
-                        // Use sample data on error
-                        $revenueData = [12000, 15500, 14800, 18200, 19500, 21000, 22500, 20800, 23100, 24500, 26000, 28500];
+                        $revenueData = array_fill(0, 12, 0);
                     }
                     
                     echo implode(',', $revenueData);
@@ -639,8 +634,8 @@ try {
                 data: [
                     <?php
                     $tierTotals = [];
+                    $tiers = getAllTiers();
                     try {
-                        $tiers = getAllTiers();
                         foreach ($tiers as $tierKey => $tier) {
                             $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = ?");
                             $stmt->execute([$tierKey]);
@@ -648,17 +643,10 @@ try {
                             $total = $row['total'] ?? 0;
                             $tierTotals[] = (int)$total;
                         }
-                        
-                        // If all zeros, use sample data
-                        if (array_sum($tierTotals) === 0) {
-                            $tierTotals = [35000, 65000, 45000, 25000];
-                        }
-                        
-                        echo implode(',', $tierTotals);
                     } catch (Exception $e) {
-                        // Use sample data on error
-                        echo "35000,65000,45000,25000";
+                        $tierTotals = array_fill(0, count($tiers), 0);
                     }
+                    echo implode(',', $tierTotals);
                     ?>
                 ],
                 backgroundColor: ['#60a5fa', '#10b981', '#f59e0b', '#8b5cf6']

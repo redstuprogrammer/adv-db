@@ -9,7 +9,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 require_once __DIR__ . '/includes/connect.php';
 
 // Load current settings
-require_once __DIR__ . '/../settings.php';
+require_once __DIR__ . '/settings.php';
 try {
     $currentSettings = getAllSettings();
 } catch (Exception $e) {
@@ -18,7 +18,7 @@ try {
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_once __DIR__ . '/../settings.php';
+    require_once __DIR__ . '/settings.php';
 
     try {
         // Save settings
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin Settings</title>
-    <link rel="stylesheet" href="/style1.css">
+    <link rel="stylesheet" href="style1.css">
     <style>
         :root {
             --sa-primary: #0d3b66;
@@ -300,7 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="file" id="logo" name="logo" accept="image/png, image/jpeg, image/jpg">
                         <div class="logo-preview" id="logo-preview">
                             <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . '/uploads/' . $currentSettings['logo_path'])): ?>
-                                <img src="/uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
+                                <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
                             <?php else: ?>
                                 <span id="logo-placeholder">No logo uploaded</span>
                             <?php endif; ?>

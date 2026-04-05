@@ -21,12 +21,12 @@ requireTenantLogin($tenantSlug);
 
 // Role Check Implementation - Ensure user is an Admin
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 if ($_SESSION['role'] !== 'Admin') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -66,7 +66,7 @@ if (isset($_GET['view_patient_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Patients</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
         --accent: #0d3b66;

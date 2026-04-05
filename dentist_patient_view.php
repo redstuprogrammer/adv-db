@@ -11,7 +11,7 @@ function h(string $s): string {
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $patientId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist' || $_SESSION['tenant_slug'] !== $tenantSlug) {
-    header('Location: /tenant_login.php?tenant=' . rawurlencode($tenantSlug));
+    header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug));
     exit();
 }
 
@@ -37,7 +37,7 @@ if ($stmt) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Patient Detail</title>
-    <link rel="stylesheet" href="/style1.css">
+    <link rel="stylesheet" href="style1.css">
     <style>
         body { background: #f8fafc; color: #0f172a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; }
         .page-shell { display: flex; min-height: 100vh; }

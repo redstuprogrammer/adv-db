@@ -19,12 +19,12 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 if ($_SESSION['role'] !== 'Receptionist') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -116,7 +116,7 @@ if (isset($_GET['view_patient_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Patient Records</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
         --accent: #0d3b66;

@@ -15,12 +15,12 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is a Dentist
 if (!isset($_SESSION['role'])) {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
 if ($_SESSION['role'] !== 'Dentist') {
-    header("Location: /tenant_login.php");
+    header("Location: tenant_login.php");
     exit();
 }
 
@@ -63,7 +63,7 @@ if ($stmt) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | My Patients</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
       :root {
         --accent: #0d3b66;
@@ -260,18 +260,17 @@ if ($stmt) {
         </div>
 
         <div class="search-container">
-          <input type="text" id="searchInput" placeholder="🔍 Search patients by name..." class="search-input" onkeyup="filterPatients()" />
+          <input type="text" id="searchInput" placeholder="🔍 Search patient by name or ID..." class="search-input" onkeyup="filterPatients()" />
         </div>
 
         <div style="overflow-x:auto;">
           <table class="patient-table" id="patientGrid">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Patient</th>
+                <th>Patient ID</th>
+                <th>Full Name</th>
                 <th>Contact</th>
                 <th>Email</th>
-                <th>Birthdate</th>
                 <th>Last Visit</th>
                 <th>Status</th>
               </tr>
@@ -284,16 +283,15 @@ if ($stmt) {
                 ?>
                   <tr data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>">
                     <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
-                    <td><strong><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></strong></td>
+                    <td><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
-                    <td><?php echo $patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'; ?></td>
                     <td><?php echo $lastVisit; ?></td>
                     <td><span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></td>
                   </tr>
                 <?php endforeach; ?>
               <?php else: ?>
-                <tr><td colspan="7" style="text-align:center; padding: 40px; color: #64748b;">No patients found in your records.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding: 40px; color: #64748b;">No patients found in your records.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
