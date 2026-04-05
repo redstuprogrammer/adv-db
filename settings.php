@@ -35,69 +35,123 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
     if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
         redirect('tenant_login.php');
     }
-}
 
-function h(string $s): string {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-}
-?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo h($tenantName); ?> | Settings</title>
-    <link rel="stylesheet" href="tenant_style.css">
-    <style>
-      :root {
-        --accent: #0d3b66;
-        --border: #e2e8f0;
-        --bg: #f8fafc;
-      }
+    $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+    requireTenantLogin($tenantSlug);
 
-      .btn-primary {
-        background: var(--accent);
-        color: white;
-        padding: 10px 16px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        transition: background 0.2s ease;
-      }
+    $tenantName = getCurrentTenantName();
+    $tenantId = getCurrentTenantId();
 
-      .btn-primary:hover {
-        background: #0a2d4f;
-      }
+    $message = '';
 
-      .module-card {
-        background: white;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-      }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (isset($_POST['change_password'])) {
+            $currentPassword = $_POST['current_password'] ?? '';
+            $newPassword = $_POST['new_password'] ?? '';
+            $confirmPassword = $_POST['confirm_password'] ?? '';
 
-      .form-group {
-        margin-bottom: 16px;
-      }
+            if ($newPassword !== $confirmPassword) {
+                $message = 'New passwords do not match.';
+            } elseif (strlen($newPassword) < 8) {
+                $message = 'Password must be at least 8 characters long.';
+            } else {
+                // Verify current password
+                $stmt = $conn->prepare("SELECT password FROM tenants WHERE tenant_id = ?");
+                $stmt->bind_param('i', $tenantId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $tenant = $result->fetch_assoc();
 
-      .form-group label {
-        display: block;
-        margin-bottom: 4px;
-        font-weight: 600;
-        color: var(--accent);
-      }
+                if ($tenant && password_verify($currentPassword, $tenant['password'])) {
+                    $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+                    $updateStmt = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
+                    $updateStmt->bind_param('si', $hashedPassword, $tenantId);
+                    if ($updateStmt->execute()) {
+                        $message = 'Password changed successfully!';
+                    } else {
+                        $message = 'Error updating password.';
+                    }
+                    $updateStmt->close();
+                } else {
+                    $message = 'Current password is incorrect.';
+                }
+                $stmt->close();
+            }
+        } elseif (isset($_POST['save_login_settings'])) {
+            // Save login customization settings
+            $loginBrandBg = $_POST['login_brand_bg'] ?? '#0d3b66';
+            $loginBrandingSubtitle = $_POST['login_branding_subtitle'] ?? 'Powered by OralSync';
+            $loginTitle = $_POST['login_title'] ?? 'Clinic Login';
+            $loginButtonColor = $_POST['login_button_color'] ?? '#0d3b66';
+            $loginTextLinkColor = $_POST['login_text_link_color'] ?? '#2563eb';
 
-      .form-group input {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        font-size: 14px;
-      }
+            setTenantSetting($tenantId, 'login_brand_bg', $loginBrandBg);
+            setTenantSetting($tenantId, 'login_branding_subtitle', $loginBrandingSubtitle);
+            setTenantSetting($tenantId, 'login_title', $loginTitle);
+            setTenantSetting($tenantId, 'login_button_color', $loginButtonColor);
+            setTenantSetting($tenantId, 'login_text_link_color', $loginTextLinkColor);
+
+            $message = 'Login customization settings saved successfully!';
+        }
+    }
+    ?>
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title><?php echo h($tenantName); ?> | Settings</title>
+        <link rel="stylesheet" href="tenant_style.css">
+        <style>
+          :root {
+            --accent: #0d3b66;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+          }
+
+          .btn-primary {
+            background: var(--accent);
+            color: white;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            transition: background 0.2s ease;
+          }
+
+          .btn-primary:hover {
+            background: #0a2d4f;
+          }
+
+          .module-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+          }
+
+          .form-group {
+            margin-bottom: 16px;
+          }
+
+          .form-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: var(--accent);
+          }
+
+          .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+          }
 
       .message {
         padding: 12px;
@@ -509,4 +563,7 @@ function h(string $s): string {
   </script>
 </body>
 </html>
+<?php
+}
+?>
 
