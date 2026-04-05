@@ -9,6 +9,16 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_only_cookies', 1);
     session_start();
 }
+
+// Prevent redirect loops by tracking redirect count
+$_SESSION['tenant_login_redirect_count'] = ($_SESSION['tenant_login_redirect_count'] ?? 0) + 1;
+if ($_SESSION['tenant_login_redirect_count'] > 5) {
+    // Clear redirect counter and show error
+    $_SESSION['tenant_login_redirect_count'] = 0;
+    http_response_code(400);
+    die("Too many redirects detected. Please check your cookies are enabled and try clearing your browser cache.");
+}
+
 require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
@@ -197,6 +207,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 error_log('Activity logging failed: ' . $e->getMessage());
                 // Don't break login flow if logging fails
             }
+
+            // Reset redirect counter on successful login
+            $_SESSION['tenant_login_redirect_count'] = 0;
 
             $dashboardUrl = getRoleDashboardUrl($userRole, (string)$tenant['subdomain_slug']);
             error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);

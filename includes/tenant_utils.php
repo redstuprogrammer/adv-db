@@ -50,9 +50,9 @@ function getRoleDashboardUrl(string $role, string $slug): string {
         case 'admin':
             return $baseUrl . '/dashboard.php?tenant=' . rawurlencode($slug);
         case 'receptionist':
-            return $baseUrl . '/receptionist/receptionist_dashboard.php?tenant=' . rawurlencode($slug);
+            return $baseUrl . '/receptionist_dashboard.php?tenant=' . rawurlencode($slug);
         case 'dentist':
-            return $baseUrl . '/dentist/dentist_dashboard.php?tenant=' . rawurlencode($slug);
+            return $baseUrl . '/dentist_dashboard.php?tenant=' . rawurlencode($slug);
         default:
             return $baseUrl . '/dashboard.php?tenant=' . rawurlencode($slug); // fallback
     }

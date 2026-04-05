@@ -93,7 +93,7 @@ if ($stmtPatients) {
 }
 
 $dentists = [];
-$stmtDentists = mysqli_prepare($conn, 'SELECT dentist_id, first_name, last_name FROM dentist WHERE tenant_id = ? ORDER BY last_name ASC');
+$stmtDentists = mysqli_prepare($conn, 'SELECT user_id AS dentist_id, first_name, last_name FROM users WHERE tenant_id = ? AND role = "Dentist" ORDER BY last_name ASC');
 if ($stmtDentists) {
     mysqli_stmt_bind_param($stmtDentists, 'i', $tenantId);
     mysqli_stmt_execute($stmtDentists);
@@ -117,7 +117,7 @@ $query = "SELECT
             a.status 
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id 
-          LEFT JOIN dentist d ON a.dentist_id = d.dentist_id
+          LEFT JOIN users d ON a.dentist_id = d.user_id
           WHERE a.tenant_id = ?
           ORDER BY a.appointment_date DESC, a.appointment_id ASC";
 

@@ -20,7 +20,11 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
-    header("Location: tenant_login.php");
+    $tenantSlug = trim((string)($_GET['tenant'] ?? $_SESSION['tenant_slug'] ?? ''));
+    if ($tenantSlug === '') {
+        $tenantSlug = 'unknown';
+    }
+    header("Location: tenant_login.php?tenant=" . rawurlencode($tenantSlug));
     exit();
 }
 
@@ -419,7 +423,10 @@ if ($stmt) {
       <!-- Header Bar -->
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Dashboard</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+        </div>
       </div>
 
       <!-- Dashboard Content -->
@@ -635,6 +642,13 @@ if ($stmt) {
         row.style.display = text.includes(input) ? '' : 'none';
       });
     }
+
+    // Live Clock - Update every second
+    function updateClock() {
+      document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
+    }
+    setInterval(updateClock, 1000); 
+    updateClock();
   </script>
 </body>
 </html>

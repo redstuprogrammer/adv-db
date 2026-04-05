@@ -152,7 +152,7 @@ try {
             $data[] = [$type . ' Activities', $count];
         }
     } elseif ($type === 'revenue') {
-        $query = "SELECT p.first_name, p.last_name, py.service, py.amount, a.appointment_date as appointment_date
+        $query = "SELECT p.first_name, p.last_name, COALESCE(py.procedures_json, 'General Service') AS service, py.amount, a.appointment_date as appointment_date
                   FROM payment py
                   JOIN appointment a ON py.appointment_id = a.appointment_id
                   JOIN patient p ON a.patient_id = p.patient_id

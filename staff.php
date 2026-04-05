@@ -183,7 +183,8 @@ if ($stmt) {
 
                 <div class="staff-details">
                   <div class="detail-item"><span>📧</span> <?php echo h($staff['email']); ?></div>
-                  <div class="detail-item"><span>📅</span> Active since <?php echo h(date('M Y', strtotime($staff['date_created'] ?? 'now'))); ?></div>
+                  <div class="detail-item"><span>📅</span> Active</div>
+                  <a href="view_staff.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['user_id']; ?>" class="btn-view">View Profile</a>
                 </div>
               </div>
             <?php endforeach; ?>

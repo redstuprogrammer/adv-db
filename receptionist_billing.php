@@ -124,7 +124,10 @@ if ($serviceStmt) {
                 <h1 style="color: #0d3b66; margin:0;">Billing & Payments</h1>
                 <p style="color: #64748b; margin: 6px 0 0;">Manage invoices and transaction records</p>
             </div>
-            <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="color: #0d3b66; font-size: 14px; font-weight: 600;"><?php echo date('l, M d, Y'); ?></div>
+              <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
+            </div>
         </div>
 
         <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
@@ -235,22 +238,17 @@ if ($serviceStmt) {
             </div>
 
             <div class="form-group">
-                <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required readonly>
-            </div>
-
-            <input type="hidden" name="procedures_json" id="procedures_json">
-
-            <div class="form-group">
                 <label>Related Appointment <span style="color: red;">*</span></label>
                 <select name="appointment_id" id="appointment_dropdown" required>
                     <option value="">-- Choose Patient First --</option>
                 </select>
             </div>
 
+            <input type="hidden" name="procedures_json" id="procedures_json">
+
             <div class="form-group">
                 <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required readonly>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0.01" required readonly>
             </div>
 
             <div class="form-group">

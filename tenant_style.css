@@ -443,6 +443,18 @@ body{
   color: var(--tenant-muted);
 }
 
+.live-clock-badge {
+  background: linear-gradient(135deg, var(--tenant-accent), var(--tenant-accent-2));
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  box-shadow: 0 2px 8px rgba(13, 59, 102, 0.2);
+  white-space: nowrap;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .tenant-sidebar {

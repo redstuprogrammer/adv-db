@@ -1,4 +1,8 @@
 <?php
+// Extend session timeout for superadmin
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
 define('ROOT_PATH', __DIR__ . '/');
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
