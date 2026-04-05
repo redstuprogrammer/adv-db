@@ -19,8 +19,8 @@ function saMenuActive(string $page): string {
             <a href="superadmin_dash.php" class="<?php echo saMenuActive('superadmin_dash.php'); ?>" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
             <a href="superadmin_dash.php#tenant-section" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
             <a href="superadmin_dash.php#register-section" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
-            <a href="superadmin_reports.php" class="<?php echo saMenuActive('superadmin_reports.php'); ?>"><span>📈</span> Tenant Reports</a>
-            <a href="superadmin_sales_report.php" class="<?php echo saMenuActive('superadmin_sales_report.php'); ?>"><span>💰</span> Sales Reports</a>
+            <a href="superadmin_tenant_reports.php" class="<?php echo saMenuActive('superadmin_tenant_reports.php'); ?>"><span>📈</span> Tenant Reports</a>
+            <a href="superadmin_sales_reports.php" class="<?php echo saMenuActive('superadmin_sales_reports.php'); ?>"><span>💰</span> Sales Reports</a>
             <a href="superadmin_audit_logs.php" class="<?php echo saMenuActive('superadmin_audit_logs.php'); ?>"><span>📋</span> Audit Logs</a>
             <a href="superadmin_settings.php" class="<?php echo saMenuActive('superadmin_settings.php'); ?>"><span>⚙️</span> Settings</a>
         </nav>

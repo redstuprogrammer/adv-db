@@ -100,7 +100,7 @@ if ($need_seed) {
 
 echo "            <p style='margin-top: 20px;'>
                 <a href='/superadmin/superadmin_dash.php' class='action-btn' style='background: #22c55e;'>Go to Dashboard</a> &nbsp;
-                <a href='/superadmin/superadmin_sales_report.php' class='action-btn' style='background: #3b82f6;'>Sales Reports</a> &nbsp;
+                <a href='superadmin_sales_reports.php' class='action-btn' style='background: #3b82f6;'>Sales Reports</a> &nbsp;
                 <a href='/superadmin/superadmin_audit_logs.php' class='action-btn' style='background: #f59e0b;'>Audit Logs</a>
             </p>
         </div>
