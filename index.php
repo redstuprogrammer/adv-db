@@ -12,8 +12,8 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
     redirect('superadmin_dash.php');
 }
 
-// Check for tenant slug in URL (assuming query parameter or path)
-if (isset($_GET['tenant']) || strpos($_SERVER['REQUEST_URI'], '/tenant/') !== false) {
+// Check for tenant slug in URL (assuming query parameter)
+if (isset($_GET['tenant'])) {
     redirect('tenant_login.php');
 }
 

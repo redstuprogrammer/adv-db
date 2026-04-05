@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
     redirect('superadmin_login.php');
 }
 require_once ROOT_PATH . 'includes/subscription_tiers.php';

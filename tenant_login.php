@@ -1,13 +1,18 @@
 <?php
+define('ROOT_PATH', __DIR__ . '/');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-require_once __DIR__ . '/includes/security_headers.php';
-session_start();
-require_once __DIR__ . '/includes/connect.php';
-require_once __DIR__ . '/includes/tenant_utils.php';
-require_once __DIR__ . '/includes/tenant_settings_functions.php';
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    session_start();
+}
+require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php';
+require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
 
 // Load tenant-specific login customization settings from tenant_configs
 $loginSettings = [
@@ -18,6 +23,8 @@ $loginSettings = [
     'text_link_color' => '#2563eb',
     'bg_image_url' => ''
 ];
+
+$tenant = $_GET['tenant'] ?? '';
 
 if ($tenant) {
     try {
