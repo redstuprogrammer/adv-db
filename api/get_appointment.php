@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.appointment_time  AS time,
             a.status,
             a.procedure_name,
+            a.notes,
             a.tenant_id,
             CONCAT(d.first_name, ' ', d.last_name) AS doctor
         FROM appointment a

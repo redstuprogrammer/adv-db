@@ -10,13 +10,15 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
-require_once ROOT_PATH . 'settings.php';
 
+// Check auth state FIRST, before loading database
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
     header('Location: superadmin_dash.php');
     exit();
 }
 
+// Only load database when needed (form submission or rendering page)
+require_once ROOT_PATH . 'settings.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php'; // Using your Azure MySQLi connection
 
