@@ -204,7 +204,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
-    <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="/tenant_style.css">
     <style>
         .t-brandPanel {
             background: linear-gradient(135deg, <?php echo h($loginSettings['brand_card_bg']); ?>, <?php echo h($loginSettings['brand_card_bg']); ?>dd) !important;
@@ -264,7 +264,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
                 <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between;">
-                    <a href="forgot_password_tenant.php?tenant=<?php echo h(rawurlencode($tenantSlug)); ?>" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
+                    <a href="/forgot_password_tenant.php?tenant=<?php echo h(rawurlencode($tenantSlug)); ?>" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
                 </div>
                 <div class="t-foot">
                     Don't have an account? Contact your clinic for access.

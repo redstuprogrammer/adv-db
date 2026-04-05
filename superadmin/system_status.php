@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../includes/security_headers.php';
 
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
+    header('Location: /superadmin/superadmin_login.php');
     exit;
 }
 
@@ -93,15 +93,15 @@ echo "        </div>
 $need_seed = array_sum($status['data_counts']) < 10;
 if ($need_seed) {
     echo "<p style='color: #64748b; margin-bottom: 16px;'>No sample data detected. Seed data to populate reports:</p>
-    <a href='seed_sample_data.php' class='action-btn'>Seed Sample Data</a>";
+    <a href='/seed_sample_data.php' class='action-btn'>Seed Sample Data</a>";
 } else {
     echo "<p style='color: #22c55e; font-weight: 700;'>✓ Data is available!</p>";
 }
 
 echo "            <p style='margin-top: 20px;'>
-                <a href='superadmin_dash.php' class='action-btn' style='background: #22c55e;'>Go to Dashboard</a> &nbsp;
-                <a href='superadmin_sales_report.php' class='action-btn' style='background: #3b82f6;'>Sales Reports</a> &nbsp;
-                <a href='superadmin_audit_logs.php' class='action-btn' style='background: #f59e0b;'>Audit Logs</a>
+                <a href='/superadmin/superadmin_dash.php' class='action-btn' style='background: #22c55e;'>Go to Dashboard</a> &nbsp;
+                <a href='/superadmin/superadmin_sales_report.php' class='action-btn' style='background: #3b82f6;'>Sales Reports</a> &nbsp;
+                <a href='/superadmin/superadmin_audit_logs.php' class='action-btn' style='background: #f59e0b;'>Audit Logs</a>
             </p>
         </div>
     </div>

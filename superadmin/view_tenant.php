@@ -29,7 +29,7 @@ if (!$tenant) {
 <body>
     <div class="container">
         <header class="sa-main-header">
-            <a href="superadmin_dash.php" class="sa-btn sa-btn-outline">← Back to List</a>
+            <a href="/superadmin/superadmin_dash.php" class="sa-btn sa-btn-outline">← Back to List</a>
             <h1>Clinic Profile: <?php echo $tenant['company_name']; ?></h1>
         </header>
 

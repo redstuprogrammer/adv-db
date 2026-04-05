@@ -2,7 +2,7 @@
 session_start();
 require_once __DIR__ . '/../includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
+    header('Location: /superadmin/superadmin_login.php');
     exit;
 }
 require_once __DIR__ . '/../settings.php';

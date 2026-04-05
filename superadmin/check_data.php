@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../includes/security_headers.php';
 
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
+    header('Location: /superadmin/superadmin_login.php');
     exit;
 }
 
@@ -62,8 +62,8 @@ try {
     
     echo "</table>
     <hr>
-    <p><a href='seed_sample_data.php'>Click here to seed sample data</a></p>
-    <p><a href='superadmin_dash.php'>Back to Dashboard</a></p>
+    <p><a href='/seed_sample_data.php'>Click here to seed sample data</a></p>
+    <p><a href='/superadmin/superadmin_dash.php'>Back to Dashboard</a></p>
     </body>
     </html>";
     
