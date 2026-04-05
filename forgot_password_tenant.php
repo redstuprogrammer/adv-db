@@ -43,11 +43,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $resetLink = buildTenantResetPasswordUrl($token, (int)$tenant['tenant_id']);
                     
                     // Send email
-                    $emailSent = sendPasswordResetEmail([
-                        'to_email' => $tenant['contact_email'],
-                        'clinic_name' => $tenant['company_name'],
-                        'reset_link' => $resetLink
-                    ]);
+                    $emailSent = false;
+                    try {
+                        $emailSent = sendPasswordResetEmail([
+                            'to_email' => $tenant['contact_email'],
+                            'clinic_name' => $tenant['company_name'],
+                            'reset_link' => $resetLink
+                        ]);
+                    } catch (Exception $e) {
+                        error_log("Email sending failed: " . $e->getMessage());
+                    }
                     
                     if ($emailSent) {
                         $message = 'Password reset link has been sent to your email. Check your inbox and spam folder.';

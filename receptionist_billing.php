@@ -88,7 +88,7 @@ if ($serviceStmt) {
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
         .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .data-table th { background: #0d3b66; color: white; padding: 12px; text-align: left; font-size: 13px; }
+        .data-table th { background: #f8fafc; color: #0d3b66; padding: 12px; text-align: left; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
         .data-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
         
         /* Status Pills */
@@ -111,6 +111,19 @@ if ($serviceStmt) {
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; color: #0d3b66; }
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+
+        .live-clock-badge {
+            background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border: 2px solid #0d3b66;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: 700;
+            color: #0d3b66;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>

@@ -19,6 +19,18 @@ if ($_SESSION['tenant_login_redirect_count'] > 5) {
     die("Too many redirects detected. Please check your cookies are enabled and try clearing your browser cache.");
 }
 
+// Check if already logged in as tenant user
+if (isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context']) && isset($_SESSION['tenant_slug_current'])) {
+    $currentContext = $_SESSION['tenant_context'][$_SESSION['tenant_slug_current']] ?? null;
+    if ($currentContext && isset($currentContext['role'])) {
+        $dashboardUrl = getRoleDashboardUrl($currentContext['role'], $_SESSION['tenant_slug_current']);
+        if ($dashboardUrl) {
+            header('Location: ' . $dashboardUrl);
+            exit;
+        }
+    }
+}
+
 require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
@@ -133,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userData = null;
 
         // First, try tenant owner login
-        if (password_verify($password, (string)$tenant['password'])) {
+        if (strtolower($username) === strtolower((string)$tenant['contact_email']) && password_verify($password, (string)$tenant['password'])) {
             $authenticated = true;
             $userRole = 'Admin';
             $userData = [
@@ -145,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Fallback: check users table for receptionist/dentist
             try {
-                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
+                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)) LIMIT 1");
                 if ($stmt) {
                     mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
                     if (mysqli_stmt_execute($stmt)) {

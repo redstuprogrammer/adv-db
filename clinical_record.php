@@ -119,12 +119,20 @@ if ($historyStmt) {
 
         .back-link {
             text-decoration: none;
-            color: var(--text-muted);
-            font-size: 14px;
+            color: var(--primary);
+            font-size: 16px;
             font-weight: 600;
+            padding: 8px 16px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            background: white;
+            transition: all 0.2s ease;
         }
 
-        .back-link:hover { color: var(--primary); }
+        .back-link:hover {
+            background: var(--primary);
+            color: white;
+        }
 
         .success-message {
             background: var(--success);

@@ -42,12 +42,12 @@ $dentistId = $_SESSION['user_id'];
 $patientList = [];
 $stmt = mysqli_prepare($conn, "SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, MAX(a.appointment_date) AS last_visit
     FROM patient p
-    INNER JOIN appointment a ON p.patient_id = a.patient_id
-    WHERE a.tenant_id = ? AND a.dentist_id = ?
+    LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id
+    WHERE p.tenant_id = ?
     GROUP BY p.patient_id, p.tenant_patient_id
     ORDER BY p.first_name ASC");
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, 'ii', $tenantId, $dentistId);
+    mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     if ($result) {
