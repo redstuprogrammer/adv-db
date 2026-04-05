@@ -221,7 +221,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
-    <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="/tenant_style.css">
     <style>
         .t-brandPanel {
             color: <?php echo h($loginSettings['brand_text_color']); ?>;

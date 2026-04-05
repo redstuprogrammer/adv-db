@@ -3,8 +3,24 @@ define('ROOT_PATH', __DIR__ . '/');
 // 1. Headers for JSON and Cross-Origin requests (CORS)
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Catch fatal errors and return them as JSON instead of a silent 500
+register_shutdown_function(function () {
+    $err = error_get_last();
+    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if (!headers_sent()) {
+            http_response_code(500);
+        }
+        echo json_encode([
+            'success' => false,
+            'message' => 'Server fatal error: ' . $err['message'],
+            'file'    => basename($err['file']),
+            'line'    => $err['line'],
+        ]);
+    }
+});
 
 // Handle preflight 'OPTIONS' requests from mobile/web browsers
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -14,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // 2. Database Connection
 // Ensure connect.php handles the Azure SSL certificate
-require_once __DIR__ . '/../includes/connect.php';
+require_once ROOT_PATH . 'includes/connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
@@ -58,11 +74,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     ");
 
     $stmt->bind_param("i", $patient_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
+
+    if (!$stmt->execute()) {
+        echo json_encode(['success' => false, 'message' => 'Query execution failed: ' . $stmt->error]);
+        exit;
+    }
+
+    // Bind result columns instead of using get_result() (avoids mysqlnd dependency)
+    $stmt->bind_result(
+        $payment_id,
+        $amount,
+        $mode,
+        $status,
+        $payment_date,
+        $procedures_json,
+        $reference_number,
+        $appointment_id,
+        $appointment_date,
+        $procedure_name,
+        $clinic_name
+    );
 
     $billings = [];
-    while ($row = $result->fetch_assoc()) {
+    while ($stmt->fetch()) {
+        $row = [
+            'payment_id'       => $payment_id,
+            'amount'           => $amount,
+            'mode'             => $mode,
+            'status'           => $status,
+            'payment_date'     => $payment_date,
+            'procedures_json'  => $procedures_json,
+            'reference_number' => $reference_number,
+            'appointment_id'   => $appointment_id,
+            'appointment_date' => $appointment_date,
+            'procedure_name'   => $procedure_name,
+            'clinic_name'      => $clinic_name,
+        ];
         // Parse procedures_json if it exists
         if (!empty($row['procedures_json'])) {
             $row['procedures'] = json_decode($row['procedures_json'], true);

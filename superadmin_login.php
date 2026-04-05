@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($admin = mysqli_fetch_assoc($result)) {
             // 2. PLAIN TEXT COMPARISON (Temporary for development)
-            if ($inputPass === $admin['password_hash']) {
+            if (password_verify($inputPass, $admin['password_hash'])) {
                 session_unset();
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;
@@ -75,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OralSync | Super Admin Login</title>
-    <link rel="stylesheet" href="tenant_style.css" />
+    <link rel="stylesheet" href="/tenant_style.css" />
 </head>
 <body>
     <div class="t-wrap">
