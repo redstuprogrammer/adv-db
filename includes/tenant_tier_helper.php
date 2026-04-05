@@ -207,4 +207,3 @@ function getTrialExpirationDate(int $tenantId, $conn): ?string {
     $expirationTime = strtotime('+14 days', strtotime($created));
     return date('Y-m-d H:i:s', $expirationTime);
 }
-?>

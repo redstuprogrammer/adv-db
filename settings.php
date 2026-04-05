@@ -1,31 +1,38 @@
 <?php
+// settings.php - LIBRARY FILE - NO OUTPUT WHEN INCLUDED
+// This file is included by other pages and contains shared configuration
+// DO NOT output anything here - only when accessed directly
+
 if (session_status() === PHP_SESSION_NONE) {
-    // Configure session BEFORE starting
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
-    // Extend session timeout
-    ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+    ini_set('session.gc_maxlifetime', 86400 * 7);
     session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
     session_start();
-} else {
-    // Session already started, don't reconfigure
 }
+
 if (!defined('ROOT_PATH')) {
     define('ROOT_PATH', __DIR__ . '/');
 }
+
 require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
 require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
 
-// Centralized redirect helper
 function redirect($path) {
     header("Location: " . $path);
     exit();
 }
 
-// Role Check Implementation - Only when accessed directly as a page
-if (__FILE__ === get_included_files()[0]) {
+function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
+// Only execute settings page functionality when accessed directly
+$isSettingsPage = (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'settings.php');
+
+if ($isSettingsPage) {
     // Role Check Implementation - Ensure user is logged in
     if (!isset($_SESSION['role'])) {
         redirect('tenant_login.php');
@@ -565,5 +572,3 @@ if (__FILE__ === get_included_files()[0]) {
 </html>
 <?php
 }
-?>
-

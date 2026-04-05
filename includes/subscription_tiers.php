@@ -183,4 +183,3 @@ function isValidTier(string $tierKey): bool {
 function getDefaultTier(): string {
     return 'startup';
 }
-?>
