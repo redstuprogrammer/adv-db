@@ -1,12 +1,12 @@
 <?php
 // Force redeployment - version 1.1
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: /superadmin/superadmin_login.php');
+    header('Location: superadminsuperadmin_login.php');
     exit;
 }
-require_once __DIR__ . '/../includes/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // Load current settings
 require_once __DIR__ . '/../settings.php';
@@ -263,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 
 <div class="container">
-    <?php include __DIR__ . '/../includes/sidebar_superadmin.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -335,7 +335,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </thead>
                         <tbody>
                             <?php
-                            require_once __DIR__ . '/../includes/subscription_tiers.php';
+                            require_once __DIR__ . '/includes/subscription_tiers.php';
                             foreach (getAllTiers() as $tierKey => $tier) {
                                 $tierPrice = $tier['price_min'] === 0 && $tier['price_max'] === 0 
                                     ? 'Free' 

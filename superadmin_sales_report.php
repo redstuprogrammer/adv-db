@@ -1,13 +1,13 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: /superadmin/superadmin_login.php');
+    header('Location: superadminsuperadmin_login.php');
     exit;
 }
-require_once __DIR__ . '/../includes/connect.php';
-require_once __DIR__ . '/../includes/tenant_utils.php';
-require_once __DIR__ . '/../includes/subscription_tiers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/../settings.php';
 
 // Load settings for logo display
@@ -296,7 +296,7 @@ try {
 <body>
 
 <div class="container">
-    <?php include __DIR__ . '/../includes/sidebar_superadmin.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -744,7 +744,7 @@ try {
         }
         ?>
 
-        fetch('/generate_pdf.php', {
+        fetch('generate_pdf.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: salesData, title: 'OralSync Professional Sales Report', type: 'professional' })

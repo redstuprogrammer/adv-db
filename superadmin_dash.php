@@ -1,11 +1,11 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: /superadmin/superadmin_login.php');
+    header('Location: superadminsuperadmin_login.php');
     exit;
 }
-require_once __DIR__ . '/../includes/subscription_tiers.php';
+require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/../settings.php';
 
 // Load settings for logo display
@@ -558,7 +558,7 @@ try {
 <body>
 
 <div class="container">
-    <?php include __DIR__ . '/../includes/sidebar_superadmin.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -1078,7 +1078,7 @@ try {
         document.getElementById('kpi-new-month').textContent = newMonth;
 
         // Fetch analytics for trend bars
-        fetch('/superadmin/superadmin_analytics_api.php')
+        fetch('superadmin/superadmin_analytics_api.php')
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(analytics => {
                 const last7d = analytics.last_7_days_superadmin_logs || 0;
@@ -1291,7 +1291,7 @@ try {
     }
 
     function refreshTenantList() {
-        fetch('/get_tenants.php')
+        fetch('get_tenants.php')
             .then(response => response.json())
             .then(data => {
                 tenantData = Array.isArray(data) ? data : [];
@@ -1337,7 +1337,7 @@ try {
                 formData.append('tenant_id', tenantId);
                 formData.append('status', newStatus);
 
-                fetch('/update_tenant_status.php', { method: 'POST', body: formData })
+                fetch('update_tenant_status.php', { method: 'POST', body: formData })
                     .then(resp => resp.json())
                     .then(model => {
                         if (model.success) {
@@ -1508,7 +1508,7 @@ try {
             formData.append('province', document.getElementById('clinic-province').value);
             formData.append('tier', document.getElementById('clinic-tier').value);
 
-            fetch('/register_clinic.php', {
+            fetch('register_clinic.php', {
                 method: 'POST',
                 body: formData
             })
@@ -1571,7 +1571,7 @@ try {
         }
 
         // Fetch sales data
-        fetch('/get_sales_data.php')
+        fetch('get_sales_data.php')
             .then(response => response.json())
             .then(data => {
                 new Chart(chartCanvas, {

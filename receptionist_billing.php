@@ -4,9 +4,9 @@ ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
-require_once __DIR__ . '/../includes/connect.php';
-require_once __DIR__ . '/../includes/tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
@@ -116,7 +116,7 @@ if ($serviceStmt) {
 <body>
 
 <div class="tenant-layout">
-    <?php include __DIR__ . '/../includes/sidebar_main.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <div class="tenant-main-content">
         <div class="tenant-header-bar">
@@ -305,7 +305,7 @@ if ($serviceStmt) {
         tenant_id: <?php echo $tenantId; ?>
       });
       
-      fetch('/get_patient_services.php?' + params)
+      fetch('get_patient_services.php?' + params)
         .then(res => res.json())
         .then(data => {
           data.forEach(item => {

@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: /superadmin/superadmin_login.php');
+    header('Location: superadminsuperadmin_login.php');
     exit;
 }
 require_once __DIR__ . '/../settings.php';
@@ -202,7 +202,7 @@ try {
 <body>
 
 <div class="container">
-    <?php include __DIR__ . '/../includes/sidebar_superadmin.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">

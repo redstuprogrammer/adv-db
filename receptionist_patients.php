@@ -13,9 +13,9 @@ ini_set('session.gc_maxlifetime', 86400 * 7);
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
-require_once __DIR__ . '/../includes/connect.php';
-require_once __DIR__ . '/../includes/tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
@@ -390,7 +390,7 @@ if (isset($_GET['view_patient_id'])) {
 </head>
 <body>
   <div class="tenant-layout">
-    <?php include __DIR__ . '/../includes/sidebar_main.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <!-- Main Content -->
     <div class="tenant-main-content">

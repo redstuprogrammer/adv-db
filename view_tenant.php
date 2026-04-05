@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // 1. Get the ID from the URL
 $tenant_id = isset($_GET['id']) ? intval($_GET['id']) : 0;

@@ -1,12 +1,12 @@
 <?php
 session_start();
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: /superadmin/superadmin_login.php');
+    header('Location: superadminsuperadmin_login.php');
     exit;
 }
-require_once __DIR__ . '/../includes/connect.php';
-require_once __DIR__ . '/../includes/tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/../settings.php';
 
 // Load settings for logo display
@@ -374,7 +374,7 @@ try {
 <body>
 
 <div class="container">
-    <?php include __DIR__ . '/../includes/sidebar_superadmin.php'; ?>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -810,7 +810,7 @@ try {
             }
 
             // Send data to PDF generator
-            fetch('/generate_pdf.php', {
+            fetch('generate_pdf.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -907,7 +907,7 @@ try {
                 document.body.removeChild(a);
             } else if (format === 'pdf') {
                 // For PDF, we'll use a simple approach - send to server
-                fetch('/generate_pdf.php', {
+                fetch('generate_pdf.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

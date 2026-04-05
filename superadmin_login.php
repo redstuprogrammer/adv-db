@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 session_start();
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
@@ -7,8 +7,8 @@ if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === 
     exit;
 }
 
-require_once __DIR__ . '/../includes/connect.php';
-require_once __DIR__ . '/../includes/tenant_utils.php'; // Using your Azure MySQLi connection
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php'; // Using your Azure MySQLi connection
 
 /**
  * Escapes HTML for safe output
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
                 mysqli_stmt_execute($updateStmt);
 
-                header('Location: /superadmin/superadmin_dash.php');
+                header('Location: superadminsuperadmin_dash.php');
                 exit;
             }
         }
