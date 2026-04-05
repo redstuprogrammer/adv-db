@@ -1,24 +1,32 @@
 <?php
-// Extend session timeout
-ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    // Extend session timeout
+    ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+    session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+    session_start();
+}
+define('ROOT_PATH', __DIR__ . '/');
+require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php';
+require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
 
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
-require_once __DIR__ . '/includes/connect.php';
-require_once __DIR__ . '/includes/tenant_utils.php';
-require_once __DIR__ . '/includes/tenant_settings_functions.php';
-
-// Role Check Implementation - Ensure user is logged in
-if (!isset($_SESSION['role'])) {
-    header("Location: tenant_login.php");
+// Centralized redirect helper
+function redirect($path) {
+    header("Location: " . $path);
     exit();
 }
 
-// Role Check Implementation - Ensure user is an Admin
-if ($_SESSION['role'] !== 'Admin') {
-    header("Location: tenant_login.php");
-    exit();
+// Role Check Implementation - Ensure user is logged in
+if (!isset($_SESSION['role'])) {
+    redirect('tenant_login.php');
+}
+
+// Role Check Implementation - Ensure user is an Admin or Superadmin
+if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
+    redirect('tenant_login.php');
 }
 
 function h(string $s): string {

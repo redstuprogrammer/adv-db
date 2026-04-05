@@ -1,12 +1,16 @@
 <?php
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
+define('ROOT_PATH', __DIR__ . '/');
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    session_start();
 }
-require_once __DIR__ . '/includes/subscription_tiers.php';
-require_once __DIR__ . '/settings.php';
+require_once ROOT_PATH . 'includes/security_headers.php';
+if (empty($_SESSION['superadmin_authed'])) {
+    redirect('superadmin_login.php');
+}
+require_once ROOT_PATH . 'includes/subscription_tiers.php';
+require_once ROOT_PATH . 'settings.php';
 
 // Load settings for logo display
 try {

@@ -7,7 +7,7 @@ $port = 3306;
 
 $conn = mysqli_init();
 // Point this to the absolute path just to be safe
-$ssl_cert = __DIR__ . '/azure-combined-2026.pem';
+$ssl_cert = dirname(__DIR__) . '/azure-combined-2026.pem';
 
 mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
 

@@ -1,14 +1,18 @@
 <?php
-require_once __DIR__ . '/includes/security_headers.php';
-session_start();
+define('ROOT_PATH', __DIR__ . '/');
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    session_start();
+}
+require_once ROOT_PATH . 'includes/security_headers.php';
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
-    header('Location: superadmin_dash.php');
-    exit;
+    redirect('superadmin_dash.php');
 }
 
-require_once __DIR__ . '/includes/connect.php';
-require_once __DIR__ . '/includes/tenant_utils.php'; // Using your Azure MySQLi connection
+require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php'; // Using your Azure MySQLi connection
 
 /**
  * Escapes HTML for safe output
@@ -33,10 +37,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($admin = mysqli_fetch_assoc($result)) {
             // 2. PLAIN TEXT COMPARISON (Temporary for development)
             if ($inputPass === $admin['password_hash']) {
+                session_unset();
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;
                 $_SESSION['superadmin_id'] = $admin['id'];
                 $_SESSION['superadmin_username'] = $inputUser;
+                $_SESSION['role'] = 'superadmin';
 
                 // Log superadmin login event
                 logActivity($conn, 1, 'Superadmin Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
@@ -46,8 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
                 mysqli_stmt_execute($updateStmt);
 
-                header('Location: superadmin_dash.php');
-                exit;
+                redirect('superadmin_dash.php');
             }
         }
         
