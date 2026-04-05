@@ -1,11 +1,14 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    // Configure session BEFORE starting
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     // Extend session timeout
     ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
     session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
     session_start();
+} else {
+    // Session already started, don't reconfigure
 }
 define('ROOT_PATH', __DIR__ . '/');
 require_once ROOT_PATH . 'includes/security_headers.php';

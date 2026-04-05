@@ -24,13 +24,13 @@ $loginSettings = [
     'bg_image_url' => ''
 ];
 
-$tenant = $_GET['tenant'] ?? '';
+$tenant_id = isset($_GET['tenant']) ? intval($_GET['tenant']) : 0;
 
-if ($tenant) {
+if ($tenant_id) {
     try {
         $stmt = $conn->prepare("SELECT brand_bg_color, brand_subtitle, login_title, primary_btn_color, link_color, custom_bg_image_url FROM tenant_configs WHERE tenant_id = ?");
         if ($stmt) {
-            $stmt->bind_param('i', $tenant['tenant_id']);
+            $stmt->bind_param('i', $tenant_id);
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
                 $config = $result ? $result->fetch_assoc() : null;
