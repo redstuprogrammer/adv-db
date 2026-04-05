@@ -25,10 +25,6 @@ function redirect($path) {
     exit();
 }
 
-function h(string $s): string {
-    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-}
-
 // Only execute settings page functionality when accessed directly
 $isSettingsPage = (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'settings.php');
 
@@ -41,6 +37,10 @@ if ($isSettingsPage) {
     // Role Check Implementation - Ensure user is an Admin or Superadmin
     if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
         redirect('tenant_login.php');
+    }
+
+    function h(string $s): string {
+        return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
     }
 
     $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
