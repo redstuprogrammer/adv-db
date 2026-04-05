@@ -744,7 +744,7 @@ try {
         }
         ?>
 
-        fetch('generate_pdf.php', {
+        fetch('/generate_pdf.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ data: salesData, title: 'OralSync Professional Sales Report', type: 'professional' })

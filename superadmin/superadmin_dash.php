@@ -1078,7 +1078,7 @@ try {
         document.getElementById('kpi-new-month').textContent = newMonth;
 
         // Fetch analytics for trend bars
-        fetch('superadmin_analytics_api.php')
+        fetch('/superadmin/superadmin_analytics_api.php')
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(analytics => {
                 const last7d = analytics.last_7_days_superadmin_logs || 0;
@@ -1291,7 +1291,7 @@ try {
     }
 
     function refreshTenantList() {
-        fetch('get_tenants.php')
+        fetch('/get_tenants.php')
             .then(response => response.json())
             .then(data => {
                 tenantData = Array.isArray(data) ? data : [];
@@ -1337,7 +1337,7 @@ try {
                 formData.append('tenant_id', tenantId);
                 formData.append('status', newStatus);
 
-                fetch('update_tenant_status.php', { method: 'POST', body: formData })
+                fetch('/update_tenant_status.php', { method: 'POST', body: formData })
                     .then(resp => resp.json())
                     .then(model => {
                         if (model.success) {
@@ -1372,7 +1372,7 @@ try {
             const tenantId = row.getAttribute('data-id');
             if (!tenantId) return;
 
-            fetch(`get_tenant_details.php?id=${tenantId}`)
+            fetch(`/get_tenant_details.php?id=${tenantId}`)
                 .then(res => res.json())
                 .then(tenant => {
                     document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1397,7 +1397,7 @@ try {
     }
 
     function viewTenantProfile(tenantId) {
-        fetch(`get_tenant_details.php?id=${tenantId}`)
+        fetch(`/get_tenant_details.php?id=${tenantId}`)
             .then(res => res.json())
             .then(tenant => {
                 document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1508,7 +1508,7 @@ try {
             formData.append('province', document.getElementById('clinic-province').value);
             formData.append('tier', document.getElementById('clinic-tier').value);
 
-            fetch('register_clinic.php', {
+            fetch('/register_clinic.php', {
                 method: 'POST',
                 body: formData
             })
@@ -1571,7 +1571,7 @@ try {
         }
 
         // Fetch sales data
-        fetch('get_sales_data.php')
+        fetch('/get_sales_data.php')
             .then(response => response.json())
             .then(data => {
                 new Chart(chartCanvas, {

@@ -305,7 +305,7 @@ if ($serviceStmt) {
         tenant_id: <?php echo $tenantId; ?>
       });
       
-      fetch('get_patient_services.php?' + params)
+      fetch('/get_patient_services.php?' + params)
         .then(res => res.json())
         .then(data => {
           data.forEach(item => {

@@ -749,7 +749,7 @@ try {
             const tenantId = document.getElementById('tenant_filter').value;
             const activityType = document.getElementById('activity_type').value;
 
-            fetch(`get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
+            fetch(`/get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -810,7 +810,7 @@ try {
             }
 
             // Send data to PDF generator
-            fetch('generate_pdf.php', {
+            fetch('/generate_pdf.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -907,7 +907,7 @@ try {
                 document.body.removeChild(a);
             } else if (format === 'pdf') {
                 // For PDF, we'll use a simple approach - send to server
-                fetch('generate_pdf.php', {
+                fetch('/generate_pdf.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

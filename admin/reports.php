@@ -351,7 +351,7 @@ $tenantId = getCurrentTenantId();
       const dateTo = document.getElementById('activity_date_to').value;
       const type = document.getElementById('activity_type_filter').value;
 
-      fetch(`get_filtered_reports.php?type=tenant_activity&date_from=${dateFrom}&date_to=${dateTo}&activity_type=${type}`)
+      fetch(`/get_filtered_reports.php?type=tenant_activity&date_from=${dateFrom}&date_to=${dateTo}&activity_type=${type}`)
         .then(resp => resp.json())
         .then(data => {
           if (data.success) {
@@ -391,7 +391,7 @@ $tenantId = getCurrentTenantId();
       const dateFrom = document.getElementById('revenue_date_from').value;
       const dateTo = document.getElementById('revenue_date_to').value;
 
-      fetch(`get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`)
+      fetch(`/get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`)
         .then(resp => resp.json())
         .then(data => {
           if (data.success) {
