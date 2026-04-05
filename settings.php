@@ -25,7 +25,7 @@ function redirect($path) {
 }
 
 // Role Check Implementation - Only when accessed directly as a page
-if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
+if (__FILE__ === get_included_files()[0]) {
     // Role Check Implementation - Ensure user is logged in
     if (!isset($_SESSION['role'])) {
         redirect('tenant_login.php');
