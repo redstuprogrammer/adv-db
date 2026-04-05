@@ -24,6 +24,8 @@ function h(string $s): string {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    session_unset();
+    session_destroy();
     $inputUser = trim((string)($_POST['username'] ?? ''));
     $inputPass = (string)($_POST['password'] ?? '');
 
