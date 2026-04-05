@@ -56,10 +56,10 @@ if ($stmt) {
 <div class="page-shell">
     <aside class="page-sidebar">
         <h2>OralSync Dentist</h2>
-        <a href="dentist_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📊 Dashboard</a>
-        <a href="dentist_appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📅 Appointments</a>
-        <a href="dentist_patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">👤 My Patients</a>
-        <a href="dentist_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">🚪 Logout</a>
+        <a href="/dentist_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📊 Dashboard</a>
+        <a href="/dentist_appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">📅 Appointments</a>
+        <a href="/dentist_patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">👤 My Patients</a>
+        <a href="/dentist_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="menu-item">🚪 Logout</a>
     </aside>
     <main class="page-content">
         <h1 class="page-title">Patient Detail</h1>

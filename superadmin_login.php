@@ -26,8 +26,6 @@ function h(string $s): string {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    session_unset();
-    session_destroy();
     $inputUser = trim((string)($_POST['username'] ?? ''));
     $inputPass = (string)($_POST['password'] ?? '');
 
@@ -39,8 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = mysqli_stmt_get_result($stmt);
         
         if ($admin = mysqli_fetch_assoc($result)) {
-            // 2. PLAIN TEXT COMPARISON (Temporary for development)
-            if ($inputPass === $admin['password_hash']) {
+            $validPassword = false;
+            if (password_verify($inputPass, $admin['password_hash'])) {
+                $validPassword = true;
+            } elseif ($inputPass === $admin['password_hash']) {
+                $validPassword = true;
+            }
+
+            if ($validPassword) {
                 session_unset();
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;

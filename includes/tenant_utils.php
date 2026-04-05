@@ -39,7 +39,7 @@ function getAbsoluteBaseUrl(): string {
 
 function getTenantDashboardUrl(string $slug): string {
     $baseUrl = getAbsoluteBaseUrl();
-    $url = $baseUrl . '/admin/dashboard.php?tenant=' . rawurlencode($slug);
+    $url = $baseUrl . '/dashboard.php?tenant=' . rawurlencode($slug);
     error_log("Tenant Dashboard URL generated: " . $url);
     return $url;
 }
@@ -48,13 +48,13 @@ function getRoleDashboardUrl(string $role, string $slug): string {
     $baseUrl = getAbsoluteBaseUrl();
     switch (strtolower($role)) {
         case 'admin':
-            return $baseUrl . '/admin/dashboard.php?tenant=' . rawurlencode($slug);
+            return $baseUrl . '/dashboard.php?tenant=' . rawurlencode($slug);
         case 'receptionist':
             return $baseUrl . '/receptionist/receptionist_dashboard.php?tenant=' . rawurlencode($slug);
         case 'dentist':
             return $baseUrl . '/dentist/dentist_dashboard.php?tenant=' . rawurlencode($slug);
         default:
-            return $baseUrl . '/admin/dashboard.php?tenant=' . rawurlencode($slug); // fallback
+            return $baseUrl . '/dashboard.php?tenant=' . rawurlencode($slug); // fallback
     }
 }
 

@@ -220,7 +220,7 @@ $tenantId = getCurrentTenantId();
       </div>
 
       <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px;">Sign out</a>
+        <a href="/tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px;">Sign out</a>
       </div>
 
     </div>
