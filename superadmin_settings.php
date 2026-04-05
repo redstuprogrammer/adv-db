@@ -7,6 +7,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Load current settings
 require_once __DIR__ . '/settings.php';

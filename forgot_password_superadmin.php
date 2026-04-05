@@ -9,45 +9,72 @@ function h(string $s): string {
 
 $message = '';
 $isError = false;
+$showResetForm = false;
+$adminId = 0;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim((string)($_POST['username'] ?? ''));
-    
-    if ($username === '') {
-        $message = 'Please enter your username.';
-        $isError = true;
-    } else {
-        // Find super admin by username
-        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
-        if ($stmt) {
-            mysqli_stmt_bind_param($stmt, "s", $username);
-            mysqli_stmt_execute($stmt);
-            $res = mysqli_stmt_get_result($stmt);
-            $admin = mysqli_fetch_assoc($res);
-            
-            if ($admin) {
-                // Generate reset token
-                $token = bin2hex(random_bytes(32));
-                $tokenHash = password_hash($token, PASSWORD_DEFAULT);
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+    if (isset($_POST['username'])) {
+        $username = trim((string)($_POST['username'] ?? ''));
+        
+        if ($username === '') {
+            $message = 'Please enter your username.';
+            $isError = true;
+        } else {
+            // Find super admin by username
+            $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, "s", $username);
+                mysqli_stmt_execute($stmt);
+                $res = mysqli_stmt_get_result($stmt);
+                $admin = mysqli_fetch_assoc($res);
                 
-                // Store token in database
-                $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
-                if ($updateStmt) {
+                if ($admin) {
                     $adminId = (int)$admin['id'];
-                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $adminId);
-                    mysqli_stmt_execute($updateStmt);
-                    
-                    // Build reset link
-                    $resetLink = buildSuperAdminResetPasswordUrl($token, (int)$admin['id']);
-                    
-                    // Send email
-                    $adminEmail = getenv('SUPERADMIN_EMAIL') ?: $_ENV['SUPERADMIN_EMAIL'] ?? 'admin@oralsync.com';
-                    $emailSent = sendPasswordResetEmail([
-                        'to_email' => $adminEmail,
-                        'subject_name' => 'OralSync Super Admin',
-                        'reset_link' => $resetLink
-                    ]);
+                    $showResetForm = true;
+                    $message = 'Username verified. Please enter your new password.';
+                    $isError = false;
+                } else {
+                    $message = 'Username not found.';
+                    $isError = true;
+                }
+            }
+        }
+    } elseif (isset($_POST['new_password']) && isset($_POST['admin_id'])) {
+        $newPassword = (string)($_POST['new_password'] ?? '');
+        $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+        $adminId = (int)($_POST['admin_id'] ?? 0);
+        
+        if ($newPassword === '') {
+            $message = 'Please enter a new password.';
+            $isError = true;
+            $showResetForm = true;
+        } elseif (strlen($newPassword) < 8) {
+            $message = 'Password must be at least 8 characters long.';
+            $isError = true;
+            $showResetForm = true;
+        } elseif ($newPassword !== $confirmPassword) {
+            $message = 'Passwords do not match.';
+            $isError = true;
+            $showResetForm = true;
+        } else {
+            // Hash and update password
+            $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
+            $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_hash = ? WHERE id = ?");
+            if ($updateStmt) {
+                mysqli_stmt_bind_param($updateStmt, "si", $hashedPassword, $adminId);
+                if (mysqli_stmt_execute($updateStmt)) {
+                    $message = 'Password updated successfully! <a href="superadmin_login.php">Login here</a>';
+                    $isError = false;
+                } else {
+                    $message = 'Error updating password. Please try again.';
+                    $isError = true;
+                    $showResetForm = true;
+                }
+            }
+        }
+    }
+}
+?>
                     
                     if ($emailSent) {
                         $message = 'Password reset link has been sent to the registered admin email. Check your inbox and spam folder.';
@@ -210,7 +237,7 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
         <div class="t-shell" style="grid-template-columns: 1fr;">
             <section class="t-card">
                 <h1 class="t-cardTitle">Forgot Password</h1>
-                <div class="t-cardSub">Enter your username and we'll send you a link to reset your password.</div>
+                <div class="t-cardSub"><?php echo $showResetForm ? 'Enter your new password.' : 'Enter your username to reset your password.'; ?></div>
 
                 <?php if ($message): ?>
                     <div style="padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; <?php echo $isError ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'; ?>">
@@ -219,11 +246,24 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
                 <?php endif; ?>
 
                 <form class="t-form" method="POST">
+                    <?php if (!$showResetForm): ?>
                     <div class="t-field">
                         <label for="username">Username</label>
                         <input id="username" name="username" type="text" required placeholder="Enter your username" value="<?php echo h($_POST['username'] ?? ''); ?>">
                     </div>
-                    <button class="t-btn t-btnPrimary" type="submit">Send Reset Link</button>
+                    <button class="t-btn t-btnPrimary" type="submit">Verify Username</button>
+                    <?php else: ?>
+                    <input type="hidden" name="admin_id" value="<?php echo $adminId; ?>">
+                    <div class="t-field">
+                        <label for="new_password">New Password</label>
+                        <input id="new_password" name="new_password" type="password" required placeholder="Enter new password" minlength="8">
+                    </div>
+                    <div class="t-field">
+                        <label for="confirm_password">Confirm Password</label>
+                        <input id="confirm_password" name="confirm_password" type="password" required placeholder="Confirm new password" minlength="8">
+                    </div>
+                    <button class="t-btn t-btnPrimary" type="submit">Update Password</button>
+                    <?php endif; ?>
                 </form>
 
                 <div class="t-foot">
