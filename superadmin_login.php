@@ -6,6 +6,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'settings.php';
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
     redirect('superadmin_dash.php');

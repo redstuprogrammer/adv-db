@@ -405,3 +405,46 @@ function formatDateReadable($date): string {
 function formatDateTimeReadable($dateTime): string {
     return formatTo12Hour($dateTime, 'M d, Y g:i A');
 }
+
+/**
+ * Get all global settings from the settings table
+ * 
+ * @return array Array of setting_key => setting_value pairs
+ */
+function getAllSettings(): array {
+    global $conn;
+    $settings = [];
+    
+    $stmt = $conn->prepare("SELECT setting_key, setting_value FROM settings");
+    if ($stmt) {
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $settings[$row['setting_key']] = $row['setting_value'];
+        }
+        $stmt->close();
+    }
+    
+    return $settings;
+}
+
+/**
+ * Set a global setting in the settings table
+ * 
+ * @param string $key Setting key
+ * @param string $value Setting value
+ * @return bool True on success, false on failure
+ */
+function setSetting(string $key, string $value): bool {
+    global $conn;
+    
+    $stmt = $conn->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = CURRENT_TIMESTAMP");
+    if ($stmt) {
+        $stmt->bind_param('sss', $key, $value, $value);
+        $success = $stmt->execute();
+        $stmt->close();
+        return $success;
+    }
+    
+    return false;
+}

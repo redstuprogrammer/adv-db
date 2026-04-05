@@ -22,14 +22,17 @@ function redirect($path) {
     exit();
 }
 
-// Role Check Implementation - Ensure user is logged in
-if (!isset($_SESSION['role'])) {
-    redirect('tenant_login.php');
-}
+// Role Check Implementation - Only when accessed directly as a page
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
+    // Role Check Implementation - Ensure user is logged in
+    if (!isset($_SESSION['role'])) {
+        redirect('tenant_login.php');
+    }
 
-// Role Check Implementation - Ensure user is an Admin or Superadmin
-if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
-    redirect('tenant_login.php');
+    // Role Check Implementation - Ensure user is an Admin or Superadmin
+    if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
+        redirect('tenant_login.php');
+    }
 }
 
 function h(string $s): string {
