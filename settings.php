@@ -10,7 +10,9 @@ if (session_status() === PHP_SESSION_NONE) {
 } else {
     // Session already started, don't reconfigure
 }
-define('ROOT_PATH', __DIR__ . '/');
+if (!defined('ROOT_PATH')) {
+    define('ROOT_PATH', __DIR__ . '/');
+}
 require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
@@ -37,65 +39,6 @@ if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
-}
-
-$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
-
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
-
-$message = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['change_password'])) {
-        $currentPassword = $_POST['current_password'] ?? '';
-        $newPassword = $_POST['new_password'] ?? '';
-        $confirmPassword = $_POST['confirm_password'] ?? '';
-
-        if ($newPassword !== $confirmPassword) {
-            $message = 'New passwords do not match.';
-        } elseif (strlen($newPassword) < 8) {
-            $message = 'Password must be at least 8 characters long.';
-        } else {
-            // Verify current password
-            $stmt = $conn->prepare("SELECT password FROM tenants WHERE tenant_id = ?");
-            $stmt->bind_param('i', $tenantId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $tenant = $result->fetch_assoc();
-
-            if ($tenant && password_verify($currentPassword, $tenant['password'])) {
-                $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                $updateStmt = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
-                $updateStmt->bind_param('si', $hashedPassword, $tenantId);
-                if ($updateStmt->execute()) {
-                    $message = 'Password changed successfully!';
-                } else {
-                    $message = 'Error updating password.';
-                }
-                $updateStmt->close();
-            } else {
-                $message = 'Current password is incorrect.';
-            }
-            $stmt->close();
-        }
-    } elseif (isset($_POST['save_login_settings'])) {
-        // Save login customization settings
-        $loginBrandBg = $_POST['login_brand_bg'] ?? '#0d3b66';
-        $loginBrandingSubtitle = $_POST['login_branding_subtitle'] ?? 'Powered by OralSync';
-        $loginTitle = $_POST['login_title'] ?? 'Clinic Login';
-        $loginButtonColor = $_POST['login_button_color'] ?? '#0d3b66';
-        $loginTextLinkColor = $_POST['login_text_link_color'] ?? '#2563eb';
-
-        setTenantSetting($tenantId, 'login_brand_bg', $loginBrandBg);
-        setTenantSetting($tenantId, 'login_branding_subtitle', $loginBrandingSubtitle);
-        setTenantSetting($tenantId, 'login_title', $loginTitle);
-        setTenantSetting($tenantId, 'login_button_color', $loginButtonColor);
-        setTenantSetting($tenantId, 'login_text_link_color', $loginTextLinkColor);
-
-        $message = 'Login customization settings saved successfully!';
-    }
 }
 ?>
 <!doctype html>
