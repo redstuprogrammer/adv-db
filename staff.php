@@ -24,7 +24,7 @@ $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
 $staffMembers = [];
-$stmt = mysqli_prepare($conn, "SELECT user_id, username, email, role, date_created FROM users WHERE tenant_id = ? AND role IN ('Dentist', 'Receptionist') ORDER BY username ASC");
+$stmt = mysqli_prepare($conn, "SELECT user_id, username, email, role FROM users WHERE tenant_id = ? AND role IN ('Dentist', 'Receptionist') ORDER BY username ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);

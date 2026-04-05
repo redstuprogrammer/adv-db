@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.appointment_id,
             a.appointment_date,
             a.procedure_name,
-            t.name AS clinic_name
+            t.company_name AS clinic_name
         FROM payment p
         JOIN appointment a ON p.appointment_id = a.appointment_id
         JOIN tenants t ON p.tenant_id = t.tenant_id

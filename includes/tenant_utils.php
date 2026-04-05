@@ -448,3 +448,80 @@ function setSetting(string $key, string $value): bool {
     
     return false;
 }
+
+/**
+ * Get tenant configuration from tenant_configs table
+ * 
+ * @param int $tenantId Tenant ID
+ * @return array Configuration array with defaults
+ */
+function getTenantConfig(int $tenantId): array {
+    global $conn;
+    
+    $config = [
+        'brand_bg_color' => '#001f3f',
+        'brand_text_color' => '#ffffff',
+        'primary_btn_color' => '#22c55e',
+        'link_color' => '#2563eb',
+        'login_title' => 'Clinic Login',
+        'login_description' => 'Please sign in to access your clinic portal.',
+        'brand_subtitle' => 'Powered by OralSync',
+        'brand_logo_path' => '',
+        'brand_bg_image_path' => ''
+    ];
+    
+    $stmt = $conn->prepare("SELECT * FROM tenant_configs WHERE tenant_id = ?");
+    if ($stmt) {
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($row = $result->fetch_assoc()) {
+            // Merge database values with defaults
+            $config = array_merge($config, array_filter($row, function($value) {
+                return $value !== null;
+            }));
+        }
+        $stmt->close();
+    }
+    
+    return $config;
+}
+
+/**
+ * Save tenant configuration to tenant_configs table
+ * 
+ * @param int $tenantId Tenant ID
+ * @param array $values Configuration values to save
+ * @return bool True on success, false on failure
+ */
+function saveTenantConfig(int $tenantId, array $values): bool {
+    global $conn;
+    
+    // Build dynamic update query
+    $columns = [];
+    $params = [];
+    $types = '';
+    
+    foreach ($values as $key => $value) {
+        $columns[] = "`$key` = ?";
+        $params[] = $value;
+        $types .= 's';
+    }
+    
+    $params[] = $tenantId;
+    $types .= 'i';
+    
+    $sql = "INSERT INTO tenant_configs (tenant_id, " . implode(', ', array_keys($values)) . ") 
+            VALUES (?," . str_repeat('?,', count($values) - 1) . "?) 
+            ON DUPLICATE KEY UPDATE " . implode(', ', $columns);
+    
+    $stmt = $conn->prepare($sql);
+    if ($stmt) {
+        $stmt->bind_param($types, ...array_merge([$tenantId], $params));
+        $success = $stmt->execute();
+        $stmt->close();
+        return $success;
+    }
+    
+    return false;
+}

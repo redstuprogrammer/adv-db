@@ -219,7 +219,7 @@ $tenantId = getCurrentTenantId();
             <tbody id="activity-tbody">
               <?php
               // Load initial data from tenant_activity_logs
-              $stmt = $conn->prepare("SELECT log_id, log_time, log_date, activity_type, details FROM tenant_activity_logs WHERE tenant_id = ? ORDER BY log_date DESC, log_time DESC LIMIT 10");
+              $stmt = $conn->prepare("SELECT log_id, log_time, log_date, activity_type, activity_description FROM tenant_activity_logs WHERE tenant_id = ? ORDER BY log_date DESC, log_time DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
               $stmt->execute();
               $result = $stmt->get_result();
