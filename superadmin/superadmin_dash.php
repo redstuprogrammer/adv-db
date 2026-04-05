@@ -20,8 +20,8 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin</title>
-    <link rel="stylesheet" href="style1.css">
-    <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="/style1.css">
+    <link rel="stylesheet" href="/tenant_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {

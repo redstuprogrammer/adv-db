@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../includes/security_headers.php';
 session_start();
+
+if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
+    header('Location: superadmin_dash.php');
+    exit;
+}
+
 require_once __DIR__ . '/../includes/connect.php';
 require_once __DIR__ . '/../includes/tenant_utils.php'; // Using your Azure MySQLi connection
 
@@ -59,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OralSync | Super Admin Login</title>
-    <link rel="stylesheet" href="tenant_style.css" />
+    <link rel="stylesheet" href="/tenant_style.css" />
 </head>
 <body>
     <div class="t-wrap">

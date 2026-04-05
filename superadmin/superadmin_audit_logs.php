@@ -20,7 +20,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Super Admin Audit Logs</title>
-    <link rel="stylesheet" href="style1.css">
+    <link rel="stylesheet" href="/style1.css">
     <style>
         :root {
             --sa-primary: #0d3b66;

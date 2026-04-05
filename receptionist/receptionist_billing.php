@@ -83,7 +83,7 @@ if ($serviceStmt) {
 <head>
     <meta charset="UTF-8">
     <title>OralSync | Billing Management</title>
-    <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="/tenant_style.css">
     <style>
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
