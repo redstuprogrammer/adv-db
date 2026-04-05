@@ -5,13 +5,31 @@ function saMenuActive(string $page): string {
     $currentFile = basename($_SERVER['PHP_SELF']);
     return $currentFile === $page ? ' menu-item active' : ' menu-item';
 }
+
+$currentSettings = [];
+$systemName = 'OralSync';
+$logoUrl = '';
+if (function_exists('getAllSettings')) {
+    $currentSettings = getAllSettings();
+    $systemName = trim($currentSettings['system_name'] ?? $systemName) ?: $systemName;
+    $logoPath = trim($currentSettings['logo_path'] ?? '');
+    if ($logoPath !== '') {
+        $logoUrl = '/' . ltrim($logoPath, '/');
+    }
+}
 ?>
 <aside class="sidebar">
     <div class="sidebar-top">
         <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); height: 80px;">
-            <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px;">🏥</div>
+            <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px; background: #ffffff;">
+                <?php if ($logoUrl && file_exists(__DIR__ . '/../' . ltrim($logoUrl, '/'))): ?>
+                    <img src="<?php echo htmlspecialchars($logoUrl, ENT_QUOTES, 'UTF-8'); ?>" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+                <?php else: ?>
+                    🏥
+                <?php endif; ?>
+            </div>
             <div>
-                <div class="sidebar-logo-text" style="margin: 0; font-size: 18px; font-weight: 700;">OralSync</div>
+                <div class="sidebar-logo-text" style="margin: 0; font-size: 18px; font-weight: 700;"><?php echo htmlspecialchars($systemName, ENT_QUOTES, 'UTF-8'); ?></div>
                 <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
             </div>
         </div>

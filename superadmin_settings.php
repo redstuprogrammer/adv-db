@@ -557,6 +557,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         });
 
+        function validateForm() {
+            return true;
+        }
+
         function resetSettings() {
             if (confirm('Are you sure you want to reset all settings to defaults?')) {
                 // Reset form

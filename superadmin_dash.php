@@ -24,7 +24,7 @@ try {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>OralSync | Super Admin</title>
+    <title><?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync', ENT_QUOTES, 'UTF-8'); ?> | Super Admin</title>
     <link rel="stylesheet" href="style1.css">
     <link rel="stylesheet" href="tenant_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1002,28 +1002,44 @@ try {
             });
         });
 
-        // Handle URL hash on page load
-        window.addEventListener('load', function() {
-            const hash = window.location.hash.substring(1); // Remove the '#'
-            if (hash) {
-                const targetSection = document.getElementById(hash);
-                if (targetSection) {
-                    // Remove active from all menu items (including Reports dropdown)
-                    document.querySelectorAll('.menu-item[data-section]').forEach(mi => mi.classList.remove('active'));
-                    if (dropdownToggle) dropdownToggle.classList.remove('active');
-                    if (dropdownItems) dropdownItems.style.display = 'none';
-                    
-                    // Add active to the corresponding menu item
-                    const menuItem = document.querySelector(`.menu-item[data-section="${hash}"]`);
-                    if (menuItem) {
-                        menuItem.classList.add('active');
-                    }
-                    // Show the target section
-                    document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
-                    targetSection.classList.add('active-section');
-                }
+        function activateSuperAdminSection(sectionId) {
+            if (!sectionId) return;
+            const targetSection = document.getElementById(sectionId);
+            if (!targetSection) return;
+
+            document.querySelectorAll('.menu-item[data-section]').forEach(mi => mi.classList.remove('active'));
+            if (dropdownToggle) dropdownToggle.classList.remove('active');
+            if (dropdownItems) dropdownItems.style.display = 'none';
+
+            const menuItem = document.querySelector(`.menu-item[data-section="${sectionId}"]`);
+            if (menuItem) {
+                menuItem.classList.add('active');
             }
+
+            document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
+            targetSection.classList.add('active-section');
+        }
+
+        function handleSuperAdminHash() {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                activateSuperAdminSection(hash);
+            }
+        }
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = this.getAttribute('data-section');
+                if (!target) return;
+                activateSuperAdminSection(target);
+                history.replaceState(null, '', '#' + target);
+            });
         });
+
+        // Handle URL hash on page load
+        window.addEventListener('load', handleSuperAdminHash);
+        window.addEventListener('hashchange', handleSuperAdminHash);
     })();
 
     // Dropdown menu toggle
