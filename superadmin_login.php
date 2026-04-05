@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         if ($admin = mysqli_fetch_assoc($result)) {
             // 2. PLAIN TEXT COMPARISON (Temporary for development)
-            if (password_verify($inputPass, $admin['password_hash'])) {
+            if ($inputPass === $admin['password_hash']) {
                 session_unset();
                 session_regenerate_id(true);
                 $_SESSION['superadmin_authed'] = true;
