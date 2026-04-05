@@ -39,7 +39,7 @@ $startTime = microtime(true);
 echo "<h3>1. Testing MySQLi Connection</h3>";
 echo "<div class='section'>";
 try {
-    require_once __DIR__ . '/connect.php';
+    require_once __DIR__ . '/includes/connect.php';
     
     $result = mysqli_query($conn, "SELECT 1 as connection_test, NOW() as server_time");
     if ($result) {

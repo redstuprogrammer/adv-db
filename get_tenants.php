@@ -10,7 +10,7 @@ if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !==
     echo json_encode(["error" => "Unauthorized"]);
     exit;
 }
-require_once 'connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // 3. Check if connection exists
 if (!$conn) {

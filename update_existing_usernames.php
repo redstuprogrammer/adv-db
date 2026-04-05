@@ -3,7 +3,7 @@
  * Script to update existing tenants with usernames based on clinic name
  * Run once: php update_existing_usernames.php
  */
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // Query all tenants without usernames
 $query = "SELECT tenant_id, company_name, owner_name, contact_email FROM tenants WHERE username IS NULL OR username = ''";

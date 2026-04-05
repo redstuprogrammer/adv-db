@@ -3,18 +3,18 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
+require_once __DIR__ . '/includes/security_headers.php';
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
-require_once 'tenant_settings_functions.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_settings_functions.php';
 
 // Load tenant-specific login customization settings from tenant_configs
 $loginSettings = [
-    'brand_card_bg' => '#0d3b66',
+    'brand_card_bg' => '#001f3f',
     'branding_subtitle' => 'Powered by OralSync',
     'login_title' => 'Clinic Login',
-    'button_color' => '#0d3b66',
+    'button_color' => '#22c55e',
     'text_link_color' => '#2563eb',
     'bg_image_url' => ''
 ];
@@ -29,10 +29,10 @@ if ($tenant) {
                 $config = $result ? $result->fetch_assoc() : null;
                 if ($config) {
                     $loginSettings = [
-                        'brand_card_bg' => $config['brand_bg_color'] ?: '#0d3b66',
+                        'brand_card_bg' => $config['brand_bg_color'] ?: '#001f3f',
                         'branding_subtitle' => $config['brand_subtitle'] ?: 'Powered by OralSync',
                         'login_title' => $config['login_title'] ?: 'Clinic Login',
-                        'button_color' => $config['primary_btn_color'] ?: '#0d3b66',
+                        'button_color' => $config['primary_btn_color'] ?: '#22c55e',
                         'text_link_color' => $config['link_color'] ?: '#2563eb',
                         'bg_image_url' => $config['custom_bg_image_url'] ?: ''
                     ];

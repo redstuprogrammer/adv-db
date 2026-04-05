@@ -3,7 +3,7 @@
  * Database Migration Runner
  * Loads and executes migration SQL files
  */
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 $migrationFile = __DIR__ . '/Dump20260320/migration_add_password_reset.sql';
 

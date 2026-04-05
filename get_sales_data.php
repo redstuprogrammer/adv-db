@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 
 // Check authentication
 if (empty($_SESSION['superadmin_authed'])) {
@@ -10,7 +10,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     exit;
 }
 
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 header('Content-Type: application/json');
 

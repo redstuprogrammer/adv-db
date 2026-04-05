@@ -1,6 +1,6 @@
 <?php
 // Run migration for users table
-require_once 'connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 $migrations = [
     "ALTER TABLE `users` ADD COLUMN IF NOT EXISTS `first_name` VARCHAR(100) DEFAULT NULL",

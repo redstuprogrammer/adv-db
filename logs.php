@@ -6,9 +6,9 @@
 ini_set('session.gc_maxlifetime', 86400 * 7);
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -52,43 +52,7 @@ $tenantId = $_SESSION['tenant_id'];
 </head>
 <body>
   <div class="tenant-layout">
-    <nav class="tenant-sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo-icon">🏥</div>
-        <div class="sidebar-logo-text">OralSync</div>
-        <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-      </div>
-      <div class="sidebar-nav">
-        <a href="tenant_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">📊</span>
-          <span>Dashboard</span>
-        </a>
-        <a href="patients.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">👥</span>
-          <span>Patients</span>
-        </a>
-        <a href="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">📅</span>
-          <span>Appointments</span>
-        </a>
-        <a href="billing.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">💳</span>
-          <span>Billing</span>
-        </a>
-        <a href="manage_users.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">👤</span>
-          <span>Staff Management</span>
-        </a>
-        <a href="tenant_reports.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">📈</span>
-          <span>Reports</span>
-        </a>
-        <a href="tenant_settings.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="sidebar-nav-item">
-          <span class="sidebar-nav-icon">⚙️</span>
-          <span>Settings</span>
-        </a>
-      </div>
-    </nav>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <main class="tenant-main-content">
       <div class="tenant-header-bar">

@@ -1,12 +1,12 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Allow both superadmin and logged in tenant to query reports appropriately
 if (empty($_SESSION['superadmin_authed']) && empty($_SESSION['tenant_id'])) {
-    header('Location: ' . (empty($_SESSION['superadmin_authed']) ? 'superadmin_login.php' : 'tenant_login.php'));
+    header('Location: ' . (empty($_SESSION['superadmin_authed']) ? '/superadmin/superadmin_login.php' : '/tenant_login.php'));
     exit;
 }
 

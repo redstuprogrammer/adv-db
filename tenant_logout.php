@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ($_SESSION['tenant_slug'] ?? '')));
 $tenantId = (int)($_SESSION['tenant_id'] ?? 0);

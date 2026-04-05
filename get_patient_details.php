@@ -9,8 +9,8 @@
 
 session_start();
 header('Content-Type: application/json');
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');

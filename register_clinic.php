@@ -1,9 +1,9 @@
 <?php
 ob_start(); 
 header('Content-Type: application/json');
-require_once 'connect.php'; 
-require_once 'subscription_tiers.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php'; 
+require_once __DIR__ . '/includes/subscription_tiers.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 $response = [
     'success' => false, 

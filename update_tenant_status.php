@@ -6,8 +6,8 @@ header('Content-Type: application/json');
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 $tenant_id = $_POST['tenant_id'] ?? null;
 $status = $_POST['status'] ?? null;

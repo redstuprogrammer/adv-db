@@ -5,7 +5,7 @@
  * Provides functions to check tenant tier features and limits
  */
 
-require_once __DIR__ . '/subscription_tiers.php';
+require_once __DIR__ . '/includes/subscription_tiers.php';
 
 /**
  * Get the subscription tier for a specific tenant

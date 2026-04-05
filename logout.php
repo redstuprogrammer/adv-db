@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed']) {
     $username = $_SESSION['superadmin_username'] ?? 'Unknown';
@@ -23,5 +23,5 @@ if (ini_get('session.use_cookies')) {
 }
 
 session_destroy();
-header('Location: superadmin_login.php');
+header('Location: /superadmin/superadmin_login.php');
 exit;

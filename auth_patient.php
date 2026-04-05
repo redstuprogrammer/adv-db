@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $identifier = $_POST['identifier'] ?? ''; 

@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // Create settings table if it doesn't exist
 try {

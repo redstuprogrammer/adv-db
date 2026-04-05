@@ -7,7 +7,7 @@ if (empty($_SESSION['superadmin_authed'])) {
     die('Unauthorized. Please log in as super admin first.');
 }
 
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 $message = '';
 $message_type = 'info';

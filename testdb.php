@@ -1,5 +1,5 @@
 <?php
-require_once("connect.php");
+require_once __DIR__ . '/includes/connect.php';
 
 $action = $_GET["action"] ?? $_POST["action"] ?? "";
 
