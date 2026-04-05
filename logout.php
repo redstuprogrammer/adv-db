@@ -23,5 +23,5 @@ if (ini_get('session.use_cookies')) {
 }
 
 session_destroy();
-header('Location: superadminsuperadmin_login.php');
+header('Location: superadmin_login.php');
 exit;

@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
                 mysqli_stmt_execute($updateStmt);
 
-                header('Location: superadminsuperadmin_dash.php');
+                header('Location: superadmin_dash.php');
                 exit;
             }
         }

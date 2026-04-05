@@ -19,43 +19,43 @@ switch ($role) {
     case 'dentist':
         $menu = [
             ['section' => 'Dentist', 'items' => [
-                ['href' => '/dentist/dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
+                ['href' => 'dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/dentist/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
-                ['href' => '/dentist/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
+                ['href' => 'dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
+                ['href' => 'dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
             ]],
         ];
-        $logoutLink = '/dentist/dentist_logout.php' . $baseTenantQuery;
+        $logoutLink = 'dentist_logout.php' . $baseTenantQuery;
         break;
     case 'receptionist':
         $menu = [
             ['section' => 'Receptionist', 'items' => [
-                ['href' => '/receptionist/receptionist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'receptionist_dashboard.php'],
+                ['href' => 'receptionist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'receptionist_dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/receptionist/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
-                ['href' => '/receptionist/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
-                ['href' => '/receptionist/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
+                ['href' => 'receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
+                ['href' => 'receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
+                ['href' => 'receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
             ]],
         ];
-        $logoutLink = '/receptionist/receptionist_logout.php' . $baseTenantQuery;
+        $logoutLink = 'receptionist_logout.php' . $baseTenantQuery;
         break;
     default:
         $menu = [
             ['section' => 'Main', 'items' => [
-                ['href' => '/admin/dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dashboard.php'],
+                ['href' => 'dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/admin/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
-                ['href' => '/admin/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
-                ['href' => '/admin/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php'],
+                ['href' => 'patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
+                ['href' => 'appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
+                ['href' => 'billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php'],
             ]],
             ['section' => 'Management', 'items' => [
-                ['href' => '/admin/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
-                ['href' => '/admin/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
-                ['href' => '/admin/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
-                ['href' => '/admin/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
+                ['href' => 'users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
+                ['href' => 'services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
+                ['href' => 'reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
+                ['href' => 'settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];
         $logoutLink = '/tenant_logout.php' . $baseTenantQuery;
