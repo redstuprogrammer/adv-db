@@ -22,41 +22,21 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
 
 // Load tenant-specific login customization settings from tenant_configs
 $loginSettings = [
-    'brand_card_bg' => '#001f3f',
-    'branding_subtitle' => 'Powered by OralSync',
+    'brand_bg_color' => '#001f3f',
+    'brand_text_color' => '#ffffff',
+    'primary_btn_color' => '#22c55e',
+    'link_color' => '#2563eb',
     'login_title' => 'Clinic Login',
-    'button_color' => '#22c55e',
-    'text_link_color' => '#2563eb',
-    'bg_image_url' => ''
+    'login_description' => 'Please sign in to access your clinic portal.',
+    'brand_subtitle' => 'Powered by OralSync',
+    'brand_logo_path' => '',
+    'brand_bg_image_path' => ''
 ];
 
-$tenant_id = isset($_GET['tenant']) ? intval($_GET['tenant']) : 0;
-
-if ($tenant_id) {
-    try {
-        $stmt = $conn->prepare("SELECT brand_bg_color, brand_subtitle, login_title, primary_btn_color, link_color, custom_bg_image_url FROM tenant_configs WHERE tenant_id = ?");
-        if ($stmt) {
-            $stmt->bind_param('i', $tenant_id);
-            if ($stmt->execute()) {
-                $result = $stmt->get_result();
-                $config = $result ? $result->fetch_assoc() : null;
-                if ($config) {
-                    $loginSettings = [
-                        'brand_card_bg' => $config['brand_bg_color'] ?: '#001f3f',
-                        'branding_subtitle' => $config['brand_subtitle'] ?: 'Powered by OralSync',
-                        'login_title' => $config['login_title'] ?: 'Clinic Login',
-                        'button_color' => $config['primary_btn_color'] ?: '#22c55e',
-                        'text_link_color' => $config['link_color'] ?: '#2563eb',
-                        'bg_image_url' => $config['custom_bg_image_url'] ?: ''
-                    ];
-                }
-            }
-            $stmt->close();
-        }
-    } catch (Exception $e) {
-        error_log("Error loading tenant config: " . $e->getMessage());
-    }
-}
+$tenant_id = 0;
+$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+$error = '';
+$tenant = null;
 
 // Check connection
 if (!$conn && (!isset($pdo) || !$pdo)) {
@@ -99,6 +79,30 @@ if ($tenantSlug !== '') {
     } catch (Exception $e) {
         error_log("Exception in tenant lookup: " . $e->getMessage());
         $error = "An error occurred. Please try again.";
+    }
+}
+
+if ($tenant && isset($tenant['tenant_id'])) {
+    $tenant_id = (int)$tenant['tenant_id'];
+    try {
+        $stmt = $conn->prepare("SELECT brand_bg_color, brand_text_color, primary_btn_color, link_color, login_title, login_description, brand_subtitle, brand_logo_path, brand_bg_image_path FROM tenant_configs WHERE tenant_id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param('i', $tenant_id);
+            if ($stmt->execute()) {
+                $result = $stmt->get_result();
+                $config = $result ? $result->fetch_assoc() : null;
+                if ($config) {
+                    foreach ($config as $key => $value) {
+                        if ($value !== null && $value !== '') {
+                            $loginSettings[$key] = $value;
+                        }
+                    }
+                }
+            }
+            $stmt->close();
+        }
+    } catch (Exception $e) {
+        error_log("Error loading tenant config: " . $e->getMessage());
     }
 }
 
@@ -220,13 +224,26 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <link rel="stylesheet" href="tenant_style.css">
     <style>
         .t-brandPanel {
-            background: linear-gradient(135deg, <?php echo h($loginSettings['brand_card_bg']); ?>, <?php echo h($loginSettings['brand_card_bg']); ?>dd) !important;
+            color: <?php echo h($loginSettings['brand_text_color']); ?>;
+            background: <?php echo h($loginSettings['brand_bg_color']); ?>;
+            background-image: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.22)), url('" . h($loginSettings['brand_bg_image_path']) . "')" : 'none'; ?>;
+            background-size: cover;
+            background-position: center;
+        }
+        .t-brandPanel, .t-brandPanel * {
+            color: <?php echo h($loginSettings['brand_text_color']); ?> !important;
+        }
+        .t-logo img {
+            display: block;
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
         }
         .t-btnPrimary {
-            background: <?php echo h($loginSettings['button_color']); ?> !important;
+            background: <?php echo h($loginSettings['primary_btn_color']); ?> !important;
         }
         .t-card a[href*="forgot_password"] {
-            color: <?php echo h($loginSettings['text_link_color']); ?> !important;
+            color: <?php echo h($loginSettings['link_color']); ?> !important;
         }
     </style>
 </head>
@@ -235,10 +252,16 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
         <div class="t-shell">
             <section class="t-brandPanel">
                 <div class="t-brandTop">
-                    <div class="t-logo">OS</div>
+                    <div class="t-logo">
+                        <?php if (!empty($loginSettings['brand_logo_path'])): ?>
+                            <img src="<?php echo h($loginSettings['brand_logo_path']); ?>" alt="Clinic logo">
+                        <?php else: ?>
+                            OS
+                        <?php endif; ?>
+                    </div>
                     <div>
                         <div class="t-brandTitle"><?php echo h($clinicName); ?></div>
-                        <div class="t-brandSub"><?php echo h($loginSettings['branding_subtitle']); ?></div>
+                        <div class="t-brandSub"><?php echo h($loginSettings['brand_subtitle']); ?></div>
                     </div>
                 </div>
 
@@ -258,7 +281,7 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
             <section class="t-card">
                 <h1 class="t-cardTitle"><?php echo h($loginSettings['login_title']); ?></h1>
                 <div class="t-cardSub">
-                    Please sign in to access your clinic portal.
+                    <?php echo h($loginSettings['login_description']); ?>
                 </div>
 
                 <?php if ($error): ?>

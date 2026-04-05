@@ -43,6 +43,35 @@ if ($isSettingsPage) {
         return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
     }
 
+    function saveTenantUploadImage(int $tenantId, string $fieldName, string $filenameBase): ?string {
+        if (!isset($_FILES[$fieldName]) || !is_uploaded_file($_FILES[$fieldName]['tmp_name'])) {
+            return null;
+        }
+
+        $file = $_FILES[$fieldName];
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            return null;
+        }
+
+        $allowed = ['jpg', 'jpeg', 'png'];
+        $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if (!in_array($extension, $allowed, true)) {
+            return null;
+        }
+
+        $uploadDir = __DIR__ . '/assets/uploads/tenants/' . $tenantId . '/';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            return null;
+        }
+
+        $targetPath = $uploadDir . $filenameBase . '.' . $extension;
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+            return null;
+        }
+
+        return 'assets/uploads/tenants/' . $tenantId . '/' . $filenameBase . '.' . $extension;
+    }
+
     $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
     requireTenantLogin($tenantSlug);
 
@@ -85,20 +114,41 @@ if ($isSettingsPage) {
                 $stmt->close();
             }
         } elseif (isset($_POST['save_login_settings'])) {
-            // Save login customization settings
-            $loginBrandBg = $_POST['login_brand_bg'] ?? '#0d3b66';
-            $loginBrandingSubtitle = $_POST['login_branding_subtitle'] ?? 'Powered by OralSync';
-            $loginTitle = $_POST['login_title'] ?? 'Clinic Login';
-            $loginButtonColor = $_POST['login_button_color'] ?? '#0d3b66';
-            $loginTextLinkColor = $_POST['login_text_link_color'] ?? '#2563eb';
+            // Save login customization settings into tenant_configs
+            $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
+            $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
+            $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
+            $linkColor = trim($_POST['link_color'] ?? '#2563eb');
+            $loginTitle = trim($_POST['login_title'] ?? 'Clinic Login');
+            $loginDescription = trim($_POST['login_description'] ?? 'Please sign in to access your clinic portal.');
+            $brandSubtitle = trim($_POST['brand_subtitle'] ?? 'Powered by OralSync');
 
-            setTenantSetting($tenantId, 'login_brand_bg', $loginBrandBg);
-            setTenantSetting($tenantId, 'login_branding_subtitle', $loginBrandingSubtitle);
-            setTenantSetting($tenantId, 'login_title', $loginTitle);
-            setTenantSetting($tenantId, 'login_button_color', $loginButtonColor);
-            setTenantSetting($tenantId, 'login_text_link_color', $loginTextLinkColor);
+            $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
+            $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
 
-            $message = 'Login customization settings saved successfully!';
+            $configValues = [
+                'brand_bg_color' => $brandBgColor,
+                'brand_text_color' => $brandTextColor,
+                'primary_btn_color' => $primaryBtnColor,
+                'link_color' => $linkColor,
+                'login_title' => $loginTitle,
+                'login_description' => $loginDescription,
+                'brand_subtitle' => $brandSubtitle,
+            ];
+
+            if ($brandLogoPath !== null) {
+                $configValues['brand_logo_path'] = $brandLogoPath;
+            }
+
+            if ($brandBgImagePath !== null) {
+                $configValues['brand_bg_image_path'] = $brandBgImagePath;
+            }
+
+            if (saveTenantConfig($tenantId, $configValues)) {
+                $message = 'Login customization settings saved successfully!';
+            } else {
+                $message = 'Unable to save login customization settings. Please try again.';
+            }
         }
     }
     ?>
@@ -160,6 +210,55 @@ if ($isSettingsPage) {
             font-size: 14px;
           }
 
+          .color-swatch-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+
+          .color-swatch {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+          }
+
+          .swatch-box {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 1px solid rgba(15, 23, 42, 0.12);
+          }
+
+          .swatch-label {
+            font-size: 14px;
+            color: #475569;
+            font-weight: 600;
+          }
+
+          .color-input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
+          }
+
+          .file-input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #ffffff;
+            cursor: pointer;
+          }
+
       .message {
         padding: 12px;
         border-radius: 8px;
@@ -207,21 +306,23 @@ if ($isSettingsPage) {
         margin-top: 20px;
       }
 
-      .preview-logo {
+      .preview-clinic-logo {
         width: 80px;
         height: 80px;
         border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #e2e8f0;
+        background: rgba(255,255,255,0.18);
         margin-bottom: 14px;
         overflow: hidden;
+        min-width: 80px;
       }
 
-      .preview-logo img {
-        max-width: 100%;
-        max-height: 100%;
+      .preview-clinic-logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
       }
 
       .preview-button {
@@ -437,50 +538,104 @@ if ($isSettingsPage) {
         <p style="color: #64748b; margin-bottom: 20px;">Customize your clinic's login page appearance. Changes will be visible to all users logging into your clinic.</p>
 
         <?php
-        // Load current tenant settings
-        $tenantSettings = getAllTenantSettings($tenantId);
+        // Load current login customization settings from tenant_configs
+        $tenantSettings = array_merge([
+            'brand_bg_color' => '#001f3f',
+            'brand_text_color' => '#ffffff',
+            'primary_btn_color' => '#22c55e',
+            'link_color' => '#2563eb',
+            'login_title' => 'Clinic Login',
+            'login_description' => 'Please sign in to access your clinic portal.',
+            'brand_subtitle' => 'Powered by OralSync',
+            'brand_logo_path' => '',
+            'brand_bg_image_path' => ''
+        ], getTenantConfig($tenantId));
         ?>
 
-        <form method="POST" id="loginSettingsForm" onsubmit="return validateForm()">
+        <form method="POST" enctype="multipart/form-data" id="loginSettingsForm" onsubmit="return validateForm()">
           <input type="hidden" name="save_login_settings" value="1">
           
           <div class="customizer-grid">
             <div class="form-group">
-              <label for="login_brand_bg">Brand Card Background</label>
-              <input type="color" id="login_brand_bg" name="login_brand_bg" class="live-update" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['login_brand_bg'] ?? '#001f3f'); ?>">
-              <div class="hint-text">Default: #001f3f (Navy Blue)</div>
+              <label for="brand_bg_color">Brand Card Background</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="brand_bg_color">
+                  <span class="swatch-box" id="swatch-brand-bg" style="background: <?php echo h($tenantSettings['brand_bg_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-brand-bg"><?php echo h($tenantSettings['brand_bg_color']); ?></span>
+                </button>
+                <input type="color" id="brand_bg_color" name="brand_bg_color" class="live-update color-input" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
+              </div>
+              <div class="hint-text">Select the main brand panel background.</div>
             </div>
 
             <div class="form-group">
-              <label for="login_button_color">Sign In Button Color</label>
-              <input type="color" id="login_button_color" name="login_button_color" class="live-update" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['login_button_color'] ?? '#22c55e'); ?>">
-              <div class="hint-text">Default: #22c55e (Green)</div>
+              <label for="brand_text_color">Brand Text Color</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="brand_text_color">
+                  <span class="swatch-box" id="swatch-brand-text" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-brand-text"><?php echo h($tenantSettings['brand_text_color']); ?></span>
+                </button>
+                <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-panel" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
+              </div>
             </div>
 
             <div class="form-group">
-              <label for="login_text_link_color">Text Link Color</label>
-              <input type="color" id="login_text_link_color" name="login_text_link_color" class="live-update" data-target="preview-forgot-link" data-style="color" value="<?php echo h($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>">
+              <label for="primary_btn_color">Sign In Button Color</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="primary_btn_color">
+                  <span class="swatch-box" id="swatch-button-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-button-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
+                </button>
+                <input type="color" id="primary_btn_color" name="primary_btn_color" class="live-update color-input" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['primary_btn_color']); ?>">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="link_color">Text Link Color</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="link_color">
+                  <span class="swatch-box" id="swatch-link-color" style="background: <?php echo h($tenantSettings['link_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-link-color"><?php echo h($tenantSettings['link_color']); ?></span>
+                </button>
+                <input type="color" id="link_color" name="link_color" class="live-update color-input" data-target="preview-forgot-link" data-style="color" value="<?php echo h($tenantSettings['link_color']); ?>">
+              </div>
             </div>
           </div>
 
           <div class="customizer-grid">
             <div class="form-group">
               <label for="login_title">Login Page Title</label>
-              <input type="text" id="login_title" name="login_title" class="live-update" data-target="preview-login-title" data-property="textContent" value="<?php echo h($tenantSettings['login_title'] ?? 'Clinic Login'); ?>" placeholder="Clinic Login" maxlength="255">
-              <div class="hint-text">Displayed above the login form</div>
+              <input type="text" id="login_title" name="login_title" class="live-update" data-target="preview-login-title" data-property="textContent" value="<?php echo h($tenantSettings['login_title']); ?>" placeholder="Clinic Login" maxlength="255">
+              <div class="hint-text">Displayed above the login form.</div>
             </div>
 
             <div class="form-group">
-              <label for="login_branding_subtitle">Brand Card Subtitle</label>
-              <input type="text" id="login_branding_subtitle" name="login_branding_subtitle" class="live-update" data-target="preview-subtitle" data-property="textContent" value="<?php echo h($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?>" placeholder="Powered by OralSync" maxlength="255">
-              <div class="hint-text">Small text on the left branding card</div>
+              <label for="brand_subtitle">Brand Card Subtitle</label>
+              <input type="text" id="brand_subtitle" name="brand_subtitle" class="live-update" data-target="preview-subtitle" data-property="textContent" value="<?php echo h($tenantSettings['brand_subtitle']); ?>" placeholder="Powered by OralSync" maxlength="255">
+              <div class="hint-text">Text shown on the brand panel.</div>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="custom_bg_image_url">Background Image URL (Optional)</label>
-            <textarea id="custom_bg_image_url" name="custom_bg_image_url" class="live-update" data-target="preview-left-panel" data-style="backgroundImage" rows="3" placeholder="https://example.com/path/to/image.jpg"><?php echo h($tenantSettings['custom_bg_image_url'] ?? ''); ?></textarea>
-            <div class="hint-text">Leave empty to use solid color. Full HTTPS URL required. Image will be applied to the left card with a dark overlay for text readability.</div>
+            <label for="login_description">Login Page Description</label>
+            <textarea id="login_description" name="login_description" class="live-update" data-target="preview-description" data-property="textContent" rows="3" placeholder="Please sign in to access your clinic portal."><?php echo h($tenantSettings['login_description']); ?></textarea>
+          </div>
+
+          <div class="customizer-grid">
+            <div class="form-group">
+              <label for="brand_bg_image">Background Image Upload</label>
+              <input type="file" id="brand_bg_image" name="brand_bg_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-left-panel" data-style="backgroundImage">
+              <?php if (!empty($tenantSettings['brand_bg_image_path'])): ?>
+                <div class="hint-text">Current image: <?php echo h($tenantSettings['brand_bg_image_path']); ?></div>
+              <?php endif; ?>
+            </div>
+            <div class="form-group">
+              <label for="brand_logo_image">Clinic Logo Upload</label>
+              <input type="file" id="brand_logo_image" name="brand_logo_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-clinic-logo" data-property="logoPreview">
+              <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                <div class="hint-text">Current logo: <?php echo h($tenantSettings['brand_logo_path']); ?></div>
+              <?php endif; ?>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -493,19 +648,25 @@ if ($isSettingsPage) {
         <div class="login-preview-container">
           <div class="preview-label">📱 Live Preview - How Your Login Will Look</div>
           <div class="preview-split-layout">
-            <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['login_brand_bg'] ?? '#001f3f'); ?>; background-image: <?php echo $tenantSettings['custom_bg_image_url'] ? "url('" . h($tenantSettings['custom_bg_image_url']) . "')" : 'none'; ?>;">
+            <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['brand_bg_color']); ?>; color: <?php echo h($tenantSettings['brand_text_color']); ?>; background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
               <div class="preview-left-content">
-                <div class="preview-clinic-logo">🏥</div>
+                <div class="preview-clinic-logo" id="preview-clinic-logo">
+                  <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                    <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo">
+                  <?php else: ?>
+                    🏥
+                  <?php endif; ?>
+                </div>
                 <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
               </div>
-              <div class="preview-subtitle" id="preview-subtitle"><?php echo h($tenantSettings['login_branding_subtitle'] ?? 'Powered by OralSync'); ?></div>
+              <div class="preview-subtitle" id="preview-subtitle"><?php echo h($tenantSettings['brand_subtitle']); ?></div>
             </div>
 
             <div class="preview-right-panel">
-              <div class="preview-login-title" id="preview-login-title"><?php echo h($tenantSettings['login_title'] ?? 'Clinic Login'); ?></div>
-              <div class="preview-description">Enter your credentials to access your clinic account.</div>
-              <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['login_button_color'] ?? '#22c55e'); ?>;">Sign in</button>
-              <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['login_text_link_color'] ?? '#2563eb'); ?>;">Forgot password?</a>
+              <div class="preview-login-title" id="preview-login-title"><?php echo h($tenantSettings['login_title']); ?></div>
+              <div class="preview-description" id="preview-description"><?php echo h($tenantSettings['login_description']); ?></div>
+              <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
+              <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
             </div>
           </div>
         </div>
@@ -514,7 +675,18 @@ if ($isSettingsPage) {
   </div>
 
   <script>
-    // Live update preview as user types/selects colors
+    function updateSwatch(input) {
+      const swatchId = input.id.replace(/_/g, '-');
+      const label = document.getElementById(`label-${swatchId}`);
+      const swatch = document.getElementById(`swatch-${swatchId}`);
+      if (label) {
+        label.textContent = input.value;
+      }
+      if (swatch) {
+        swatch.style.background = input.value;
+      }
+    }
+
     document.querySelectorAll('.live-update').forEach(input => {
       input.addEventListener('input', function() {
         const targetId = this.dataset.target;
@@ -526,9 +698,10 @@ if ($isSettingsPage) {
         const value = this.value;
 
         if (style === 'backgroundImage') {
-          // Handle background image with overlay
           if (value.trim()) {
             target.style.backgroundImage = `url('${value}')`;
+            target.style.backgroundSize = 'cover';
+            target.style.backgroundPosition = 'center';
           } else {
             target.style.backgroundImage = 'none';
           }
@@ -537,34 +710,79 @@ if ($isSettingsPage) {
         } else if (property) {
           target[property] = value;
         }
+
+        if (this.type === 'color') {
+          updateSwatch(this);
+        }
       });
 
-      // Trigger initial update
       input.dispatchEvent(new Event('input'));
+    });
+
+    document.querySelectorAll('.color-swatch').forEach(button => {
+      button.addEventListener('click', function() {
+        const inputId = this.dataset.input;
+        const colorInput = document.getElementById(inputId);
+        if (colorInput) {
+          colorInput.click();
+        }
+      });
+    });
+
+    document.querySelectorAll('.file-input').forEach(input => {
+      input.addEventListener('change', function() {
+        const targetId = this.dataset.target;
+        const target = document.getElementById(targetId);
+        if (!target || !this.files.length) {
+          return;
+        }
+
+        const file = this.files[0];
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const value = event.target.result;
+          if (input.dataset.property === 'logoPreview') {
+            target.innerHTML = `<img src="${value}" alt="Logo preview">`;
+          } else {
+            target.style.backgroundImage = `url('${value}')`;
+            target.style.backgroundSize = 'cover';
+            target.style.backgroundPosition = 'center';
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     });
 
     function resetLoginPreview() {
       if (!confirm('Reset all login settings to defaults?')) return;
 
-      document.getElementById('login_brand_bg').value = '#001f3f';
-      document.getElementById('login_branding_subtitle').value = 'Powered by OralSync';
-      document.getElementById('login_title').value = 'Clinic Login';
-      document.getElementById('login_button_color').value = '#22c55e';
-      document.getElementById('login_text_link_color').value = '#2563eb';
-      document.getElementById('custom_bg_image_url').value = '';
+      const defaults = {
+        brand_bg_color: '#001f3f',
+        brand_text_color: '#ffffff',
+        primary_btn_color: '#22c55e',
+        link_color: '#2563eb',
+        login_title: 'Clinic Login',
+        brand_subtitle: 'Powered by OralSync',
+        login_description: 'Please sign in to access your clinic portal.',
+      };
 
-      // Trigger updates
-      document.querySelectorAll('.live-update').forEach(input => {
-        input.dispatchEvent(new Event('input'));
+      Object.keys(defaults).forEach(key => {
+        const input = document.getElementById(key);
+        if (input) {
+          input.value = defaults[key];
+          input.dispatchEvent(new Event('input'));
+        }
       });
+
+      document.getElementById('brand_bg_image').value = '';
+      document.getElementById('brand_logo_image').value = '';
+      const logoPreview = document.getElementById('preview-clinic-logo');
+      if (logoPreview) {
+        logoPreview.textContent = '🏥';
+      }
     }
 
     function validateForm() {
-      const bgImageUrl = document.getElementById('custom_bg_image_url').value.trim();
-      if (bgImageUrl && !bgImageUrl.startsWith('http')) {
-        alert('Background image URL must start with http:// or https://');
-        return false;
-      }
       return true;
     }
   </script>

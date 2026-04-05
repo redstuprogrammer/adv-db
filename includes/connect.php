@@ -1,20 +1,33 @@
 <?php
-$host = "oralsync-db.mysql.database.azure.com";
-$user = "oralsync";
-$pass = "Oralsync1";
-$db   = "oral";
-$port = 3306;
+// Database configuration - Local vs Azure
+if (gethostname() === 'DESKTOP-' . substr(gethostname(), 8) || strpos($_SERVER['HTTP_HOST'] ?? '', 'localhost') !== false) {
+    // Local development
+    $host = "localhost";
+    $user = "root";
+    $pass = "";
+    $db   = "oral";
+    $port = 3306;
+    $ssl_cert = null;
+} else {
+    // Azure production
+    $host = "oralsync-db.mysql.database.azure.com";
+    $user = "oralsync";
+    $pass = "Oralsync1";
+    $db   = "oral";
+    $port = 3306;
+    $ssl_cert = dirname(__DIR__) . '/azure-combined-2026.pem';
+}
 
 $conn = mysqli_init();
-// Point this to the absolute path just to be safe
-$ssl_cert = dirname(__DIR__) . '/azure-combined-2026.pem';
 
-mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+if ($ssl_cert && file_exists($ssl_cert)) {
+    mysqli_options($conn, MYSQLI_OPT_SSL_VERIFY_SERVER_CERT, false);
+}
 
-// Set a timeout so it doesn't spin forever
 mysqli_options($conn, MYSQLI_OPT_CONNECT_TIMEOUT, 5);
 
-if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, MYSQLI_CLIENT_SSL)) {
+$flags = $ssl_cert ? MYSQLI_CLIENT_SSL : 0;
+if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, NULL, $flags)) {
     error_log('MySQLi connection failed: ' . mysqli_connect_error());
     header('Content-Type: application/json');
     die(json_encode(["success" => false, "message" => "Database connection failed"]));
@@ -30,11 +43,8 @@ try {
         PDO::ATTR_TIMEOUT => 5
     ];
 
-    if (file_exists($ssl_cert)) {
+    if ($ssl_cert && file_exists($ssl_cert)) {
         $pdoOptions[PDO::MYSQL_ATTR_SSL_CA] = $ssl_cert;
-        $pdoOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
-    } else {
-        error_log('Warning: SSL CA file missing: ' . $ssl_cert);
         $pdoOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
     }
 
