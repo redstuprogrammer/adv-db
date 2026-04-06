@@ -289,9 +289,11 @@ if ($serviceStmt) {
 </div>
 
 <script>
-    let cart = [];
-
     <?php printDateClockScript(); ?>
+</script>
+
+<script>
+    let cart = [];
 
     function addToCart() {
         const serviceSelect = document.getElementById('service_dropdown');
