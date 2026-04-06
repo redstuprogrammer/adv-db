@@ -1,279 +1,143 @@
 <?php
-define('ROOT_PATH', __DIR__ . '/');
-// 1. Headers for JSON and Cross-Origin requests (CORS)
+// Headers
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Catch fatal errors and return them as JSON instead of a silent 500
-register_shutdown_function(function () {
-    $err = error_get_last();
-    if ($err && in_array($err['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
-        if (!headers_sent()) {
-            http_response_code(500);
-        }
-        echo json_encode([
-            'success' => false,
-            'message' => 'Server fatal error: ' . $err['message'],
-            'file'    => basename($err['file']),
-            'line'    => $err['line'],
-        ]);
-    }
-});
-
-// Handle preflight 'OPTIONS' requests from mobile/web browsers
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-// 2. Database Connection
-// Ensure connect.php handles the Azure SSL certificate
-require_once __DIR__ . '/../includes/connect.php';
+require_once __DIR__ . '/../connect.php';
 
-function parse_procedures_json(string $json): array {
-    $decoded = json_decode($json, true);
-    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-        return [];
-    }
-    return $decoded;
-}
-
-function compute_amount_from_procedures(array $procedures): float {
-    $total = 0.0;
-    foreach ($procedures as $procedure) {
-        if (isset($procedure['price']) && is_numeric($procedure['price'])) {
-            $total += (float)$procedure['price'];
-        }
-    }
-    return round($total, 2);
-}
-
+// ─────────────────────────────────────────────
+//  GET  →  fetch billings for a patient
+//  Query: payments JOIN appointment (to get appointment_date & patient filter)
+// ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
-    // 3. Capture Inputs
     $patient_id = $_GET['patient_id'] ?? '';
 
-    // 4. Validation
     if (empty($patient_id) || !is_numeric($patient_id)) {
-        echo json_encode([
-            'success' => false,
-            'message' => 'A valid patient_id is required',
-            'debug' => [
-                'method' => $_SERVER['REQUEST_METHOD'],
-                'content_type' => $_SERVER['CONTENT_TYPE'] ?? 'none'
-            ]
-        ]);
+        echo json_encode(['success' => false, 'message' => 'A valid patient_id is required.']);
         exit;
     }
 
-    // 5. Database Query
-    // Get billing info (payments) for the patient's appointments, including unbilled appointments
+    // Join payments → appointment so we can:
+    //   • filter by patient_id (lives on appointment)
+    //   • return appointment_date alongside the payment record
     $stmt = $conn->prepare("
         SELECT
             p.payment_id,
-            COALESCE(p.tenant_id, a.tenant_id) AS tenant_id,
-            COALESCE(p.amount, 0) AS amount,
+            p.tenant_id,
+            p.appointment_id,
+            p.amount,
             p.mode,
-            COALESCE(p.status, 'Pending') AS status,
-            p.payment_date,
+            p.status,
             p.procedures_json,
+            p.source,
             p.reference_number,
-            a.appointment_id,
-            a.appointment_date,
-            a.procedure_name,
-            t.company_name AS clinic_name
-        FROM appointment a
-        LEFT JOIN payment p ON p.appointment_id = a.appointment_id
-        JOIN tenants t ON a.tenant_id = t.tenant_id
+            p.payment_date,
+            a.appointment_date
+        FROM payments p
+        JOIN appointment a ON p.appointment_id = a.appointment_id
         WHERE a.patient_id = ?
-          AND t.status = 'active'
-        ORDER BY a.appointment_date DESC
+        ORDER BY p.payment_date DESC
     ");
 
     $stmt->bind_param("i", $patient_id);
-
-    if (!$stmt->execute()) {
-        echo json_encode(['success' => false, 'message' => 'Query execution failed: ' . $stmt->error]);
-        exit;
-    }
-
-    // Bind result columns instead of using get_result() (avoids mysqlnd dependency)
-    $stmt->bind_result(
-        $payment_id,
-        $tenant_id,
-        $amount,
-        $mode,
-        $status,
-        $payment_date,
-        $procedures_json,
-        $reference_number,
-        $appointment_id,
-        $appointment_date,
-        $procedure_name,
-        $clinic_name
-    );
+    $stmt->execute();
+    $result = $stmt->get_result();
 
     $billings = [];
-    while ($stmt->fetch()) {
-        $row = [
-            'payment_id'       => $payment_id,
-            'tenant_id'        => $tenant_id,
-            'amount'           => $amount,
-            'mode'             => $mode,
-            'status'           => $status,
-            'payment_date'     => $payment_date,
-            'procedures_json'  => $procedures_json,
-            'reference_number' => $reference_number,
-            'appointment_id'   => $appointment_id,
-            'appointment_date' => $appointment_date,
-            'procedure_name'   => $procedure_name,
-            'clinic_name'      => $clinic_name,
-        ];
-        // Parse procedures_json if it exists
-        if (!empty($row['procedures_json'])) {
-            $row['procedures'] = json_decode($row['procedures_json'], true);
-        } else {
-            $row['procedures'] = null;
-        }
+    while ($row = $result->fetch_assoc()) {
         $billings[] = $row;
     }
 
     echo json_encode([
-        'success'   => true,
-        'message'   => 'Billing info fetched successfully',
-        'billings'  => $billings
+        'success'  => true,
+        'message'  => 'Billings fetched successfully.',
+        'billings' => $billings,
     ]);
 
     $stmt->close();
 
+// ─────────────────────────────────────────────
+//  POST  →  submit / record a payment
+// ─────────────────────────────────────────────
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // Handle mobile payment submissions
     $input = json_decode(file_get_contents('php://input'), true);
 
-    if (!$input) {
-        echo json_encode(['success' => false, 'message' => 'Invalid JSON input']);
+    $tenant_id        = $input['tenant_id']        ?? null;
+    $appointment_id   = $input['appointment_id']   ?? null;
+    $amount           = $input['amount']           ?? null;
+    $mode             = $input['mode']             ?? 'Cash';
+    $status           = $input['status']           ?? 'Paid';
+    $procedures_json  = $input['procedures_json']  ?? '[]';
+    $reference_number = $input['reference_number'] ?? null;
+
+    if (!$tenant_id || !$appointment_id || $amount === null || !$reference_number) {
+        echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
         exit;
     }
 
-    // Required fields for mobile payment
-    $tenant_id = (int)($input['tenant_id'] ?? 0);
-    $appointment_id = (int)($input['appointment_id'] ?? 0);
-    $amount = (float)($input['amount'] ?? 0);
-    $mode = trim($input['mode'] ?? '');
-    $status = trim($input['status'] ?? '');
-    $procedures_json = trim($input['procedures_json'] ?? '');
-    $reference_number = trim($input['reference_number'] ?? '');
+    // Check if a payment already exists for this appointment
+    $check = $conn->prepare("SELECT payment_id FROM payments WHERE appointment_id = ? LIMIT 1");
+    $check->bind_param("i", $appointment_id);
+    $check->execute();
+    $check->store_result();
 
-    // Validation
-    $errors = [];
-    if ($tenant_id <= 0) $errors[] = "Invalid tenant";
-    if ($appointment_id <= 0) $errors[] = "Invalid appointment";
-    if (empty($mode)) $errors[] = "Payment mode required";
-    if (empty($status)) $errors[] = "Payment status required";
-    if (empty($procedures_json)) $errors[] = "Procedures data required";
-    if (empty($reference_number)) $errors[] = "Reference number required";
+    if ($check->num_rows > 0) {
+        // UPDATE the existing payment row
+        $check->bind_result($existing_payment_id);
+        $check->fetch();
+        $check->close();
 
-    // Parse and validate procedures
-    $procedures = parse_procedures_json($procedures_json);
-    if (empty($procedures)) {
-        $errors[] = 'Invalid procedures data';
-    }
-
-    if ($amount <= 0) {
-        $amount = compute_amount_from_procedures($procedures);
-    }
-    if ($amount <= 0) {
-        $errors[] = "Amount must be greater than 0";
-    }
-
-    if (!empty($errors)) {
-        echo json_encode(['success' => false, 'message' => 'Validation errors', 'errors' => $errors]);
-        exit;
-    }
-
-    // Concatenate procedure names
-    $procedure_names = array_column($procedures, 'name');
-    $procedure_name_concat = implode(', ', $procedure_names);
-
-    // Begin transaction
-    $conn->begin_transaction();
-
-    try {
-        // Insert payment record
-        $insert_sql = "INSERT INTO payment (
-            tenant_id, appointment_id, amount, mode, status,
-            procedures_json, source, reference_number, payment_date
-        ) VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?, NOW())";
-
-        $stmt = mysqli_prepare($conn, $insert_sql);
-        if (!$stmt) {
-            throw new Exception("Failed to prepare payment insert: " . mysqli_error($conn));
-        }
-
-        mysqli_stmt_bind_param($stmt, "iidssss", $tenant_id, $appointment_id, $amount, $mode, $status, $procedures_json, $reference_number);
-
-        if (!mysqli_stmt_execute($stmt)) {
-            throw new Exception("Failed to insert payment: " . mysqli_stmt_error($stmt));
-        }
-
-        $payment_id = mysqli_insert_id($conn);
-        mysqli_stmt_close($stmt);
-
-        // Update appointment.procedure_name
-        $update_appt_sql = "UPDATE appointment SET procedure_name = ? WHERE appointment_id = ? AND tenant_id = ?";
-        $stmt2 = mysqli_prepare($conn, $update_appt_sql);
-        if (!$stmt2) {
-            throw new Exception("Failed to prepare appointment update: " . mysqli_error($conn));
-        }
-
-        mysqli_stmt_bind_param($stmt2, "sii", $procedure_name_concat, $appointment_id, $tenant_id);
-
-        if (!mysqli_stmt_execute($stmt2)) {
-            throw new Exception("Failed to update appointment: " . mysqli_stmt_error($stmt2));
-        }
-
-        mysqli_stmt_close($stmt2);
-
-        // If payment status is 'Paid', update appointment status to 'Completed'
-        if (strtolower($status) === 'paid') {
-            $update_status_sql = "UPDATE appointment SET status = 'Completed' WHERE appointment_id = ? AND tenant_id = ?";
-            $stmt3 = mysqli_prepare($conn, $update_status_sql);
-            if (!$stmt3) {
-                throw new Exception("Failed to prepare status update: " . mysqli_error($conn));
-            }
-
-            mysqli_stmt_bind_param($stmt3, "ii", $appointment_id, $tenant_id);
-
-            if (!mysqli_stmt_execute($stmt3)) {
-                throw new Exception("Failed to update appointment status: " . mysqli_stmt_error($stmt3));
-            }
-
-            mysqli_stmt_close($stmt3);
-        }
-
-        // Commit transaction
-        $conn->commit();
+        $upd = $conn->prepare("
+            UPDATE payments
+            SET amount = ?, mode = ?, status = ?, procedures_json = ?,
+                reference_number = ?, source = 'mobile', payment_date = CURRENT_TIMESTAMP
+            WHERE payment_id = ?
+        ");
+        $upd->bind_param("dssssi", $amount, $mode, $status, $procedures_json, $reference_number, $existing_payment_id);
+        $upd->execute();
+        $upd->close();
 
         echo json_encode([
-            'success' => true,
-            'message' => 'Mobile payment processed successfully',
-            'payment_id' => $payment_id,
-            'reference_number' => $reference_number
+            'success'          => true,
+            'message'          => 'Payment updated successfully.',
+            'payment_id'       => $existing_payment_id,
+            'reference_number' => $reference_number,
         ]);
 
-    } catch (Exception $e) {
-        // Rollback transaction
-        $conn->rollback();
+    } else {
+        $check->close();
 
-        error_log("Mobile payment processing error: " . $e->getMessage());
-        echo json_encode(['success' => false, 'message' => 'Failed to process payment: ' . $e->getMessage()]);
+        // INSERT a new payment row
+        $ins = $conn->prepare("
+            INSERT INTO payments
+                (tenant_id, appointment_id, amount, mode, status, procedures_json, source, reference_number)
+            VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?)
+        ");
+        $ins->bind_param("iidssss", $tenant_id, $appointment_id, $amount, $mode, $status, $procedures_json, $reference_number);
+        $ins->execute();
+
+        $new_id = $conn->insert_id;
+        $ins->close();
+
+        echo json_encode([
+            'success'          => true,
+            'message'          => 'Payment recorded successfully.',
+            'payment_id'       => $new_id,
+            'reference_number' => $reference_number,
+        ]);
     }
 
 } else {
-    echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+    echo json_encode(['success' => false, 'message' => 'Only GET and POST requests are allowed.']);
 }
 
 $conn->close();
