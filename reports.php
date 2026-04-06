@@ -239,7 +239,7 @@ $tenantId = getCurrentTenantId();
                   <td>" . h($row['log_time']) . "</td>
                   <td>" . h($row['log_date']) . "</td>
                   <td>$badge</td>
-                  <td>" . h($row['details']) . "</td>
+                  <td>" . h($row['activity_description'] ?? '') . "</td>
                 </tr>";
               }
               $stmt->close();

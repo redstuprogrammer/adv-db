@@ -39,7 +39,7 @@ requireTenantLogin($tenantSlug);
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'];
-$dentistName = $_SESSION['username'];
+$dentistName = $_SESSION['first_name'] ?? $_SESSION['username'] ?? 'Dentist';
 
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $today = date('Y-m-d');

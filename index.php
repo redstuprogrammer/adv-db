@@ -6,12 +6,27 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php';
 require_once ROOT_PATH . 'settings.php';
 
 // Routing logic
 if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
     header('Location: superadmin_dash.php');
     exit();
+}
+
+// Check if user is logged in as tenant user (admin, receptionist, dentist, etc.)
+if (isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context']) && !empty($_SESSION['tenant_slug_current'])) {
+    $tenantSlug = $_SESSION['tenant_slug_current'];
+    $currentContext = $_SESSION['tenant_context'][$tenantSlug] ?? null;
+    if ($currentContext && isset($currentContext['role'])) {
+        // Redirect tenant users to their appropriate dashboard
+        $dashboardUrl = getRoleDashboardUrl($currentContext['role'], $tenantSlug);
+        if ($dashboardUrl) {
+            header('Location: ' . $dashboardUrl);
+            exit();
+        }
+    }
 }
 
 // Check for tenant slug in URL (assuming query parameter)

@@ -36,12 +36,22 @@ $stmt = $conn->prepare("SELECT u.user_id, u.username, u.email, u.role, u.first_n
                        FROM users u 
                        LEFT JOIN dentist d ON u.user_id = d.dentist_id 
                        WHERE u.user_id = ? AND u.tenant_id = ?");
-if ($stmt) {
-    $stmt->bind_param('ii', $user_id, $tenantId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $staff = $result->fetch_assoc();
-    $stmt->close();
+if (!$stmt) {
+    error_log("Prepare failed: " . $conn->error);
+    die("Database error: Unable to fetch staff details.");
+}
+$stmt->bind_param('ii', $user_id, $tenantId);
+if (!$stmt->execute()) {
+    error_log("Execute failed: " . $stmt->error);
+    die("Database error: " . $stmt->error);
+}
+$result = $stmt->get_result();
+$staff = $result->fetch_assoc();
+$stmt->close();
+
+// If dentist record doesn't exist, provide defaults
+if ($staff && !isset($staff['primary_specialization'])) {
+    $staff['primary_specialization'] = 'General Practitioner';
 }
 
 if (!$staff) {

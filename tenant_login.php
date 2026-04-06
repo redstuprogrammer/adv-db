@@ -10,6 +10,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Load includes FIRST before using any functions
+require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php';
+require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
+
 // Prevent redirect loops by tracking redirect count
 $_SESSION['tenant_login_redirect_count'] = ($_SESSION['tenant_login_redirect_count'] ?? 0) + 1;
 if ($_SESSION['tenant_login_redirect_count'] > 5) {
@@ -30,11 +36,6 @@ if (isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context']) 
         }
     }
 }
-
-require_once ROOT_PATH . 'includes/security_headers.php';
-require_once ROOT_PATH . 'includes/connect.php';
-require_once ROOT_PATH . 'includes/tenant_utils.php';
-require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
 
 // Check if superadmin is logged in - redirect to dashboard
 // Commented out to allow testing multiple roles in different tabs
