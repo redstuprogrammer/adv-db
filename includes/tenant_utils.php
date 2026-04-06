@@ -552,7 +552,7 @@ function saveTenantConfig(int $tenantId, array $values): bool {
     // Build dynamic update query
     $columns = [];
     $params = [];
-    $types = '';
+    $types = 'i';
     
     foreach ($values as $key => $value) {
         $columns[] = "`$key` = ?";
@@ -560,8 +560,7 @@ function saveTenantConfig(int $tenantId, array $values): bool {
         $types .= 's';
     }
     
-    $params[] = $tenantId;
-    $types .= 'i';
+    $types .= str_repeat('s', count($params));
     
     $sql = "INSERT INTO tenant_configs (tenant_id, " . implode(', ', array_keys($values)) . ") 
             VALUES (?," . str_repeat('?,', count($values) - 1) . "?) 
@@ -569,7 +568,8 @@ function saveTenantConfig(int $tenantId, array $values): bool {
     
     $stmt = $conn->prepare($sql);
     if ($stmt) {
-        $stmt->bind_param($types, ...array_merge([$tenantId], $params));
+        $bindParams = array_merge([$tenantId], $params, $params);
+        $stmt->bind_param($types, ...$bindParams);
         $success = $stmt->execute();
         $stmt->close();
         return $success;
