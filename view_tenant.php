@@ -44,6 +44,7 @@ if (!$tenant) {
                     <div><strong>Email:</strong> <?php echo $tenant['contact_email']; ?></div>
                     <div><strong>Phone:</strong> <?php echo $tenant['phone']; ?></div>
                     <div><strong>Subdomain:</strong> <code><?php echo $tenant['subdomain_slug']; ?>.oralsync.com</code></div>
+                    <div><strong>Subscription Plan:</strong> <?php echo ucfirst($tenant['subscription_tier']); ?></div>
                     <div><strong>Status:</strong> 
                         <span class="badge-<?php echo strtolower($tenant['status']); ?>">
                             <?php echo $tenant['status']; ?>

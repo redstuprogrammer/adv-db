@@ -23,7 +23,7 @@ $offset = ($page - 1) * $limit;
 
 // Filters
 $date_filter = $_GET['date'] ?? '';
-$user_filter = $_GET['user'] ?? '';
+$user_type_filter = $_GET['user_type'] ?? '';
 $action_filter = $_GET['action'] ?? '';
 
 try {
@@ -39,11 +39,8 @@ try {
         $params[] = $date_filter;
     }
 
-    if ($user_filter) {
-        $whereSuperAdmin[] = "COALESCE(username, admin_name, 'System') LIKE ?";
-        $whereTenant[] = "'Tenant' LIKE ?";
-        $params[] = "%$user_filter%";
-        $params[] = "%$user_filter%";
+    if ($user_type_filter) {
+        // If filtering by user type, we'll handle in query building
     }
 
     if ($action_filter) {
@@ -83,17 +80,23 @@ try {
         $whereTenantClause
     ";
 
-    // Get total count for pagination
+    if ($user_type_filter) {
+        $baseQuery = "SELECT * FROM ($baseQuery) as combined WHERE source = ?";
+        $params[] = $user_type_filter === 'superadmin' ? 'Super Admin' : 'Tenant';
+    }
+
+    // Get total count
     $countQuery = "SELECT COUNT(*) as total FROM ($baseQuery) as combined_logs";
     $stmt = $pdo->prepare($countQuery);
     $stmt->execute($params);
     $totalRecords = $stmt->fetch()['total'];
     $totalPages = ceil($totalRecords / $limit);
 
-    // Get paginated data
-    $dataQuery = "$baseQuery ORDER BY timestamp DESC LIMIT $limit OFFSET $offset";
+    // Add ORDER BY and LIMIT for data
+    $dataQuery = "$baseQuery ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+    $dataParams = array_merge($params, [$limit, $offset]);
     $stmt = $pdo->prepare($dataQuery);
-    $stmt->execute($params);
+    $stmt->execute($dataParams);
 
     $logs = [];
     while ($log = $stmt->fetch()) {

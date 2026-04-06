@@ -439,9 +439,16 @@ try {
 
                             if (count($tenantActivities) === 0) {
                                 $tenantActivities = [
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-1 day')),'company_name' => 'SeaSmile Dental','activity_type' => 'Appointment Scheduled','details' => 'New appointment booked for patient Maria Cruz'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-2 days')),'company_name' => 'BrightHope Clinic','activity_type' => 'Payment Received','details' => 'Subscription payment marked as paid'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-3 days')),'company_name' => 'PearlCare Dental','activity_type' => 'Patient Created','details' => 'New patient profile added for John Reyes'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-1 hour')),'company_name' => 'SeaSmile Dental','activity_type' => 'Appointment Scheduled','details' => 'New appointment booked for patient Maria Cruz'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-2 hours')),'company_name' => 'BrightHope Clinic','activity_type' => 'Payment Received','details' => 'Invoice payment of ₱2,500 received from patient'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-3 hours')),'company_name' => 'PearlCare Dental','activity_type' => 'Patient Created','details' => 'New patient profile added for John Reyes'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-4 hours')),'company_name' => 'SmileBright Clinic','activity_type' => 'Staff Login','details' => 'Receptionist Sarah logged in'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-5 hours')),'company_name' => 'DentalCare Plus','activity_type' => 'Invoice Generated','details' => 'Invoice #INV-2026-001 generated for treatment'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-6 hours')),'company_name' => 'HealthyTeeth Co','activity_type' => 'Appointment Completed','details' => 'Appointment completed for patient Anna Santos'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-7 hours')),'company_name' => 'BrightSmile Dental','activity_type' => 'Patient Updated','details' => 'Patient contact information updated'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-8 hours')),'company_name' => 'PearlWhite Clinic','activity_type' => 'Dentist Login','details' => 'Dr. Michael Chen logged in'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-9 hours')),'company_name' => 'CareDental','activity_type' => 'Subscription Renewed','details' => 'Monthly subscription payment processed'],
+                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-10 hours')),'company_name' => 'OralHealth Pro','activity_type' => 'Report Generated','details' => 'Monthly revenue report exported'],
                                 ];
                             }
 

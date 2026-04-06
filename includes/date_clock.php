@@ -22,12 +22,21 @@ function printDateClockScript(): void {
                     element.textContent = timeString;
                 }
             };
+            
+            // Update immediately
             updateClock();
+            
+            // Update every second
             setInterval(updateClock, 1000);
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
+        // Run immediately if DOM is ready, or on load
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", function() {
+                initializeLiveClock();
+            });
+        } else {
             initializeLiveClock();
-        });
+        }
     </script>';
 }

@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 $appointments = [];
 $query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, 
                  p.first_name AS patient_first, p.last_name AS patient_last, 
-                 u.username AS dentist_name,
+                 CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS dentist_name,
                  'General Consultation' AS service_name
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id 

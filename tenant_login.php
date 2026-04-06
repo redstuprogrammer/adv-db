@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Fallback: check users table for receptionist/dentist
             try {
-                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?)) LIMIT 1");
+                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
                 if ($stmt) {
                     mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
                     if (mysqli_stmt_execute($stmt)) {
@@ -198,6 +198,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'user_id' => $userData['user_id'],
                 'user_email' => $userData['email']
             ];
+
+            // Regenerate session ID to allow multiple concurrent sessions
+            session_regenerate_id(true);
 
             $_SESSION['tenant_context'][$tenant['subdomain_slug']] = $context;
             $_SESSION['tenant_slug_current'] = $tenant['subdomain_slug'];

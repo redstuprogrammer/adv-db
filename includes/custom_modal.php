@@ -1,6 +1,7 @@
 <?php
 function renderCustomModal(): void {
-    echo '<div id="oralsyncModal" class="custom-modal" aria-hidden="true">
+    echo <<<EOF
+<div id="oralsyncModal" class="custom-modal" aria-hidden="true">
             <div class="custom-modal-card" role="dialog" aria-modal="true" aria-labelledby="customModalTitle">
                 <button type="button" class="custom-modal-close" onclick="closeCustomModal()">&times;</button>
                 <div class="custom-modal-body">
@@ -105,5 +106,6 @@ function renderCustomModal(): void {
                     closeCustomModal();
                 }
             });
-          </script>';
+          </script>
+EOF;
 }

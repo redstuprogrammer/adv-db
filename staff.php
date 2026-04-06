@@ -175,9 +175,9 @@ if ($stmt) {
             <?php foreach ($staffMembers as $staff): ?>
               <div class="staff-card">
                 <div class="staff-header">
-                  <div class="staff-avatar"><?php echo h(substr($staff['username'], 0, 1)); ?></div>
+                  <div class="staff-avatar"><?php echo h(substr($staff['first_name'], 0, 1)); ?></div>
                   <div class="staff-info">
-                    <h3><?php echo ($staff['role'] === 'Dentist' ? 'Dr. ' : ''); ?><?php echo h($staff['username']); ?></h3>
+                    <h3><?php echo ($staff['role'] === 'Dentist' ? 'Dr. ' : ''); ?><?php echo h(trim($staff['first_name'] . ' ' . $staff['last_name'])); ?></h3>
                     <p><?php echo h($staff['role']); ?></p>
                   </div>
                 </div>

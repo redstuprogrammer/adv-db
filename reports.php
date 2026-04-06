@@ -8,6 +8,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/custom_modal.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -286,10 +287,11 @@ $tenantId = getCurrentTenantId();
             <tbody id="revenue-tbody">
               <?php
               // Load initial data
-              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.service, py.amount, py.status, a.appointment_date as appointment_date 
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount, py.status, a.appointment_date as appointment_date 
                                       FROM payment py 
-                                      JOIN appointment a ON py.appointment_id = a.appointment_id 
-                                      JOIN patient p ON a.patient_id = p.patient_id 
+                                      LEFT JOIN appointment a ON py.appointment_id = a.appointment_id 
+                                      LEFT JOIN patient p ON a.patient_id = p.patient_id 
+                                      LEFT JOIN services s ON py.service_id = s.service_id AND s.tenant_id = py.tenant_id
                                       WHERE py.tenant_id = ? AND py.status = 'Paid' 
                                       ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
@@ -360,7 +362,7 @@ $tenantId = getCurrentTenantId();
           if (data.success) {
             renderActivityTable(data.data);
           } else {
-            alert('Error: ' + data.error);
+            showCustomAlert('Error loading activity data: ' + data.error);
           }
         })
         .catch(err => console.error(err));
@@ -400,7 +402,7 @@ $tenantId = getCurrentTenantId();
           if (data.success) {
             renderRevenueTable(data.data);
           } else {
-            alert('Error: ' + data.error);
+            showCustomAlert('Error loading revenue data: ' + data.error);
           }
         })
         .catch(err => console.error(err));
@@ -424,6 +426,9 @@ $tenantId = getCurrentTenantId();
 
     // Export functions have been removed to keep the reports page streamlined and focused on review only.
   </script>
+
+  <?php renderCustomModal(); ?>
+
 </body>
 </html>
 

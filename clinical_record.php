@@ -12,6 +12,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/custom_modal.php';
 
 // Security Check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist') {
@@ -34,7 +35,7 @@ $dentistName = $_SESSION['username'] ?? 'Dentist';
 // Get patient_id from URL
 $patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 if (!$patient_id) {
-    echo "<script>alert('Patient not found'); window.history.back();</script>";
+    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
     exit();
 }
 
@@ -49,7 +50,7 @@ if ($patientStmt) {
 }
 
 if (!$patient) {
-    echo "<script>alert('Patient not found'); window.history.back();</script>";
+    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
     exit();
 }
 
@@ -413,6 +414,8 @@ if ($historyStmt) {
         </div>
     <?php endif; ?>
 </div>
+
+<?php renderCustomModal(); ?>
 
 </body>
 </html>
