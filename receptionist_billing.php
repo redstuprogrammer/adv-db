@@ -197,7 +197,7 @@ if ($serviceStmt) {
                 </tbody>
             </table>
         </div>
-    </main>
+    </div>
 </div>
 
 <div id="paymentModal" class="modal">
@@ -290,8 +290,6 @@ if ($serviceStmt) {
 
 <script>
     let cart = [];
-
-    <?php printDateClockScript(); ?>
 
     <?php printDateClockScript(); ?>
 

@@ -434,8 +434,6 @@ if ($stmt) {
   <script>
     <?php printDateClockScript(); ?>
 
-    <?php printDateClockScript(); ?>
-
     function openScheduleModal() {
       document.getElementById('scheduleModal').classList.add('active');
     }
