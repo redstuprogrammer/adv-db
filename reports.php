@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -177,7 +178,7 @@ $tenantId = getCurrentTenantId();
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">📊 Reports & Analytics</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <?php renderDateClock(); ?>
       </div>
 
       <!-- Tabs -->
@@ -325,6 +326,8 @@ $tenantId = getCurrentTenantId();
   </div>
 
   <script>
+    <?php printDateClockScript(); ?>
+
     document.addEventListener('DOMContentLoaded', function() {
       const params = new URLSearchParams(window.location.search);
       if (params.has('tab')) {

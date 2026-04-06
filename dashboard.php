@@ -17,6 +17,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -423,10 +424,7 @@ if ($stmt) {
       <!-- Header Bar -->
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Dashboard</div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
-        </div>
+        <?php renderDateClock(); ?>
       </div>
 
       <!-- Dashboard Content -->
@@ -643,17 +641,7 @@ if ($stmt) {
       });
     }
 
-    // Live Clock - Update every second
-    function updateClock() {
-      const clockElement = document.getElementById('liveClock');
-      if (clockElement) {
-        clockElement.textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
-      }
-    }
-    // Initialize clock immediately
-    updateClock();
-    // Update every second
-    setInterval(updateClock, 1000);
+    <?php printDateClockScript(); ?>
   </script>
 </body>
 </html>

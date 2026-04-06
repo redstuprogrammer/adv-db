@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -312,10 +313,7 @@ if ($stmt) {
       <!-- Header Bar -->
       <div class="tenant-header-bar">
         <div class="tenant-header-title"><?php echo h($tenantName); ?> Front Desk</div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
-        </div>
+        <?php renderDateClock(); ?>
       </div>
 
       <!-- Content -->
@@ -434,22 +432,9 @@ if ($stmt) {
   </div>
 
   <script>
-    // Live Clock Update Function
-    function updateClock() {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
-      const clockElement = document.getElementById('liveClock');
-      if (clockElement) {
-        clockElement.textContent = timeString;
-      }
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
+    <?php printDateClockScript(); ?>
+
+    <?php printDateClockScript(); ?>
 
     function openScheduleModal() {
       document.getElementById('scheduleModal').classList.add('active');

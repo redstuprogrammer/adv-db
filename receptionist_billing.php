@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
@@ -137,10 +138,7 @@ if ($serviceStmt) {
                 <h1 style="color: #0d3b66; margin:0;">Billing & Payments</h1>
                 <p style="color: #64748b; margin: 6px 0 0;">Manage invoices and transaction records</p>
             </div>
-            <div style="display: flex; align-items: center; gap: 16px;">
-              <div style="color: #0d3b66; font-size: 14px; font-weight: 600;"><?php echo date('l, M d, Y'); ?></div>
-              <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
-            </div>
+            <?php renderDateClock(); ?>
         </div>
 
         <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
@@ -293,11 +291,9 @@ if ($serviceStmt) {
 <script>
     let cart = [];
 
-    // 1. Live Clock
-    function updateClock() {
-        document.getElementById('liveClock').textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
-    }
-    setInterval(updateClock, 1000); updateClock();
+    <?php printDateClockScript(); ?>
+
+    <?php printDateClockScript(); ?>
 
     function addToCart() {
         const serviceSelect = document.getElementById('service_dropdown');

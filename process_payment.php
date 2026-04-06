@@ -23,6 +23,24 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function parse_procedures_json(string $json): array {
+    $decoded = json_decode($json, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return [];
+    }
+    return $decoded;
+}
+
+function compute_amount_from_procedures(array $procedures): float {
+    $total = 0.0;
+    foreach ($procedures as $procedure) {
+        if (isset($procedure['price']) && is_numeric($procedure['price'])) {
+            $total += (float)$procedure['price'];
+        }
+    }
+    return round($total, 2);
+}
+
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     header("Location: receptionist_billing.php");
     exit();
@@ -46,21 +64,24 @@ $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 $errors = [];
 if ($patient_id <= 0) $errors[] = "Invalid patient selected";
 if ($appointment_id <= 0) $errors[] = "Invalid appointment selected";
-if ($amount <= 0) $errors[] = "Amount must be greater than 0";
 if (empty($mode)) $errors[] = "Payment mode is required";
 if (empty($status)) $errors[] = "Payment status is required";
 if (empty($procedures_json)) $errors[] = "No procedures selected";
 
-if (!empty($errors)) {
-    $_SESSION['errors'] = $errors;
-    header("Location: receptionist_billing.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
+$procedures = parse_procedures_json($procedures_json);
+if (empty($procedures)) {
+    $errors[] = "Invalid procedures data";
 }
 
-// Parse procedures JSON
-$procedures = json_decode($procedures_json, true);
-if (json_last_error() !== JSON_ERROR_NONE || empty($procedures)) {
-    $_SESSION['errors'] = ["Invalid procedures data"];
+if ($amount <= 0) {
+    $amount = compute_amount_from_procedures($procedures);
+}
+if ($amount <= 0) {
+    $errors[] = "Amount must be greater than 0";
+}
+
+if (!empty($errors)) {
+    $_SESSION['errors'] = $errors;
     header("Location: receptionist_billing.php?tenant=" . rawurlencode($tenantSlug));
     exit();
 }

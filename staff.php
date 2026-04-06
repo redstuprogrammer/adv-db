@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -24,7 +25,7 @@ $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
 $staffMembers = [];
-$stmt = mysqli_prepare($conn, "SELECT user_id, username, email, role FROM users WHERE tenant_id = ? AND role IN ('Dentist', 'Receptionist') ORDER BY username ASC");
+$stmt = mysqli_prepare($conn, "SELECT user_id, username, email, role, COALESCE(NULLIF(first_name, ''), username) AS first_name, COALESCE(NULLIF(last_name, ''), '') AS last_name FROM users WHERE tenant_id = ? AND role IN ('Dentist', 'Receptionist') ORDER BY last_name ASC, first_name ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
@@ -165,10 +166,7 @@ if ($stmt) {
     <main class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">Staff Directory</div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
-        </div>
+        <?php renderDateClock(); ?>
       </div>
 
       <div class="module-card">
@@ -199,18 +197,6 @@ if ($stmt) {
     </main>
   </div>
 
-  <script>
-    // Live Clock - Update every second
-    function updateClock() {
-      const clockElement = document.getElementById('liveClock');
-      if (clockElement) {
-        clockElement.textContent = new Date().toLocaleTimeString('en-US', { hour12: true });
-      }
-    }
-    // Initialize clock immediately
-    updateClock();
-    // Update every second
-    setInterval(updateClock, 1000);
-  </script>
+  <?php printDateClockScript(); ?>
 </body>
 </html>

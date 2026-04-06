@@ -32,6 +32,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Ensure connect.php handles the Azure SSL certificate
 require_once __DIR__ . '/../includes/connect.php';
 
+function parse_procedures_json(string $json): array {
+    $decoded = json_decode($json, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        return [];
+    }
+    return $decoded;
+}
+
+function compute_amount_from_procedures(array $procedures): float {
+    $total = 0.0;
+    foreach ($procedures as $procedure) {
+        if (isset($procedure['price']) && is_numeric($procedure['price'])) {
+            $total += (float)$procedure['price'];
+        }
+    }
+    return round($total, 2);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     // 3. Capture Inputs
@@ -153,21 +171,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $errors = [];
     if ($tenant_id <= 0) $errors[] = "Invalid tenant";
     if ($appointment_id <= 0) $errors[] = "Invalid appointment";
-    if ($amount <= 0) $errors[] = "Amount must be greater than 0";
     if (empty($mode)) $errors[] = "Payment mode required";
     if (empty($status)) $errors[] = "Payment status required";
     if (empty($procedures_json)) $errors[] = "Procedures data required";
     if (empty($reference_number)) $errors[] = "Reference number required";
 
-    if (!empty($errors)) {
-        echo json_encode(['success' => false, 'message' => 'Validation errors', 'errors' => $errors]);
-        exit;
+    // Parse and validate procedures
+    $procedures = parse_procedures_json($procedures_json);
+    if (empty($procedures)) {
+        $errors[] = 'Invalid procedures data';
     }
 
-    // Parse and validate procedures
-    $procedures = json_decode($procedures_json, true);
-    if (json_last_error() !== JSON_ERROR_NONE || empty($procedures)) {
-        echo json_encode(['success' => false, 'message' => 'Invalid procedures data']);
+    if ($amount <= 0) {
+        $amount = compute_amount_from_procedures($procedures);
+    }
+    if ($amount <= 0) {
+        $errors[] = "Amount must be greater than 0";
+    }
+
+    if (!empty($errors)) {
+        echo json_encode(['success' => false, 'message' => 'Validation errors', 'errors' => $errors]);
         exit;
     }
 

@@ -11,6 +11,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 // Security Check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist') {
