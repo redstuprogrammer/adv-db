@@ -118,11 +118,10 @@ try {
     $totalRecords = $stmt->fetch()['total'];
     $totalPages = ceil($totalRecords / $limit);
 
-    // Add ORDER BY and LIMIT for data
-    $dataQuery = "$baseQuery ORDER BY timestamp DESC LIMIT ? OFFSET ?";
-    $dataParams = array_merge($params, [$limit, $offset]);
+    // Add ORDER BY and LIMIT for data (LIMIT and OFFSET must not use placeholders in PDO)
+    $dataQuery = "$baseQuery ORDER BY timestamp DESC LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
     $stmt = $pdo->prepare($dataQuery);
-    $stmt->execute($dataParams);
+    $stmt->execute($params);
 
     $logs = [];
     while ($log = $stmt->fetch()) {

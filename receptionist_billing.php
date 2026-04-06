@@ -331,11 +331,10 @@ if ($serviceStmt) {
 
     function updateCartDisplay() {
         const cartList = document.getElementById('cart-list');
-        const cartEmpty = document.getElementById('cart-empty');
         cartList.innerHTML = '';
 
         if (cart.length === 0) {
-            cartList.appendChild(cartEmpty);
+            cartList.innerHTML = '<p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>';
             return;
         }
 

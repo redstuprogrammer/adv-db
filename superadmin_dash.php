@@ -932,6 +932,7 @@ try {
                 <div class="detail-item"><strong>Email:</strong> <span id="dt-email"></span></div>
                 <div class="detail-item"><strong>Phone:</strong> <span id="dt-phone"></span></div>
                 <div class="detail-item"><strong>Status:</strong> <span id="dt-status"></span></div>
+                <div class="detail-item"><strong>Tier:</strong> <span id="dt-tier"></span></div>
                 <div class="detail-item" style="grid-column: 1 / -1;">
                     <strong>Address:</strong> <span id="dt-address"></span>
                 </div>
@@ -1388,6 +1389,7 @@ try {
                     document.getElementById('dt-email').textContent = tenant.contact_email;
                     document.getElementById('dt-phone').textContent = tenant.phone;
                     document.getElementById('dt-status').textContent = tenant.status;
+                    document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
                     document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                     const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                     document.getElementById('dt-date').textContent = date;
@@ -1413,6 +1415,7 @@ try {
                 document.getElementById('dt-email').textContent = tenant.contact_email;
                 document.getElementById('dt-phone').textContent = tenant.phone;
                 document.getElementById('dt-status').textContent = tenant.status;
+                document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
                 document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                 const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                 document.getElementById('dt-date').textContent = date;

@@ -456,6 +456,22 @@ if ($stmt) {
         </div>
       </div>
 
+      <!-- Calendar Card -->
+      <div class="dashboard-card" style="padding: 20px; background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; margin-bottom: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Calendar</h3>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;" id="todayDate">Today</div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" onclick="prevMonth()" style="background: white; border: 1px solid var(--dashboard-border); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">←</button>
+            <button type="button" onclick="nextMonth()" style="background: white; border: 1px solid var(--dashboard-border); padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">→</button>
+          </div>
+        </div>
+        <div style="text-align: center; font-size: 14px; font-weight: 700; color: var(--dashboard-accent); margin-bottom: 12px;" id="monthLabel">Month Year</div>
+        <div id="calendar" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;"><!-- Calendar will be rendered here --></div>
+      </div>
+
       <!-- Patient Directory -->
       <div class="patient-directory">
         <div class="directory-header">

@@ -59,8 +59,15 @@ function getRoleDashboardUrl(string $role, string $slug): string {
 }
 
 function getTenantContext(string $slug = ''): ?array {
+    // Priority 1: Get from query string (most important for multi-tab support)
     if ($slug === '') {
-        $slug = $_GET['tenant'] ?? $_SESSION['tenant_slug_current'] ?? $_SESSION['tenant_slug'] ?? '';
+        $slug = trim((string)($_GET['tenant'] ?? ''));
+    }
+    
+    // Priority 2: Get from session context slug if not in query string
+    if ($slug === '') {
+        $slug = $_SESSION['tenant_slug_current'] ?? $_SESSION['tenant_slug'] ?? '';
+        $slug = trim((string)$slug);
     }
     $slug = trim((string)$slug);
 
@@ -68,11 +75,12 @@ function getTenantContext(string $slug = ''): ?array {
         return null;
     }
 
+    // Always prefer the tenant_context array for multi-tab support
     if (!empty($_SESSION['tenant_context'][$slug]) && is_array($_SESSION['tenant_context'][$slug])) {
         return $_SESSION['tenant_context'][$slug];
     }
 
-    // Fallback to legacy values
+    // Fallback to legacy values (only if tenant_context doesn't exist)
     if (!empty($_SESSION['tenant_slug']) && $_SESSION['tenant_slug'] === $slug) {
         return [
             'tenant_id' => $_SESSION['tenant_id'] ?? null,
