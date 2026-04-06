@@ -24,6 +24,15 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function getServiceNamesFromJson(string $json): string {
+    $procedures = json_decode($json, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($procedures)) {
+        return 'General Service';
+    }
+    $names = array_column($procedures, 'name');
+    return implode(', ', $names) ?: 'General Service';
+}
+
 function formatTenantPatientId($tenant_patient_id) {
     return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
 }
@@ -44,17 +53,15 @@ $query = "SELECT
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            COALESCE(s.service_name, 'General Service') AS service_name,
             py.amount, 
             py.mode, 
             py.status,
             a.appointment_id,
             a.appointment_date,
-            s.service_id AS service_id
+            py.procedures_json
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
-          LEFT JOIN service s ON a.service_id = s.service_id
           WHERE py.tenant_id = ?
           ORDER BY py.payment_id DESC";
 
@@ -182,7 +189,7 @@ if ($serviceStmt) {
                             <tr>
                                 <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
                                 <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
-                                <td><?= h($row['service_name'] ?? 'N/A') ?></td>
+                                <td><?= h(getServiceNamesFromJson($row['procedures_json'] ?? '')) ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>

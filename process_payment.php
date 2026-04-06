@@ -116,21 +116,6 @@ try {
 
     mysqli_stmt_close($stmt);
 
-    // Update appointment.procedure_name
-    $update_appt_sql = "UPDATE appointment SET procedure_name = ? WHERE appointment_id = ? AND tenant_id = ?";
-    $stmt2 = mysqli_prepare($conn, $update_appt_sql);
-    if (!$stmt2) {
-        throw new Exception("Failed to prepare appointment update: " . mysqli_error($conn));
-    }
-
-    mysqli_stmt_bind_param($stmt2, "sii", $procedure_name_concat, $appointment_id, $tenantId);
-
-    if (!mysqli_stmt_execute($stmt2)) {
-        throw new Exception("Failed to update appointment: " . mysqli_stmt_error($stmt2));
-    }
-
-    mysqli_stmt_close($stmt2);
-
     // If payment status is 'Paid', update appointment status to 'Completed'
     if (strtolower($status) === 'paid') {
         $update_status_sql = "UPDATE appointment SET status = 'Completed' WHERE appointment_id = ? AND tenant_id = ?";

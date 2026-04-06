@@ -14,7 +14,7 @@ require_once __DIR__ . '/../connect.php';
 
 // ─────────────────────────────────────────────
 //  GET  →  fetch billings for a patient
-//  Query: payments JOIN appointment (to get appointment_date & patient filter)
+//  Query: payment JOIN appointment (to get appointment_date & patient filter)
 // ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // Join payments → appointment so we can:
+    // Join payment → appointment so we can:
     //   • filter by patient_id (lives on appointment)
     //   • return appointment_date alongside the payment record
     $stmt = $conn->prepare("
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             p.reference_number,
             p.payment_date,
             a.appointment_date
-        FROM payments p
+        FROM payment p
         JOIN appointment a ON p.appointment_id = a.appointment_id
         WHERE a.patient_id = ?
         ORDER BY p.payment_date DESC
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     // Check if a payment already exists for this appointment
-    $check = $conn->prepare("SELECT payment_id FROM payments WHERE appointment_id = ? LIMIT 1");
+    $check = $conn->prepare("SELECT payment_id FROM payment WHERE appointment_id = ? LIMIT 1");
     $check->bind_param("i", $appointment_id);
     $check->execute();
     $check->store_result();
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $check->close();
 
         $upd = $conn->prepare("
-            UPDATE payments
+            UPDATE payment
             SET amount = ?, mode = ?, status = ?, procedures_json = ?,
                 reference_number = ?, source = 'mobile', payment_date = CURRENT_TIMESTAMP
             WHERE payment_id = ?
@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         // INSERT a new payment row
         $ins = $conn->prepare("
-            INSERT INTO payments
+            INSERT INTO payment
                 (tenant_id, appointment_id, amount, mode, status, procedures_json, source, reference_number)
             VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?)
         ");
