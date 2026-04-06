@@ -56,9 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         SELECT
             p.payment_id,
             COALESCE(p.tenant_id, a.tenant_id) AS tenant_id,
-            p.amount,
+            COALESCE(p.amount, 0) AS amount,
             p.mode,
-            p.status,
+            COALESCE(p.status, 'Pending') AS status,
             p.payment_date,
             p.procedures_json,
             p.reference_number,
