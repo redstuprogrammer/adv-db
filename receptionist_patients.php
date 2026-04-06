@@ -510,8 +510,6 @@ if (isset($_GET['view_patient_id'])) {
   <script>
     <?php printDateClockScript(); ?>
 
-    <?php printDateClockScript(); ?>
-
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
       const rows = document.querySelectorAll('#patientTable tbody tr');

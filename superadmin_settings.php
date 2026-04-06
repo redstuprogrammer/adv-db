@@ -300,8 +300,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="logo">Logo / Icon Upload</label>
                         <input type="file" id="logo" name="logo" accept="image/png, image/jpeg, image/jpg">
                         <div class="logo-preview" id="logo-preview">
-                            <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . '/uploads/' . $currentSettings['logo_path'])): ?>
-                                <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
+                            <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . $currentSettings['logo_path'])): ?>
+                                <img src="<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
                             <?php else: ?>
                                 <span id="logo-placeholder">No logo uploaded</span>
                             <?php endif; ?>

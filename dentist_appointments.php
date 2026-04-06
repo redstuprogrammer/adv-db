@@ -292,8 +292,6 @@ if ($stmt) {
   <script>
     <?php printDateClockScript(); ?>
 
-    <?php printDateClockScript(); ?>
-
     // Verification logs
     console.log('UI Parity Active - Version 2.0');
     console.log('Dentist Appointments Module Active');
