@@ -810,10 +810,24 @@ try {
             }
         }
 
-        function exportPDF() {
+        function getReportTitle(type) {
+            const titles = {
+                'tenant_activity': 'Tenant Activity Report',
+                'user_registration': 'User Registration Report',
+                'usage_statistics': 'Usage Statistics Report',
+                'revenue': 'Sales Revenue Report'
+            };
+            return titles[type] || 'OralSync System Report';
+        }
             if (currentReportData.length === 0) {
                 alert('Please generate a report first');
                 return;
+            }
+
+            // Determine PDF type based on report type
+            let pdfType = 'standard';
+            if (selectedReportType === 'revenue') {
+                pdfType = 'sales';
             }
 
             // Send data to PDF generator
@@ -824,7 +838,8 @@ try {
                 },
                 body: JSON.stringify({
                     data: currentReportData,
-                    title: 'OralSync System Report'
+                    title: getReportTitle(selectedReportType),
+                    type: pdfType
                 })
             })
             .then(response => {
@@ -851,28 +866,22 @@ try {
         }
 
         function exportCSV() {
-            if (currentReportData.length === 0) {
-                alert('Please generate a report first');
+            if (!selectedReportType) {
+                alert('Please select a report type first');
                 return;
             }
 
-            let csv = '';
-            // Headers
-            csv += Object.keys(currentReportData[0]).join(',') + '\n';
-            // Rows
-            currentReportData.forEach(row => {
-                csv += Object.values(row).map(value => `"${value}"`).join(',') + '\n';
+            // Build query parameters
+            const params = new URLSearchParams({
+                type: selectedReportType,
+                date_from: document.getElementById('date-from').value,
+                date_to: document.getElementById('date-to').value,
+                tenant_id: document.getElementById('tenant-filter').value,
+                activity_type: document.getElementById('activity-type-filter').value
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'oralsync_report.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            // Redirect to server-side CSV generation
+            window.location.href = 'generate_csv.php?' + params.toString();
         }
 
         function exportTable(tableBodyId, format) {
@@ -900,10 +909,20 @@ try {
             if (format === 'csv') {
                 let csv = '';
                 data.forEach(row => {
-                    csv += row.map(cell => `"${cell}"`).join(',') + '\n';
+                    // Properly escape CSV values
+                    const escapedRow = row.map(cell => {
+                        // Convert to string and handle special characters
+                        let value = String(cell).replace(/"/g, '""'); // Escape quotes
+                        // Wrap in quotes if contains comma, quote, or newline
+                        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                            value = '"' + value + '"';
+                        }
+                        return value;
+                    });
+                    csv += escapedRow.join(',') + '\n';
                 });
 
-                const blob = new Blob([csv], { type: 'text/csv' });
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;

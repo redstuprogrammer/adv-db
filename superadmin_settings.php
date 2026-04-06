@@ -303,7 +303,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . $currentSettings['logo_path'])): ?>
                                 <img src="<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
                             <?php else: ?>
-                                <span id="logo-placeholder">No logo uploaded</span>
+                                <span id="logo-placeholder" style="font-size: 48px;">🏥</span>
                             <?php endif; ?>
                         </div>
                     </div>

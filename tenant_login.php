@@ -25,8 +25,22 @@ if ($_SESSION['tenant_login_redirect_count'] > 5) {
     die("Too many redirects detected. Please check your cookies are enabled and try clearing your browser cache.");
 }
 
-// Check if already logged in as tenant user
-if (isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context']) && isset($_SESSION['tenant_slug_current'])) {
+$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+
+// Check if already logged in for the requested tenant
+if ($tenantSlug !== '' && isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context'])) {
+    $currentContext = $_SESSION['tenant_context'][$tenantSlug] ?? null;
+    if ($currentContext && isset($currentContext['role'])) {
+        $dashboardUrl = getRoleDashboardUrl($currentContext['role'], $tenantSlug);
+        if ($dashboardUrl) {
+            header('Location: ' . $dashboardUrl);
+            exit;
+        }
+    }
+}
+
+// Fallback: if tenant slug was not specified but a current context exists, redirect there.
+if ($tenantSlug === '' && isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context']) && isset($_SESSION['tenant_slug_current'])) {
     $currentContext = $_SESSION['tenant_context'][$_SESSION['tenant_slug_current']] ?? null;
     if ($currentContext && isset($currentContext['role'])) {
         $dashboardUrl = getRoleDashboardUrl($currentContext['role'], $_SESSION['tenant_slug_current']);
@@ -145,8 +159,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userRole = '';
         $userData = null;
 
-        // First, try tenant owner login
-        if (strtolower($username) === strtolower((string)$tenant['contact_email']) && password_verify($password, (string)$tenant['password'])) {
+        // First, try tenant owner login using email.
+        if (strcasecmp($username, (string)$tenant['contact_email']) === 0 && password_verify($password, (string)$tenant['password'])) {
             $authenticated = true;
             $userRole = 'Admin';
             $userData = [
@@ -157,10 +171,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
         } else {
             // Fallback: check users table for receptionist/dentist
+            $isEmailInput = strpos($username, '@') !== false;
             try {
-                $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND (username = ? OR email = ?) LIMIT 1");
+                if ($isEmailInput) {
+                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND email = ? LIMIT 1");
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, "is", $tenant['tenant_id'], $username);
+                    }
+                } else {
+                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND BINARY username = ? LIMIT 1");
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, "is", $tenant['tenant_id'], $username);
+                    }
+                }
+
                 if ($stmt) {
-                    mysqli_stmt_bind_param($stmt, "iss", $tenant['tenant_id'], $username, $username);
                     if (mysqli_stmt_execute($stmt)) {
                         $res = mysqli_stmt_get_result($stmt);
                         $user = $res ? mysqli_fetch_assoc($res) : null;

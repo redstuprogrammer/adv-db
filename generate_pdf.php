@@ -27,7 +27,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = $data['title'] ?? 'OralSync Report';
     $type = $data['type'] ?? 'standard';
 
-    generatePDF($reportData, $title, 'oralsync_report.pdf', $type);
+    // Use new Blade-based generator for sales reports
+    if ($type === 'sales') {
+        require_once __DIR__ . '/pdf_generator_blade.php';
+        $generator = new OralSyncPDFGenerator();
+        $pdfContent = $generator->generateSalesReport($reportData, $title);
+    } else {
+        // Use original generator for other reports
+        require_once __DIR__ . '/pdf_generator.php';
+        $pdfContent = generatePDF($reportData, $title, '', $type);
+    }
+
+    // Output the PDF
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . preg_replace('/[^a-zA-Z0-9\-_\.]/', '_', $title) . '.pdf"');
+    header('Content-Length: ' . strlen($pdfContent));
+    echo $pdfContent;
     exit;
 }
 

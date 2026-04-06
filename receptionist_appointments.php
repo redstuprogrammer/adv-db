@@ -81,6 +81,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) {
+    $appointmentId = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
+    $appointmentDate = trim($_POST['edit_date'] ?? '');
+    $dentistId = isset($_POST['edit_dentist_id']) ? (int)$_POST['edit_dentist_id'] : 0;
+    $status = trim($_POST['edit_status'] ?? '');
+
+    if ($appointmentId > 0 && $appointmentDate !== '' && $dentistId > 0 && $status !== '') {
+        $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, dentist_id = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
+        if ($stmtEdit) {
+            mysqli_stmt_bind_param($stmtEdit, 'siiii', $appointmentDate, $dentistId, $status, $appointmentId, $tenantId);
+            if (mysqli_stmt_execute($stmtEdit)) {
+                $successMessage = 'Appointment updated successfully.';
+            } else {
+                $errorMessage = 'Unable to update appointment details.';
+            }
+            mysqli_stmt_close($stmtEdit);
+        } else {
+            $errorMessage = 'Unable to prepare appointment update statement.';
+        }
+    } else {
+        $errorMessage = 'Please provide appointment date, dentist, and status.';
+    }
+}
+
 $patients = [];
 $stmtPatients = mysqli_prepare($conn, 'SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
 if ($stmtPatients) {
@@ -351,7 +375,11 @@ if ($stmt) {
                   <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
                   <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
                   <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
-                  <td><a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? ''))); ?>, <?php echo json_encode('Dr. ' . h($row['d_last'] ?? '')); ?>, <?php echo json_encode(h($row['status'] ?? '')); ?>)">Manage</a></td>
+                  <td class="actions-cell">
+                    <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
+                    <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
+                    <a href="javascript:void(0);" class="action-link" onclick="printAppointment(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Print</a>
+                  </td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>
@@ -431,6 +459,49 @@ if ($stmt) {
     </div>
   </div>
 
+  <!-- Edit Appointment Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Appointment</h3>
+        <button class="modal-close" type="button" onclick="closeEditModal()">&times;</button>
+      </div>
+      <form method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+        <input type="hidden" id="edit_id" name="edit_id" value="">
+        <div class="form-group">
+          <label>Appointment</label>
+          <input type="text" id="editAppointmentInfo" readonly>
+        </div>
+        <div class="form-group">
+          <label for="edit_date">Appointment Date</label>
+          <input type="date" id="edit_date" name="edit_date" required>
+        </div>
+        <div class="form-group">
+          <label for="edit_dentist_id">Dentist</label>
+          <select id="edit_dentist_id" name="edit_dentist_id" required>
+            <option value="">Select dentist</option>
+            <?php foreach ($dentists as $dentist): ?>
+              <option value="<?php echo (int)$dentist['dentist_id']; ?>"><?php echo h('Dr. ' . $dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit_status">Status</label>
+          <select id="edit_status" name="edit_status" required>
+            <option value="">Select status</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" class="btn-primary" name="edit_appointment">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     <?php printDateClockScript(); ?>
 
@@ -453,15 +524,72 @@ if ($stmt) {
       document.getElementById('manageModal').classList.remove('active');
     }
 
+    function openEditModal(id, patientName, dentistName, appointmentDate, status, dentistId) {
+      document.getElementById('edit_id').value = id;
+      document.getElementById('editAppointmentInfo').value = patientName + ' with ' + dentistName;
+      document.getElementById('edit_date').value = appointmentDate;
+      document.getElementById('edit_status').value = status.toLowerCase();
+      const dentistSelect = document.getElementById('edit_dentist_id');
+      if (dentistSelect) {
+        dentistSelect.value = dentistId;
+      }
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('active');
+    }
+
+    function printAppointment(id, patientName, dentistName, appointmentDate, status) {
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      if (!printWindow) {
+        alert('Unable to open print window. Please allow pop-ups for this site.');
+        return;
+      }
+
+      const html = `
+        <html>
+          <head>
+            <title>Print Appointment</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 24px; color: #102a43; }
+              h1 { font-size: 22px; margin-bottom: 12px; }
+              .detail { margin: 10px 0; }
+              .label { font-weight: 700; color: #0d3b66; }
+              .value { margin-left: 8px; }
+              .status-pill { display:inline-block; padding:6px 12px; border-radius:12px; background:#f3f4f6; color:#0f172a; font-weight:700; }
+            </style>
+          </head>
+          <body>
+            <h1>Appointment Details</h1>
+            <div class="detail"><span class="label">Appointment ID:</span><span class="value">${id}</span></div>
+            <div class="detail"><span class="label">Patient:</span><span class="value">${patientName}</span></div>
+            <div class="detail"><span class="label">Dentist:</span><span class="value">${dentistName}</span></div>
+            <div class="detail"><span class="label">Date:</span><span class="value">${appointmentDate}</span></div>
+            <div class="detail"><span class="label">Status:</span><span class="status-pill">${status}</span></div>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
+
     // Click outside modal to close
     window.addEventListener('click', function(event) {
       const scheduleModal = document.getElementById('scheduleModal');
       const manageModal = document.getElementById('manageModal');
+      const editModal = document.getElementById('editModal');
       if (event.target === scheduleModal) {
         closeScheduleModal();
       }
       if (event.target === manageModal) {
         closeManageModal();
+      }
+      if (event.target === editModal) {
+        closeEditModal();
       }
     });
     

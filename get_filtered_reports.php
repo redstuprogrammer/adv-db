@@ -152,10 +152,11 @@ try {
             $data[] = [$type . ' Activities', $count];
         }
     } elseif ($type === 'revenue') {
-        $query = "SELECT p.first_name, p.last_name, COALESCE(py.procedures_json, 'General Service') AS service, py.amount, a.appointment_date as appointment_date
+        $query = "SELECT p.first_name, p.last_name, COALESCE(py.procedures_json, 'General Service') AS service, py.amount, a.appointment_date as appointment_date, t.company_name as clinic_name
                   FROM payment py
                   JOIN appointment a ON py.appointment_id = a.appointment_id
                   JOIN patient p ON a.patient_id = p.patient_id
+                  LEFT JOIN tenants t ON py.tenant_id = t.tenant_id
                   WHERE py.status = 'Paid'";
 
         $params = [];
@@ -185,7 +186,8 @@ try {
                 'first_name' => $row['first_name'],
                 'last_name' => $row['last_name'],
                 'service' => $row['service'],
-                'amount' => $row['amount']
+                'amount' => $row['amount'],
+                'clinic_name' => $row['clinic_name'] ?? 'Unknown Clinic'
             ];
         }
     }
