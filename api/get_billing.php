@@ -51,10 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     }
 
     // 5. Database Query
-    // Get billing info (payments) for the patient's appointments
+    // Get billing info (payments) for the patient's appointments, including unbilled appointments
     $stmt = $conn->prepare("
         SELECT
             p.payment_id,
+            COALESCE(p.tenant_id, a.tenant_id) AS tenant_id,
             p.amount,
             p.mode,
             p.status,
@@ -65,12 +66,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.appointment_date,
             a.procedure_name,
             t.company_name AS clinic_name
-        FROM payment p
-        JOIN appointment a ON p.appointment_id = a.appointment_id
-        JOIN tenants t ON p.tenant_id = t.tenant_id
+        FROM appointment a
+        LEFT JOIN payment p ON p.appointment_id = a.appointment_id
+        JOIN tenants t ON a.tenant_id = t.tenant_id
         WHERE a.patient_id = ?
           AND t.status = 'active'
-        ORDER BY p.payment_date DESC
+        ORDER BY a.appointment_date DESC
     ");
 
     $stmt->bind_param("i", $patient_id);
@@ -83,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Bind result columns instead of using get_result() (avoids mysqlnd dependency)
     $stmt->bind_result(
         $payment_id,
+        $tenant_id,
         $amount,
         $mode,
         $status,
@@ -99,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     while ($stmt->fetch()) {
         $row = [
             'payment_id'       => $payment_id,
+            'tenant_id'        => $tenant_id,
             'amount'           => $amount,
             'mode'             => $mode,
             'status'           => $status,

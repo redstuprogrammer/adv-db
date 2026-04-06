@@ -45,6 +45,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         if ($stmt) {
             $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
             if ($stmt->execute()) {
+                if (strcasecmp($role, 'Dentist') === 0) {
+                    syncDentistRecordFromUser($conn, $stmt->insert_id);
+                }
                 header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
                 exit;
             } else {

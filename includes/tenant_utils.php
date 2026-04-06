@@ -202,6 +202,58 @@ function logActivity($conn, int $tenantId, string $activityType, string $actionD
     return logTenantActivity($conn, $tenantId, $activityType, $actionDetails);
 }
 
+/**
+ * Ensure a Dentist row exists and is synced for a users table dentist account.
+ */
+function syncDentistRecordFromUser($conn, int $userId): bool {
+    if (!$conn || $userId <= 0) {
+        return false;
+    }
+
+    $stmt = $conn->prepare('SELECT tenant_id, username, email, password, role, first_name, last_name FROM users WHERE user_id = ? LIMIT 1');
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    if (!$user || strcasecmp(trim((string)$user['role']), 'Dentist') !== 0) {
+        return false;
+    }
+
+    $tenantId = (int)$user['tenant_id'];
+    $username = trim((string)$user['username']);
+    $email = trim((string)$user['email']);
+    $passwordHash = trim((string)$user['password']);
+    $firstName = trim((string)$user['first_name']);
+    $lastName = trim((string)$user['last_name']);
+
+    $updateStmt = $conn->prepare('UPDATE dentist SET tenant_id = ?, first_name = ?, last_name = ?, username = ?, email = ?, password_hash = ? WHERE dentist_id = ?');
+    if ($updateStmt) {
+        $updateStmt->bind_param('isssssi', $tenantId, $firstName, $lastName, $username, $email, $passwordHash, $userId);
+        if ($updateStmt->execute() && $updateStmt->affected_rows > 0) {
+            $updateStmt->close();
+            return true;
+        }
+        $updateStmt->close();
+    }
+
+    $insertStmt = $conn->prepare('INSERT INTO dentist (dentist_id, tenant_id, first_name, last_name, username, email, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    if (!$insertStmt) {
+        return false;
+    }
+
+    $insertStmt->bind_param('iisssss', $userId, $tenantId, $firstName, $lastName, $username, $email, $passwordHash);
+    $insertResult = $insertStmt->execute();
+    $insertStmt->close();
+
+    return $insertResult;
+}
+
 function getSuperAdminAnalytics($conn): array {
     $metrics = [
         'total_tenants' => 0,
