@@ -183,8 +183,15 @@ body{
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   z-index: 1000;
   box-shadow: 2px 0 10px rgba(15, 23, 42, 0.1);
+}
+
+.tenant-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .sidebar-header {

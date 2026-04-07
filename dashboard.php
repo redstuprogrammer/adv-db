@@ -267,6 +267,23 @@ if ($stmt) {
         line-height: 1.5;
       }
 
+      .sales-overview-card {
+        background: white;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+        min-height: 260px;
+        max-height: 360px;
+        height: 320px;
+        margin-bottom: 32px;
+      }
+
+      .sales-overview-card canvas {
+        width: 100%;
+        height: 100%;
+      }
+
       .footer-action {
         color: var(--dashboard-accent);
         text-decoration: none;
@@ -525,9 +542,11 @@ if ($stmt) {
         </table>
       </div>
 
-      <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08); margin-bottom: 32px;">
-          <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
-          <canvas id="salesChart" style="width: 100%; min-height: 240px;"></canvas>
+      <div class="sales-overview-card">
+          <div style="padding: 20px;">
+            <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
+          </div>
+          <canvas id="salesChart"></canvas>
       </div>
 
       </div>
@@ -632,6 +651,18 @@ if ($stmt) {
           legend: {
             display: false
           }
+        },
+        animation: {
+          duration: 0
+        },
+        elements: {
+          point: {
+            radius: 2,
+            hoverRadius: 4
+          }
+        },
+        layout: {
+          padding: 0
         },
         scales: {
           y: {
