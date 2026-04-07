@@ -78,6 +78,22 @@ if ($isSettingsPage) {
     $tenantName = getCurrentTenantName();
     $tenantId = getCurrentTenantId();
 
+    // CRITICAL: Validate tenant_id matches the tenant_slug to prevent multi-tenancy confusion
+    // Re-fetch from database to ensure we have the authoritative tenant_id for this slug
+    if ($tenantSlug !== '') {
+        $validationStmt = $conn->prepare("SELECT tenant_id FROM tenants WHERE subdomain_slug = ? LIMIT 1");
+        if ($validationStmt) {
+            $validationStmt->bind_param('s', $tenantSlug);
+            $validationStmt->execute();
+            $validationResult = $validationStmt->get_result();
+            $validationRow = $validationResult->fetch_assoc();
+            if ($validationRow && isset($validationRow['tenant_id'])) {
+                $tenantId = (int)$validationRow['tenant_id'];
+            }
+            $validationStmt->close();
+        }
+    }
+
     $message = '';
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
