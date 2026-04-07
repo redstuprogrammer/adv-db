@@ -643,7 +643,7 @@ if ($isSettingsPage) {
 
           <div class="form-actions">
             <button type="submit" class="btn-primary">Save Login Settings</button>
-            <button type="button" class="btn-primary btn-secondary" onclick="resetLoginPreview()">Reset to Defaults</button>
+            <button type="button" class="btn-primary btn-secondary" onclick="resetLoginPreview()">Reset to Default</button>
           </div>
         </form>
 

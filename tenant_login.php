@@ -269,6 +269,16 @@ $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';
 $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
 $base = getAppBasePath();
 $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+
+// Check if login settings have been customized from defaults
+$hasCustomization = !empty($loginSettings['brand_bg_image_path']) || 
+                   $loginSettings['brand_bg_color'] !== '#001f3f' ||
+                   $loginSettings['brand_text_color'] !== '#ffffff' ||
+                   $loginSettings['primary_btn_color'] !== '#22c55e' ||
+                   $loginSettings['link_color'] !== '#2563eb' ||
+                   $loginSettings['login_title'] !== 'Clinic Login' ||
+                   $loginSettings['login_description'] !== 'Please sign in to access your clinic portal.' ||
+                   $loginSettings['brand_subtitle'] !== 'Powered by OralSync';
 ?>
 <!doctype html>
 <html lang="en">
@@ -284,6 +294,16 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
             background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
             color: #0f172a;
         }
+
+        <?php if ($hasCustomization): ?>
+        .t-brandPanel {
+            display: none;
+        }
+
+        .t-shell {
+            grid-template-columns: 1fr;
+        }
+        <?php endif; ?>
 
         .t-brandPanel {
             color: <?php echo h($loginSettings['brand_text_color']); ?>;
