@@ -6,7 +6,7 @@ header('Content-Type: application/json');
 error_reporting(0); 
 ini_set('display_errors', 0);
 session_start();
-if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !== true) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
     echo json_encode(["error" => "Unauthorized"]);
     exit;
 }

@@ -12,7 +12,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once ROOT_PATH . 'includes/security_headers.php';
 
 // Check auth state FIRST, before loading database
-if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed'] === true) {
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
     header('Location: superadmin_dash.php');
     exit();
 }

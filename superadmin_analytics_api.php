@@ -9,7 +9,7 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Check session for superadmin
 session_start();
-if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !== true) {
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
