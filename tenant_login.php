@@ -302,6 +302,12 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
 
         .t-shell {
             grid-template-columns: 1fr;
+            justify-items: center;
+        }
+
+        .t-card {
+            width: 100%;
+            max-width: 420px;
         }
         <?php endif; ?>
 
