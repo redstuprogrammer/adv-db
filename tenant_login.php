@@ -278,6 +278,13 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
+            color: #0f172a;
+        }
+
         .t-brandPanel {
             color: <?php echo h($loginSettings['brand_text_color']); ?>;
             background: <?php echo h($loginSettings['brand_bg_color']); ?>;
