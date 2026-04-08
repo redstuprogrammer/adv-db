@@ -804,6 +804,11 @@ try {
                             <input type="email" id="owner-email" required>
                         </div>
                         <div class="sa-form-group">
+                            <label for="clinic-username">Clinic Username <span class="sa-badge-required">*</span></label>
+                            <input type="text" id="clinic-username" required placeholder="clinic_username">
+                            <p style="margin: 6px 0 0; font-size: 12px; color: #64748b;">Letters, numbers, hyphens, and underscores only.</p>
+                        </div>
+                        <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
                             <input type="tel" id="clinic-phone" required>
                         </div>
@@ -1482,6 +1487,7 @@ try {
             
             const reviewData = {
                 'Clinic Name': document.getElementById('clinic-name').value,
+                'Clinic Username': document.getElementById('clinic-username').value,
                 'Owner': document.getElementById('owner-name').value,
                 'Email': document.getElementById('owner-email').value,
                 'Phone': document.getElementById('clinic-phone').value,
@@ -1512,6 +1518,7 @@ try {
             const formData = new FormData();
             formData.append('clinicName', document.getElementById('clinic-name').value.trim());
             formData.append('ownerName', document.getElementById('owner-name').value.trim());
+            formData.append('username', document.getElementById('clinic-username').value.trim());
             formData.append('email', document.getElementById('owner-email').value.trim());
             formData.append('phone', document.getElementById('clinic-phone').value.trim());
             formData.append('address', document.getElementById('clinic-address').value.trim());

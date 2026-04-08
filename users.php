@@ -29,6 +29,7 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$formError = '';
 
 // Handle Add User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
@@ -39,21 +40,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
     $role = isset($_POST['role']) ? trim($_POST['role']) : '';
 
-    if ($username !== '' && $email !== '' && $rawPassword !== '' && $role !== '') {
-        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-        $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        if ($stmt) {
-            $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
-            if ($stmt->execute()) {
-                if (strcasecmp($role, 'Dentist') === 0) {
-                    syncDentistRecordFromUser($conn, $stmt->insert_id);
-                }
-                header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
-                exit;
-            } else {
-                error_log("Error adding user: " . $stmt->error);
+    if ($username === '' || $email === '' || $rawPassword === '' || $role === '') {
+        $formError = 'All fields are required to add a new user.';
+    } else {
+        $checkStmt = $conn->prepare('SELECT user_id FROM users WHERE tenant_id = ? AND username = ? LIMIT 1');
+        if ($checkStmt) {
+            $checkStmt->bind_param('is', $tenantId, $username);
+            $checkStmt->execute();
+            $resultCheck = $checkStmt->get_result();
+            if ($resultCheck && $resultCheck->num_rows > 0) {
+                $formError = 'That username is already taken. Please choose another username for this clinic.';
             }
-            $stmt->close();
+            $checkStmt->close();
+        }
+
+        if ($formError === '') {
+            $password = password_hash($rawPassword, PASSWORD_BCRYPT);
+            $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            if ($stmt) {
+                $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
+                if ($stmt->execute()) {
+                    if (strcasecmp($role, 'Dentist') === 0) {
+                        syncDentistRecordFromUser($conn, $stmt->insert_id);
+                    }
+                    header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
+                    exit;
+                } else {
+                    error_log("Error adding user: " . $stmt->error);
+                    $formError = 'Unable to create the user. Please try again.';
+                }
+                $stmt->close();
+            } else {
+                $formError = 'Unable to prepare user creation. Please try again later.';
+            }
         }
     }
 }
@@ -184,6 +203,12 @@ try {
           <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
         </div>
       </div>
+
+      <?php if (!empty($formError)): ?>
+        <div class="alert-box" style="background: #fee2e2; color: #991b1b; border-color: #fecaca; margin-bottom: 20px;">
+          <?php echo h($formError); ?>
+        </div>
+      <?php endif; ?>
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">

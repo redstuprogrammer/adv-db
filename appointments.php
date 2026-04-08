@@ -74,17 +74,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 
 // Fetch appointments with service info (if available)
 $appointments = [];
-$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, 
-                 p.first_name AS patient_first, p.last_name AS patient_last, 
-                 CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) AS dentist_name,
-                 'General Consultation' AS service_name
-          FROM appointment a 
-          LEFT JOIN patient p ON a.patient_id = p.patient_id 
-          LEFT JOIN users u ON a.dentist_id = u.user_id 
-          WHERE a.tenant_id = ? 
-          ORDER BY a.appointment_date DESC";
+$perPage = 12;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
+$totalAppointments = 0;
+$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ?');
+$countStmt->bind_param('i', $tenantId);
+$countStmt->execute();
+$countResult = $countStmt->get_result();
+if ($countRow = $countResult->fetch_assoc()) {
+    $totalAppointments = (int)$countRow['total'];
+}
+$countStmt->close();
+
+$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.appointment_time, a.status,
+                 a.procedure_name, a.notes,
+                 p.first_name AS patient_first, p.last_name AS patient_last,
+                 CONCAT('Dr. ', TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))) AS dentist_name
+          FROM appointment a
+          LEFT JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN users u ON a.dentist_id = u.user_id
+          WHERE a.tenant_id = ?
+          ORDER BY a.appointment_date DESC, a.appointment_time DESC
+          LIMIT ?, ?";
 $stmt = $conn->prepare($query);
-$stmt->bind_param('i', $tenantId);
+$stmt->bind_param('iii', $tenantId, $offset, $perPage);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
@@ -480,10 +495,10 @@ $stmt->close();
         <table class="module-table" id="appointmentTable">
           <thead>
             <tr>
-              <th>Schedule</th>
+              <th>Date</th>
+              <th>Time</th>
               <th>Patient</th>
               <th>Dentist</th>
-              <th>Treatment</th>
               <th>Status</th>
               <th>Action</th>
             </tr>
@@ -496,22 +511,52 @@ $stmt->close();
             <?php else: ?>
               <?php foreach ($appointments as $appt): ?>
                 <tr>
-                  <td>
-                    <strong><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></strong>
-                    <div style="font-size: 12px; color: #94a3b8;">Date only (time not available)</div>
-                  </td>
+                  <td><strong><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></strong></td>
+                  <td><?php echo !empty($appt['appointment_time']) ? date('g:i A', strtotime($appt['appointment_time'])) : '-'; ?></td>
                   <td><?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?></td>
                   <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
-                  <td><?php echo h($appt['service_name']); ?></td>
                   <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
                     <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>')">Manage</button>
+                    <button class="action-btn" onclick="openDetailsModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo json_encode($appt['patient_first'] . ' ' . $appt['patient_last']); ?>, <?php echo json_encode($appt['dentist_name'] ?: 'Unassigned'); ?>, <?php echo json_encode(date('M d, Y', strtotime($appt['appointment_date']))); ?>, <?php echo json_encode(!empty($appt['appointment_time']) ? date('g:i A', strtotime($appt['appointment_time'])) : '-'); ?>, <?php echo json_encode($appt['procedure_name'] ?? ''); ?>, <?php echo json_encode($appt['notes'] ?? ''); ?>)">Details</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>
           </tbody>
         </table>
+
+        <?php if ($totalAppointments > $perPage):
+            $lastPage = (int)ceil($totalAppointments / $perPage);
+        ?>
+          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:18px;">
+            <?php if ($page > 1): ?>
+              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo $page - 1; ?>" class="action-btn">Previous</a>
+            <?php endif; ?>
+            <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
+            <?php if ($page < $lastPage): ?>
+              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo $page + 1; ?>" class="action-btn">Next</a>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
+  </div>
+
+  <!-- Appointment Details Modal -->
+  <div id="detailsModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <span class="close" onclick="closeDetailsModal()">&times;</span>
+      <h3 style="margin-top:0; color: var(--accent);">Appointment Details</h3>
+      <p><strong>Patient:</strong> <span id="detailPatient"></span></p>
+      <p><strong>Dentist:</strong> <span id="detailDentist"></span></p>
+      <p><strong>Date:</strong> <span id="detailDate"></span></p>
+      <p><strong>Time:</strong> <span id="detailTime"></span></p>
+      <p><strong>Procedure:</strong> <span id="detailProcedure"></span></p>
+      <p><strong>Notes:</strong></p>
+      <p id="detailNotes" style="white-space: pre-wrap; color: #334155; margin-top: 0;"></p>
+      <div class="edit-modal-actions">
+        <button type="button" class="edit-btn-cancel" onclick="closeDetailsModal()">Close</button>
       </div>
     </div>
   </div>
@@ -560,6 +605,20 @@ $stmt->close();
         dateInput.min = localIso;
       }
       document.getElementById('scheduleModal').style.display = 'block';
+    }
+
+    function openDetailsModal(id, patient, dentist, date, time, procedure, notes) {
+      document.getElementById('detailPatient').textContent = patient;
+      document.getElementById('detailDentist').textContent = dentist;
+      document.getElementById('detailDate').textContent = date;
+      document.getElementById('detailTime').textContent = time;
+      document.getElementById('detailProcedure').textContent = procedure || 'No procedure entered';
+      document.getElementById('detailNotes').textContent = notes || 'No notes available.';
+      document.getElementById('detailsModal').style.display = 'flex';
+    }
+
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').style.display = 'none';
     }
 
     // Edit Modal Functions

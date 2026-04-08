@@ -39,12 +39,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
     $dentistId = isset($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : 0;
     $appointmentDate = trim($_POST['appointment_date'] ?? '');
+    $appointmentTime = trim($_POST['appointment_time'] ?? '');
+    $procedureName = trim($_POST['procedure_name'] ?? '');
     $status = 'pending';
 
-    if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '') {
-        $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, status) VALUES (?, ?, ?, ?, ?)');
+    if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
+        $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, procedure_name, status) VALUES (?, ?, ?, ?, ?, ?, ?)');
         if ($stmtAdd) {
-            mysqli_stmt_bind_param($stmtAdd, 'iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);
+            mysqli_stmt_bind_param($stmtAdd, 'iiissss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $procedureName, $status);
             if (mysqli_stmt_execute($stmtAdd)) {
                 $successMessage = 'Appointment scheduled successfully.';
             } else {
@@ -55,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
             $errorMessage = 'Unable to prepare appointment statement.';
         }
     } else {
-        $errorMessage = 'Please select a patient, dentist, and appointment date.';
+        $errorMessage = 'Please select a patient, dentist, date, and time for the appointment.';
     }
 }
 
@@ -84,13 +86,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) {
     $appointmentId = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
     $appointmentDate = trim($_POST['edit_date'] ?? '');
+    $appointmentTime = trim($_POST['edit_time'] ?? '');
     $dentistId = isset($_POST['edit_dentist_id']) ? (int)$_POST['edit_dentist_id'] : 0;
     $status = trim($_POST['edit_status'] ?? '');
+    $procedureName = trim($_POST['edit_procedure_name'] ?? '');
 
-    if ($appointmentId > 0 && $appointmentDate !== '' && $dentistId > 0 && $status !== '') {
-        $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, dentist_id = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
+    if ($appointmentId > 0 && $appointmentDate !== '' && $dentistId > 0 && $status !== '' && $appointmentTime !== '') {
+        $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ?, procedure_name = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
         if ($stmtEdit) {
-            mysqli_stmt_bind_param($stmtEdit, 'siiii', $appointmentDate, $dentistId, $status, $appointmentId, $tenantId);
+            mysqli_stmt_bind_param($stmtEdit, 'ssissii', $appointmentDate, $appointmentTime, $dentistId, $procedureName, $status, $appointmentId, $tenantId);
             if (mysqli_stmt_execute($stmtEdit)) {
                 $successMessage = 'Appointment updated successfully.';
             } else {
@@ -101,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) 
             $errorMessage = 'Unable to prepare appointment update statement.';
         }
     } else {
-        $errorMessage = 'Please provide appointment date, dentist, and status.';
+        $errorMessage = 'Please provide appointment date, dentist, time, and status.';
     }
 }
 
@@ -136,6 +140,8 @@ if ($stmtDentists) {
 $query = "SELECT 
             a.appointment_id, 
             a.appointment_date, 
+            a.appointment_time,
+            a.procedure_name,
             p.first_name, 
             p.last_name, 
             d.last_name AS d_last, 
@@ -144,7 +150,7 @@ $query = "SELECT
           LEFT JOIN patient p ON a.patient_id = p.patient_id 
           LEFT JOIN users d ON a.dentist_id = d.user_id
           WHERE a.tenant_id = ?
-          ORDER BY a.appointment_date DESC, a.appointment_id ASC";
+          ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
@@ -377,7 +383,7 @@ if ($stmt) {
                   <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
                   <td class="actions-cell">
                     <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
-                    <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
+                    <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
                     <a href="javascript:void(0);" class="action-link" onclick="printAppointment(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Print</a>
                   </td>
                 </tr>
@@ -411,15 +417,23 @@ if ($stmt) {
         <div class="form-group">
           <label for="dentist_id">Dentist</label>
           <select id="dentist_id" name="dentist_id" required>
-            <option value="">Select dentist</option>
-            <?php foreach ($dentists as $dentist): ?>
-              <option value="<?php echo (int)$dentist['dentist_id']; ?>"><?php echo h('Dr. ' . $dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
-            <?php endforeach; ?>
+            <option value="">Select appointment date first</option>
           </select>
+          <p id="dentistAvailabilityMessage" style="margin: 8px 0 0; color: #475569; font-size: 12px;">Choose a date to see available dentists.</p>
         </div>
         <div class="form-group">
           <label for="appointment_date">Appointment Date</label>
           <input type="date" id="appointment_date" name="appointment_date" required>
+        </div>
+        <div class="form-group">
+          <label for="appointment_time">Appointment Time</label>
+          <select id="appointment_time" name="appointment_time" required>
+            <option value="">Select time</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="procedure_name">Procedure</label>
+          <input type="text" id="procedure_name" name="procedure_name" placeholder="Cleaning, Filling, Root Canal" autocomplete="off">
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
@@ -477,6 +491,10 @@ if ($stmt) {
           <input type="date" id="edit_date" name="edit_date" required>
         </div>
         <div class="form-group">
+          <label for="edit_time">Appointment Time</label>
+          <input type="time" id="edit_time" name="edit_time" required>
+        </div>
+        <div class="form-group">
           <label for="edit_dentist_id">Dentist</label>
           <select id="edit_dentist_id" name="edit_dentist_id" required>
             <option value="">Select dentist</option>
@@ -484,6 +502,10 @@ if ($stmt) {
               <option value="<?php echo (int)$dentist['dentist_id']; ?>"><?php echo h('Dr. ' . $dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
             <?php endforeach; ?>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="edit_procedure_name">Procedure</label>
+          <input type="text" id="edit_procedure_name" name="edit_procedure_name" placeholder="Cleaning, Filling, Root Canal" autocomplete="off">
         </div>
         <div class="form-group">
           <label for="edit_status">Status</label>
@@ -506,11 +528,135 @@ if ($stmt) {
     <?php printDateClockScript(); ?>
 
     function openScheduleModal() {
+      const dateInput = document.getElementById('appointment_date');
+      if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+        dateInput.value = today;
+        loadAvailableDentists();
+      }
       document.getElementById('scheduleModal').classList.add('active');
     }
 
     function closeScheduleModal() {
       document.getElementById('scheduleModal').classList.remove('active');
+    }
+
+    async function loadAvailableDentists() {
+      const tenantId = <?php echo json_encode($tenantId); ?>;
+      const dateInput = document.getElementById('appointment_date');
+      const dentistSelect = document.getElementById('dentist_id');
+      const message = document.getElementById('dentistAvailabilityMessage');
+      const timeSelect = document.getElementById('appointment_time');
+
+      if (!dateInput || !dentistSelect || !message || !timeSelect) {
+        return;
+      }
+
+      dentistSelect.innerHTML = '<option value="">Loading available dentists...</option>';
+      timeSelect.innerHTML = '<option value="">Select time</option>';
+
+      const selectedDate = dateInput.value;
+      if (!selectedDate) {
+        dentistSelect.innerHTML = '<option value="">Select appointment date first</option>';
+        return;
+      }
+
+      const apiUrl = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${encodeURIComponent(selectedDate)}`;
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (!data.success) {
+          dentistSelect.innerHTML = '<option value="">No dentists available</option>';
+          message.textContent = data.message || 'No dentists are available on that date.';
+          return;
+        }
+
+        if (data.clinic_closed) {
+          dentistSelect.innerHTML = '<option value="">Clinic closed on this date</option>';
+          message.textContent = 'Clinic is closed on the selected date. Please choose another date.';
+          return;
+        }
+
+        if (!data.dentists || data.dentists.length === 0) {
+          dentistSelect.innerHTML = '<option value="">No dentists available</option>';
+          message.textContent = 'No dentists are available on the selected date.';
+          return;
+        }
+
+        dentistSelect.innerHTML = '<option value="">Select dentist</option>';
+        data.dentists.forEach(dentist => {
+          const option = document.createElement('option');
+          option.value = dentist.dentist_id;
+          option.textContent = `Dr. ${dentist.first_name} ${dentist.last_name}`;
+          dentistSelect.appendChild(option);
+        });
+        message.textContent = `Selected date: ${selectedDate}. Choose a dentist and then select a time.`;
+      } catch (err) {
+        dentistSelect.innerHTML = '<option value="">Unable to load dentists</option>';
+        message.textContent = 'Could not fetch available dentists. Please try again.';
+      }
+    }
+
+    async function loadAvailableTimes() {
+      const tenantId = <?php echo json_encode($tenantId); ?>;
+      const dateInput = document.getElementById('appointment_date');
+      const dentistSelect = document.getElementById('dentist_id');
+      const timeSelect = document.getElementById('appointment_time');
+      const message = document.getElementById('dentistAvailabilityMessage');
+
+      if (!dateInput || !dentistSelect || !timeSelect) {
+        return;
+      }
+
+      const selectedDate = dateInput.value;
+      const dentistId = dentistSelect.value;
+      timeSelect.innerHTML = '<option value="">Loading available times...</option>';
+
+      if (!selectedDate || !dentistId) {
+        timeSelect.innerHTML = '<option value="">Select date and dentist first</option>';
+        return;
+      }
+
+      const apiUrl = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${encodeURIComponent(selectedDate)}`;
+      try {
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        if (!data.success) {
+          timeSelect.innerHTML = '<option value="">No available times</option>';
+          message.textContent = data.message || 'No available appointment times found.';
+          return;
+        }
+
+        const hourlySlots = data.slots.filter(slot => slot.time.endsWith(':00') && slot.available);
+        if (hourlySlots.length === 0) {
+          timeSelect.innerHTML = '<option value="">No hourly slots available</option>';
+          message.textContent = 'No hourly time slots remain for this dentist on the selected date.';
+          return;
+        }
+
+        timeSelect.innerHTML = '<option value="">Select time</option>';
+        hourlySlots.forEach(slot => {
+          const option = document.createElement('option');
+          option.value = slot.time;
+          option.textContent = slot.label;
+          timeSelect.appendChild(option);
+        });
+        message.textContent = `Choose one of the available hourly slots for ${selectedDate}.`;
+      } catch (err) {
+        timeSelect.innerHTML = '<option value="">Unable to load times</option>';
+        message.textContent = 'Could not fetch appointment times. Please try again.';
+      }
+    }
+
+    const appointmentDateInput = document.getElementById('appointment_date');
+    if (appointmentDateInput) {
+      appointmentDateInput.addEventListener('change', loadAvailableDentists);
+    }
+
+    const dentistSelectInput = document.getElementById('dentist_id');
+    if (dentistSelectInput) {
+      dentistSelectInput.addEventListener('change', loadAvailableTimes);
     }
 
     function openManageModal(id, patientName, dentistName, status) {
@@ -524,10 +670,12 @@ if ($stmt) {
       document.getElementById('manageModal').classList.remove('active');
     }
 
-    function openEditModal(id, patientName, dentistName, appointmentDate, status, dentistId) {
+    function openEditModal(id, patientName, dentistName, appointmentDate, appointmentTime, procedureName, status, dentistId) {
       document.getElementById('edit_id').value = id;
       document.getElementById('editAppointmentInfo').value = patientName + ' with ' + dentistName;
       document.getElementById('edit_date').value = appointmentDate;
+      document.getElementById('edit_time').value = appointmentTime;
+      document.getElementById('edit_procedure_name').value = procedureName;
       document.getElementById('edit_status').value = status.toLowerCase();
       const dentistSelect = document.getElementById('edit_dentist_id');
       if (dentistSelect) {

@@ -170,12 +170,20 @@ try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
         $owner  = mysqli_real_escape_string($conn, $_POST['ownerName']);
+        $username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
         $email  = mysqli_real_escape_string($conn, $_POST['email']);
         $phone  = mysqli_real_escape_string($conn, $_POST['phone']);
         $addr   = mysqli_real_escape_string($conn, $_POST['address']);
         $city   = mysqli_real_escape_string($conn, $_POST['city']);
         $prov   = mysqli_real_escape_string($conn, $_POST['province']);
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
+        
+        if ($username === '') {
+            throw new Exception("Username is required for clinic registration.");
+        }
+        if (!preg_match('/^[A-Za-z0-9_\-]+$/', $username)) {
+            throw new Exception("Username may only contain letters, numbers, hyphens, and underscores.");
+        }
         
         // Validate email format
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -191,26 +199,31 @@ try {
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
-        // 2. Duplicate Check (clinic name)
-        $checkQuery = "SELECT company_name FROM tenants WHERE company_name = ? LIMIT 1";
+        // 2. Duplicate Check (clinic name and username)
+        $checkQuery = "SELECT company_name, username FROM tenants WHERE company_name = ? OR username = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmtCheck, "s", $clinic);
+        mysqli_stmt_bind_param($stmtCheck, "ss", $clinic, $username);
         mysqli_stmt_execute($stmtCheck);
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
         if ($row = mysqli_fetch_assoc($resultCheck)) {
-            throw new Exception("Clinic name already exists.");
+            if ($row['company_name'] === $clinic) {
+                throw new Exception("Clinic name already exists.");
+            }
+            if ($row['username'] === $username) {
+                throw new Exception("Clinic username is already taken. Please choose a different username.");
+            }
         }
 
         // 3. Generate Slug
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ssssssssss", $clinic, $owner, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
+        mysqli_stmt_bind_param($stmt, "sssssssssss", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);

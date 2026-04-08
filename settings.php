@@ -72,6 +72,91 @@ if ($isSettingsPage) {
         return 'assets/uploads/tenants/' . $tenantId . '/' . $filenameBase . '.' . $extension;
     }
 
+    function sendTenantPasswordVerificationEmail(string $email, string $tenantName, string $resetUrl): array {
+        $smtpHost = envOrNull('SMTP_HOST');
+        $smtpPort = envOrNull('SMTP_PORT');
+        $smtpUser = envOrNull('SMTP_USERNAME');
+        $smtpPass = envOrNull('SMTP_PASSWORD');
+        $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
+        $fromName = envOrNull('SMTP_FROM_NAME') ?? 'OralSync';
+
+        if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass || !$fromEmail) {
+            return ['sent' => false, 'error' => 'SMTP settings are missing.'];
+        }
+
+        $autoloadPath = ROOT_PATH . 'vendor/autoload.php';
+        if (!file_exists($autoloadPath)) {
+            return ['sent' => false, 'error' => 'Email library is unavailable.'];
+        }
+        require_once $autoloadPath;
+
+        $safeEmail = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+        $safeName = htmlspecialchars($tenantName ?: 'Clinic Administrator', ENT_QUOTES, 'UTF-8');
+        $safeUrl = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
+
+        $subject = "Verify password change for {$tenantName}";
+        $html = <<<HTML
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verify your password change</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+    <div style="padding:24px 12px;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
+          <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
+          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Password change verification</div>
+        </div>
+        <div style="padding:22px;">
+          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
+            Hi <strong>{$safeName}</strong>,<br />
+            A password change request was made for your clinic account.
+          </div>
+          <div style="margin-top:16px;padding:14px 14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Confirm your password change</div>
+            <div style="font-family:ui-monospace,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:13px;color:#0f172a;word-break:break-all;">{$safeUrl}</div>
+            <div style="margin-top:8px;color:#64748b;font-size:12px;">Click the button below to verify and complete the password update.</div>
+            <div style="margin-top:14px;">
+              <a href="{$safeUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Verify Password Change</a>
+            </div>
+          </div>
+          <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
+            If you did not request this change, please contact your clinic administrator immediately.
+          </div>
+        </div>
+        <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">This message was sent by OralSync.</div>
+      </div>
+    </div>
+  </body>
+</html>
+HTML;
+
+        try {
+            $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host = $smtpHost;
+            $mail->SMTPAuth = true;
+            $mail->Username = $smtpUser;
+            $mail->Password = $smtpPass;
+            $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port = (int)$smtpPort;
+
+            $mail->setFrom($fromEmail, $fromName);
+            $mail->addAddress($email);
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body = $html;
+            $mail->AltBody = "Verify your password change: {$resetUrl}";
+            $mail->send();
+            return ['sent' => true];
+        } catch (Throwable $e) {
+            return ['sent' => false, 'error' => $e->getMessage()];
+        }
+    }
+
     $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
     requireTenantLogin($tenantSlug);
 
@@ -107,23 +192,47 @@ if ($isSettingsPage) {
             } elseif (strlen($newPassword) < 8) {
                 $message = 'Password must be at least 8 characters long.';
             } else {
-                // Verify current password
-                $stmt = $conn->prepare("SELECT password FROM tenants WHERE tenant_id = ?");
+                // Verify current password and send a verification email before applying the change
+                $stmt = $conn->prepare("SELECT password, contact_email, company_name FROM tenants WHERE tenant_id = ?");
                 $stmt->bind_param('i', $tenantId);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 $tenant = $result->fetch_assoc();
 
                 if ($tenant && password_verify($currentPassword, $tenant['password'])) {
-                    $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
-                    $updateStmt = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
-                    $updateStmt->bind_param('si', $hashedPassword, $tenantId);
-                    if ($updateStmt->execute()) {
-                        $message = 'Password changed successfully!';
+                    $token = bin2hex(random_bytes(32));
+                    $tokenHash = password_hash($token, PASSWORD_DEFAULT);
+                    $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+                    $updateTokenStmt = $conn->prepare("UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
+                    if ($updateTokenStmt) {
+                        $updateTokenStmt->bind_param('ssi', $tokenHash, $expiresAt, $tenantId);
+                        if ($updateTokenStmt->execute()) {
+                            $resetUrl = getAbsoluteBaseUrl() . '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
+                            $emailResult = sendTenantPasswordVerificationEmail(
+                                $tenant['contact_email'],
+                                $tenant['company_name'],
+                                $resetUrl
+                            );
+
+                            if ($emailResult['sent'] ?? false) {
+                                $message = 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
+                            } else {
+                                $message = 'Unable to send verification email. Please try again later.';
+                                $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+                                if ($clearStmt) {
+                                    $clearStmt->bind_param('i', $tenantId);
+                                    $clearStmt->execute();
+                                    $clearStmt->close();
+                                }
+                            }
+                        } else {
+                            $message = 'Unable to initialize password verification. Please try again later.';
+                        }
+                        $updateTokenStmt->close();
                     } else {
-                        $message = 'Error updating password.';
+                        $message = 'Unable to initialize password verification. Please try again later.';
                     }
-                    $updateStmt->close();
                 } else {
                     $message = 'Current password is incorrect.';
                 }
