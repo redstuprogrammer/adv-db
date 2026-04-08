@@ -93,8 +93,8 @@ $query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_dat
                  p.first_name AS patient_first, p.last_name AS patient_last,
                  CONCAT('Dr. ', TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))) AS dentist_name
           FROM appointment a
-          LEFT JOIN patient p ON a.patient_id = p.patient_id
-          LEFT JOIN users u ON a.dentist_id = u.user_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
+          LEFT JOIN users u ON a.dentist_id = u.user_id AND u.tenant_id = a.tenant_id
           WHERE a.tenant_id = ?
           ORDER BY a.appointment_date DESC, a.appointment_time DESC
           LIMIT ?, ?";

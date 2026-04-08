@@ -49,7 +49,7 @@ $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name,
                  'General Consultation' AS service_name, 
                  a.appointment_date, a.status 
           FROM appointment a
-          JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           WHERE a.tenant_id = ? AND a.dentist_id = ?";
 
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";
