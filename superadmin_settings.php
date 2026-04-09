@@ -22,24 +22,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/settings.php';
 
     try {
-        // Save settings
-        setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
-        setSetting('max_tenants', $_POST['max_tenants'] ?? '');
-        setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
-        setSetting('storage_limit', $_POST['storage_limit'] ?? '');
-
-        // Handle logo upload
-        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+        if (isset($_POST['reset'])) {
+            // Reset to defaults
+            setSetting('system_name', 'OralSync');
+            // Delete existing logo file if exists
+            $currentLogo = $currentSettings['logo_path'] ?? '';
+            if ($currentLogo && file_exists(__DIR__ . '/' . ltrim($currentLogo, '/'))) {
+                unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
-            $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
-            move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
-            setSetting('logo_path', '/uploads/' . $filename);
-        }
+            setSetting('logo_path', '');
+            setSetting('max_tenants', '');
+            setSetting('max_users_per_tenant', '');
+            setSetting('storage_limit', '');
+            $message = "Settings reset to defaults!";
+        } else {
+            // Save settings
+            setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
+            setSetting('max_tenants', $_POST['max_tenants'] ?? '');
+            setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
+            setSetting('storage_limit', $_POST['storage_limit'] ?? '');
 
-        $message = "Settings saved successfully!";
+            // Handle logo upload
+            if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/uploads/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
+                move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
+                setSetting('logo_path', '/uploads/' . $filename);
+            }
+
+            $message = "Settings saved successfully!";
+        }
     } catch (Exception $e) {
         $message = "Error saving settings: " . $e->getMessage();
     }
@@ -475,7 +490,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="sa-form-actions">
                 <button type="submit" class="sa-btn">Save Settings</button>
-                <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Defaults</button>
+                <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Default</button>
             </div>
         </form>
     </div>
@@ -564,9 +579,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         function resetSettings() {
             if (confirm('Are you sure you want to reset all settings to defaults?')) {
-                // Reset form
-                document.querySelector('form').reset();
-                document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder">No logo uploaded</span>';
+                // Send reset request
+                const formData = new FormData();
+                formData.append('reset', 'true');
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    // Update UI to show defaults
+                    document.getElementById('system_name').value = 'OralSync';
+                    document.getElementById('max_tenants').value = '';
+                    document.getElementById('max_users_per_tenant').value = '';
+                    document.getElementById('storage_limit').value = '';
+                    document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+                    // Clear file input
+                    document.getElementById('logo').value = '';
+                    // Show success message if needed, but since page reloads, maybe not
+                    alert('Settings reset to defaults!');
+                    // Reload to reflect changes
+                    setTimeout(() => {
+                        location.reload();
+                    }, 500);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error resetting settings');
+                });
             }
         }
     </script>
