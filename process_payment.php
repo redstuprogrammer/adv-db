@@ -56,7 +56,7 @@ $patient_id = (int)($_POST['patient_id'] ?? 0);
 $appointment_id = (int)($_POST['appointment_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $mode = trim($_POST['mode'] ?? '');
-$status = trim($_POST['status'] ?? '');
+$status = trim($_POST['status'] ?? 'Pending');
 $procedures_json = trim($_POST['procedures_json'] ?? '');
 $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 
@@ -64,8 +64,6 @@ $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 $errors = [];
 if ($patient_id <= 0) $errors[] = "Invalid patient selected";
 if ($appointment_id <= 0) $errors[] = "Invalid appointment selected";
-if (empty($mode)) $errors[] = "Payment mode is required";
-if (empty($status)) $errors[] = "Payment status is required";
 if (empty($procedures_json)) $errors[] = "No procedures selected";
 
 $procedures = parse_procedures_json($procedures_json);

@@ -107,6 +107,11 @@ class SessionManager {
             'username' => $username,
             'login_time' => time()
         ];
+        // Backward compatibility for legacy pages that still check the old session key
+        $_SESSION['superadmin_authed'] = true;
+        $_SESSION['role'] = 'superadmin';
+        $_SESSION['superadmin_username'] = $username;
+
         $this->currentRole = 'superadmin';
     }
 
@@ -133,6 +138,11 @@ class SessionManager {
 
     public function logoutSuperAdmin(): void {
         unset($_SESSION['superadmin']);
+        unset($_SESSION['superadmin_authed']);
+        unset($_SESSION['superadmin_username']);
+        if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+            unset($_SESSION['role']);
+        }
         if ($this->currentRole === 'superadmin') {
             $this->currentRole = null;
         }

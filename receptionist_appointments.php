@@ -112,6 +112,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) 
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_POST['request_id'])) {
+    $requestId = (int)($_POST['request_id'] ?? 0);
+    $requestAction = trim($_POST['request_action'] ?? '');
+
+    if ($requestId > 0 && in_array($requestAction, ['approve', 'disapprove'], true)) {
+        if ($requestAction === 'approve') {
+            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
+            $newStatus = 'pending';
+        } else {
+            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 1 WHERE appointment_id = ? AND tenant_id = ?';
+            $newStatus = 'disapproved';
+        }
+        $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
+        if ($stmtReqUpdate) {
+            mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
+            if (mysqli_stmt_execute($stmtReqUpdate)) {
+                $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
+            } else {
+                $errorMessage = 'Unable to update appointment request status.';
+            }
+            mysqli_stmt_close($stmtReqUpdate);
+        } else {
+            $errorMessage = 'Unable to prepare appointment request update statement.';
+        }
+    } else {
+        $errorMessage = 'Invalid appointment request action.';
+    }
+}
+
 $patients = [];
 $stmtPatients = mysqli_prepare($conn, 'SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
 if ($stmtPatients) {
@@ -140,7 +169,7 @@ if ($stmtDentists) {
    DATA FETCHING
 ============================================================ */
 
-$query = "SELECT 
+$queryActiveAppointments = "SELECT 
             a.appointment_id, 
             a.appointment_date, 
             a.appointment_time,
@@ -153,15 +182,39 @@ $query = "SELECT
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ?
+          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 0
           ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
 
-$result = null;
-$stmt = mysqli_prepare($conn, $query);
+$queryRequests = "SELECT 
+            a.appointment_id, 
+            a.appointment_date, 
+            a.appointment_time,
+            a.procedure_name,
+            p.first_name, 
+            p.last_name, 
+            d.last_name AS d_last, 
+            a.status,
+            a.dentist_id
+          FROM appointment a 
+          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
+          LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
+          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 1
+          ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
+
+$appointmentsResult = null;
+$stmt = mysqli_prepare($conn, $queryActiveAppointments);
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
+    $appointmentsResult = mysqli_stmt_get_result($stmt);
+}
+
+$requestResult = null;
+$stmtReq = mysqli_prepare($conn, $queryRequests);
+if ($stmtReq) {
+    mysqli_stmt_bind_param($stmtReq, "i", $tenantId);
+    mysqli_stmt_execute($stmtReq);
+    $requestResult = mysqli_stmt_get_result($stmtReq);
 }
 ?>
 
@@ -194,6 +247,8 @@ if ($stmt) {
       .status-pill.pending { background: #fff3cd; color: #856404; }
       .status-pill.completed { background: #dcfce7; color: #166534; }
       .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
+      .status-pill.disapproved { background: #fee2e2; color: #991b1b; }
+      .status-pill.approved { background: #dcfce7; color: #166534; }
 
       .alert-box { padding: 15px; background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 20px; font-weight: 600; }
 
@@ -227,6 +282,23 @@ if ($stmt) {
         font-size: 16px;
         cursor: pointer;
         text-decoration: none;
+      }
+
+      .tab-button {
+        background: #e2e8f0;
+        color: #0f172a;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s, border-color 0.2s;
+      }
+
+      .tab-button.active {
+        background: var(--dashboard-accent);
+        color: white;
+        border-color: var(--dashboard-accent);
       }
 
       .live-clock-badge {
@@ -363,40 +435,86 @@ if ($stmt) {
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; margin-bottom: 20px;"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
         <div class="content-header">
-          <h2 class="content-title">All Appointments Master List</h2>
+          <div>
+            <h2 class="content-title">Front Desk Appointments</h2>
+            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="tab-button active" type="button" onclick="showAppointmentsTab()">Appointments</button>
+              <button class="tab-button" type="button" onclick="showRequestsTab()">Appointment Requests</button>
+            </div>
+          </div>
           <button class="add-btn" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
 
-        <table class="queue-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Patient</th>
-              <th>Dentist</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php if ($result && $result->num_rows > 0): ?>
-              <?php while($row = $result->fetch_assoc()): ?>
-                <tr>
-                  <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
-                  <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
-                  <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
-                  <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
-                  <td class="actions-cell">
-                    <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
-                    <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
-                    <a href="javascript:void(0);" class="action-link" onclick="printAppointment(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Print</a>
-                  </td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr><td colspan="5" style="text-align:center; padding:30px;">No appointments found.</td></tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
+        <div id="appointmentsSection">
+          <table class="queue-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Patient</th>
+                <th>Dentist</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if ($appointmentsResult && $appointmentsResult->num_rows > 0): ?>
+                <?php while($row = $appointmentsResult->fetch_assoc()): ?>
+                  <tr>
+                    <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
+                    <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
+                    <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
+                    <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
+                    <td class="actions-cell">
+                      <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="printAppointment(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Print</a>
+                    </td>
+                  </tr>
+                <?php endwhile; ?>
+              <?php else: ?>
+                <tr><td colspan="5" style="text-align:center; padding:30px;">No appointments found.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="requestsSection" style="display: none;">
+          <table class="queue-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Patient</th>
+                <th>Dentist</th>
+                <th>Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if ($requestResult && $requestResult->num_rows > 0): ?>
+                <?php while($request = $requestResult->fetch_assoc()): ?>
+                  <tr>
+                    <td><?php echo date('M d, Y', strtotime($request['appointment_date'])); ?></td>
+                    <td><strong><?php echo h(($request['first_name'] ?? '') . " " . ($request['last_name'] ?? '')); ?></strong></td>
+                    <td>Dr. <?php echo h($request['d_last'] ?? ''); ?></td>
+                    <td><?php echo h($request['appointment_time'] ?: 'TBD'); ?></td>
+                    <td class="actions-cell">
+                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($request['d_last'] ?? '')); ?>, <?php echo json_encode($request['appointment_date']); ?>, <?php echo json_encode($request['appointment_time'] ?? ''); ?>)">View</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'approve')">Approve</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'disapprove')">Disapprove</a>
+                    </td>
+                  </tr>
+                <?php endwhile; ?>
+              <?php else: ?>
+                <tr><td colspan="5" style="text-align:center; padding:30px;">No appointment requests found.</td></tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+        </div>
+
+        <form id="requestActionForm" method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" style="display:none;">
+          <input type="hidden" name="request_id" id="request_id" value="">
+          <input type="hidden" name="request_action" id="request_action" value="">
+        </form>
       </div>
     </div>
   </div>
@@ -523,8 +641,71 @@ if ($stmt) {
     </div>
   </div>
 
+  <!-- View Request Modal -->
+  <div id="requestViewModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Appointment Request Details</h3>
+        <button class="modal-close" type="button" onclick="closeRequestViewModal()">&times;</button>
+      </div>
+      <div class="form-group">
+        <label>Patient</label>
+        <input type="text" id="requestPatientName" readonly>
+      </div>
+      <div class="form-group">
+        <label>Dentist</label>
+        <input type="text" id="requestDentistName" readonly>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="text" id="requestDate" readonly>
+      </div>
+      <div class="form-group">
+        <label>Time</label>
+        <input type="text" id="requestTime" readonly>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" onclick="closeRequestViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     <?php printDateClockScript(); ?>
+
+    function showAppointmentsTab() {
+      document.getElementById('appointmentsSection').style.display = 'block';
+      document.getElementById('requestsSection').style.display = 'none';
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      const buttons = document.querySelectorAll('.tab-button');
+      if (buttons[0]) buttons[0].classList.add('active');
+    }
+
+    function showRequestsTab() {
+      document.getElementById('appointmentsSection').style.display = 'none';
+      document.getElementById('requestsSection').style.display = 'block';
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      const buttons = document.querySelectorAll('.tab-button');
+      if (buttons[1]) buttons[1].classList.add('active');
+    }
+
+    function submitRequestAction(id, action) {
+      document.getElementById('request_id').value = id;
+      document.getElementById('request_action').value = action;
+      document.getElementById('requestActionForm').submit();
+    }
+
+    function openRequestViewModal(id, patientName, dentistName, date, time) {
+      document.getElementById('requestPatientName').value = patientName;
+      document.getElementById('requestDentistName').value = dentistName;
+      document.getElementById('requestDate').value = date;
+      document.getElementById('requestTime').value = time || 'TBD';
+      document.getElementById('requestViewModal').classList.add('active');
+    }
+
+    function closeRequestViewModal() {
+      document.getElementById('requestViewModal').classList.remove('active');
+    }
 
     function openScheduleModal() {
       const dateInput = document.getElementById('appointment_date');

@@ -1,20 +1,22 @@
 <?php
-// Headers
+// ============================================================
+// FILE TYPE: API ENDPOINT — deploy to server
+// PATH on server: /api/get_billing.php
+// ============================================================
+// GET  → fetch all payments for a patient (deposits + full bills)
+// POST → submit / record a payment (full bill)
+// ============================================================
+
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
 
 // ─────────────────────────────────────────────
 //  GET  →  fetch billings for a patient
-//  Query: payment JOIN appointment (to get appointment_date & patient filter)
 // ─────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
@@ -25,9 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // Join payment → appointment so we can:
-    //   • filter by patient_id (lives on appointment)
-    //   • return appointment_date alongside the payment record
+    // Join payments → appointment so we can filter by patient and return appointment_date.
+    // Returns ALL payment rows (deposits + full bills) — mobile sorts them by type.
     $stmt = $conn->prepare("
         SELECT
             p.payment_id,
@@ -40,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             p.source,
             p.reference_number,
             p.payment_date,
-            a.appointment_date
+            p.payment_type,
+            a.appointment_date,
+            a.procedure_name
         FROM payment p
         JOIN appointment a ON p.appointment_id = a.appointment_id
         WHERE a.patient_id = ?
@@ -65,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->close();
 
 // ─────────────────────────────────────────────
-//  POST  →  submit / record a payment
+//  POST  →  submit / record a full payment
 // ─────────────────────────────────────────────
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -84,14 +87,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // Check if a payment already exists for this appointment
-    $check = $conn->prepare("SELECT payment_id FROM payment WHERE appointment_id = ? LIMIT 1");
+    // Check if a FULL payment already exists for this appointment
+    $check = $conn->prepare("
+        SELECT payment_id FROM payment
+        WHERE appointment_id = ?
+          AND payment_type = 'full'
+        LIMIT 1
+    ");
     $check->bind_param("i", $appointment_id);
     $check->execute();
     $check->store_result();
 
     if ($check->num_rows > 0) {
-        // UPDATE the existing payment row
+        // UPDATE the existing full payment row
         $check->bind_result($existing_payment_id);
         $check->fetch();
         $check->close();
@@ -116,11 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     } else {
         $check->close();
 
-        // INSERT a new payment row
+        // INSERT new full payment row (payment_type = 'full' is the default)
         $ins = $conn->prepare("
             INSERT INTO payment
-                (tenant_id, appointment_id, amount, mode, status, procedures_json, source, reference_number)
-            VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?)
+                (tenant_id, appointment_id, amount, mode, status, procedures_json, source, reference_number, payment_type)
+            VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?, 'full')
         ");
         $ins->bind_param("iidssss", $tenant_id, $appointment_id, $amount, $mode, $status, $procedures_json, $reference_number);
         $ins->execute();

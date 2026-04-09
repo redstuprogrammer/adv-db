@@ -206,7 +206,7 @@ if ($serviceStmt) {
         <span class="close-x" onclick="closeModal()">&times;</span>
         <h3 id="modalTitle" style="color: #0d3b66; margin:0 0 20px 0;">Create Invoice</h3>
         
-        <form action="process_payment.php" method="POST" id="paymentForm">
+        <form action="process_payment.php?tenant=<?php echo rawurlencode($tenantSlug); ?></form>" method="POST" id="paymentForm">
             <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
             <input type="hidden" name="payment_id" id="payment_id">
             
@@ -260,29 +260,10 @@ if ($serviceStmt) {
 
             <div class="form-group">
                 <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0.01" required readonly>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0.01" required oninput="validateAmount()">
             </div>
 
-            <div class="form-group">
-                <label>Payment Mode <span style="color: red;">*</span></label>
-                <select name="mode" id="mode" required>
-                    <option value="">-- Select --</option>
-                    <option value="Cash">Cash</option>
-                    <option value="GCash">GCash</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Check">Check</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Status <span style="color: red;">*</span></label>
-                <select name="status" id="status" required>
-                    <option value="">-- Select --</option>
-                    <option value="Paid">Fully Paid</option>
-                    <option value="Installment">Installment</option>
-                    <option value="Pending">Pending</option>
-                </select>
-            </div>
+            <input type="hidden" name="status" id="status" value="Pending">
 
             <button type="submit" class="add-btn-main" style="width:100%; margin-top:10px;">Save Transaction</button>
         </form>
@@ -348,8 +329,23 @@ if ($serviceStmt) {
 
     function updateTotal() {
         const total = cart.reduce((sum, item) => sum + item.price, 0);
-        document.getElementById('amount_input').value = total.toFixed(2);
+        const amountInput = document.getElementById('amount_input');
+        const minAmount = parseFloat(total.toFixed(2));
+        amountInput.min = minAmount.toFixed(2);
+        if (parseFloat(amountInput.value) < minAmount || amountInput.value === '') {
+            amountInput.value = minAmount.toFixed(2);
+        }
         document.getElementById('procedures_json').value = JSON.stringify(cart);
+    }
+
+    function validateAmount() {
+        const amountInput = document.getElementById('amount_input');
+        const total = cart.reduce((sum, item) => sum + item.price, 0);
+        const minAmount = parseFloat(total.toFixed(2));
+        let value = parseFloat(amountInput.value);
+        if (isNaN(value) || value < minAmount) {
+            amountInput.value = minAmount.toFixed(2);
+        }
     }
 
     // Verification log
