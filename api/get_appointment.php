@@ -52,14 +52,14 @@ if (empty($patient_id) || !is_numeric($patient_id)) {
 
 $patient_id = (int) $patient_id;
 
-// ── Lazy void: mark ALL elapsed non-terminal appointments as voided ──────────
-// This covers: pending, pending_payment, confirmed, scheduled
+// ── Lazy void: mark ALL elapsed non-terminal appointments as cancelled ───────
+// Terminal statuses in DB ENUM: 'completed', 'cancelled', 'disapproved'
 // "Elapsed" = appointment datetime is strictly in the past
 $void_stmt = $conn->prepare("
     UPDATE appointment
-    SET status = 'voided'
+    SET status = 'cancelled'
     WHERE patient_id = ?
-      AND status NOT IN ('done', 'cancelled', 'voided')
+      AND status NOT IN ('completed', 'cancelled', 'disapproved')
       AND TIMESTAMP(appointment_date, COALESCE(appointment_time, '23:59:59')) < NOW()
 ");
 
