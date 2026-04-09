@@ -47,16 +47,20 @@ class SessionManager {
     //   3. If only one role is active under the given slug, use that
     // -------------------------------------------------------------------------
     private function detectCurrentContext(): void {
-        // 1. Superadmin
-        if (!empty($_SESSION['superadmin']['authed'])) {
+        // Resolve tenant slug from URL first — if present, always try to
+        // resolve a tenant context regardless of whether superadmin is also
+        // logged in. This allows a superadmin to test tenant dashboards in
+        // the same browser session without being incorrectly redirected.
+        $slug = trim($_GET['tenant'] ?? '');
+
+        // 1. Superadmin — only wins when there is no tenant slug in the URL.
+        if ($slug === '' && !empty($_SESSION['superadmin']['authed'])) {
             $this->currentRole = 'superadmin';
             $this->currentTenantSlug = null;
             return;
         }
 
         // 2. Resolve tenant slug from URL
-        $slug = trim($_GET['tenant'] ?? '');
-
         if ($slug !== '') {
             $this->currentTenantSlug = $slug;
 
