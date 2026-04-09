@@ -1,7 +1,19 @@
 <?php
 $tenantName = $tenantName ?? $_SESSION['tenant_name'] ?? 'OralSync Clinic';
 $tenantSlug = $tenantSlug ?? trim((string)($_GET['tenant'] ?? ''));
-$role = strtolower(trim((string)($_SESSION['role'] ?? 'admin')));
+
+// Resolve role from SessionManager (supports multi-tab/multi-role sessions).
+// Fall back to the flat $_SESSION['role'] key only for legacy compatibility.
+$role = 'admin';
+if (class_exists('SessionManager')) {
+    $sm = SessionManager::getInstance();
+    $resolvedRole = $sm->getCurrentRole();
+    if ($resolvedRole && $resolvedRole !== 'superadmin') {
+        $role = strtolower($resolvedRole);
+    }
+} else {
+    $role = strtolower(trim((string)($_SESSION['role'] ?? 'admin')));
+}
 $currentPage = basename($_SERVER['PHP_SELF']);
 
 function sidebarActive($currentPage, $pageNames) {
