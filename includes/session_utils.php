@@ -138,7 +138,7 @@ class SessionManager {
         }
     }
 
-    public function logoutTenant(string $tenantSlug = null): void {
+    public function logoutTenant(?string $tenantSlug = null): void {
         $slug = $tenantSlug ?? $this->currentTenantSlug;
         if ($slug && isset($_SESSION['tenant'][$slug])) {
             unset($_SESSION['tenant'][$slug]);
@@ -156,7 +156,7 @@ class SessionManager {
         }
     }
 
-    public function requireTenantUser(string $expectedRole = null): void {
+    public function requireTenantUser(?string $expectedRole = null): void {
         if (!$this->isTenantUser()) {
             $slug = $this->currentTenantSlug ?: 'unknown';
             header('Location: tenant_login.php?tenant=' . rawurlencode($slug));
@@ -190,27 +190,5 @@ class SessionManager {
 }
 
 // Global functions for backward compatibility
-function getCurrentUserId(): ?int {
-    return SessionManager::getInstance()->getUserId();
-}
-
-function getCurrentUsername(): ?string {
-    return SessionManager::getInstance()->getUsername();
-}
-
-function getCurrentRole(): ?string {
-    return SessionManager::getInstance()->getRole();
-}
-
-function getCurrentTenantId(): ?int {
-    return SessionManager::getInstance()->getTenantId();
-}
-
-function requireSuperAdminLogin(): void {
-    SessionManager::getInstance()->requireSuperAdmin();
-}
-
-function requireTenantLogin(string $expectedRole = null): void {
-    SessionManager::getInstance()->requireTenantUser($expectedRole);
-}
+require_once __DIR__ . '/shared_helpers.php';
 ?>
