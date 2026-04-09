@@ -15,8 +15,13 @@ if ($tenantId) {
 
 $sessionManager->logoutTenant($tenantSlug);
 
-$base = getAppBasePath();
-$redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug);
+// Build redirect URL — avoid double-slash when base is empty
+$base = rtrim(getAppBasePath(), '/');
+if ($tenantSlug && $tenantSlug !== 'unknown') {
+    $redirect = $base . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug);
+} else {
+    $redirect = $base . '/tenant_login.php';
+}
 header('Location: ' . $redirect);
 exit;
 ?>

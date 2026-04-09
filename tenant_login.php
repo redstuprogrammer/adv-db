@@ -20,12 +20,17 @@ require_once ROOT_PATH . 'includes/session_utils.php';
 $sessionManager = SessionManager::getInstance();
 
 // Prevent redirect loops by tracking redirect count
-$_SESSION['tenant_login_redirect_count'] = ($_SESSION['tenant_login_redirect_count'] ?? 0) + 1;
-if ($_SESSION['tenant_login_redirect_count'] > 5) {
-    // Clear redirect counter and show error
+// Only increment on POST; reset on GET so normal browsing/back-button doesn't exhaust the counter
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION['tenant_login_redirect_count'] = ($_SESSION['tenant_login_redirect_count'] ?? 0) + 1;
+    if ($_SESSION['tenant_login_redirect_count'] > 5) {
+        $_SESSION['tenant_login_redirect_count'] = 0;
+        http_response_code(400);
+        die("Too many redirects detected. Please check your cookies are enabled and try clearing your browser cache.");
+    }
+} else {
+    // Reset counter on a fresh GET so repeated visits never false-trip the limit
     $_SESSION['tenant_login_redirect_count'] = 0;
-    http_response_code(400);
-    die("Too many redirects detected. Please check your cookies are enabled and try clearing your browser cache.");
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
@@ -96,7 +101,6 @@ function baseUrl(): string {
     return $scheme . '://' . $host;
 }
 
-$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $error = '';
 $tenant = null;
 
@@ -152,10 +156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = (string)($_POST['password'] ?? '');
 
     if ($tenantSlug === '' || !$tenant) {
+        http_response_code(422);
         $error = 'Invalid clinic link. Please check the URL provided to you.';
     } elseif (strtolower((string)$tenant['status']) !== 'active') {
+        http_response_code(422);
         $error = 'This clinic is currently inactive. Please contact OralSync support.';
     } elseif ($username === '' || $password === '') {
+        http_response_code(422);
         $error = 'Please enter your email and password.';
     } else {
         $authenticated = false;
@@ -210,6 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$authenticated) {
+            http_response_code(422);
             $error = 'Incorrect email or password.';
         } else {
             // Prepare user data for session manager

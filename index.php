@@ -25,6 +25,12 @@ if ($sessionManager->isTenantUser()) {
         header('Location: ' . $dashboardUrl);
         exit();
     }
+    // Dashboard URL could not be resolved — send back to tenant login
+    $tenantSlug = $sessionManager->getCurrentTenantSlug();
+    if ($tenantSlug) {
+        header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug));
+        exit();
+    }
 }
 
 // Check for tenant slug in URL
