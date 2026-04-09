@@ -3,10 +3,7 @@
 // FILE TYPE: API ENDPOINT — deploy to server
 // PATH on server: /api/get_appointment.php
 // ============================================================
-// ⚠️  DEBUG VERSION — remove shutdown function once issue is found
-// ============================================================
 
-// ── Fatal error catcher (must be FIRST) ─────────────────────────────────────
 register_shutdown_function(function () {
     $error = error_get_last();
     if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
@@ -32,7 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 
 require_once __DIR__ . '/../connect.php';
 
-// ── Guard: DB connection must exist ─────────────────────────────────────────
 if (!isset($conn) || !$conn || $conn->connect_error) {
     http_response_code(500);
     echo json_encode([
@@ -56,12 +52,14 @@ if (empty($patient_id) || !is_numeric($patient_id)) {
 
 $patient_id = (int) $patient_id;
 
-// ── Lazy void: mark expired pending/pending_payment appointments as voided ──
+// ── Lazy void: mark ALL elapsed non-terminal appointments as voided ──────────
+// This covers: pending, pending_payment, confirmed, scheduled
+// "Elapsed" = appointment datetime is strictly in the past
 $void_stmt = $conn->prepare("
     UPDATE appointment
     SET status = 'voided'
     WHERE patient_id = ?
-      AND status IN ('pending', 'pending_payment')
+      AND status NOT IN ('done', 'cancelled', 'voided')
       AND TIMESTAMP(appointment_date, COALESCE(appointment_time, '23:59:59')) < NOW()
 ");
 

@@ -1,6 +1,6 @@
 <?php
 // ============================================================
-// FILE TYPE: API ENDPOINT — send to groupmate for deployment
+// FILE TYPE: API ENDPOINT — deploy to server
 // PATH on server: /api/get_available_slots.php
 // ============================================================
 // GET params:
@@ -9,7 +9,8 @@
 //   date       (string YYYY-MM-DD, required)
 //
 // Returns 30-min slots within the dentist's schedule for that day,
-// marking each slot available or unavailable (booked/past).
+// marking each slot available or unavailable (booked/past/too-soon).
+// "Too soon" = same-day slots within 2 hours of now (matches book_appointment.php).
 // ============================================================
 
 header('Content-Type: application/json');
@@ -66,7 +67,7 @@ $stmt = $conn->prepare("
     WHERE dentist_id       = ?
       AND tenant_id        = ?
       AND appointment_date = ?
-      AND status NOT IN ('cancelled')
+      AND status NOT IN ('cancelled', 'voided')
 ");
 $stmt->bind_param("iis", $dentist_id, $tenant_id, $date);
 $stmt->execute();
@@ -81,20 +82,25 @@ $stmt->close();
 
 // 3. Generate 30-min slots
 $slot_duration = 30;
-$slots   = [];
-$current = strtotime($schedule['start_time']);
-$end     = strtotime($schedule['end_time']);
+$slots    = [];
+$current  = strtotime($schedule['start_time']);
+$end      = strtotime($schedule['end_time']);
 $is_today = ($date === date('Y-m-d'));
+// 2-hour buffer for same-day bookings — matches book_appointment.php
+$min_allowed = time() + (2 * 60 * 60);
 
 while ($current < $end) {
-    $slot_time   = date('H:i', $current);
-    $slot_label  = date('g:i A', $current);
-    $slot_passed = $is_today && ($current <= time());
+    $slot_time  = date('H:i', $current);
+    $slot_label = date('g:i A', $current);
+
+    // Unavailable if: already past, OR same-day within 2h buffer, OR already booked
+    $too_early  = $is_today && ($current < $min_allowed);
+    $is_booked  = in_array($slot_time, $booked_times);
 
     $slots[] = [
-        'time'      => $slot_time,   // HH:MM — what you POST to book
-        'label'     => $slot_label,  // h:mm A — what you display
-        'available' => !in_array($slot_time, $booked_times) && !$slot_passed,
+        'time'      => $slot_time,
+        'label'     => $slot_label,
+        'available' => !$too_early && !$is_booked,
     ];
 
     $current = strtotime("+{$slot_duration} minutes", $current);
