@@ -230,8 +230,8 @@ try {
             
             // Seed revenue data for the new tenant
             $tier_prices = [
-                'startup' => 124.00,
-                'professional' => 249.00,
+                'startup' => 500.00,
+                'professional' => 1000.00,
                 'enterprise' => 499.00
             ];
             $amount = $tier_prices[$tier] ?? 50.00;

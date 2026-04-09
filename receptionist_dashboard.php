@@ -5,6 +5,12 @@ session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check Implementation - Ensure user is logged in as receptionist
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('receptionist');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
@@ -20,22 +26,19 @@ function baseUrl(): string {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Receptionist' || $_SESSION['tenant_slug'] !== $tenantSlug) {
-    header("Location: /tenant_login.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
-}
+// requireTenantLogin is now handled by session manager above
 
-requireTenantLogin($tenantSlug);
-
-$tenantName = $_SESSION['tenant_name'];
-$tenantId = $_SESSION['tenant_id'];
-$receptionistName = $_SESSION['username'] ?? 'Receptionist';
+$tenantData = $sessionManager->getTenantData();
+$tenantName = $tenantData['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
+$receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
 
 // Get receptionist's first name
 $receptionistFirstName = 'Receptionist';
+$userId = $sessionManager->getUserId();
 $stmt = mysqli_prepare($conn, "SELECT first_name FROM users WHERE user_id = ? AND tenant_id = ?");
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, "ii", $_SESSION['user_id'], $tenantId);
+    mysqli_stmt_bind_param($stmt, "ii", $userId, $tenantId);
     mysqli_stmt_execute($stmt);
     $res = mysqli_stmt_get_result($stmt);
     if ($res && ($row = $res->fetch_assoc())) {

@@ -1,8 +1,4 @@
 <?php
-// Extend session timeout for superadmin
-ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
-
 define('ROOT_PATH', __DIR__ . '/');
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
@@ -10,72 +6,61 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
-
-// Check auth state FIRST, before loading database
 require_once ROOT_PATH . 'includes/session_utils.php';
+
+// Check if already logged in
 $sessionManager = SessionManager::getInstance();
 if ($sessionManager->isSuperAdmin()) {
     header('Location: superadmin_dash.php');
     exit();
 }
 
-// Only load database when needed (form submission or rendering page)
+// Only load database when needed
 require_once ROOT_PATH . 'settings.php';
 require_once ROOT_PATH . 'includes/connect.php';
-require_once ROOT_PATH . 'includes/tenant_utils.php'; // Using your Azure MySQLi connection
-require_once ROOT_PATH . 'includes/session_utils.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php';
 
-/**
- * Escapes HTML for safe output
- */
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-$sessionManager = SessionManager::getInstance();
 $error = '';
+$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $inputUser = trim((string)($_POST['username'] ?? ''));
-    $inputPass = (string)($_POST['password'] ?? '');
+    $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-    if ($inputUser !== '' && $inputPass !== '') {
-        // 1. Check database for the user
-        $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? LIMIT 1");
-        mysqli_stmt_bind_param($stmt, "s", $inputUser);
+    if ($username === '' || $password === '' || $confirmPassword === '') {
+        $error = 'Please fill in all fields.';
+    } elseif ($password !== $confirmPassword) {
+        $error = 'Passwords do not match.';
+    } elseif (strlen($password) < 8) {
+        $error = 'Password must be at least 8 characters long.';
+    } else {
+        // Check if username already exists
+        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
+        mysqli_stmt_bind_param($stmt, "s", $username);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
-        
-        if ($admin = mysqli_fetch_assoc($result)) {
-            $validPassword = false;
-            if (password_verify($inputPass, $admin['password_hash'])) {
-                $validPassword = true;
-            } elseif ($inputPass === $admin['password_hash']) {
-                $validPassword = true; // fallback for old hashes
+
+        if (mysqli_fetch_assoc($result)) {
+            $error = 'Username already exists.';
+        } else {
+            // Create new superadmin account
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $insertStmt = mysqli_prepare($conn, "INSERT INTO super_admins (username, password_hash, created_at) VALUES (?, ?, NOW())");
+            mysqli_stmt_bind_param($insertStmt, "ss", $username, $hashedPassword);
+
+            if (mysqli_stmt_execute($insertStmt)) {
+                $success = 'Account created successfully! You can now log in.';
+            } else {
+                $error = 'Failed to create account. Please try again.';
             }
-
-            if ($validPassword) {
-                session_regenerate_id(true);
-                $sessionManager->loginSuperAdmin($admin['id'], $inputUser);
-
-                // Log superadmin login event
-                logActivity($conn, 1, 'Superadmin Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
-
-                // Update last login timestamp
-                $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET last_login = NOW() WHERE id = ?");
-                mysqli_stmt_bind_param($updateStmt, "i", $admin['id']);
-                mysqli_stmt_execute($updateStmt);
-
-                header('Location: superadmin_dash.php');
-                exit();
-            }
+            mysqli_stmt_close($insertStmt);
         }
-        
-        // If we reach here, authentication failed
-        $error = 'Invalid username or password.';
         mysqli_stmt_close($stmt);
-    } else {
-        $error = 'Please fill in all fields.';
     }
 }
 ?>
@@ -84,37 +69,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OralSync | Super Admin Login</title>
+    <title>OralSync | Super Admin Registration</title>
     <link rel="stylesheet" href="/tenant_style.css" />
 </head>
 <body>
     <div class="t-wrap">
         <div class="t-shell" style="grid-template-columns: 1fr;">
             <section class="t-card">
-                <h1 class="t-cardTitle">Super Admin Login</h1>
-                <div class="t-cardSub">Enter your credentials to manage OralSync.</div>
-                
+                <h1 class="t-cardTitle">Super Admin Registration</h1>
+                <div class="t-cardSub">Create a new super admin account.</div>
+
                 <?php if ($error): ?>
                     <div class="t-error" style="background: #fee2e2; color: #b91c1c; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #fecaca;">
                         <?php echo h($error); ?>
                     </div>
                 <?php endif; ?>
 
-                <form class="t-form" method="POST" action="superadmin_login.php">
+                <?php if ($success): ?>
+                    <div style="background: #d1fae5; color: #065f46; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #a7f3d0;">
+                        <?php echo h($success); ?>
+                    </div>
+                <?php endif; ?>
+
+                <form class="t-form" method="POST" action="superadmin_register.php">
                     <div class="t-field">
                         <label for="username">Username</label>
                         <input id="username" name="username" type="text" required />
                     </div>
                     <div class="t-field">
                         <label for="password">Password</label>
-                        <input id="password" name="password" type="password" required />
+                        <input id="password" name="password" type="password" required minlength="8" />
                     </div>
-                    <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
+                    <div class="t-field">
+                        <label for="confirm_password">Confirm Password</label>
+                        <input id="confirm_password" name="confirm_password" type="password" required minlength="8" />
+                    </div>
+                    <button class="t-btn t-btnPrimary" type="submit">Create Account</button>
                 </form>
 
-                <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; align-items: center;">
-                    <a href="forgot_password_superadmin.php" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
-                    <a href="superadmin_register.php" style="color: #059669; text-decoration: none; font-size: 12px; font-weight: 600;">Create an Account</a>
+                <div style="margin-top: 16px; text-align: center;">
+                    <a href="superadmin_login.php" style="color: #0d3b66; text-decoration: none; font-size: 14px; font-weight: 600;">Back to Login</a>
                 </div>
 
                 <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -138,4 +132,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 </body>
 </html>
-

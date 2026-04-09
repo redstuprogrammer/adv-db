@@ -1,33 +1,22 @@
 <?php
 session_start();
-require_once __DIR__ . '/includes/connect.php';
-require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/session_utils.php';
 
-$tenantSlug = trim((string)($_GET['tenant'] ?? ($_SESSION['tenant_slug'] ?? '')));
-$tenantId = (int)($_SESSION['tenant_id'] ?? 0);
-$tenantEmail = $_SESSION['tenant_email'] ?? '';
+$sessionManager = SessionManager::getInstance();
+$tenantSlug = $sessionManager->getCurrentTenantSlug() ?: 'unknown';
+$tenantId = $sessionManager->getTenantId();
+$username = $sessionManager->getUsername();
 
-if ($tenantId > 0) {
-    logActivity($conn, $tenantId, 'Tenant Logout', 'Tenant logged out', $tenantEmail, 'tenant_owner', 'Tenant Owner');
+if ($tenantId) {
+    require_once __DIR__ . '/includes/connect.php';
+    require_once __DIR__ . '/includes/tenant_utils.php';
+    logActivity($conn, $tenantId, 'Tenant Logout', 'Tenant logged out', $username, strtolower($sessionManager->getRole()), ucfirst($sessionManager->getRole()));
 }
 
-$_SESSION = [];
-if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(),
-        '',
-        time() - 42000,
-        $params['path'],
-        $params['domain'],
-        $params['secure'],
-        $params['httponly']
-    );
-}
+$sessionManager->logoutTenant($tenantSlug);
 
-session_destroy();
 $base = getAppBasePath();
-$redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+$redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug);
 header('Location: ' . $redirect);
 exit;
 ?>

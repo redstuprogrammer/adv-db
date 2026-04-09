@@ -15,6 +15,9 @@ require_once ROOT_PATH . 'includes/security_headers.php';
 require_once ROOT_PATH . 'includes/connect.php';
 require_once ROOT_PATH . 'includes/tenant_utils.php';
 require_once ROOT_PATH . 'includes/tenant_settings_functions.php';
+require_once ROOT_PATH . 'includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
 
 // Prevent redirect loops by tracking redirect count
 $_SESSION['tenant_login_redirect_count'] = ($_SESSION['tenant_login_redirect_count'] ?? 0) + 1;
@@ -28,10 +31,10 @@ if ($_SESSION['tenant_login_redirect_count'] > 5) {
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 
 // Check if already logged in for the requested tenant
-if ($tenantSlug !== '' && isset($_SESSION['tenant_context']) && is_array($_SESSION['tenant_context'])) {
-    $currentContext = $_SESSION['tenant_context'][$tenantSlug] ?? null;
-    if ($currentContext && isset($currentContext['role'])) {
-        $dashboardUrl = getRoleDashboardUrl($currentContext['role'], $tenantSlug);
+if ($tenantSlug !== '') {
+    $tenantData = $sessionManager->getTenantData($tenantSlug);
+    if ($tenantData && isset($tenantData['role'])) {
+        $dashboardUrl = $sessionManager->getDashboardUrl();
         if ($dashboardUrl) {
             header('Location: ' . $dashboardUrl);
             exit;
@@ -209,41 +212,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$authenticated) {
             $error = 'Incorrect email or password.';
         } else {
-            if (!isset($_SESSION['tenant_context']) || !is_array($_SESSION['tenant_context'])) {
-                $_SESSION['tenant_context'] = [];
-            }
-
-            $context = [
+            // Prepare user data for session manager
+            $sessionUserData = [
                 'tenant_id' => (int)$tenant['tenant_id'],
-                'tenant_slug' => (string)$tenant['subdomain_slug'],
                 'tenant_name' => (string)$tenant['company_name'],
-                'tenant_email' => (string)$tenant['contact_email'],
-                'tenant_username' => $userData['username'],
                 'role' => $userRole,
                 'user_id' => $userData['user_id'],
-                'user_email' => $userData['email']
+                'username' => $userData['username'],
+                'email' => $userData['email']
             ];
 
             // Regenerate session ID to allow multiple concurrent sessions
             session_regenerate_id(true);
 
-            $_SESSION['tenant_context'][$tenant['subdomain_slug']] = $context;
-            $_SESSION['tenant_slug_current'] = $tenant['subdomain_slug'];
-
-            // Mirror legacy fields for existing pages
-            $_SESSION['tenant_id'] = $context['tenant_id'];
-            $_SESSION['tenant_slug'] = $context['tenant_slug'];
-            $_SESSION['tenant_name'] = $context['tenant_name'];
-            $_SESSION['tenant_email'] = $context['tenant_email'];
-            $_SESSION['tenant_username'] = $context['tenant_username'];
-            $_SESSION['role'] = $context['role'];
-            $_SESSION['user_id'] = $context['user_id'];
-            $_SESSION['email'] = $context['user_email'];
+            $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
 
             // Log activity
             $activityType = ucfirst(strtolower($userRole)) . ' Login';
             try {
-                logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $userData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+                logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $sessionUserData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
             } catch (Exception $e) {
                 error_log('Activity logging failed: ' . $e->getMessage());
                 // Don't break login flow if logging fails
@@ -252,7 +239,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Reset redirect counter on successful login
             $_SESSION['tenant_login_redirect_count'] = 0;
 
-            $dashboardUrl = getRoleDashboardUrl($userRole, (string)$tenant['subdomain_slug']);
+            $dashboardUrl = $sessionManager->getDashboardUrl();
             error_log("Post-login redirect from tenant_login.php: " . $dashboardUrl);
             if (!$dashboardUrl || empty($dashboardUrl)) {
                 $error = 'Dashboard URL could not be generated. Please contact support.';

@@ -5,6 +5,12 @@ session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check Implementation - Ensure user is logged in as receptionist
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('receptionist');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
@@ -24,14 +30,12 @@ function formatTenantPatientId($tenant_patient_id) {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Receptionist' || $_SESSION['tenant_slug'] !== $tenantSlug) {
-    header("Location: /tenant_login.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
-}
+// requireTenantLogin is now handled by session manager above
 
-$tenantName = $_SESSION['tenant_name'];
-$tenantId = $_SESSION['tenant_id'];
-$receptionistName = $_SESSION['username'] ?? 'Receptionist';
+$tenantData = $sessionManager->getTenantData();
+$tenantName = $tenantData['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
+$receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
 $successMessage = '';
 $errorMessage = '';
 

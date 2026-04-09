@@ -15,19 +15,15 @@ session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check Implementation - Ensure user is logged in
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('admin');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
-
-// Role Check Implementation - Ensure user is logged in
-if (!isset($_SESSION['role'])) {
-    $tenantSlug = trim((string)($_GET['tenant'] ?? $_SESSION['tenant_slug'] ?? ''));
-    if ($tenantSlug === '') {
-        $tenantSlug = 'unknown';
-    }
-    header("Location: tenant_login.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
-}
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -41,10 +37,10 @@ function baseUrl(): string {
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 error_log("tenant_dashboard.php accessed with tenant: " . $tenantSlug);
-requireTenantLogin($tenantSlug);
+// requireTenantLogin is now handled by session manager above
 
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
+$tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
 
 // Fetch metrics for dashboard
 $patientCount = getTenantPatientCount($tenantId) ?? 0;

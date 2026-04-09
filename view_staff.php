@@ -32,7 +32,7 @@ if (!$user_id) {
 
 // Fetch staff details
 $stmt = $conn->prepare("SELECT u.user_id, u.username, u.email, u.role, u.first_name, u.last_name, 
-                       d.primary_specialization, d.license_number, d.joined_system, d.professional_biography, d.contact_phone
+                       d.license_number, d.joined_system, d.professional_biography, d.contact_phone
                        FROM users u 
                        LEFT JOIN dentist d ON u.user_id = d.dentist_id 
                        WHERE u.user_id = ? AND u.tenant_id = ?");

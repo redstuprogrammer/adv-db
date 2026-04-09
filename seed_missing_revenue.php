@@ -9,8 +9,8 @@ $result = mysqli_query($conn, 'SELECT t.tenant_id, t.company_name, t.subscriptio
 
 $records_added = 0;
 $tier_prices = [
-    'startup' => 124.00,
-    'professional' => 249.00,
+    'startup' => 500.00,
+    'professional' => 1000.00,
     'enterprise' => 499.00
 ];
 

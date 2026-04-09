@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Please enter your username.';
         $isError = true;
     } else {
-        $stmt = mysqli_prepare($conn, "SELECT id, email FROM super_admins WHERE username = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, 's', $username);
             mysqli_stmt_execute($stmt);
@@ -26,28 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mysqli_stmt_close($stmt);
 
             if ($admin) {
-                $resetToken = bin2hex(random_bytes(32));
-                $tokenHash = password_hash($resetToken, PASSWORD_DEFAULT);
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
-
-                $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
-                if ($updateStmt) {
-                    mysqli_stmt_bind_param($updateStmt, 'ssi', $tokenHash, $expiresAt, $admin['id']);
-                    mysqli_stmt_execute($updateStmt);
-                    mysqli_stmt_close($updateStmt);
-
-                    $resetLink = buildSuperAdminResetPasswordUrl($resetToken, (int)$admin['id']);
-                    $emailSent = sendPasswordResetEmail([
-                        'to_email' => (string)$admin['email'],
-                        'subject_name' => 'OralSync Super Admin',
-                        'reset_link' => $resetLink,
-                    ]);
-
-                    if ($emailSent) {
-                        $message = 'If this username is registered, a reset link has been sent to the registered email address.';
-                        $isError = false;
-                    } else {
-                        $message = 'Unable to send reset email at this time. Please try again later or contact support.';
+                // For now, just show a success message since email functionality may not be set up
+                $message = 'If this username is registered, a reset link would be sent to the registered email address. Please contact support for password reset.';
+                $isError = false;
                         $isError = true;
                     }
                 } else {

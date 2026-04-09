@@ -10,12 +10,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/session_utils.php';
 
 // Check auth state FIRST, before loading database
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
-    header('Location: superadmin_login.php');
-    exit();
-}
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireSuperAdmin();
 
 // Load settings and database after auth check
 require_once ROOT_PATH . 'settings.php';

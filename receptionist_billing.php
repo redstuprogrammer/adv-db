@@ -5,20 +5,15 @@ session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check Implementation - Ensure user is logged in as receptionist
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('receptionist');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
-
-// Role Check Implementation - Ensure user is a Receptionist
-if (!isset($_SESSION['role'])) {
-    header("Location: tenant_login.php");
-    exit();
-}
-
-if ($_SESSION['role'] !== 'Receptionist') {
-    header("Location: tenant_login.php");
-    exit();
-}
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -38,11 +33,11 @@ function formatTenantPatientId($tenant_patient_id) {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
+// requireTenantLogin is now handled by session manager above
 
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
-$receptionistName = $_SESSION['username'] ?? 'Receptionist';
+$tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
+$receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
 
 /* =========================================
    2. DATA FETCHING (Billing List)
@@ -194,7 +189,6 @@ if ($serviceStmt) {
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
                                     <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
-                                    <a onclick="openEditModal(<?= htmlspecialchars(json_encode($row)) ?>)" class="action-link">Edit</a>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
