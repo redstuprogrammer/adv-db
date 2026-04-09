@@ -222,10 +222,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $userData['email']
             ];
 
+            $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
+
             // Regenerate session ID to allow multiple concurrent sessions
             session_regenerate_id(true);
-
-            $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
 
             // Log activity
             $activityType = ucfirst(strtolower($userRole)) . ' Login';

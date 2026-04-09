@@ -38,7 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.appointment_id,
             a.appointment_date,
             a.status,
-            a.procedure_name
+            a.procedure_name,
+            a.requested_by
         FROM appointment a
         WHERE a.patient_id = ? AND a.tenant_id = ?
         ORDER BY a.appointment_date DESC

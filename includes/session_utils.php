@@ -27,14 +27,22 @@ class SessionManager {
         // Detect current role and tenant from URL or session
         $this->currentTenantSlug = trim($_GET['tenant'] ?? $_SESSION['tenant_slug_current'] ?? '');
 
+        // If tenant slug is specified in URL and tenant session exists, prioritize tenant context
+        if ($this->currentTenantSlug && isset($_SESSION['tenant'][$this->currentTenantSlug])) {
+            $tenantSession = $_SESSION['tenant'][$this->currentTenantSlug];
+            $this->currentRole = strtolower($tenantSession['role'] ?? '');
+            return;
+        }
+
         // Check if superadmin
         if (isset($_SESSION['superadmin']['authed']) && $_SESSION['superadmin']['authed']) {
             $this->currentRole = 'superadmin';
             return;
         }
 
-        // Check tenant context
-        if ($this->currentTenantSlug && isset($_SESSION['tenant'][$this->currentTenantSlug])) {
+        // Fallback to tenant context if no URL slug but current session exists
+        if (!$this->currentTenantSlug && isset($_SESSION['tenant_slug_current']) && isset($_SESSION['tenant'][$_SESSION['tenant_slug_current']])) {
+            $this->currentTenantSlug = $_SESSION['tenant_slug_current'];
             $tenantSession = $_SESSION['tenant'][$this->currentTenantSlug];
             $this->currentRole = strtolower($tenantSession['role'] ?? '');
             return;

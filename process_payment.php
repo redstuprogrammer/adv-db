@@ -71,11 +71,46 @@ if (empty($procedures)) {
     $errors[] = "Invalid procedures data";
 }
 
-if ($amount <= 0) {
-    $amount = compute_amount_from_procedures($procedures);
-}
-if ($amount <= 0) {
+$totalProcedureAmount = compute_amount_from_procedures($procedures);
+if ($totalProcedureAmount <= 0) {
     $errors[] = "Amount must be greater than 0";
+} else {
+    if ($amount <= 0) {
+        $amount = $totalProcedureAmount;
+    }
+
+    $depositApplied = 0.0;
+    if ($appointment_id > 0) {
+        $apptStmt = $conn->prepare("SELECT requested_by FROM appointment WHERE appointment_id = ? AND tenant_id = ? LIMIT 1");
+        if ($apptStmt) {
+            $apptStmt->bind_param("ii", $appointment_id, $tenantId);
+            $apptStmt->execute();
+            $appt = $apptStmt->get_result()->fetch_assoc();
+            $apptStmt->close();
+
+            if ($appt && strtolower(trim($appt['requested_by'] ?? '')) === 'patient') {
+                $depositStmt = $conn->prepare(
+                    "SELECT IFNULL(SUM(amount), 0) AS deposit_sum
+                     FROM payment
+                     WHERE appointment_id = ? AND tenant_id = ? AND payment_type = 'deposit'"
+                );
+                if ($depositStmt) {
+                    $depositStmt->bind_param("ii", $appointment_id, $tenantId);
+                    $depositStmt->execute();
+                    $depositRow = $depositStmt->get_result()->fetch_assoc();
+                    $depositApplied = isset($depositRow['deposit_sum']) ? (float)$depositRow['deposit_sum'] : 0.0;
+                    $depositStmt->close();
+                }
+            }
+        }
+    }
+
+    if ($depositApplied > 0) {
+        $amount = round(max($amount - $depositApplied, 0), 2);
+        if ($amount === 0.0 && strtolower($status) !== 'paid') {
+            $status = 'Paid';
+        }
+    }
 }
 
 if (!empty($errors)) {
@@ -134,7 +169,11 @@ try {
     // Commit transaction
     $conn->commit();
 
-    $_SESSION['success'] = "Payment processed successfully! Reference: " . $reference_number;
+    $successMessage = "Payment processed successfully! Reference: " . $reference_number;
+    if (!empty($depositApplied) && $depositApplied > 0) {
+        $successMessage = "Deposit of ₱" . number_format($depositApplied, 2) . " applied. " . $successMessage;
+    }
+    $_SESSION['success'] = $successMessage;
     header("Location: receptionist_billing.php?tenant=" . rawurlencode($tenantSlug));
     exit();
 

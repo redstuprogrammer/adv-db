@@ -79,6 +79,9 @@ if ($serviceStmt) {
     }
     mysqli_stmt_close($serviceStmt);
 }
+
+$tenantConfig = getTenantConfig($tenantId);
+$bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 ?>
 
 <!DOCTYPE html>
@@ -143,10 +146,16 @@ if ($serviceStmt) {
             <?php renderDateClock(); ?>
         </div>
 
-        <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0;">
+        <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; gap: 12px; flex-wrap: wrap;">
             <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">
-            <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <button class="add-btn-main" onclick="openDepositModal()" style="background: #14b8a6;">Set Booking Downpayment</button>
+                <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
+            </div>
         </section>
+        <div style="padding: 12px 0 0; color: #0f172a; font-size: 14px;">
+            Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
+        </div>
 
         <!-- Message Display -->
         <?php if (isset($_SESSION['success'])): ?>
@@ -206,7 +215,7 @@ if ($serviceStmt) {
         <span class="close-x" onclick="closeModal()">&times;</span>
         <h3 id="modalTitle" style="color: #0d3b66; margin:0 0 20px 0;">Create Invoice</h3>
         
-        <form action="process_payment.php?tenant=<?php echo rawurlencode($tenantSlug); ?></form>" method="POST" id="paymentForm">
+        <form action="process_payment.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" method="POST" id="paymentForm">
             <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
             <input type="hidden" name="payment_id" id="payment_id">
             
@@ -251,7 +260,7 @@ if ($serviceStmt) {
 
             <div class="form-group">
                 <label>Related Appointment <span style="color: red;">*</span></label>
-                <select name="appointment_id" id="appointment_dropdown" required>
+                <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
                     <option value="">-- Choose Patient First --</option>
                 </select>
             </div>
@@ -259,8 +268,13 @@ if ($serviceStmt) {
             <input type="hidden" name="procedures_json" id="procedures_json">
 
             <div class="form-group">
-                <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0.01" required oninput="validateAmount()">
+                <label>Booking Downpayment Applied</label>
+                <input type="text" id="deposit_info" readonly value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit configured: ₱' . number_format($bookingDepositAmount, 2) : 'No clinic downpayment configured'; ?>">
+            </div>
+
+            <div class="form-group">
+                <label>Amount Due After Deposit (₱) <span style="color: red;">*</span></label>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0.00" required oninput="validateAmount()">
             </div>
 
             <input type="hidden" name="status" id="status" value="Pending">
@@ -270,12 +284,35 @@ if ($serviceStmt) {
     </div>
 </div>
 
+<div id="depositModal" class="modal">
+    <div class="modal-content">
+        <span class="close-x" onclick="closeDepositModal()">&times;</span>
+        <h3 style="color: #0d3b66; margin:0 0 20px 0;">Clinic Booking Downpayment</h3>
+        <p style="color: #64748b; margin-bottom: 20px;">Set the amount that will be deducted from invoices when the appointment was requested by the patient.</p>
+        <div class="form-group">
+            <label>Downpayment Amount (₱)</label>
+            <input type="number" id="booking_deposit_amount" step="0.01" min="0.00" value="<?php echo number_format($bookingDepositAmount, 2, '.', ''); ?>">
+        </div>
+        <button type="button" class="add-btn-main" onclick="saveDepositConfig()" style="width:100%;">Save Downpayment</button>
+        <div id="depositModalMessage" style="margin-top: 12px; color: #0d3b66;"></div>
+    </div>
+</div>
+
 <script>
     <?php printDateClockScript(); ?>
 </script>
 
 <script>
+    let bookingDepositAmount = <?php echo json_encode($bookingDepositAmount); ?>;
     let cart = [];
+
+    function getSelectedAppointmentDeposit() {
+        const apptSelect = document.getElementById('appointment_dropdown');
+        const selectedOption = apptSelect.selectedOptions[0];
+        if (!selectedOption || !selectedOption.value) return 0;
+        const requestedBy = selectedOption.dataset.requestedBy || '';
+        return requestedBy.toLowerCase() === 'patient' ? Number(bookingDepositAmount || 0) : 0;
+    }
 
     function addToCart() {
         const serviceSelect = document.getElementById('service_dropdown');
@@ -329,19 +366,29 @@ if ($serviceStmt) {
 
     function updateTotal() {
         const total = cart.reduce((sum, item) => sum + item.price, 0);
+        const depositAmount = getSelectedAppointmentDeposit();
         const amountInput = document.getElementById('amount_input');
-        const minAmount = parseFloat(total.toFixed(2));
-        amountInput.min = minAmount.toFixed(2);
-        if (parseFloat(amountInput.value) < minAmount || amountInput.value === '') {
-            amountInput.value = minAmount.toFixed(2);
-        }
+        const depositInfo = document.getElementById('deposit_info');
+        const amountDue = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
+
+        amountInput.min = amountDue.toFixed(2);
+        amountInput.value = amountDue.toFixed(2);
         document.getElementById('procedures_json').value = JSON.stringify(cart);
+
+        if (depositAmount > 0) {
+            depositInfo.value = `Deposit available: ₱${depositAmount.toFixed(2)} will be applied to this invoice.`;
+        } else if (bookingDepositAmount > 0) {
+            depositInfo.value = 'Deposit configured but not applicable to the selected appointment.';
+        } else {
+            depositInfo.value = 'No clinic downpayment configured';
+        }
     }
 
     function validateAmount() {
         const amountInput = document.getElementById('amount_input');
         const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const minAmount = parseFloat(total.toFixed(2));
+        const depositAmount = getSelectedAppointmentDeposit();
+        const minAmount = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
         let value = parseFloat(amountInput.value);
         if (isNaN(value) || value < minAmount) {
             amountInput.value = minAmount.toFixed(2);
@@ -367,6 +414,45 @@ if ($serviceStmt) {
 
     function closeModal() {
       document.getElementById("paymentModal").style.display = "none";
+    }
+
+    function openDepositModal() {
+      document.getElementById('booking_deposit_amount').value = bookingDepositAmount.toFixed(2);
+      document.getElementById('depositModalMessage').textContent = '';
+      document.getElementById('depositModal').style.display = 'flex';
+    }
+
+    function closeDepositModal() {
+      document.getElementById('depositModal').style.display = 'none';
+    }
+
+    async function saveDepositConfig() {
+      const amountField = document.getElementById('booking_deposit_amount');
+      const rawAmount = amountField.value;
+      const amount = parseFloat(rawAmount);
+
+      if (isNaN(amount) || amount < 0) {
+        document.getElementById('depositModalMessage').textContent = 'Please enter a valid non-negative amount.';
+        return;
+      }
+
+      const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_deposit_amount: amount })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        document.getElementById('depositModalMessage').textContent = result.message;
+        document.getElementById('deposit_info').value = amount > 0 ? `Clinic deposit configured: ₱${amount.toFixed(2)}` : 'No clinic downpayment configured';
+        document.getElementById('depositModalMessage').style.color = '#166534';
+        document.getElementById('depositModal').style.display = 'none';
+        window.bookingDepositAmount = amount;
+      } else {
+        document.getElementById('depositModalMessage').textContent = result.message || 'Unable to save deposit config.';
+        document.getElementById('depositModalMessage').style.color = '#b91c1c';
+      }
     }
 
     // 3. Edit Modal Trigger - Simplified for now
@@ -395,9 +481,11 @@ if ($serviceStmt) {
             let opt = document.createElement('option');
             opt.value = item.appointment_id;
             opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
+            opt.dataset.requestedBy = item.requested_by || '';
             if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
             apptSelect.appendChild(opt);
           });
+          updateTotal();
         })
         .catch(err => console.error('Error loading appointments:', err));
     }
@@ -414,6 +502,7 @@ if ($serviceStmt) {
     // Close modal if clicking outside
     window.onclick = function(e) {
         if (e.target.id === 'paymentModal') closeModal();
+        if (e.target.id === 'depositModal') closeDepositModal();
     }
 </script>
 </body>

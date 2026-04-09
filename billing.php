@@ -37,6 +37,8 @@ if ($_SESSION['role'] !== 'Admin') {
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$tenantConfig = getTenantConfig($tenantId);
+$bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 
 // Fetch payment records with patient and appointment info
 $payments = [];
@@ -275,6 +277,13 @@ foreach ($payments as $payment) {
         background: #0a2d4f;
         border-color: #0a2d4f;
       }
+
+      .modal { display: none; position: fixed; z-index: 9999; inset: 0; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+      .modal-content { background: white; padding: 28px; border-radius: 16px; width: min(420px, 90%); position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.12); }
+      .close-x { position: absolute; right: 18px; top: 14px; cursor: pointer; font-size: 24px; color: #64748b; }
+      .form-group { margin-bottom: 16px; }
+      .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #0d3b66; }
+      .form-group input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
@@ -293,11 +302,17 @@ foreach ($payments as $payment) {
 
 
       <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 12px; flex-wrap: wrap;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Transaction Audit</h2>
-          <div class="search-container">
-            <input type="text" id="paymentSearch" class="search-input" placeholder="🔍 Search patient, invoice, or status..." onkeyup="filterPayments()">
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
+            <div class="search-container">
+              <input type="text" id="paymentSearch" class="search-input" placeholder="🔍 Search patient, invoice, or status..." onkeyup="filterPayments()">
+            </div>
           </div>
+        </div>
+        <div style="margin-bottom: 16px; color: #0f172a; font-size: 14px;">
+          Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
         </div>
 
         <table class="module-table" id="paymentTable">
@@ -341,6 +356,20 @@ foreach ($payments as $payment) {
     </div>
   </div>
 
+  <div id="depositModal" class="modal">
+    <div class="modal-content">
+      <span class="close-x" onclick="closeDepositModal()">&times;</span>
+      <h3 style="color: #0d3b66; margin: 0 0 18px 0;">Clinic Booking Downpayment</h3>
+      <p style="color: #64748b; margin-bottom: 18px;">Set the clinic downpayment amount used for patient-requested mobile appointments.</p>
+      <div class="form-group">
+        <label for="booking_deposit_amount">Downpayment Amount (₱)</label>
+        <input type="number" id="booking_deposit_amount" step="0.01" min="0.00" value="<?php echo number_format($bookingDepositAmount, 2, '.', ''); ?>">
+      </div>
+      <button type="button" class="btn-primary" style="width: 100%;" onclick="saveDepositConfig()">Save Downpayment</button>
+      <div id="depositMessage" style="margin-top: 14px; color: #0d3b66;"></div>
+    </div>
+  </div>
+
   <script>
     // ✓ FLAG TEST: Billing module logic active
     console.log("Billing Module Active");
@@ -348,6 +377,51 @@ foreach ($payments as $payment) {
     console.log('Billing Page Initialized');
     console.log('FINAL UI SYNC COMPLETE');
     
+    function openDepositModal() {
+      document.getElementById('booking_deposit_amount').value = <?php echo json_encode(number_format($bookingDepositAmount, 2, '.', '')); ?>;
+      document.getElementById('depositMessage').textContent = '';
+      document.getElementById('depositModal').style.display = 'flex';
+    }
+
+    function closeDepositModal() {
+      document.getElementById('depositModal').style.display = 'none';
+    }
+
+    async function saveDepositConfig() {
+      const amountField = document.getElementById('booking_deposit_amount');
+      const amount = parseFloat(amountField.value);
+      const messageEl = document.getElementById('depositMessage');
+
+      if (isNaN(amount) || amount < 0) {
+        messageEl.textContent = 'Please enter a valid non-negative amount.';
+        messageEl.style.color = '#b91c1c';
+        return;
+      }
+
+      const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ booking_deposit_amount: amount })
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        messageEl.textContent = result.message;
+        messageEl.style.color = '#166534';
+        document.getElementById('depositModal').style.display = 'none';
+        document.querySelector('.module-card > div:nth-child(2) strong').textContent = amount > 0 ? '₱' + amount.toFixed(2) : 'None configured';
+      } else {
+        messageEl.textContent = result.message || 'Unable to save downpayment.';
+        messageEl.style.color = '#b91c1c';
+      }
+    }
+
+    window.onclick = function(e) {
+      if (e.target.id === 'depositModal') {
+        closeDepositModal();
+      }
+    }
+
     // Live Clock Update Function
     function updateClock() {
       const now = new Date();
