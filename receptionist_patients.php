@@ -8,26 +8,15 @@
  * ============================================
  */
 
-// Extend session timeout
-ini_set('session.gc_maxlifetime', 86400 * 7);
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
-
-session_start();
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 
-// Role Check Implementation - Ensure user is a Receptionist
-if (!isset($_SESSION['role'])) {
-    header("Location: tenant_login.php");
-    exit();
-}
-
-if ($_SESSION['role'] !== 'Receptionist') {
-    header("Location: tenant_login.php");
-    exit();
-}
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('receptionist');
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -38,10 +27,9 @@ function formatTenantPatientId($tenant_patient_id) {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
-
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
+$tenantData = $sessionManager->getTenantData();
+$tenantName = $tenantData['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
 $successMessage = '';
 $errorMessage = '';
 

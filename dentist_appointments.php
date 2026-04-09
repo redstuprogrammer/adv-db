@@ -8,12 +8,9 @@
  * ============================================
  */
 
-// Extend session timeout
-ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
-
-session_start();
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
@@ -28,18 +25,15 @@ function baseUrl(): string {
     return $scheme . '://' . $host;
 }
 
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('dentist');
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist' || $_SESSION['tenant_slug'] !== $tenantSlug) {
-    header("Location: /tenant_login.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
-}
-
-requireTenantLogin($tenantSlug);
-
-$tenantName = $_SESSION['tenant_name'];
-$tenantId = $_SESSION['tenant_id'];
-$dentistId = $_SESSION['user_id'];
-$dentistName = $_SESSION['first_name'] ?? $_SESSION['username'] ?? 'Dentist';
+$tenantData = $sessionManager->getTenantData();
+$tenantName = $tenantData['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
+$dentistId = $sessionManager->getUserId();
+$dentistName = $sessionManager->getUsername() ?? 'Dentist';
 
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $today = date('Y-m-d');

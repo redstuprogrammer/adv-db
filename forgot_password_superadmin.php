@@ -29,12 +29,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // For now, just show a success message since email functionality may not be set up
                 $message = 'If this username is registered, a reset link would be sent to the registered email address. Please contact support for password reset.';
                 $isError = false;
-                        $isError = true;
-                    }
-                } else {
-                    $message = 'Unable to generate reset request. Please try again later.';
-                    $isError = true;
-                }
             } else {
                 $message = 'If this username is registered, a reset link has been sent to the registered email address.';
                 $isError = false;

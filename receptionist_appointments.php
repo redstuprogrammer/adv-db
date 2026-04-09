@@ -118,17 +118,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_P
 
     if ($requestId > 0 && in_array($requestAction, ['approve', 'disapprove'], true)) {
         if ($requestAction === 'approve') {
-            // Approve: Set status to 'Approved' and mark as processed (not a request anymore)
+            // Approve: Set status to 'Pending' and mark as processed (not a request anymore)
             $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
-            $newStatus = 'Approved';
+            $newStatus = 'Pending';
         } else {
-            // Disapprove: Set status to 'Disapproved' and keep as request
-            $updateSql = 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?';
-            $newStatus = 'Disapproved';
+            // Disapprove: Delete the appointment request
+            $updateSql = 'DELETE FROM appointment WHERE appointment_id = ? AND tenant_id = ?';
+            $newStatus = null; // not used
         }
         $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
         if ($stmtReqUpdate) {
-            mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
+            if ($requestAction === 'approve') {
+                mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
+            } else {
+                mysqli_stmt_bind_param($stmtReqUpdate, 'ii', $requestId, $tenantId);
+            }
             if (mysqli_stmt_execute($stmtReqUpdate)) {
                 $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
             } else {

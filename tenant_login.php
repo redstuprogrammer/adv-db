@@ -180,12 +180,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $isEmailInput = strpos($username, '@') !== false;
             try {
                 if ($isEmailInput) {
-                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND email = ? LIMIT 1");
+                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND email COLLATE utf8mb4_bin = ? LIMIT 1");
                     if ($stmt) {
                         mysqli_stmt_bind_param($stmt, "is", $tenant['tenant_id'], $username);
                     }
                 } else {
-                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND BINARY username = ? LIMIT 1");
+                    $stmt = mysqli_prepare($conn, "SELECT user_id, username, email, password, role FROM users WHERE tenant_id = ? AND username COLLATE utf8mb4_bin = ? LIMIT 1");
                     if ($stmt) {
                         mysqli_stmt_bind_param($stmt, "is", $tenant['tenant_id'], $username);
                     }
