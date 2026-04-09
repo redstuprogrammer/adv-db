@@ -3,13 +3,25 @@
 // FILE TYPE: API ENDPOINT — deploy to server
 // PATH on server: /api/get_appointment.php
 // ============================================================
-// GET params:
-//   patient_id (int, required)
-//
-// LAZY VOID LOGIC (runs on every fetch):
-//   - pending_payment  + appointment datetime has passed → voided
-//   - pending          + appointment datetime has passed → voided
+// ⚠️  DEBUG VERSION — remove shutdown function once issue is found
 // ============================================================
+
+// ── Fatal error catcher (must be FIRST) ─────────────────────────────────────
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        if (ob_get_level()) ob_clean();
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'debug'   => true,
+            'fatal'   => $error['message'],
+            'file'    => $error['file'],
+            'line'    => $error['line'],
+        ]);
+    }
+});
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -45,7 +57,6 @@ if (empty($patient_id) || !is_numeric($patient_id)) {
 $patient_id = (int) $patient_id;
 
 // ── Lazy void: mark expired pending/pending_payment appointments as voided ──
-// Parameterized to avoid injection and surface errors cleanly.
 $void_stmt = $conn->prepare("
     UPDATE appointment
     SET status = 'voided'
