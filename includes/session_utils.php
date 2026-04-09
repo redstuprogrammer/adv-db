@@ -1,7 +1,15 @@
 <?php
 /**
  * Session Utilities for Role-Based Multi-Tenant Session Management
- * Supports multiple concurrent sessions in different tabs
+ * Supports multiple concurrent sessions in different tabs, including
+ * multiple roles under the same tenant slug simultaneously.
+ *
+ * Session structure:
+ *   $_SESSION['superadmin']          — superadmin auth block
+ *   $_SESSION['tenant'][$slug:$role] — per-role tenant auth block
+ *
+ * Context is resolved per-request from the URL (?tenant= + page filename),
+ * never from a single shared "current" pointer, so each tab is independent.
  */
 
 class SessionManager {
@@ -23,33 +31,116 @@ class SessionManager {
         return self::$instance;
     }
 
+    // -------------------------------------------------------------------------
+    // Internal: build the session key for a given slug + role
+    // -------------------------------------------------------------------------
+    private static function tenantKey(string $slug, string $role): string {
+        return $slug . ':' . strtolower($role);
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal: detect the role for the current request.
+    //
+    // Priority order:
+    //   1. Superadmin session (no slug needed)
+    //   2. URL ?tenant= slug + script filename -> find matching role in session
+    //   3. If only one role is active under the given slug, use that
+    // -------------------------------------------------------------------------
     private function detectCurrentContext(): void {
-        // Detect current role and tenant from URL or session
-        $this->currentTenantSlug = trim($_GET['tenant'] ?? $_SESSION['tenant_slug_current'] ?? '');
-
-        // If tenant slug is specified in URL and tenant session exists, prioritize tenant context
-        if ($this->currentTenantSlug && isset($_SESSION['tenant'][$this->currentTenantSlug])) {
-            $tenantSession = $_SESSION['tenant'][$this->currentTenantSlug];
-            $this->currentRole = strtolower($tenantSession['role'] ?? '');
-            return;
-        }
-
-        // Check if superadmin
-        if (isset($_SESSION['superadmin']['authed']) && $_SESSION['superadmin']['authed']) {
+        // 1. Superadmin
+        if (!empty($_SESSION['superadmin']['authed'])) {
             $this->currentRole = 'superadmin';
+            $this->currentTenantSlug = null;
             return;
         }
 
-        // Fallback to tenant context if no URL slug but current session exists
-        if (!$this->currentTenantSlug && isset($_SESSION['tenant_slug_current']) && isset($_SESSION['tenant'][$_SESSION['tenant_slug_current']])) {
-            $this->currentTenantSlug = $_SESSION['tenant_slug_current'];
-            $tenantSession = $_SESSION['tenant'][$this->currentTenantSlug];
-            $this->currentRole = strtolower($tenantSession['role'] ?? '');
+        // 2. Resolve tenant slug from URL
+        $slug = trim($_GET['tenant'] ?? '');
+
+        if ($slug !== '') {
+            $this->currentTenantSlug = $slug;
+
+            // Try to match role from the current script name
+            $roleFromScript = $this->inferRoleFromScript();
+            if ($roleFromScript) {
+                $key = self::tenantKey($slug, $roleFromScript);
+                if (!empty($_SESSION['tenant'][$key])) {
+                    $this->currentRole = $roleFromScript;
+                    return;
+                }
+            }
+
+            // Script-based inference failed — find whichever role is logged in under this slug
+            $matched = $this->findRoleForSlug($slug);
+            if ($matched) {
+                $this->currentRole = $matched;
+                return;
+            }
+
+            $this->currentRole = null;
+            return;
+        }
+
+        // 3. No slug in URL — look for exactly one active tenant session
+        //    (handles pages like index.php that don't carry ?tenant=)
+        $allKeys = array_keys($_SESSION['tenant'] ?? []);
+        if (count($allKeys) === 1) {
+            $parts = explode(':', $allKeys[0], 2);
+            $this->currentTenantSlug = $parts[0];
+            $this->currentRole = $parts[1] ?? null;
             return;
         }
 
         $this->currentRole = null;
+        $this->currentTenantSlug = null;
     }
+
+    /**
+     * Infer expected role from the current PHP script filename.
+     * dashboard.php -> admin, dentist_dashboard.php -> dentist, etc.
+     */
+    private function inferRoleFromScript(): ?string {
+        $script = strtolower(basename($_SERVER['SCRIPT_FILENAME'] ?? ''));
+        $map = [
+            'dashboard.php'              => 'admin',
+            'dentist_dashboard.php'      => 'dentist',
+            'receptionist_dashboard.php' => 'receptionist',
+            'tenant_login.php'           => null,
+            'tenant_logout.php'          => null,
+        ];
+
+        if (array_key_exists($script, $map)) {
+            return $map[$script];
+        }
+
+        if (str_starts_with($script, 'dentist_')) {
+            return 'dentist';
+        }
+        if (str_starts_with($script, 'receptionist_')) {
+            return 'receptionist';
+        }
+
+        return null;
+    }
+
+    /**
+     * Among all active sessions for a given slug, return the role
+     * if exactly one is found — otherwise null (ambiguous).
+     */
+    private function findRoleForSlug(string $slug): ?string {
+        $found = [];
+        foreach ($_SESSION['tenant'] ?? [] as $key => $data) {
+            if (str_starts_with($key, $slug . ':')) {
+                $parts = explode(':', $key, 2);
+                $found[] = $parts[1];
+            }
+        }
+        return count($found) === 1 ? $found[0] : null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Public getters
+    // -------------------------------------------------------------------------
 
     public function getCurrentRole(): ?string {
         return $this->currentRole;
@@ -64,7 +155,7 @@ class SessionManager {
     }
 
     public function isTenantUser(): bool {
-        return in_array($this->currentRole, ['admin', 'dentist', 'receptionist']);
+        return in_array($this->currentRole, ['admin', 'dentist', 'receptionist'], true);
     }
 
     public function getSuperAdminData(): ?array {
@@ -73,27 +164,27 @@ class SessionManager {
 
     public function getTenantData(?string $slug = null): ?array {
         $slug = $slug ?? $this->currentTenantSlug;
-        return $_SESSION['tenant'][$slug] ?? null;
+        if ($slug === null || $this->currentRole === null) {
+            return null;
+        }
+        $key = self::tenantKey($slug, $this->currentRole);
+        return $_SESSION['tenant'][$key] ?? null;
     }
 
     public function getUserId(): ?int {
         if ($this->isSuperAdmin()) {
             return $_SESSION['superadmin']['id'] ?? null;
-        } elseif ($this->isTenantUser()) {
-            $data = $this->getTenantData();
-            return $data['user_id'] ?? null;
         }
-        return null;
+        $data = $this->getTenantData();
+        return $data['user_id'] ?? null;
     }
 
     public function getUsername(): ?string {
         if ($this->isSuperAdmin()) {
             return $_SESSION['superadmin']['username'] ?? null;
-        } elseif ($this->isTenantUser()) {
-            $data = $this->getTenantData();
-            return $data['username'] ?? null;
         }
-        return null;
+        $data = $this->getTenantData();
+        return $data['username'] ?? null;
     }
 
     public function getRole(): ?string {
@@ -101,26 +192,27 @@ class SessionManager {
     }
 
     public function getTenantId(): ?int {
-        if ($this->isTenantUser()) {
-            $data = $this->getTenantData();
-            return $data['tenant_id'] ?? null;
-        }
-        return null;
+        $data = $this->getTenantData();
+        return isset($data['tenant_id']) ? (int)$data['tenant_id'] : null;
     }
+
+    // -------------------------------------------------------------------------
+    // Login / Logout
+    // -------------------------------------------------------------------------
 
     public function loginSuperAdmin(int $id, string $username): void {
         $_SESSION['superadmin'] = [
-            'authed' => true,
-            'id' => $id,
-            'username' => $username,
+            'authed'     => true,
+            'id'         => $id,
+            'username'   => $username,
             'login_time' => time()
         ];
-        // Backward compatibility for legacy pages that still check the old session key
-        $_SESSION['superadmin_authed'] = true;
-        $_SESSION['role'] = 'superadmin';
+        // Backward-compat keys (read by legacy pages only — not used for routing)
+        $_SESSION['superadmin_authed']   = true;
         $_SESSION['superadmin_username'] = $username;
 
-        $this->currentRole = 'superadmin';
+        $this->currentRole       = 'superadmin';
+        $this->currentTenantSlug = null;
     }
 
     public function loginTenantUser(string $tenantSlug, array $userData): void {
@@ -128,31 +220,30 @@ class SessionManager {
             $_SESSION['tenant'] = [];
         }
 
-        $_SESSION['tenant'][$tenantSlug] = [
-            'tenant_id' => $userData['tenant_id'],
+        $role = strtolower($userData['role']);
+        $key  = self::tenantKey($tenantSlug, $role);
+
+        $_SESSION['tenant'][$key] = [
+            'tenant_id'   => $userData['tenant_id'],
             'tenant_slug' => $tenantSlug,
             'tenant_name' => $userData['tenant_name'] ?? '',
-            'role' => $userData['role'],
-            'user_id' => $userData['user_id'],
-            'username' => $userData['username'],
-            'email' => $userData['email'],
-            'login_time' => time()
+            'role'        => $role,
+            'user_id'     => $userData['user_id'],
+            'username'    => $userData['username'],
+            'email'       => $userData['email'],
+            'login_time'  => time()
         ];
 
-        $_SESSION['tenant_slug_current'] = $tenantSlug;
-        // Set backward compatibility session key for sidebar_main.php
-        $_SESSION['role'] = strtolower($userData['role']);
         $this->currentTenantSlug = $tenantSlug;
-        $this->currentRole = strtolower($userData['role']);
+        $this->currentRole       = $role;
+
+        // NOTE: We intentionally do NOT write $_SESSION['role'] or
+        // $_SESSION['tenant_slug_current'] — those flat keys caused the
+        // multi-tab collision and are no longer used for routing decisions.
     }
 
     public function logoutSuperAdmin(): void {
-        unset($_SESSION['superadmin']);
-        unset($_SESSION['superadmin_authed']);
-        unset($_SESSION['superadmin_username']);
-        if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
-            unset($_SESSION['role']);
-        }
+        unset($_SESSION['superadmin'], $_SESSION['superadmin_authed'], $_SESSION['superadmin_username']);
         if ($this->currentRole === 'superadmin') {
             $this->currentRole = null;
         }
@@ -160,18 +251,25 @@ class SessionManager {
 
     public function logoutTenant(?string $tenantSlug = null): void {
         $slug = $tenantSlug ?? $this->currentTenantSlug;
-        if ($slug && isset($_SESSION['tenant'][$slug])) {
-            unset($_SESSION['tenant'][$slug]);
-            if ($this->currentTenantSlug === $slug) {
-                $this->currentTenantSlug = null;
-                $this->currentRole = null;
-                // Clear backward compatibility session key
-                if (isset($_SESSION['role']) && $_SESSION['role'] !== 'superadmin') {
-                    unset($_SESSION['role']);
-                }
-            }
+        if (!$slug) {
+            return;
+        }
+
+        // Remove only this role's entry, leaving other roles' sessions intact
+        if ($this->currentRole) {
+            $key = self::tenantKey($slug, $this->currentRole);
+            unset($_SESSION['tenant'][$key]);
+        }
+
+        if ($this->currentTenantSlug === $slug) {
+            $this->currentTenantSlug = null;
+            $this->currentRole       = null;
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Access guards
+    // -------------------------------------------------------------------------
 
     public function requireSuperAdmin(): void {
         if (!$this->isSuperAdmin()) {
@@ -194,25 +292,30 @@ class SessionManager {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // URL helpers
+    // -------------------------------------------------------------------------
+
     public function getDashboardUrl(): ?string {
         if ($this->isSuperAdmin()) {
             return 'superadmin_dash.php';
-        } elseif ($this->isTenantUser()) {
-            $role = $this->currentRole;
+        }
+
+        if ($this->isTenantUser()) {
             $slug = $this->currentTenantSlug;
-            switch ($role) {
+            switch ($this->currentRole) {
                 case 'admin':
-                    return "dashboard.php?tenant=" . rawurlencode($slug);
+                    return 'dashboard.php?tenant=' . rawurlencode($slug);
                 case 'dentist':
-                    return "dentist_dashboard.php?tenant=" . rawurlencode($slug);
+                    return 'dentist_dashboard.php?tenant=' . rawurlencode($slug);
                 case 'receptionist':
-                    return "receptionist_dashboard.php?tenant=" . rawurlencode($slug);
+                    return 'receptionist_dashboard.php?tenant=' . rawurlencode($slug);
             }
         }
+
         return null;
     }
 }
 
 // Global functions for backward compatibility
 require_once __DIR__ . '/shared_helpers.php';
-?>
