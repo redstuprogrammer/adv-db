@@ -236,46 +236,67 @@ if ($stmt) {
       <!-- Content -->
       <div class="content-section">
         <div class="content-header">
-          <h2 class="content-title">My Appointments</h2>
+          <div>
+            <h2 class="content-title">My Appointments</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #64748b;">
+              <?php
+                $count = $result ? $result->num_rows : 0;
+                echo $count . ' appointment' . ($count !== 1 ? 's' : '') . ' found';
+                if ($filter !== 'all') echo ' &mdash; filter: <strong>' . h($filter) . '</strong>';
+              ?>
+            </p>
+          </div>
         </div>
 
         <div class="action-bar">
-          <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name..." onkeyup="filterAppointments()">
+          <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name...">
           
           <div class="filter-tabs">
-            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="tab <?php echo $filter == 'all' ? 'active' : ''; ?>">All</a>
-            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="tab <?php echo $filter == 'today' ? 'active' : ''; ?>">Today</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all"      class="tab <?php echo $filter == 'all'      ? 'active' : ''; ?>">All</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today"    class="tab <?php echo $filter == 'today'    ? 'active' : ''; ?>">Today</a>
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=upcoming" class="tab <?php echo $filter == 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
           </div>
         </div>
 
         <div class="appt-list-container" id="apptList">
           <?php if ($result && $result->num_rows > 0): ?>
-            <?php while($row = $result->fetch_assoc()): ?>
+            <?php while($row = $result->fetch_assoc()):
+              $statusClass = strtolower($row['status'] ?? 'pending');
+              $dateFormatted = date('M d', strtotime($row['appointment_date']));
+              $yearFormatted = date('Y', strtotime($row['appointment_date']));
+              $dayFormatted  = date('D', strtotime($row['appointment_date']));
+            ?>
               <div class="appt-card" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
+
                 <div class="time-badge">
-                  <h4><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></h4>
-                  <p>Status: <?php echo h($row['status'] ?? ''); ?></p>
+                  <h4><?php echo $dateFormatted; ?></h4>
+                  <p><?php echo $dayFormatted . ' ' . $yearFormatted; ?></p>
                 </div>
-                
+
                 <div class="patient-details">
-                  <h3><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></h3>
-                  <span class="service-tag"><?php echo h($row['service_name'] ?? 'Not assigned'); ?></span>
-                  <span class="status-indicator status-<?php echo strtolower($row['status'] ?? ''); ?>">
-                    ● <?php echo h($row['status'] ?? ''); ?>
+                  <h3><?php echo h(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?></h3>
+                  <span class="service-tag"><?php echo h($row['service_name'] ?? 'General Consultation'); ?></span>
+                  <span class="status-indicator status-<?php echo $statusClass; ?>">
+                    ● <?php echo h(ucfirst($statusClass)); ?>
                   </span>
                 </div>
-                
-                <div class="appt-actions">
+
+                <div class="appt-actions" style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
                   <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">
                     Open Clinical Log
                   </a>
+                  <a href="dentist_patient_view.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>" style="font-size:12px; color:#64748b; text-decoration:none; text-align:right;">
+                    View Patient Profile →
+                  </a>
                 </div>
+
               </div>
             <?php endwhile; ?>
           <?php else: ?>
             <div style="text-align:center; padding: 60px; background:white; border-radius:15px; color:#94a3b8;">
-              <p>No appointments found for this selection.</p>
+              <div style="font-size:48px; margin-bottom:16px;">📅</div>
+              <p style="font-size:15px; font-weight:600;">No appointments found</p>
+              <p style="font-size:13px;">Try switching the filter above or check back later.</p>
             </div>
           <?php endif; ?>
         </div>
@@ -291,19 +312,13 @@ if ($stmt) {
     console.log('Dentist Appointments Module Active');
     console.log('FINAL UI SYNC COMPLETE');
     
-    function filterAppointments() {
-      let input = document.getElementById('apptSearch').value.toLowerCase();
-      let cards = document.getElementsByClassName('appt-card');
-
-      for (let i = 0; i < cards.length; i++) {
-        let name = cards[i].getAttribute('data-name');
-        if (name.includes(input)) {
-          cards[i].classList.remove('hidden-card');
-        } else {
-          cards[i].classList.add('hidden-card');
-        }
-      }
-    }
+    document.getElementById('apptSearch').addEventListener('input', function() {
+      const q = this.value.toLowerCase();
+      document.querySelectorAll('.appt-card').forEach(card => {
+        const match = (card.dataset.name || '').includes(q);
+        card.classList.toggle('hidden-card', !match);
+      });
+    });
   </script>
 </body>
 </html>

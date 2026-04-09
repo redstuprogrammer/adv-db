@@ -241,9 +241,12 @@ class SessionManager {
         $this->currentTenantSlug = $tenantSlug;
         $this->currentRole       = $role;
 
-        // NOTE: We intentionally do NOT write $_SESSION['role'] or
-        // $_SESSION['tenant_slug_current'] — those flat keys caused the
-        // multi-tab collision and are no longer used for routing decisions.
+        // Backward compatibility for legacy pages
+        $_SESSION['role'] = $userData['role'];
+        $_SESSION['tenant_slug_current'] = $tenantSlug;
+        $_SESSION['tenant_id'] = $userData['tenant_id'];
+        $_SESSION['tenant_slug'] = $tenantSlug;
+        $_SESSION['tenant_name'] = $userData['tenant_name'];
     }
 
     public function logoutSuperAdmin(): void {

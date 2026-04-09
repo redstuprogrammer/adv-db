@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/tenant_utils.php';
 $tenantName = $tenantName ?? $_SESSION['tenant_name'] ?? 'OralSync Clinic';
 $tenantSlug = $tenantSlug ?? trim((string)($_GET['tenant'] ?? ''));
 
@@ -23,6 +24,7 @@ function sidebarActive($currentPage, $pageNames) {
     return $currentPage === $pageNames ? ' active bg-blue-700' : '';
 }
 
+$basePath = getAppBasePath();
 $baseTenantQuery = '?tenant=' . rawurlencode($tenantSlug);
 
 $menu = [];
@@ -31,51 +33,51 @@ switch ($role) {
     case 'dentist':
         $menu = [
             ['section' => 'Dentist', 'items' => [
-                ['href' => '/dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
+                ['href' => $basePath . '/dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
-                ['href' => '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
-                ['href' => '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
-                ['href' => '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
+                ['href' => $basePath . '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
+                ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
+                ['href' => $basePath . '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
+                ['href' => $basePath . '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
             ]],
         ];
-        $logoutLink = '/dentist_logout.php' . $baseTenantQuery;
+        $logoutLink = $basePath . '/dentist_logout.php' . $baseTenantQuery;
         break;
     case 'receptionist':
         $menu = [
             ['section' => 'Receptionist', 'items' => [
-                ['href' => '/receptionist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'receptionist_dashboard.php'],
+                ['href' => $basePath . '/receptionist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'receptionist_dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
-                ['href' => '/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
-                ['href' => '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
-                ['href' => '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
+                ['href' => $basePath . '/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
+                ['href' => $basePath . '/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
+                ['href' => $basePath . '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
+                ['href' => $basePath . '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
             ]],
         ];
-        $logoutLink = '/receptionist_logout.php' . $baseTenantQuery;
+        $logoutLink = $basePath . '/receptionist_logout.php' . $baseTenantQuery;
         break;
     default:
         $menu = [
             ['section' => 'Main', 'items' => [
-                ['href' => '/dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dashboard.php'],
+                ['href' => $basePath . '/dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dashboard.php'],
             ]],
             ['section' => 'Core Features', 'items' => [
-                ['href' => '/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
-                ['href' => '/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
-                ['href' => '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php'],
+                ['href' => $basePath . '/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
+                ['href' => $basePath . '/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
+                ['href' => $basePath . '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php'],
             ]],
             ['section' => 'Management', 'items' => [
-                ['href' => '/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
-                ['href' => '/staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
-                ['href' => '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
-                ['href' => '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
-                ['href' => '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
-                ['href' => '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
+                ['href' => $basePath . '/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
+                ['href' => $basePath . '/staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
+                ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
+                ['href' => $basePath . '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
+                ['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
+                ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];
-        $logoutLink = '/tenant_logout.php' . $baseTenantQuery;
+        $logoutLink = $basePath . '/tenant_logout.php' . $baseTenantQuery;
         break;
 }
 ?>
