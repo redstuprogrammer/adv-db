@@ -1,7 +1,9 @@
 <?php
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
+require_once __DIR__ . '/includes/session_utils.php';
+$sessionManager = SessionManager::getInstance();
+if (!$sessionManager->isSuperAdmin()) {
     header('Location: superadmin_login.php');
     exit;
 }
@@ -9,6 +11,43 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/settings.php';
+
+// PDO compatibility shim — connect.php provides $conn (mysqli), not $pdo.
+// Wraps $conn so existing $pdo->query/prepare calls keep working without
+// rewriting every query in this file.
+if (!isset($pdo) && isset($conn)) {
+    class MysqliPdoShim {
+        private $conn;
+        public function __construct($conn) { $this->conn = $conn; }
+        public function query($sql) {
+            $result = mysqli_query($this->conn, $sql);
+            return $result ? new MysqliShimResult($result) : false;
+        }
+        public function prepare($sql) {
+            return new MysqliShimStmt($this->conn, $sql);
+        }
+    }
+    class MysqliShimResult {
+        private $result;
+        public function __construct($result) { $this->result = $result; }
+        public function fetch() { return mysqli_fetch_assoc($this->result) ?: false; }
+    }
+    class MysqliShimStmt {
+        private $conn; private $sql; private $result;
+        public function __construct($conn, $sql) { $this->conn = $conn; $this->sql = $sql; }
+        public function execute($params = []) {
+            $sql = $this->sql;
+            foreach ($params as $p) {
+                $escaped = mysqli_real_escape_string($this->conn, (string)$p);
+                $sql = preg_replace('/\?/', "'" . $escaped . "'", $sql, 1);
+            }
+            $this->result = mysqli_query($this->conn, $sql);
+            return (bool)$this->result;
+        }
+        public function fetch() { return $this->result ? (mysqli_fetch_assoc($this->result) ?: false) : false; }
+    }
+    $pdo = new MysqliPdoShim($conn);
+}
 
 // Load settings for logo display
 try {

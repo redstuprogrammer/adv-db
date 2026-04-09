@@ -819,6 +819,8 @@ try {
             };
             return titles[type] || 'OralSync System Report';
         }
+
+        function exportPDF() {
             if (currentReportData.length === 0) {
                 alert('Please generate a report first');
                 return;
