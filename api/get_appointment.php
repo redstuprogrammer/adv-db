@@ -81,7 +81,7 @@ $stmt = $conn->prepare("
         a.appointment_id,
         a.appointment_date  AS date,
         a.appointment_time  AS time,
-        a.procedure_name    AS procedure,
+        a.procedure_name    AS `procedure`,
         a.status,
         a.notes,
         a.tenant_id,
