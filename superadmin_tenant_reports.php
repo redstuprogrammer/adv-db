@@ -622,7 +622,6 @@ try {
                 </div>
             </div>
             <div class="sa-form-actions">
-                <button class="sa-btn" onclick="applyFilters()">Apply Filters</button>
                 <button class="sa-btn sa-btn-outline" onclick="exportPDF()">Export PDF</button>
                 <button class="sa-btn sa-btn-outline" onclick="exportCSV()">Export CSV</button>
             </div>
@@ -714,6 +713,17 @@ try {
                 reportsDropdownItems.style.display = 'flex';
                 reportsDropdownToggle.classList.add('active');
             }
+
+            const tenantFilter = document.getElementById('tenant_filter');
+            const activityTypeEl = document.getElementById('activity_type');
+            [dateFromEl, dateToEl, tenantFilter, activityTypeEl].forEach(el => {
+                if (!el) return;
+                el.addEventListener('change', function() {
+                    generateReport(selectedReportType);
+                });
+            });
+
+            generateReport(selectedReportType);
         });
 
         let currentReportData = [];

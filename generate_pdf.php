@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     }
 
     $query = "SELECT 
-                py.payment_id, py.amount, py.status, py.mode, py.created_at,
+                py.payment_id, py.amount, py.status, py.mode, py.payment_date,
                 p.first_name, p.last_name,
                 COALESCE(s.service_name, 'General Service') AS service_name,
                 a.appointment_date,
@@ -103,7 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
               FROM payment py
               LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
               LEFT JOIN patient p ON a.patient_id = p.patient_id
-              LEFT JOIN services s ON py.service_id = s.service_id
+              LEFT JOIN service s ON a.service_id = s.service_id
               LEFT JOIN tenants t ON py.tenant_id = t.tenant_id
               WHERE py.payment_id = ? AND py.tenant_id = ?";
 

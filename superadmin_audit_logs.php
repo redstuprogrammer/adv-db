@@ -264,7 +264,6 @@ try {
                 </div>
             </div>
             <div class="sa-form-actions">
-                <button class="sa-btn" onclick="applyFilters()">Apply Filters</button>
                 <button class="sa-btn sa-btn-outline" onclick="clearFilters()">Clear Filters</button>
             </div>
 
@@ -295,9 +294,17 @@ try {
         let totalPages = 1;
         const limit = 20;
 
-        // Load initial data
+        // Load initial data and make filter inputs live
         document.addEventListener('DOMContentLoaded', function() {
             loadLogs();
+            ['search_date', 'search_user_type', 'search_action'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', function() {
+                        loadLogs(1);
+                    });
+                }
+            });
         });
 
         function loadLogs(page = 1) {

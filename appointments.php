@@ -79,7 +79,7 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $offset = ($page - 1) * $perPage;
 
 $totalAppointments = 0;
-$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ?');
+$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND status <> "Disapproved"');
 $countStmt->bind_param('i', $tenantId);
 $countStmt->execute();
 $countResult = $countStmt->get_result();
@@ -95,7 +95,7 @@ $query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_dat
           FROM appointment a
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           LEFT JOIN users u ON a.dentist_id = u.user_id AND u.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ?
+          WHERE a.tenant_id = ? AND a.status <> 'Disapproved'
           ORDER BY a.appointment_date DESC, a.appointment_time DESC
           LIMIT ?, ?";
 $stmt = $conn->prepare($query);

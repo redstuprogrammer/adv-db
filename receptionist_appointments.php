@@ -122,17 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_P
             $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
             $newStatus = 'Pending';
         } else {
-            // Disapprove: Delete the appointment request
-            $updateSql = 'DELETE FROM appointment WHERE appointment_id = ? AND tenant_id = ?';
-            $newStatus = null; // not used
+            // Disapprove: keep the appointment record but mark it Disapproved and processed
+            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
+            $newStatus = 'Disapproved';
         }
         $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
         if ($stmtReqUpdate) {
-            if ($requestAction === 'approve') {
-                mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
-            } else {
-                mysqli_stmt_bind_param($stmtReqUpdate, 'ii', $requestId, $tenantId);
-            }
+            mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
             if (mysqli_stmt_execute($stmtReqUpdate)) {
                 $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
             } else {
@@ -188,7 +184,7 @@ $queryActiveAppointments = "SELECT
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 0
+          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 0 AND a.status <> 'Disapproved'
           ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
 
 $queryRequests = "SELECT 
@@ -583,7 +579,6 @@ if ($stmtReq) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
-            <option value="Pending">Pending</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
@@ -634,7 +629,6 @@ if ($stmtReq) {
           <label for="edit_status">Status</label>
           <select id="edit_status" name="edit_status" required>
             <option value="">Select status</option>
-            <option value="Pending">Pending</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
@@ -839,7 +833,7 @@ if ($stmtReq) {
     function openManageModal(id, patientName, dentistName, status) {
       document.getElementById('update_id').value = id;
       document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
-      document.getElementById('new_status').value = status.toLowerCase();
+      document.getElementById('new_status').value = status;
       document.getElementById('manageModal').classList.add('active');
     }
 
@@ -853,7 +847,7 @@ if ($stmtReq) {
       document.getElementById('edit_date').value = appointmentDate;
       document.getElementById('edit_time').value = appointmentTime;
       document.getElementById('edit_procedure_name').value = procedureName;
-      document.getElementById('edit_status').value = status.toLowerCase();
+      document.getElementById('edit_status').value = status;
       const dentistSelect = document.getElementById('edit_dentist_id');
       if (dentistSelect) {
         dentistSelect.value = dentistId;

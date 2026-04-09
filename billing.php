@@ -56,7 +56,7 @@ $query = "SELECT
           FROM payment py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id AND a.tenant_id = py.tenant_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = py.tenant_id
-          LEFT JOIN service s ON py.service_id = s.service_id AND s.tenant_id = py.tenant_id
+          LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
           WHERE py.tenant_id = ?
           ORDER BY py.payment_id DESC";
 

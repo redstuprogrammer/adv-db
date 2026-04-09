@@ -205,7 +205,7 @@ $tenantId = getCurrentTenantId();
               <option value="Updated">Updated</option>
               <option value="Deleted">Deleted</option>
             </select>
-            <button type="button" onclick="loadActivityReport()">Apply Filter</button>
+
           </div>
 
           <table class="module-table" id="activity-table">
@@ -268,7 +268,6 @@ $tenantId = getCurrentTenantId();
           <div class="filters">
             <input type="date" id="revenue_date_from" />
             <input type="date" id="revenue_date_to" />
-            <button type="button" onclick="loadRevenueReport()">Apply Filter</button>
           </div>
 
           <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold;">
@@ -291,7 +290,7 @@ $tenantId = getCurrentTenantId();
                                       FROM payment py 
                                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id 
                                       LEFT JOIN patient p ON a.patient_id = p.patient_id 
-                                      LEFT JOIN services s ON py.service_id = s.service_id AND s.tenant_id = py.tenant_id
+                                      LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
                                       WHERE py.tenant_id = ? AND py.status = 'Paid' 
                                       ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
@@ -339,6 +338,19 @@ $tenantId = getCurrentTenantId();
           tabButton.click();
         }
       }
+
+      const activityFrom = document.getElementById('activity_date_from');
+      const activityTo = document.getElementById('activity_date_to');
+      const activityTypeFilter = document.getElementById('activity_type_filter');
+      [activityFrom, activityTo, activityTypeFilter].forEach(el => {
+        if (el) el.addEventListener('change', loadActivityReport);
+      });
+
+      const revenueFrom = document.getElementById('revenue_date_from');
+      const revenueTo = document.getElementById('revenue_date_to');
+      [revenueFrom, revenueTo].forEach(el => {
+        if (el) el.addEventListener('change', loadRevenueReport);
+      });
     });
 
     // Tab switching

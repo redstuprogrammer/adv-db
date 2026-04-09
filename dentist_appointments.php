@@ -44,7 +44,7 @@ $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name,
                  a.appointment_date, a.status 
           FROM appointment a
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ? AND a.dentist_id = ?";
+          WHERE a.tenant_id = ? AND a.dentist_id = ? AND a.status <> 'Disapproved'";
 
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";
 elseif ($filter == 'upcoming') $query .= " AND a.appointment_date > ?";
