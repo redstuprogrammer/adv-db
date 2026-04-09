@@ -4,11 +4,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-if (session_status() === PHP_SESSION_NONE) {
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.use_only_cookies', 1);
-    session_start();
-}
+require_once ROOT_PATH . 'includes/session_config.php';
 
 // Load includes FIRST before using any functions
 require_once ROOT_PATH . 'includes/security_headers.php';
@@ -230,10 +226,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $userData['email']
             ];
 
-            $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
-
-            // Regenerate session ID to allow multiple concurrent sessions
+            // Regenerate session ID BEFORE writing session data to prevent
+            // the new session file from being empty on the next request.
             session_regenerate_id(true);
+
+            $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
 
             // Log activity
             $activityType = ucfirst(strtolower($userRole)) . ' Login';
@@ -393,4 +390,3 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
     </div>
 </body>
 </html>
-
