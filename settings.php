@@ -35,7 +35,8 @@ if ($isSettingsPage) {
     }
 
     // Role Check Implementation - Ensure user is an Admin or Superadmin
-    if ($_SESSION['role'] !== 'Admin' && $_SESSION['role'] !== 'superadmin') {
+    $userRole = strtolower($_SESSION['role'] ?? '');
+    if ($userRole !== 'admin' && $userRole !== 'superadmin') {
         redirect('tenant_login.php');
     }
 

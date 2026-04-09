@@ -4,7 +4,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 
 // Check if superadmin or tenant admin
 $isSuperAdmin = !empty($_SESSION['superadmin_authed']);
-$isTenantAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'Admin';
+$isTenantAdmin = isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin';
 
 if (!$isSuperAdmin && !$isTenantAdmin) {
     header('Location: ' . ($isSuperAdmin ? 'superadmin_login.php' : 'tenant_login.php'));

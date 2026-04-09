@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $dentistId = isset($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : 0;
     $appointmentDate = trim($_POST['appointment_date'] ?? '');
     $appointmentTime = trim($_POST['appointment_time'] ?? '');
-    $status = 'pending';
+    $status = 'Pending'; // Automatically set to Pending on creation
 
     if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
         $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
@@ -118,11 +118,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_P
 
     if ($requestId > 0 && in_array($requestAction, ['approve', 'disapprove'], true)) {
         if ($requestAction === 'approve') {
+            // Approve: Set status to 'Approved' and mark as processed (not a request anymore)
             $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
-            $newStatus = 'pending';
+            $newStatus = 'Approved';
         } else {
-            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 1 WHERE appointment_id = ? AND tenant_id = ?';
-            $newStatus = 'disapproved';
+            // Disapprove: Set status to 'Disapproved' and keep as request
+            $updateSql = 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?';
+            $newStatus = 'Disapproved';
         }
         $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
         if ($stmtReqUpdate) {
@@ -577,9 +579,9 @@ if ($stmtReq) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
         <div class="modal-actions">
@@ -628,9 +630,9 @@ if ($stmtReq) {
           <label for="edit_status">Status</label>
           <select id="edit_status" name="edit_status" required>
             <option value="">Select status</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
         <div class="modal-actions">

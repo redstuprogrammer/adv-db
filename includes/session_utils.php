@@ -140,6 +140,8 @@ class SessionManager {
         ];
 
         $_SESSION['tenant_slug_current'] = $tenantSlug;
+        // Set backward compatibility session key for sidebar_main.php
+        $_SESSION['role'] = strtolower($userData['role']);
         $this->currentTenantSlug = $tenantSlug;
         $this->currentRole = strtolower($userData['role']);
     }
@@ -163,6 +165,10 @@ class SessionManager {
             if ($this->currentTenantSlug === $slug) {
                 $this->currentTenantSlug = null;
                 $this->currentRole = null;
+                // Clear backward compatibility session key
+                if (isset($_SESSION['role']) && $_SESSION['role'] !== 'superadmin') {
+                    unset($_SESSION['role']);
+                }
             }
         }
     }
