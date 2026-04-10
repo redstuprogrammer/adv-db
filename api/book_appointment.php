@@ -127,29 +127,11 @@ if ($check->num_rows > 0) {
 }
 $check->close();
 
-// Check if clinic requires a deposit
-// If tenant_configs table or booking_deposit_amount column doesn't exist, default to no deposit.
-$deposit_amount   = null;
+// DB ENUM for status: pending, completed, cancelled, approved, disapproved
+// 'pending_payment' does not exist in the ENUM — always use 'pending' as initial status.
+$initial_status   = 'pending';
 $deposit_required = false;
-
-$cfg = $conn->prepare("
-    SELECT booking_deposit_amount
-    FROM tenant_configs
-    WHERE tenant_id = ?
-    LIMIT 1
-");
-if ($cfg) {
-    $cfg->bind_param("i", $tenant_id);
-    $cfg->execute();
-    $cfg_row = $cfg->get_result()->fetch_assoc();
-    $cfg->close();
-
-    $deposit_amount   = $cfg_row['booking_deposit_amount'] ?? null;
-    $deposit_required = !is_null($deposit_amount) && $deposit_amount > 0;
-}
-// If $cfg === false (table missing), we silently fall back to $deposit_required = false → status = 'pending'
-
-$initial_status = $deposit_required ? 'pending_payment' : 'pending';
+$deposit_amount   = null;
 
 // Insert appointment
 $stmt = $conn->prepare("
