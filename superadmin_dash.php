@@ -1476,9 +1476,54 @@ try {
             });
         }
 
+        // Real-time duplicate checks on blur
+        function showFieldError(fieldId, message) {
+            let field = document.getElementById(fieldId);
+            let existing = document.getElementById(fieldId + '-error');
+            if (existing) existing.remove();
+            if (message) {
+                let err = document.createElement('p');
+                err.id = fieldId + '-error';
+                err.style.cssText = 'color:#b91c1c;font-size:0.8rem;margin:4px 0 0;';
+                err.textContent = message;
+                field.parentNode.appendChild(err);
+                field.style.borderColor = '#b91c1c';
+            } else {
+                field.style.borderColor = '';
+            }
+        }
+
+        document.getElementById('owner-email').addEventListener('blur', function() {
+            const email = this.value.trim();
+            if (!email) return;
+            fetch('check_clinic_unique.php?field=email&value=' + encodeURIComponent(email))
+                .then(r => r.json())
+                .then(data => {
+                    showFieldError('owner-email', data.exists ? 'This email is already registered to another clinic.' : '');
+                }).catch(() => {});
+        });
+
+        document.getElementById('clinic-username').addEventListener('blur', function() {
+            const username = this.value.trim();
+            if (!username) return;
+            fetch('check_clinic_unique.php?field=username&value=' + encodeURIComponent(username))
+                .then(r => r.json())
+                .then(data => {
+                    showFieldError('clinic-username', data.exists ? 'This username is already taken. Please choose another.' : '');
+                }).catch(() => {});
+        });
+
         // STEP 1: Intercept the form submission and show the modal
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+
+            // Block submission if there are visible field errors
+            const emailErr = document.getElementById('owner-email-error');
+            const usernameErr = document.getElementById('clinic-username-error');
+            if ((emailErr && emailErr.textContent) || (usernameErr && usernameErr.textContent)) {
+                showToast('Please fix the errors above before submitting.');
+                return;
+            }
 
             // Get values for review
             const tierValue = document.getElementById('clinic-tier').value;

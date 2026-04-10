@@ -41,17 +41,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     $birthdate = trim($_POST['birthdate'] ?? '');
     $gender = trim($_POST['gender'] ?? '');
     $address = trim($_POST['address'] ?? '');
+    $usernameInput = trim($_POST['patient_username'] ?? '');
 
-    if ($firstName === '' || $lastName === '' || $contactNumber === '') {
-        $errorMessage = 'First name, last name, and contact number are required.';
+    if ($firstName === '' || $lastName === '' || $contactNumber === '' || $usernameInput === '') {
+        $errorMessage = 'First name, last name, contact number, and username are required.';
     } else {
+        // Check duplicate username (globally unique in patient table)
+        $checkUserStmt = $conn->prepare('SELECT patient_id FROM patient WHERE username = ? LIMIT 1');
+        if ($checkUserStmt) {
+            $checkUserStmt->bind_param('s', $usernameInput);
+            $checkUserStmt->execute();
+            $checkUserResult = $checkUserStmt->get_result();
+            if ($checkUserResult && $checkUserResult->num_rows > 0) {
+                $errorMessage = 'That username is already taken. Please choose a different username for this patient.';
+            }
+            $checkUserStmt->close();
+        }
+
+        // Check duplicate email within this tenant (only if email provided)
+        if ($errorMessage === '' && $email !== '') {
+            $checkEmailStmt = $conn->prepare('SELECT patient_id FROM patient WHERE tenant_id = ? AND email = ? LIMIT 1');
+            if ($checkEmailStmt) {
+                $checkEmailStmt->bind_param('is', $tenantId, $email);
+                $checkEmailStmt->execute();
+                $checkEmailResult = $checkEmailStmt->get_result();
+                if ($checkEmailResult && $checkEmailResult->num_rows > 0) {
+                    $errorMessage = 'That email address is already registered to another patient in this clinic.';
+                }
+                $checkEmailStmt->close();
+            }
+        }
+
+      if ($errorMessage === '') {
         // Get temporary password from form
         $tempPassword = trim($_POST['temp_password'] ?? '');
         if (empty($tempPassword)) {
             $tempPassword = bin2hex(random_bytes(4));
         }
         $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
-        $username = $email ?: $contactNumber; // Use email as username, fallback to contact
+        $username = $usernameInput;
 
         // Step A: Fetch the current maximum tenant_patient_id for this tenant
         $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
@@ -77,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
         } else {
             $errorMessage = 'Unable to prepare patient insert statement.';
         }
+      } // end errorMessage === '' check
     }
 }
 
@@ -471,6 +500,13 @@ if (isset($_GET['view_patient_id'])) {
             <label for="contact_number">Contact Number</label>
             <input type="text" id="contact_number" name="contact_number" required>
           </div>
+          <div class="form-group required">
+            <label for="patient_username">Username</label>
+            <input type="text" id="patient_username" name="patient_username" required placeholder="e.g. juan.delacruz">
+            <small style="color: #666;">Used for patient portal login. Must be unique.</small>
+          </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email">

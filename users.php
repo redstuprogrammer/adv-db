@@ -55,6 +55,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
         }
 
         if ($formError === '') {
+            // Check duplicate email within this tenant
+            $checkEmailStmt = $conn->prepare('SELECT user_id FROM users WHERE tenant_id = ? AND email = ? LIMIT 1');
+            if ($checkEmailStmt) {
+                $checkEmailStmt->bind_param('is', $tenantId, $email);
+                $checkEmailStmt->execute();
+                $resultEmail = $checkEmailStmt->get_result();
+                if ($resultEmail && $resultEmail->num_rows > 0) {
+                    $formError = 'That email address is already in use by another user in this clinic.';
+                }
+                $checkEmailStmt->close();
+            }
+        }
+
+        if ($formError === '') {
             $password = password_hash($rawPassword, PASSWORD_BCRYPT);
             $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)');
             if ($stmt) {

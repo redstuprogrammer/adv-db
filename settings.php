@@ -768,11 +768,12 @@ HTML;
           </div>
 
           <div class="form-group">
-            <label>Mobile App QR Code</label>
-            <div class="logo-preview" style="padding: 10px; min-height: 140px; max-width: 320px;">
-              <img src="assets/uploads/qr%20for%20apk/qr.jpg" alt="Mobile App QR Code" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            <label>Mobile App Download</label>
+            <div style="padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 400px;">
+              <p style="margin: 0 0 15px 0; color: #374151; font-weight: 500;">Download the OralSync Mobile App</p>
+              <a href="https://drive.google.com/drive/folders/199ac2H14VbdUJSwrAsn3uJEL9Shbw_Xp?fbclid=IwY2xjawRFLrtleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeOLp5Tv0f2lvvX684wbnpjO_n612da96L2LPI5fKjWbBH1LPqaR9--8jdfMQ_aem_CSWYBJ8xh9SJp0buAlJ17A" target="_blank" style="display: inline-block; background: #0d3b66; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">📱 Access Google Drive</a>
             </div>
-            <div class="hint-text">Scan this QR code to download the mobile app APK.</div>
+            <div class="hint-text">Click to access the mobile app folder and download the APK for Android or iOS.</div>
           </div>
 
           <div class="form-actions">
