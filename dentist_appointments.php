@@ -285,9 +285,6 @@ if ($stmt) {
                   <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">
                     Open Clinical Log
                   </a>
-                  <a href="dentist_patient_view.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>" style="font-size:12px; color:#64748b; text-decoration:none; text-align:right;">
-                    View Patient Profile →
-                  </a>
                 </div>
 
               </div>

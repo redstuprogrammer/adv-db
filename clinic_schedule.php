@@ -52,13 +52,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ];
     }
 
-    // For now, just show success message since we don't have a clinic_schedule table
+    // Save to database
+    foreach ($updates as $update) {
+        $stmt = $conn->prepare("INSERT INTO clinic_schedule (tenant_id, day_of_week, is_open, open_time, close_time) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE is_open = VALUES(is_open), open_time = VALUES(open_time), close_time = VALUES(close_time)");
+        $stmt->bind_param('isiss', $tenantId, $update['day'], $update['is_open'], $update['open_time'], $update['close_time']);
+        $stmt->execute();
+        $stmt->close();
+    }
+
     $message = 'Clinic schedule updated successfully!';
     $messageType = 'success';
 }
 
-// Default schedule data (since we don't have a table yet)
-$schedule = [
+// Load schedule from database
+$schedule = [];
+$stmt = $conn->prepare("SELECT day_of_week, is_open, open_time, close_time FROM clinic_schedule WHERE tenant_id = ?");
+$stmt->bind_param('i', $tenantId);
+$stmt->execute();
+$result = $stmt->get_result();
+while ($row = $result->fetch_assoc()) {
+    $schedule[$row['day_of_week']] = [
+        'is_open' => (int)$row['is_open'],
+        'open_time' => $row['open_time'],
+        'close_time' => $row['close_time']
+    ];
+}
+$stmt->close();
+
+// Default schedule data if not set
+$defaultSchedule = [
     'monday' => ['is_open' => 1, 'open_time' => '09:00', 'close_time' => '17:00'],
     'tuesday' => ['is_open' => 1, 'open_time' => '09:00', 'close_time' => '17:00'],
     'wednesday' => ['is_open' => 1, 'open_time' => '09:00', 'close_time' => '17:00'],
@@ -67,6 +89,12 @@ $schedule = [
     'saturday' => ['is_open' => 0, 'open_time' => '09:00', 'close_time' => '17:00'],
     'sunday' => ['is_open' => 0, 'open_time' => '09:00', 'close_time' => '17:00'],
 ];
+
+foreach ($defaultSchedule as $day => $data) {
+    if (!isset($schedule[$day])) {
+        $schedule[$day] = $data;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

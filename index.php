@@ -43,4 +43,3 @@ if (!empty($tenantParam)) {
 // Default to superadmin login
 header('Location: superadmin_login.php');
 exit();
-?>

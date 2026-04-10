@@ -92,70 +92,72 @@ try {
             </div>
 
             <div class="t-content">
-                <div class="schedule-card">
-                    <h2 style="margin-bottom: 1rem; color: #1f2937;">Today's Appointments</h2>
-                    <?php
-                    $todayAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
-                        return $apt['appointment_date'] === $today;
-                    });
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div class="schedule-card">
+                        <h2 style="margin-bottom: 1rem; color: #1f2937;">Today's Appointments</h2>
+                        <?php
+                        $todayAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
+                            return $apt['appointment_date'] === $today;
+                        });
 
-                    if (empty($todayAppointments)): ?>
-                        <p style="color: #6b7280; font-style: italic;">No appointments scheduled for today.</p>
-                    <?php else: ?>
-                        <?php foreach ($todayAppointments as $appointment): ?>
-                            <div class="appointment-item">
-                                <div class="appointment-info">
-                                    <div class="appointment-time">
-                                        <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
+                        if (empty($todayAppointments)): ?>
+                            <p style="color: #6b7280; font-style: italic;">No appointments scheduled for today.</p>
+                        <?php else: ?>
+                            <?php foreach ($todayAppointments as $appointment): ?>
+                                <div class="appointment-item">
+                                    <div class="appointment-info">
+                                        <div class="appointment-time">
+                                            <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
+                                        </div>
+                                        <div class="appointment-patient">
+                                            <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
+                                        </div>
+                                        <div class="appointment-service">
+                                            <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
+                                        </div>
                                     </div>
-                                    <div class="appointment-patient">
-                                        <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
-                                    </div>
-                                    <div class="appointment-service">
-                                        <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
+                                    <div>
+                                        <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
+                                            <?php echo h(ucfirst($appointment['status'])); ?>
+                                        </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
-                                        <?php echo h(ucfirst($appointment['status'])); ?>
-                                    </span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
 
-                <div class="schedule-card">
-                    <h2 style="margin-bottom: 1rem; color: #1f2937;">Upcoming Appointments</h2>
-                    <?php
-                    $futureAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
-                        return $apt['appointment_date'] > $today;
-                    });
+                    <div class="schedule-card">
+                        <h2 style="margin-bottom: 1rem; color: #1f2937;">Upcoming Appointments</h2>
+                        <?php
+                        $futureAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
+                            return $apt['appointment_date'] > $today;
+                        });
 
-                    if (empty($futureAppointments)): ?>
-                        <p style="color: #6b7280; font-style: italic;">No upcoming appointments.</p>
-                    <?php else: ?>
-                        <?php foreach ($futureAppointments as $appointment): ?>
-                            <div class="appointment-item">
-                                <div class="appointment-info">
-                                    <div class="appointment-time">
-                                        <?php echo date('M j, g:i A', strtotime($appointment['appointment_date'] . ' ' . $appointment['appointment_time'])); ?>
+                        if (empty($futureAppointments)): ?>
+                            <p style="color: #6b7280; font-style: italic;">No upcoming appointments.</p>
+                        <?php else: ?>
+                            <?php foreach ($futureAppointments as $appointment): ?>
+                                <div class="appointment-item">
+                                    <div class="appointment-info">
+                                        <div class="appointment-time">
+                                            <?php echo date('M j, g:i A', strtotime($appointment['appointment_date'] . ' ' . $appointment['appointment_time'])); ?>
+                                        </div>
+                                        <div class="appointment-patient">
+                                            <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
+                                        </div>
+                                        <div class="appointment-service">
+                                            <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
+                                        </div>
                                     </div>
-                                    <div class="appointment-patient">
-                                        <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
-                                    </div>
-                                    <div class="appointment-service">
-                                        <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
+                                    <div>
+                                        <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
+                                            <?php echo h(ucfirst($appointment['status'])); ?>
+                                        </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
-                                        <?php echo h(ucfirst($appointment['status'])); ?>
-                                    </span>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </main>

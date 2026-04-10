@@ -45,6 +45,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     if ($firstName === '' || $lastName === '' || $contactNumber === '') {
         $errorMessage = 'First name, last name, and contact number are required.';
     } else {
+        // Get temporary password from form
+        $tempPassword = trim($_POST['temp_password'] ?? '');
+        if (empty($tempPassword)) {
+            $tempPassword = bin2hex(random_bytes(4));
+        }
+        $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
+        $username = $email ?: $contactNumber; // Use email as username, fallback to contact
+
         // Step A: Fetch the current maximum tenant_patient_id for this tenant
         $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
         $maxIdStmt->bind_param('i', $tenantId);
@@ -57,11 +65,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
         $newTenantPatientId = ($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1;
         
         // Step C: Include in the INSERT statement
-        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($insertStmt) {
-            $insertStmt->bind_param('iisssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address);
+            $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash);
             if ($insertStmt->execute()) {
-                $successMessage = 'Patient added successfully.';
+                $successMessage = 'Patient added successfully. Temporary password: ' . $tempPassword;
             } else {
                 $errorMessage = 'Unable to add patient. Please try again.';
             }
@@ -487,6 +495,11 @@ if (isset($_GET['view_patient_id'])) {
           <label for="address">Address</label>
           <input type="text" id="address" name="address">
         </div>
+        <div class="form-group">
+          <label for="temp_password">Temporary Password</label>
+          <input type="text" id="temp_password" name="temp_password" readonly value="<?php echo bin2hex(random_bytes(4)); ?>">
+          <small style="color: #666;">This password will be given to the patient for login.</small>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
           <button type="submit" class="btn-submit" name="add_patient">Save Patient</button>
@@ -509,6 +522,9 @@ if (isset($_GET['view_patient_id'])) {
     }
 
     function openAddPatientModal() {
+      // Generate random temporary password
+      const tempPassword = Math.random().toString(36).slice(-8);
+      document.getElementById('temp_password').value = tempPassword;
       document.getElementById('addPatientModal').classList.add('active');
     }
 

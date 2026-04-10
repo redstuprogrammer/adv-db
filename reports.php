@@ -351,6 +351,25 @@ $tenantId = getCurrentTenantId();
       [revenueFrom, revenueTo].forEach(el => {
         if (el) el.addEventListener('change', loadRevenueReport);
       });
+
+      // Validate date ranges
+      if (activityFrom && activityTo) {
+        activityTo.addEventListener('change', function() {
+          if (activityFrom.value && activityTo.value && activityTo.value < activityFrom.value) {
+            showCustomAlert('End date cannot be before start date.');
+            activityTo.value = '';
+          }
+        });
+      }
+
+      if (revenueFrom && revenueTo) {
+        revenueTo.addEventListener('change', function() {
+          if (revenueFrom.value && revenueTo.value && revenueTo.value < revenueFrom.value) {
+            showCustomAlert('End date cannot be before start date.');
+            revenueTo.value = '';
+          }
+        });
+      }
     });
 
     // Tab switching

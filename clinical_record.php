@@ -29,7 +29,11 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
-$dentistId = $_SESSION['user_id'];
+$dentistId = $_SESSION['user_id'] ?? 0;
+if (!$dentistId) {
+    echo "<script>showCustomAlert('Access denied: Invalid session.'); window.history.back();</script>";
+    exit();
+}
 $dentistName = $_SESSION['username'] ?? 'Dentist';
 
 // Get patient_id from URL

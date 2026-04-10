@@ -34,9 +34,36 @@ if ($_SESSION['role'] !== 'Admin') {
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
+// Handle toggle patient status
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_patient_status'])) {
+    $patientId = (int)$_POST['patient_id'];
+    $stmt = $conn->prepare('SELECT status FROM patient WHERE patient_id = ? AND tenant_id = ?');
+    if ($stmt) {
+        $stmt->bind_param('ii', $patientId, $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $patient = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($patient) {
+            $newStatus = $patient['status'] === 'active' ? 'inactive' : 'active';
+            $stmt = $conn->prepare('UPDATE patient SET status = ? WHERE patient_id = ? AND tenant_id = ?');
+            if ($stmt) {
+                $stmt->bind_param('sii', $newStatus, $patientId, $tenantId);
+                $stmt->execute();
+                $stmt->close();
+                $successMsg = "Patient status updated successfully.";
+            }
+        }
+    }
+    // Redirect to avoid form resubmission
+    header("Location: patients.php?tenant=" . urlencode($tenantSlug));
+    exit();
+}
+
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -465,17 +492,21 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Email</th>
                 <th>Last Visit</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
                 <tr>
-                  <td colspan="6" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
+                  <td colspan="7" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($patients as $patient):
                   $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
-                  $isActive = ($patient['last_visit'] && strtotime($patient['last_visit']) > strtotime('-1 year'));
+                  $status = $patient['status'];
+                  $statusClass = $status === 'active' ? 'status-active' : 'status-inactive';
+                  $statusText = ucfirst($status);
+                  $toggleText = $status === 'active' ? 'Deactivate' : 'Activate';
                 ?>
                   <tr data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
                     <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
@@ -483,7 +514,13 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($lastVisit); ?></td>
-                    <td><span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></td>
+                    <td><span class="status-pill <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
+                    <td>
+                      <form method="post" style="display:inline;">
+                        <input type="hidden" name="patient_id" value="<?php echo $patient['patient_id']; ?>">
+                        <button type="submit" name="toggle_patient_status" class="action-btn" onclick="return confirm('Are you sure you want to <?php echo strtolower($toggleText); ?> this patient?')"><?php echo $toggleText; ?></button>
+                      </form>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>

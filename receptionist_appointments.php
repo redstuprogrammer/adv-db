@@ -469,7 +469,6 @@ if ($stmtReq) {
                     <td class="actions-cell">
                       <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
                       <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
-                      <a href="javascript:void(0);" class="action-link" onclick="printAppointment(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Print</a>
                     </td>
                   </tr>
                 <?php endwhile; ?>
