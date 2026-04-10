@@ -77,9 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['seed_data'])) {
             
             // Pricing for tiers
             $tier_prices = [
-                'startup' => 50.00,
-                'professional' => 100.00,
-                'enterprise' => 250.00
+                'startup' => 124.00,
+                'professional' => 249.00,
+                'enterprise' => 499.00
             ];
             
             // Clear existing sample data (optional)
@@ -237,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['seed_data'])) {
             
             <div class="seed-card">
                 <h3>Sales Revenue Data</h3>
-                <p>Generate sample subscription revenue records. Creates 12 months of payment history for each clinic based on their subscription tier (Startup: $50, Professional: $100, Enterprise: $250).</p>
+                <p>Generate sample subscription revenue records. Creates 12 months of payment history for each clinic based on their subscription tier (Startup: $124, Professional: $249, Enterprise: $499).</p>
                 <button type="submit" name="seed_data" value="sales_data" class="seed-button">
                     ✓ Seed Sales Data
                 </button>

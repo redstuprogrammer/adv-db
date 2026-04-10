@@ -48,9 +48,9 @@ const SUBSCRIPTION_TIERS = [
     ],
     'startup' => [
         'name' => 'Startup',
-        'display_name' => 'STARTUP (₱500/month)',
-        'price_min' => 500,
-        'price_max' => 500,
+        'display_name' => 'STARTUP (₱124/month)',
+        'price_min' => 124,
+        'price_max' => 124,
         'description' => 'For solo practitioners or small clinics',
         'features' => [
             'max_dentists' => 5,
@@ -80,9 +80,9 @@ const SUBSCRIPTION_TIERS = [
     ],
     'professional' => [
         'name' => 'Professional',
-        'display_name' => 'PROFESSIONAL (₱1,000/month)',
-        'price_min' => 1000,
-        'price_max' => 1000,
+        'display_name' => 'PROFESSIONAL (₱249/month)',
+        'price_min' => 249,
+        'price_max' => 249,
         'description' => 'For established clinics',
         'features' => [
             'max_dentists' => 10,

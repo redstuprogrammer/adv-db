@@ -767,6 +767,14 @@ HTML;
             </div>
           </div>
 
+          <div class="form-group">
+            <label>Mobile App QR Code</label>
+            <div class="logo-preview" style="padding: 10px; min-height: 140px; max-width: 320px;">
+              <img src="assets/uploads/qr%20for%20apk/qr.jpg" alt="Mobile App QR Code" style="max-width: 100%; max-height: 100%; object-fit: contain;">
+            </div>
+            <div class="hint-text">Scan this QR code to download the mobile app APK.</div>
+          </div>
+
           <div class="form-actions">
             <button type="submit" class="btn-primary">Save Login Settings</button>
             <button type="button" class="btn-primary btn-secondary" onclick="resetLoginPreview()">Reset to Default</button>
