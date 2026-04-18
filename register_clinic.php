@@ -178,6 +178,8 @@ try {
         $city   = mysqli_real_escape_string($conn, $_POST['city']);
         $prov   = mysqli_real_escape_string($conn, $_POST['province']);
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
+        $start_date = trim((string)($_POST['start_date'] ?? ''));
+        $duration = (int)($_POST['duration'] ?? 12);
         
         if ($username === '') {
             throw new Exception("Username is required for clinic registration.");
@@ -196,14 +198,26 @@ try {
             throw new Exception("Invalid subscription tier selected.");
         }
         
+        // Validate start date
+        if ($start_date === '') {
+            $start_date = date('Y-m-d');
+        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $start_date)) {
+            throw new Exception("Invalid start date format. Use YYYY-MM-DD.");
+        }
+        
+        // Validate duration
+        if ($duration < 1 || $duration > 120) {
+            throw new Exception("Duration must be between 1 and 120 months.");
+        }
+        
         // 1. Generate Auto-Password
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
-        // 2. Duplicate Check (clinic name and username)
-        $checkQuery = "SELECT company_name, username FROM tenants WHERE company_name = ? OR username = ? LIMIT 1";
+        // 2. Duplicate Check (clinic name, username, email)
+        $checkQuery = "SELECT company_name, username, email FROM tenants WHERE company_name = ? OR username = ? OR email = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmtCheck, "ss", $clinic, $username);
+        mysqli_stmt_bind_param($stmtCheck, "sss", $clinic, $username, $email);
         mysqli_stmt_execute($stmtCheck);
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
@@ -214,45 +228,43 @@ try {
             if ($row['username'] === $username) {
                 throw new Exception("Clinic username is already taken. Please choose a different username.");
             }
+            if ($row['email'] === $email) {
+                throw new Exception("Email address is already registered. Please use a different email.");
+            }
         }
 
         // 3. Generate Slug
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)";
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier, subscription_start_date, subscription_duration) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssss", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
             
-            // Seed revenue data for the new tenant
+            // Record initial subscription payment for the tenant
             $tier_prices = [
                 'startup' => 124.00,
                 'professional' => 249.00,
                 'enterprise' => 499.00
             ];
-            $amount = $tier_prices[$tier] ?? 124.00;
+            $monthly_amount = $tier_prices[$tier] ?? 124.00;
+            $amount = $monthly_amount * max(1, $duration);
+            $billing_period_start = $start_date . ' 00:00:00';
+            $billing_period_end = date('Y-m-d 23:59:59', strtotime('+' . max(1, $duration) . ' months -1 day', strtotime($start_date)));
+            $payment_date = date('Y-m-d H:i:s');
             
-            // Create 12 months of historical revenue data
-            for ($i = 0; $i < 12; $i++) {
-                $month_ago = date('Y-m-01', strtotime("-" . (12 - $i) . " months"));
-                $period_start = $month_ago . ' 00:00:00';
-                $period_end = date('Y-m-t', strtotime($month_ago)) . ' 00:00:00';
-                $payment_date = $period_end;
-                
-                $revenue_sql = "INSERT INTO tenant_subscription_revenue (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date) 
-                               VALUES (?, ?, ?, ?, ?, 'paid', ?)";
-                
-                $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
-                if ($revenue_stmt) {
-                    mysqli_stmt_bind_param($revenue_stmt, "isdsss", $new_id, $tier, $amount, $period_start, $period_end, $payment_date);
-                    mysqli_stmt_execute($revenue_stmt);
-                    mysqli_stmt_close($revenue_stmt);
-                }
+            $revenue_sql = "INSERT INTO tenant_subscription_revenue (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date) 
+                           VALUES (?, ?, ?, ?, ?, 'paid', ?)";
+            $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
+            if ($revenue_stmt) {
+                mysqli_stmt_bind_param($revenue_stmt, "isdsss", $new_id, $tier, $amount, $billing_period_start, $billing_period_end, $payment_date);
+                mysqli_stmt_execute($revenue_stmt);
+                mysqli_stmt_close($revenue_stmt);
             }
             
             if (function_exists('logActivity')) {

@@ -23,5 +23,11 @@ if (ini_get('session.use_cookies')) {
 }
 
 session_destroy();
+
+// Prevent back button access after logout
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 header('Location: superadmin_login.php');
 exit;

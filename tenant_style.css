@@ -487,3 +487,125 @@ body{
   .t-shell{grid-template-columns:1fr}
 }
 
+/* Additional responsive design for phones and tablets */
+@media (max-width: 768px) {
+  .t-wrap {
+    padding: 14px 7px;
+  }
+  
+  .t-shell {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  
+  .t-brandPanel {
+    padding: 18px;
+    border-radius: 12px;
+  }
+  
+  .t-card {
+    padding: 18px;
+    border-radius: 12px;
+  }
+  
+  .t-form {
+    gap: 12px;
+  }
+  
+  .t-field {
+    margin-bottom: 12px;
+  }
+  
+  .t-btn {
+    width: 100%;
+    padding: 12px;
+  }
+  
+  /* Dashboard responsive */
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .dashboard-card {
+    padding: 16px;
+  }
+  
+  .sales-overview-card canvas {
+    height: 200px !important;
+  }
+  
+  /* Sidebar for mobile */
+  .tenant-sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 260px;
+    height: 100%;
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+  
+  .tenant-main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .tenant-sidebar.open {
+    left: 0;
+  }
+  
+  .sidebar-toggle {
+    display: block;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001;
+    background: var(--tenant-accent);
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 480px) {
+  .t-brandPanel {
+    padding: 14px;
+  }
+  
+  .t-card {
+    padding: 14px;
+  }
+  
+  .t-form {
+    gap: 10px;
+  }
+  
+  .t-field label {
+    font-size: 14px;
+  }
+  
+  .t-field input,
+  .t-field select {
+    padding: 10px;
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  .t-btn {
+    padding: 14px;
+    font-size: 16px;
+  }
+  
+  /* Tables responsive */
+  .sa-table {
+    font-size: 12px;
+  }
+  
+  .sa-table th,
+  .sa-table td {
+    padding: 8px 4px;
+  }
+}
+

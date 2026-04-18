@@ -1,0 +1,12 @@
+-- Use these queries in MySQL Workbench.
+-- They add the missing subscription fields to the tenants table.
+-- If a field already exists, the query will skip the column creation.
+
+ALTER TABLE tenants
+  ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP AFTER subscription_tier;
+
+ALTER TABLE tenants
+  ADD COLUMN IF NOT EXISTS subscription_duration INT DEFAULT 12 COMMENT 'Duration in months' AFTER subscription_start_date;
+
+-- No schema changes are required for tenant_subscription_revenue.
+-- The application should now record real registration revenue only, instead of generating mock history.

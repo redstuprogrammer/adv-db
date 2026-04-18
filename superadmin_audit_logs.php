@@ -222,7 +222,6 @@ try {
                     <div class="sa-card-title">System Audit Logs</div>
                     <div class="sa-card-subtitle">Records of all system activities</div>
                 </div>
-                <button class="sa-btn sa-btn-outline" onclick="exportCSV()">Export CSV</button>
             </div>
 
             <!-- Filters -->

@@ -68,6 +68,28 @@ if ($stmt) {
     }
 }
 
+// Fetch sales data for the last 6 months
+$salesData = [];
+$salesLabels = [];
+for ($i = 5; $i >= 0; $i--) {
+    $monthStart = date('Y-m-01', strtotime("-$i months"));
+    $monthEnd = date('Y-m-t', strtotime("-$i months"));
+    $monthLabel = date('M', strtotime("-$i months"));
+    
+    $stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ? AND payment_date BETWEEN ? AND ?");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "iss", $tenantId, $monthStart, $monthEnd);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        if ($result) {
+            $row = mysqli_fetch_assoc($result);
+            $salesData[] = (float)($row['total'] ?? 0);
+        }
+        mysqli_stmt_close($stmt);
+    }
+    $salesLabels[] = $monthLabel;
+}
+
 // Fetch all patients with last visit for patient directory
 $allPatients = [];
 $query = "SELECT p.patient_id, p.first_name, p.last_name, p.contact_number, p.email, 
@@ -627,10 +649,10 @@ if ($stmt) {
     new Chart(ctx, {
       type: 'line',
       data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        labels: <?php echo json_encode($salesLabels); ?>,
         datasets: [{
           label: 'Sales',
-          data: [12000, 19000, 15000, 25000, 22000, 30000],
+          data: <?php echo json_encode($salesData); ?>,
           borderColor: 'var(--dashboard-accent)',
           backgroundColor: 'rgba(13, 59, 102, 0.1)',
           tension: 0.4

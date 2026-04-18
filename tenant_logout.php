@@ -15,6 +15,11 @@ if ($tenantId) {
 
 $sessionManager->logoutTenant($tenantSlug);
 
+// Prevent back button access after logout
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
 // Build redirect URL — avoid double-slash when base is empty
 $base = rtrim(getAppBasePath(), '/');
 if ($tenantSlug && $tenantSlug !== 'unknown') {

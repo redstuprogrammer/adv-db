@@ -62,7 +62,6 @@ try {
     
     echo "</table>
     <hr>
-    <p><a href='/seed_sample_data.php'>Click here to seed sample data</a></p>
     <p><a href='/superadmin/superadmin_dash.php'>Back to Dashboard</a></p>
     </body>
     </html>";

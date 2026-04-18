@@ -92,8 +92,7 @@ echo "        </div>
 // Check if seeding is needed
 $need_seed = array_sum($status['data_counts']) < 10;
 if ($need_seed) {
-    echo "<p style='color: #64748b; margin-bottom: 16px;'>No sample data detected. Seed data to populate reports:</p>
-    <a href='/seed_sample_data.php' class='action-btn'>Seed Sample Data</a>";
+    echo "<p style='color: #64748b; margin-bottom: 16px;'>No data detected yet. Register clinics or add transactions to populate reports.</p>";
 } else {
     echo "<p style='color: #22c55e; font-weight: 700;'>✓ Data is available!</p>";
 }

@@ -35,10 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         license_number = ?,
         contact_phone = ?,
         professional_biography = ?
-        WHERE dentist_id = ? AND tenant_id = ?");
+        WHERE username = (SELECT username FROM users WHERE user_id = ? AND tenant_id = ?) AND tenant_id = ?");
 
     if ($stmt) {
-        $stmt->bind_param('ssssii', $specialization, $license_number, $contact_phone, $professional_biography, $user_id, $tenantId);
+        $stmt->bind_param('ssssiii', $specialization, $license_number, $contact_phone, $professional_biography, $user_id, $tenantId, $tenantId);
         if ($stmt->execute()) {
             $success = true;
             $message = 'Staff details updated successfully.';
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmt = $conn->prepare("SELECT u.username, u.first_name, u.last_name, 
                        d.primary_specialization, d.license_number, d.contact_phone, d.professional_biography
                        FROM users u 
-                       LEFT JOIN dentist d ON u.user_id = d.dentist_id 
+                       LEFT JOIN dentist d ON u.username = d.username 
                        WHERE u.user_id = ? AND u.tenant_id = ?");
 if ($stmt) {
     $stmt->bind_param('ii', $user_id, $tenantId);

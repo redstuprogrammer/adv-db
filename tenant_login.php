@@ -165,8 +165,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userRole = '';
         $userData = null;
 
-        // First, try tenant owner login using email.
-        if (strcasecmp($username, (string)$tenant['contact_email']) === 0 && password_verify($password, (string)$tenant['password'])) {
+        // First, try tenant owner login using email or username.
+        if ((strcasecmp($username, (string)$tenant['contact_email']) === 0 || strcasecmp($username, (string)$tenant['username']) === 0) && password_verify($password, (string)$tenant['password'])) {
             $authenticated = true;
             $userRole = 'Admin';
             $userData = [
@@ -388,5 +388,16 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
             </section>
         </div>
     </div>
+    <script>
+        // Prevent back button access after logout
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+        window.onpopstate = function(event) {
+            if (event.state === null) {
+                window.location.reload();
+            }
+        };
+    </script>
 </body>
 </html>

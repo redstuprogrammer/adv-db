@@ -411,10 +411,6 @@ try {
                         <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent Tenant Activities</h3>
                         <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">Latest activities across all tenants</p>
                     </div>
-                    <div>
-                        <button onclick="exportTable('tenant-activities-table-body', 'csv')" class="sa-btn sa-btn-outline" style="margin-right: 8px;">Export CSV</button>
-                        <button onclick="exportTable('tenant-activities-table-body', 'pdf')" class="sa-btn sa-btn-outline">Export PDF</button>
-                    </div>
                 </div>
                 <table class="sa-table">
                     <thead>
@@ -474,10 +470,6 @@ try {
                     <div>
                         <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent User Registrations</h3>
                         <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">New tenant registrations and account creations</p>
-                    </div>
-                    <div>
-                        <button onclick="exportTable('user-registrations-table-body', 'csv')" class="sa-btn sa-btn-outline" style="margin-right: 8px;">Export CSV</button>
-                        <button onclick="exportTable('user-registrations-table-body', 'pdf')" class="sa-btn sa-btn-outline">Export PDF</button>
                     </div>
                 </div>
                 <table class="sa-table">
@@ -620,10 +612,6 @@ try {
                         <option value="Clinical Notes">Clinical Notes</option>
                     </select>
                 </div>
-            </div>
-            <div class="sa-form-actions">
-                <button class="sa-btn sa-btn-outline" onclick="exportPDF()">Export PDF</button>
-                <button class="sa-btn sa-btn-outline" onclick="exportCSV()">Export CSV</button>
             </div>
 
             <!-- Report Display Area -->

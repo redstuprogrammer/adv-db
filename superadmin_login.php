@@ -114,7 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; align-items: center;">
                     <a href="forgot_password_superadmin.php" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
-                    <a href="superadmin_register.php" style="color: #059669; text-decoration: none; font-size: 12px; font-weight: 600;">Create an Account</a>
                 </div>
 
                 <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px; border: 1px solid #e2e8f0;">
@@ -136,6 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </section>
         </div>
     </div>
+    <script>
+        // Prevent back button access after logout
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+        window.onpopstate = function(event) {
+            if (event.state === null) {
+                window.location.reload();
+            }
+        };
+    </script>
 </body>
 </html>
 

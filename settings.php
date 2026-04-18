@@ -247,33 +247,117 @@ HTML;
             $linkColor = trim($_POST['link_color'] ?? '#2563eb');
             $loginTitle = trim($_POST['login_title'] ?? 'Clinic Login');
             $loginDescription = trim($_POST['login_description'] ?? 'Please sign in to access your clinic portal.');
+            $usernamePlaceholder = trim($_POST['username_placeholder'] ?? 'Username or Email');
+            $passwordPlaceholder = trim($_POST['password_placeholder'] ?? 'Password');
             $brandSubtitle = trim($_POST['brand_subtitle'] ?? 'Powered by OralSync');
 
             $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
             $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
 
-            $configValues = [
-                'brand_bg_color' => $brandBgColor,
-                'brand_text_color' => $brandTextColor,
-                'primary_btn_color' => $primaryBtnColor,
-                'link_color' => $linkColor,
-                'login_title' => $loginTitle,
-                'login_description' => $loginDescription,
-                'brand_subtitle' => $brandSubtitle,
-            ];
-
-            if ($brandLogoPath !== null) {
-                $configValues['brand_logo_path'] = $brandLogoPath;
+            // Validate uploaded images
+            $errors = [];
+            if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['brand_logo_image'];
+                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                    $errors[] = 'Brand logo image must be smaller than 5MB.';
+                }
+                $imageInfo = getimagesize($file['tmp_name']);
+                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
+                    $errors[] = 'Brand logo image must be at least 100x100 pixels.';
+                }
+            }
+            if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
+                $file = $_FILES['brand_bg_image'];
+                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                    $errors[] = 'Brand background image must be smaller than 5MB.';
+                }
+                $imageInfo = getimagesize($file['tmp_name']);
+                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
+                    $errors[] = 'Brand background image must be at least 100x100 pixels.';
+                }
             }
 
-            if ($brandBgImagePath !== null) {
-                $configValues['brand_bg_image_path'] = $brandBgImagePath;
-            }
-
-            if (saveTenantConfig($tenantId, $configValues)) {
-                $message = 'Login customization settings saved successfully!';
+            if (!empty($errors)) {
+                $message = implode(' ', $errors);
             } else {
-                $message = 'Unable to save login customization settings. Please try again.';
+
+            if (!empty($errors)) {
+                $message = implode(' ', $errors);
+            } else {
+                $configValues = [
+                    'brand_bg_color' => $brandBgColor,
+                    'brand_text_color' => $brandTextColor,
+                    'primary_btn_color' => $primaryBtnColor,
+                    'link_color' => $linkColor,
+                    'login_title' => $loginTitle,
+                    'login_description' => $loginDescription,
+                    'username_placeholder' => $usernamePlaceholder,
+                    'password_placeholder' => $passwordPlaceholder,
+                    'brand_subtitle' => $brandSubtitle,
+                ];
+
+                if ($brandLogoPath !== null) {
+                    $configValues['brand_logo_path'] = $brandLogoPath;
+                }
+
+                if ($brandBgImagePath !== null) {
+                    $configValues['brand_bg_image_path'] = $brandBgImagePath;
+                }
+
+                if (saveTenantConfig($tenantId, $configValues)) {
+                    $message = 'Login customization settings saved successfully!';
+                } else {
+                    $message = 'Unable to save login customization settings. Please try again.';
+                }
+            }
+        } elseif (isset($_POST['change_password'])) {
+            // Change password with email verification
+            $currentPassword = $_POST['current_password'] ?? '';
+            $newPassword = $_POST['new_password'] ?? '';
+            $confirmPassword = $_POST['confirm_password'] ?? '';
+
+            if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+                $message = 'All fields are required.';
+            } elseif ($newPassword !== $confirmPassword) {
+                $message = 'New passwords do not match.';
+            } elseif (strlen($newPassword) < 8) {
+                $message = 'New password must be at least 8 characters.';
+            } else {
+                // Get current tenant data
+                $stmt = $conn->prepare("SELECT password_hash, email FROM tenants WHERE tenant_id = ?");
+                $stmt->bind_param("i", $tenantId);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result->num_rows === 1) {
+                    $tenant = $result->fetch_assoc();
+                    if (password_verify($currentPassword, $tenant['password_hash'])) {
+                        // Generate token
+                        $token = bin2hex(random_bytes(32));
+                        $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+                        // Save token
+                        $stmt = $conn->prepare("INSERT INTO password_resets (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE token = ?, expires_at = ?");
+                        $stmt->bind_param("sssss", $tenant['email'], $token, $expires, $token, $expires);
+                        if ($stmt->execute()) {
+                            // Send email
+                            $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/reset_password.php?token=" . $token;
+                            $subject = "Password Change Verification";
+                            $body = "Click the link to confirm your password change: " . $resetLink;
+                            if (mail($tenant['email'], $subject, $body)) {
+                                $message = 'A verification email has been sent to your email address. Please check your email and click the link to confirm the password change.';
+                            } else {
+                                $message = 'Failed to send verification email. Please try again.';
+                            }
+                        } else {
+                            $message = 'Failed to generate reset token. Please try again.';
+                        }
+                    } else {
+                        $message = 'Current password is incorrect.';
+                    }
+                } else {
+                    $message = 'Tenant not found.';
+                }
+                $stmt->close();
             }
         }
     }
@@ -590,6 +674,16 @@ HTML;
         text-decoration: underline;
       }
 
+      .preview-input {
+        width: 100%;
+        padding: 12px;
+        margin-bottom: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
       .form-actions {
         display: flex;
         gap: 10px;
@@ -675,6 +769,8 @@ HTML;
             'link_color' => '#2563eb',
             'login_title' => 'Clinic Login',
             'login_description' => 'Please sign in to access your clinic portal.',
+            'username_placeholder' => 'Username or Email',
+            'password_placeholder' => 'Password',
             'brand_subtitle' => 'Powered by OralSync',
             'brand_logo_path' => '',
             'brand_bg_image_path' => ''
@@ -702,7 +798,7 @@ HTML;
               <div class="color-swatch-wrap">
                 <button type="button" class="color-swatch" data-input="brand_text_color">
                   <span class="swatch-box" id="swatch-brand-text" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-text"><?php echo h($tenantSettings['brand_text_color']); ?></span>
+                  <span class="swatch-label" id="label-brand-text-color"><?php echo h($tenantSettings['brand_text_color']); ?></span>
                 </button>
                 <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-panel" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
               </div>
@@ -742,6 +838,18 @@ HTML;
               <label for="brand_subtitle">Brand Card Subtitle</label>
               <input type="text" id="brand_subtitle" name="brand_subtitle" class="live-update" data-target="preview-subtitle" data-property="textContent" value="<?php echo h($tenantSettings['brand_subtitle']); ?>" placeholder="Powered by OralSync" maxlength="255">
               <div class="hint-text">Text shown on the brand panel.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="username_placeholder">Username Placeholder</label>
+              <input type="text" id="username_placeholder" name="username_placeholder" value="<?php echo h($tenantSettings['username_placeholder']); ?>" placeholder="Username or Email" maxlength="255">
+              <div class="hint-text">Placeholder text for the username field.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="password_placeholder">Password Placeholder</label>
+              <input type="text" id="password_placeholder" name="password_placeholder" value="<?php echo h($tenantSettings['password_placeholder']); ?>" placeholder="Password" maxlength="255">
+              <div class="hint-text">Placeholder text for the password field.</div>
             </div>
           </div>
 
@@ -792,7 +900,7 @@ HTML;
                   <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
                     <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo">
                   <?php else: ?>
-                    🏥
+                    OS
                   <?php endif; ?>
                 </div>
                 <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
@@ -803,10 +911,35 @@ HTML;
             <div class="preview-right-panel">
               <div class="preview-login-title" id="preview-login-title"><?php echo h($tenantSettings['login_title']); ?></div>
               <div class="preview-description" id="preview-description"><?php echo h($tenantSettings['login_description']); ?></div>
+              <input type="text" class="preview-input" placeholder="<?php echo h($tenantSettings['username_placeholder']); ?>" readonly>
+              <input type="password" class="preview-input" placeholder="<?php echo h($tenantSettings['password_placeholder']); ?>" readonly>
               <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
               <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
             </div>
           </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="settings-section">
+          <h3>Account Settings</h3>
+          <p style="color: #64748b; margin-bottom: 20px;">Manage your account password and security settings.</p>
+
+          <form method="POST" id="passwordChangeForm">
+            <input type="hidden" name="change_password" value="1">
+            <div class="form-group">
+              <label for="current_password">Current Password</label>
+              <input type="password" id="current_password" name="current_password" required>
+            </div>
+            <div class="form-group">
+              <label for="new_password">New Password</label>
+              <input type="password" id="new_password" name="new_password" required minlength="8">
+            </div>
+            <div class="form-group">
+              <label for="confirm_password">Confirm New Password</label>
+              <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+            </div>
+            <button type="submit" class="btn-primary">Change Password</button>
+          </form>
         </div>
       </div>
     </div>
@@ -912,8 +1045,10 @@ HTML;
         primary_btn_color: '#22c55e',
         link_color: '#2563eb',
         login_title: 'Clinic Login',
-        brand_subtitle: 'Powered by OralSync',
         login_description: 'Please sign in to access your clinic portal.',
+        username_placeholder: 'Username or Email',
+        password_placeholder: 'Password',
+        brand_subtitle: 'Powered by OralSync',
       };
 
       Object.keys(defaults).forEach(key => {

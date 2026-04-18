@@ -29,11 +29,14 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
     $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-    if ($username === '' || $password === '' || $confirmPassword === '') {
+    if ($username === '' || $email === '' || $password === '' || $confirmPassword === '') {
         $error = 'Please fill in all fields.';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = 'Please enter a valid email address.';
     } elseif ($password !== $confirmPassword) {
         $error = 'Passwords do not match.';
     } elseif (strlen($password) < 8) {
@@ -48,10 +51,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (mysqli_fetch_assoc($result)) {
             $error = 'Username already exists.';
         } else {
+            // Check if email already exists
+            $stmt2 = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE email = ? LIMIT 1");
+            mysqli_stmt_bind_param($stmt2, "s", $email);
+            mysqli_stmt_execute($stmt2);
+            $result2 = mysqli_stmt_get_result($stmt2);
+
+            if (mysqli_fetch_assoc($result2)) {
+                $error = 'Email already exists.';
+            } else {
             // Create new superadmin account
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $insertStmt = mysqli_prepare($conn, "INSERT INTO super_admins (username, password_hash, created_at) VALUES (?, ?, NOW())");
-            mysqli_stmt_bind_param($insertStmt, "ss", $username, $hashedPassword);
+            $insertStmt = mysqli_prepare($conn, "INSERT INTO super_admins (username, email, password_hash, created_at) VALUES (?, ?, ?, NOW())");
+            mysqli_stmt_bind_param($insertStmt, "sss", $username, $email, $hashedPassword);
 
             if (mysqli_stmt_execute($insertStmt)) {
                 $success = 'Account created successfully! You can now log in.';
@@ -61,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mysqli_stmt_close($insertStmt);
         }
         mysqli_stmt_close($stmt);
+        mysqli_stmt_close($stmt2);
     }
 }
 ?>
@@ -95,6 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="t-field">
                         <label for="username">Username</label>
                         <input id="username" name="username" type="text" required />
+                    </div>
+                    <div class="t-field">
+                        <label for="email">Email</label>
+                        <input id="email" name="email" type="email" required />
                     </div>
                     <div class="t-field">
                         <label for="password">Password</label>

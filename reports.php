@@ -39,6 +39,7 @@ $tenantId = getCurrentTenantId();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Reports</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       :root {
         --accent: #0d3b66;
@@ -237,17 +238,17 @@ $tenantId = getCurrentTenantId();
                 }
                 echo "<tr>
                   <td>" . h($row['log_id']) . "</td>
-                  <td>" . h($row['log_time']) . "</td>
+                  <td>" . date('h:i A', strtotime($row['log_time'])) . "</td>
                   <td>" . h($row['log_date']) . "</td>
                   <td>$badge</td>
-                  <td>" . h($row['activity_description'] ?? '') . "</td>
+                  <td>" . h($row['activity_type']) . "</td>
                 </tr>";
               }
               $stmt->close();
               
               // Show sample data if no data exists
               if ($rowCount === 0) {
-                echo "<tr><td>1</td><td>10:45:30</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>New appointment scheduled</td></tr>";
+                echo "<tr><td>1</td><td>10:45 AM</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Created</td></tr>";
                 echo "<tr><td>2</td><td>09:30:15</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-updated'>Updated</span></td><td>Payment recorded</td></tr>";
                 echo "<tr><td>3</td><td>08:15:00</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Patient registered</td></tr>";
               }
@@ -273,6 +274,8 @@ $tenantId = getCurrentTenantId();
           <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold;">
             Total Revenue: ₱0
           </div>
+
+          <canvas id="revenueChart" width="400" height="200" style="margin-bottom: 20px;"></canvas>
 
           <table class="module-table" id="revenue-table">
             <thead>
@@ -310,15 +313,55 @@ $tenantId = getCurrentTenantId();
               }
               $stmt->close();
               
-              // Show sample data if no data exists
               if ($revenueRowCount === 0) {
-                echo "<tr><td>" . date('Y-m-d') . "</td><td>Juan Dela Cruz</td><td>Checkup</td><td>₱1,500.00</td></tr>";
-                echo "<tr><td>" . date('Y-m-d') . "</td><td>Maria Santos</td><td>Cleaning</td><td>₱2,000.00</td></tr>";
-                echo "<tr><td>" . date('Y-m-d', strtotime('-1 day')) . "</td><td>Pedro Reyes</td><td>Root Canal</td><td>₱5,000.00</td></tr>";
-                $total = 1500 + 2000 + 5000;
+                echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No subscription revenue records are available yet.</td></tr>";
               }
               echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
+              <?php
+              // Revenue chart data - last 12 months
+              $chartLabels = [];
+              $chartData = [];
+              for ($i = 11; $i >= 0; $i--) {
+                $month = date('Y-m', strtotime("-$i months"));
+                $chartLabels[] = date('M Y', strtotime($month . '-01'));
+                $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payments p JOIN appointments a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
+                $stmt->bind_param("is", $tenantId, $month);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $row = $result->fetch_assoc();
+                $chartData[] = $row['monthly_total'] ?? 0;
+                $stmt->close();
+              }
               ?>
+              <script>
+                const ctx = document.getElementById('revenueChart').getContext('2d');
+                new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    labels: <?php echo json_encode($chartLabels); ?>,
+                    datasets: [{
+                      label: 'Monthly Revenue (₱)',
+                      data: <?php echo json_encode($chartData); ?>,
+                      borderColor: 'rgba(75, 192, 192, 1)',
+                      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                      tension: 0.1
+                    }]
+                  },
+                  options: {
+                    responsive: true,
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                          }
+                        }
+                      }
+                    }
+                  }
+                });
+              </script>
             </tbody>
           </table>
         </div>

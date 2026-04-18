@@ -11,26 +11,46 @@ $message = '';
 $isError = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim((string)($_POST['username'] ?? ''));
+    $email = trim((string)($_POST['email'] ?? ''));
 
-    if ($username === '') {
-        $message = 'Please enter your username.';
+    if ($email === '') {
+        $message = 'Please enter your email address.';
+        $isError = true;
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = 'Please enter a valid email address.';
         $isError = true;
     } else {
-        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE email = ? LIMIT 1");
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, 's', $username);
+            mysqli_stmt_bind_param($stmt, 's', $email);
             mysqli_stmt_execute($stmt);
             $res = mysqli_stmt_get_result($stmt);
             $admin = $res ? mysqli_fetch_assoc($res) : null;
             mysqli_stmt_close($stmt);
 
             if ($admin) {
-                // For now, just show a success message since email functionality may not be set up
-                $message = 'If this username is registered, a reset link would be sent to the registered email address. Please contact support for password reset.';
+                // Generate reset token
+                $token = bin2hex(random_bytes(32));
+                $hashedToken = password_hash($token, PASSWORD_DEFAULT);
+                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                
+                $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
+                mysqli_stmt_bind_param($updateStmt, 'ssi', $hashedToken, $expires, $admin['id']);
+                mysqli_stmt_execute($updateStmt);
+                mysqli_stmt_close($updateStmt);
+                
+                // Send email (placeholder - in real implementation, use mail() or PHPMailer)
+                $resetUrl = buildSuperAdminResetPasswordUrl($token, $admin['id']);
+                $subject = 'Password Reset Request';
+                $body = "Click the following link to reset your password: $resetUrl\n\nThis link will expire in 1 hour.";
+                
+                // For now, just log the email content
+                error_log("Password reset email for $email: $body");
+                
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
                 $isError = false;
             } else {
-                $message = 'If this username is registered, a reset link has been sent to the registered email address.';
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
                 $isError = false;
             }
         } else {
@@ -184,7 +204,7 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
         <div class="t-shell" style="grid-template-columns: 1fr;">
             <section class="t-card">
                 <h1 class="t-cardTitle">Forgot Password</h1>
-                <div class="t-cardSub">Enter your username to receive a password reset link.</div>
+                <div class="t-cardSub">Enter your email address to receive a password reset link.</div>
 
                 <?php if ($message): ?>
                     <div style="padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; <?php echo $isError ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'; ?>">
@@ -194,8 +214,8 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
 
                 <form class="t-form" method="POST">
                     <div class="t-field">
-                        <label for="username">Username</label>
-                        <input id="username" name="username" type="text" required placeholder="Enter your username" value="<?php echo h($_POST['username'] ?? ''); ?>">
+                        <label for="email">Email Address</label>
+                        <input id="email" name="email" type="email" required placeholder="Enter your email address" value="<?php echo h($_POST['email'] ?? ''); ?>">
                     </div>
                     <button class="t-btn t-btnPrimary" type="submit">Send Reset Link</button>
                 </form>
