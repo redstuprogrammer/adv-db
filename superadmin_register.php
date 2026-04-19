@@ -60,17 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (mysqli_fetch_assoc($result2)) {
                 $error = 'Email already exists.';
             } else {
-            // Create new superadmin account
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            $insertStmt = mysqli_prepare($conn, "INSERT INTO super_admins (username, email, password_hash, created_at) VALUES (?, ?, ?, NOW())");
-            mysqli_stmt_bind_param($insertStmt, "sss", $username, $email, $hashedPassword);
+                // Create new superadmin account
+                $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                $insertStmt = mysqli_prepare($conn, "INSERT INTO super_admins (username, email, password_hash, created_at) VALUES (?, ?, ?, NOW())");
+                mysqli_stmt_bind_param($insertStmt, "sss", $username, $email, $hashedPassword);
 
-            if (mysqli_stmt_execute($insertStmt)) {
-                $success = 'Account created successfully! You can now log in.';
-            } else {
-                $error = 'Failed to create account. Please try again.';
+                if (mysqli_stmt_execute($insertStmt)) {
+                    $success = 'Account created successfully! You can now log in.';
+                } else {
+                    $error = 'Failed to create account. Please try again.';
+                }
+                mysqli_stmt_close($insertStmt);
             }
-            mysqli_stmt_close($insertStmt);
         }
         mysqli_stmt_close($stmt);
         mysqli_stmt_close($stmt2);

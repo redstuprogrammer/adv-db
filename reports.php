@@ -317,7 +317,6 @@ $tenantId = getCurrentTenantId();
                 echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No subscription revenue records are available yet.</td></tr>";
               }
               echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
-              <?php
               // Revenue chart data - last 12 months
               $chartLabels = [];
               $chartData = [];

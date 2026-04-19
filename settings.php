@@ -280,10 +280,6 @@ HTML;
             if (!empty($errors)) {
                 $message = implode(' ', $errors);
             } else {
-
-            if (!empty($errors)) {
-                $message = implode(' ', $errors);
-            } else {
                 $configValues = [
                     'brand_bg_color' => $brandBgColor,
                     'brand_text_color' => $brandTextColor,
