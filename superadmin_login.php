@@ -46,26 +46,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         
-        if (!$result) {
-            echo "Query failed: " . mysqli_error($conn) . "<br>";
-            exit;
-        }
-        
-        echo "Rows found: " . mysqli_num_rows($result) . "<br>";
-        
         if ($admin = mysqli_fetch_assoc($result)) {
-            echo "User found: " . h($inputUser) . "<br>";
             $validPassword = false;
             if (password_verify($inputPass, $admin['password_hash'])) {
                 $validPassword = true;
             } elseif ($inputPass === $admin['password_hash']) {
                 $validPassword = true; // fallback for old hashes
             }
-
-            echo "Password verify result: " . (password_verify($inputPass, $admin['password_hash']) ? 'true' : 'false') . "<br>";
-            echo "Plain text match: " . ($inputPass === $admin['password_hash'] ? 'true' : 'false') . "<br>";
-            echo "Valid password: " . ($validPassword ? 'true' : 'false') . "<br>";
-            exit;
 
             if ($validPassword) {
                 session_regenerate_id(true);
