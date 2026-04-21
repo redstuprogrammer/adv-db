@@ -1,9 +1,17 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
     header('Location: superadmin_login.php');
     exit;
+}
+require_once __DIR__ . '/settings.php';
+
+// Load settings for logo display
+try {
+    $currentSettings = getAllSettings();
+} catch (Exception $e) {
+    $currentSettings = [];
 }
 // Removed connect.php require since data is loaded via AJAX
 ?>
@@ -194,28 +202,7 @@ if (empty($_SESSION['superadmin_authed'])) {
 <body>
 
 <div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="logo-white-box">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-                </svg>
-            </div>
-            <nav class="menu">
-                <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
-                <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
-                <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
-                <a href="superadmin_audit_logs.php" class="menu-item active"><span>📋</span> Audit Logs</a>
-                <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
-            </nav>
-        </div>
-        <div class="sidebar-bottom">
-            <a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -235,7 +222,6 @@ if (empty($_SESSION['superadmin_authed'])) {
                     <div class="sa-card-title">System Audit Logs</div>
                     <div class="sa-card-subtitle">Records of all system activities</div>
                 </div>
-                <button class="sa-btn sa-btn-outline" onclick="exportCSV()">Export CSV</button>
             </div>
 
             <!-- Filters -->
@@ -245,16 +231,38 @@ if (empty($_SESSION['superadmin_authed'])) {
                     <input type="date" id="search_date">
                 </div>
                 <div class="sa-form-group">
-                    <label for="search_user">Search by User/Admin</label>
-                    <input type="text" id="search_user" placeholder="Enter username">
+                    <label for="search_user_type">User Type</label>
+                    <select id="search_user_type">
+                        <option value="">All Users</option>
+                        <option value="superadmin">Super Admin</option>
+                        <option value="tenant">Tenant</option>
+                    </select>
                 </div>
                 <div class="sa-form-group">
-                    <label for="search_action">Search by Action</label>
-                    <input type="text" id="search_action" placeholder="Enter action type">
+                    <label for="search_action">Action Type</label>
+                    <select id="search_action">
+                        <option value="">All Actions</option>
+                        <option value="Superadmin Login">Superadmin Login</option>
+                        <option value="Superadmin Logout">Superadmin Logout</option>
+                        <option value="Tenant Registration">Tenant Registration</option>
+                        <option value="Tenant Status Change">Tenant Status Change</option>
+                        <option value="Dentist Login">Dentist Login</option>
+                        <option value="Dentist Logout">Dentist Logout</option>
+                        <option value="Receptionist Login">Receptionist Login</option>
+                        <option value="Receptionist Logout">Receptionist Logout</option>
+                        <option value="Tenant Logout">Tenant Logout</option>
+                        <option value="Appointment Scheduled">Appointment Scheduled</option>
+                        <option value="Payment Received">Payment Received</option>
+                        <option value="Patient Created">Patient Created</option>
+                        <option value="Invoice Generated">Invoice Generated</option>
+                        <option value="Appointment Completed">Appointment Completed</option>
+                        <option value="Patient Updated">Patient Updated</option>
+                        <option value="Subscription Renewed">Subscription Renewed</option>
+                        <option value="Report Generated">Report Generated</option>
+                    </select>
                 </div>
             </div>
             <div class="sa-form-actions">
-                <button class="sa-btn" onclick="applyFilters()">Apply Filters</button>
                 <button class="sa-btn sa-btn-outline" onclick="clearFilters()">Clear Filters</button>
             </div>
 
@@ -285,22 +293,30 @@ if (empty($_SESSION['superadmin_authed'])) {
         let totalPages = 1;
         const limit = 20;
 
-        // Load initial data
+        // Load initial data and make filter inputs live
         document.addEventListener('DOMContentLoaded', function() {
             loadLogs();
+            ['search_date', 'search_user_type', 'search_action'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', function() {
+                        loadLogs(1);
+                    });
+                }
+            });
         });
 
         function loadLogs(page = 1) {
             currentPage = page;
             const date = document.getElementById('search_date').value;
-            const user = document.getElementById('search_user').value;
+            const userType = document.getElementById('search_user_type').value;
             const action = document.getElementById('search_action').value;
 
             const params = new URLSearchParams({
                 page: page,
                 limit: limit,
                 date: date,
-                user: user,
+                user_type: userType,
                 action: action
             });
 
@@ -367,14 +383,14 @@ if (empty($_SESSION['superadmin_authed'])) {
 
         function clearFilters() {
             document.getElementById('search_date').value = '';
-            document.getElementById('search_user').value = '';
+            document.getElementById('search_user_type').value = '';
             document.getElementById('search_action').value = '';
             loadLogs(1);
         }
 
         function exportCSV() {
             const date = document.getElementById('search_date').value;
-            const user = document.getElementById('search_user').value;
+            const userType = document.getElementById('search_user_type').value;
             const action = document.getElementById('search_action').value;
 
             // For CSV export, we'll get all filtered records (or first 1000 for performance)
@@ -382,7 +398,7 @@ if (empty($_SESSION['superadmin_authed'])) {
                 page: 1,
                 limit: 1000, // Export up to 1000 records
                 date: date,
-                user: user,
+                user_type: userType,
                 action: action
             });
 
@@ -420,6 +436,48 @@ if (empty($_SESSION['superadmin_authed'])) {
                 loadLogs(newPage);
             }
         }
+
+        // Dropdown toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const dropdownItems = document.querySelector('.menu-dropdown-items');
+            const dropdown = document.querySelector('.menu-dropdown');
+
+            if (dropdownToggle) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (dropdownItems.style.display === 'none' || dropdownItems.style.display === '') {
+                        dropdownItems.style.display = 'flex';
+                        dropdownToggle.classList.add('active');
+                    } else {
+                        dropdownItems.style.display = 'none';
+                        dropdownToggle.classList.remove('active');
+                    }
+                });
+            }
+
+            // Prevent dropdown from closing when clicking dropdown items
+            if (dropdownItems) {
+                dropdownItems.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (dropdown && !dropdown.contains(e.target)) {
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                }
+            });
+            
+            // Expand dropdown if on a reports page
+            const currentPage = window.location.pathname;
+            if ((currentPage.includes('superadmin_reports') || currentPage.includes('superadmin_sales_report')) && dropdownToggle && dropdownItems) {
+                dropdownItems.style.display = 'flex';
+                dropdownToggle.classList.add('active');
+            }
+        });
     </script>
     </main>
 </body>

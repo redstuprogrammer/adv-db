@@ -111,6 +111,9 @@ function generatePDF($data, $title, $filename, $type = 'standard') {
         $pdf->Write(0, $data, '', 0, 'L', true, 0, false, false, 0);
     }
 
-    $pdf->Output($filename, 'D'); // Download
+    // Return as string — caller (generate_pdf.php) controls headers and output.
+    // Previously used 'D' (force download) which sent headers directly and
+    // caused "headers already sent" conflicts. 'S' returns the PDF as a string.
+    return $pdf->Output('', 'S');
 }
 ?>

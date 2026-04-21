@@ -2,15 +2,17 @@
 // 1. Set headers first to ensure the browser knows to expect JSON
 header('Content-Type: application/json');
 
-// 2. Suppress errors from being displayed as HTML (they will still be in your logs)
-error_reporting(0); 
+error_reporting(0);
 ini_set('display_errors', 0);
 session_start();
-if (!isset($_SESSION['superadmin_authed']) || $_SESSION['superadmin_authed'] !== true) {
+require_once __DIR__ . '/includes/session_utils.php';
+$sessionManager = SessionManager::getInstance();
+if (!$sessionManager->isSuperAdmin()) {
+    http_response_code(401);
     echo json_encode(["error" => "Unauthorized"]);
     exit;
 }
-require_once 'connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // 3. Check if connection exists
 if (!$conn) {

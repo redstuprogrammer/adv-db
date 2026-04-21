@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -220,7 +220,7 @@ $tenantId = getCurrentTenantId();
       </div>
 
       <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border); text-align: right;">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px;">Sign out</a>
+        <a href="/tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 13px;">Sign out</a>
       </div>
 
     </div>

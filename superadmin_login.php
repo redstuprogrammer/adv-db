@@ -1,8 +1,29 @@
 <?php
-session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php'; // Using your Azure MySQLi connection
+// Extend session timeout for superadmin
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
+define('ROOT_PATH', __DIR__ . '/');
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    session_start();
+}
+require_once ROOT_PATH . 'includes/security_headers.php';
+
+// Check auth state FIRST, before loading database
+require_once ROOT_PATH . 'includes/session_utils.php';
+$sessionManager = SessionManager::getInstance();
+if ($sessionManager->isSuperAdmin()) {
+    header('Location: superadmin_dash.php');
+    exit();
+}
+
+// Only load database when needed (form submission or rendering page)
+require_once ROOT_PATH . 'settings.php';
+require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/tenant_utils.php'; // Using your Azure MySQLi connection
+require_once ROOT_PATH . 'includes/session_utils.php';
 
 /**
  * Escapes HTML for safe output
@@ -11,6 +32,7 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+$sessionManager = SessionManager::getInstance();
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,21 +41,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($inputUser !== '' && $inputPass !== '') {
         // 1. Check database for the user
-        $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? LIMIT 1");
-        mysqli_stmt_bind_param($stmt, "s", $inputUser);
+        $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? OR email = ? LIMIT 1");
+        mysqli_stmt_bind_param($stmt, "ss", $inputUser, $inputUser);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         
         if ($admin = mysqli_fetch_assoc($result)) {
-            // 2. PLAIN TEXT COMPARISON (Temporary for development)
-            if ($inputPass === $admin['password_hash']) {
-                session_regenerate_id(true);
-                $_SESSION['superadmin_authed'] = true;
-                $_SESSION['superadmin_id'] = $admin['id'];
-                $_SESSION['superadmin_username'] = $inputUser;
+            $validPassword = false;
+            if (password_verify($inputPass, $admin['password_hash'])) {
+                $validPassword = true;
+            } elseif ($inputPass === $admin['password_hash']) {
+                $validPassword = true; // fallback for old hashes
+            }
+
+            if ($validPassword) {
+                if (empty($_SESSION['tenant'])) {
+                    session_regenerate_id(true);
+                }
+                $sessionManager->loginSuperAdmin($admin['id'], $inputUser);
 
                 // Log superadmin login event
-                logActivity($conn, 1, 'Superadmin Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
+                logActivity($conn, 1, 'Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
 
                 // Update last login timestamp
                 $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET last_login = NOW() WHERE id = ?");
@@ -41,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($updateStmt);
 
                 header('Location: superadmin_dash.php');
-                exit;
+                exit();
             }
         }
         
@@ -59,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OralSync | Super Admin Login</title>
-    <link rel="stylesheet" href="tenant_style.css" />
+    <link rel="stylesheet" href="/tenant_style.css" />
 </head>
 <body>
     <div class="t-wrap">
@@ -76,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form class="t-form" method="POST" action="superadmin_login.php">
                     <div class="t-field">
-                        <label for="username">Username</label>
+                        <label for="username">Username / Email</label>
                         <input id="username" name="username" type="text" required />
                     </div>
                     <div class="t-field">
@@ -86,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button class="t-btn t-btnPrimary" type="submit">Sign in</button>
                 </form>
 
-                <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between;">
+                <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: space-between; align-items: center;">
                     <a href="forgot_password_superadmin.php" style="color: #0d3b66; text-decoration: none; font-size: 12px; font-weight: 600;">Forgot password?</a>
                 </div>
 
@@ -109,5 +137,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </section>
         </div>
     </div>
+    <script>
+        // Prevent back button access after logout
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);
+        }
+        window.onpopstate = function(event) {
+            if (event.state === null) {
+                window.location.reload();
+            }
+        };
+    </script>
 </body>
 </html>
+

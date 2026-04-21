@@ -1,13 +1,13 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 
 if (empty($_SESSION['superadmin_authed'])) {
     header('Location: superadmin_login.php');
     exit;
 }
 
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 try {
     // Check tables and record counts
@@ -62,8 +62,7 @@ try {
     
     echo "</table>
     <hr>
-    <p><a href='seed_sample_data.php'>Click here to seed sample data</a></p>
-    <p><a href='superadmin_dash.php'>Back to Dashboard</a></p>
+    <p><a href='/superadmin/superadmin_dash.php'>Back to Dashboard</a></p>
     </body>
     </html>";
     
@@ -71,3 +70,4 @@ try {
     echo "Error: " . $e->getMessage();
 }
 ?>
+

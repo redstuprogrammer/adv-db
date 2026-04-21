@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 ?>
 <!doctype html>
 <html lang="en">

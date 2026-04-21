@@ -1,5 +1,5 @@
 <?php
-require_once 'connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 // 1. Get the ID from the URL
 $tenant_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -29,7 +29,7 @@ if (!$tenant) {
 <body>
     <div class="container">
         <header class="sa-main-header">
-            <a href="superadmin_dash.php" class="sa-btn sa-btn-outline">← Back to List</a>
+            <a href="/superadmin/superadmin_dash.php" class="sa-btn sa-btn-outline">← Back to List</a>
             <h1>Clinic Profile: <?php echo $tenant['company_name']; ?></h1>
         </header>
 
@@ -44,6 +44,7 @@ if (!$tenant) {
                     <div><strong>Email:</strong> <?php echo $tenant['contact_email']; ?></div>
                     <div><strong>Phone:</strong> <?php echo $tenant['phone']; ?></div>
                     <div><strong>Subdomain:</strong> <code><?php echo $tenant['subdomain_slug']; ?>.oralsync.com</code></div>
+                    <div><strong>Subscription Plan:</strong> <?php echo ucfirst($tenant['subscription_tier']); ?></div>
                     <div><strong>Status:</strong> 
                         <span class="badge-<?php echo strtolower($tenant['status']); ?>">
                             <?php echo $tenant['status']; ?>

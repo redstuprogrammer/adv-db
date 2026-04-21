@@ -1,0 +1,45 @@
+🏥 Subscription Tier Suggestions
+TIER 1: STARTUP ($99-149/month)
+For solo practitioners or small clinics (1-2 dentists, <200 patients)
+
+Included Features:
+
+1-2 dentist accounts + 1 receptionist seat
+Patient management (limited to 200 patients)
+Basic appointment scheduling & calendar
+Patient record keeping (basic clinical notes)
+Payment tracking (single currency)
+Invoice generation & printing
+Mobile-friendly dashboard
+Basic reporting (monthly summaries)
+Email reminders (limited)
+5GB storage
+What's restricted:
+
+No staff/credential management
+No dental chart tracking
+Limited payment methods (cash only)
+No SMS notifications
+Community support only
+
+
+
+TIER 2: PROFESSIONAL ($299-399/month)
+For established clinics (3-5 dentists, 500-2000 patients)
+
+Includes everything from STARTUP, plus:
+
+5 dentist accounts + 3 receptionist seats
+Unlimited patient management
+Advanced appointment features (bulk booking, reminders)
+Dental chart tracking (tooth conditions, treatment history)
+Staff profile management with licensing/specialization
+Multiple payment methods (Cash, Card, Bank transfer)
+Advanced clinical notes & treatment records
+Prescription management
+Activity audit logs
+SMS + Email reminders
+Custom service categories & pricing tiers
+Monthly financial reports & analytics dashboard
+Secure document storage (50GB)
+Phone/Email support

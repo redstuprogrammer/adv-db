@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Architect | The Editorial SaaS</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#000000",
+                    "surface-container-low": "#f6f3f5",
+                    "primary-fixed-dim": "#bec6e0",
+                    "on-background": "#1b1b1d",
+                    "surface-variant": "#e4e2e4",
+                    "surface": "#fcf8fa",
+                    "error-container": "#ffdad6",
+                    "inverse-primary": "#bec6e0",
+                    "on-secondary-fixed": "#0d1c2f",
+                    "secondary-container": "#d5e3fd",
+                    "surface-dim": "#dcd9db",
+                    "surface-bright": "#fcf8fa",
+                    "error": "#ba1a1a",
+                    "on-primary-container": "#7c839b",
+                    "on-secondary": "#ffffff",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "on-primary-fixed": "#131b2e",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-high": "#eae7e9",
+                    "inverse-on-surface": "#f3f0f2",
+                    "secondary-fixed-dim": "#b9c7e0",
+                    "surface-container": "#f0edef",
+                    "primary": "#000000",
+                    "primary-container": "#131b2e",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#e4e2e4",
+                    "background": "#fcf8fa",
+                    "on-secondary-container": "#57657b",
+                    "on-surface": "#1b1b1d",
+                    "on-surface-variant": "#45464d",
+                    "on-tertiary-container": "#3980f4",
+                    "outline-variant": "#c6c6cd",
+                    "inverse-surface": "#303032",
+                    "tertiary-fixed": "#d8e2ff",
+                    "secondary": "#515f74",
+                    "surface-tint": "#565e74",
+                    "outline": "#76777d",
+                    "on-tertiary-fixed": "#001a42",
+                    "on-tertiary-fixed-variant": "#004395",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-secondary-fixed-variant": "#3a485c",
+                    "primary-fixed": "#dae2fd",
+                    "tertiary-fixed-dim": "#adc6ff",
+                    "secondary-fixed": "#d5e3fd",
+                    "on-error-container": "#93000a",
+                    "tertiary-container": "#001a42"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-hero-gradient {
+            background: linear-gradient(135deg, #000000 0%, #131b2e 100%);
+        }
+        .glass-nav {
+            background-color: rgba(252, 248, 250, 0.7);
+            backdrop-filter: blur(24px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-secondary-container selection:text-on-secondary-container">
+<nav class="fixed top-0 w-full z-50 glass-nav">
+<div class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full">
+<div class="text-2xl font-bold tracking-tighter text-slate-900" style="">OralSync</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-slate-900 font-bold border-b-2 border-on-tertiary-container transition-colors" href="#features" style="">Features</a>
+<a class="text-slate-600 font-medium hover:text-on-tertiary-container transition-colors" href="#pricing" style="">Pricing</a>
+<a class="text-slate-600 font-medium hover:text-on-tertiary-container transition-colors" href="#about" style="">About</a>
+</div>
+</div>
+</nav>
+<main>
+<section class="pt-48 pb-32 px-8">
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-center">
+<div class="lg:col-span-7">
+<span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-6 block" style="">The Digital Monograph</span>
+<h1 class="font-headline text-[3.5rem] leading-[1.1] font-extrabold tracking-[-0.04em] mb-8 text-on-surface" style="">Streamlined Care for the <br/> <span class="text-on-tertiary-container" style="">Modern Dental Clinic.</span></h1>
+<p class="text-lg text-on-surface-variant max-w-xl mb-12 leading-[1.6]" style="">OralSync provides the digital tools needed to manage patient records, streamline appointments, and elevate the clinical experience through intuitive software design.</p>
+<div class="flex flex-wrap gap-6 items-center">
+<button class="editorial-hero-gradient text-on-primary px-8 py-4 rounded-xl text-lg font-semibold active:scale-95 transition-transform" style="">Contact Us</button>
+</div>
+</div>
+<div class="lg:col-span-5 relative">
+<div class="aspect-square rounded-[2rem] overflow-hidden shadow-2xl relative z-10">
+<img class="w-full h-full object-cover" data-alt="Modern, bright dental clinic with state-of-the-art equipment and a professional atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDq5Bo1q3reKYrhCS8keTYIfkv2TUhENbb1m5o3f0TUUAHcD-ki67jG5INnjoPj9nMN9aGlVn1fLsqP5dauzX4bqfLtNIlda7ZuXnOJH_gSAzZ16XBhWAPNXaw9DARBzgzcMznp3ulNJZ3HXTM01SwPaC2DjrcmhyKz1-C0nUAw3CaLSfUpVK4GQHkqDWRpJvuk8qp_hzJK3j70aU-eAKcpqkO6jSqATBNvImmE1DI6ANAVHqFww12Dy_1Ts2tTQ04SEGwRmParjg" style=""/>
+</div>
+<div class="absolute -bottom-10 -left-10 w-64 h-64 bg-secondary-container rounded-full blur-[80px] opacity-40 -z-10"></div>
+</div>
+</div>
+</section>
+<section id="features" class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8">
+<div class="text-center mb-24">
+<span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-4 block" style="">Features</span>
+<h2 class="font-headline text-[2.5rem] font-bold tracking-tight text-on-surface" style="">Everything You Need to Run Your Clinic</h2>
+<p class="text-lg text-on-surface-variant max-w-2xl mx-auto mt-6" style="">OralSync provides comprehensive tools to manage your dental practice efficiently, from patient scheduling to billing and clinical records.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="calendar_today" style="">calendar_today</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Appointment Scheduling</h4>
+<p class="text-on-surface-variant" style="">Streamline bookings with an intuitive calendar system, automated reminders, and easy rescheduling.</p>
+</div>
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="person" style="">person</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Patient Management</h4>
+<p class="text-on-surface-variant" style="">Maintain detailed patient profiles, medical history, and contact information in one secure location.</p>
+</div>
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="receipt" style="">receipt</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Billing & Payments</h4>
+<p class="text-on-surface-variant" style="">Handle invoicing, payments, and financial tracking with multiple payment options and automated receipts.</p>
+</div>
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="medical_services" style="">medical_services</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Clinical Records</h4>
+<p class="text-on-surface-variant" style="">Document treatments, track dental charts, and maintain comprehensive clinical notes for each patient.</p>
+</div>
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="group" style="">group</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Staff Management</h4>
+<p class="text-on-surface-variant" style="">Manage dentist and receptionist accounts, assign roles, and track staff credentials and schedules.</p>
+</div>
+<div class="text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6 mx-auto">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="analytics" style="">analytics</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Reports & Analytics</h4>
+<p class="text-on-surface-variant" style="">Generate financial reports, track clinic performance, and gain insights to grow your practice.</p>
+</div>
+</div>
+</div>
+</section>
+<section id="pricing" class="py-32 bg-surface-container-low">
+<div class="max-w-7xl mx-auto px-8">
+<div class="text-center mb-24">
+<span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-4 block" style="">Subscription Tiers</span>
+<h2 class="font-headline text-[2.5rem] font-bold tracking-tight text-on-surface" style="">Choose Your Plan</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+<div class="bg-surface p-12 rounded-xl flex flex-col h-full border border-outline-variant/15 transition-all hover:translate-y-[-4px]">
+<h3 class="font-headline text-2xl font-bold mb-2" style="">Trial</h3>
+<div class="flex items-baseline gap-1 mb-8">
+<span class="text-4xl font-extrabold" style="">Free</span>
+<span class="text-on-surface-variant" style="">for 14 days</span>
+</div>
+<ul class="space-y-6 mb-12 flex-grow">
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">1 Dentist Account</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Up to 50 Patients</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Appointment Scheduling</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Basic Patient Records</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Email Reminders</span>
+</li>
+</ul>
+</div>
+<div class="bg-primary-container p-12 rounded-xl flex flex-col h-full relative overflow-hidden transition-all hover:translate-y-[-4px]">
+<div class="absolute top-6 right-6 bg-on-tertiary-container text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider" style="">Recommended</div>
+<h3 class="font-headline text-2xl font-bold mb-2 text-on-primary" style="">Startup</h3>
+<div class="flex items-baseline gap-1 mb-8">
+<span class="text-4xl font-extrabold text-on-primary" style="">₱124</span>
+<span class="text-on-primary-container" style="">/mo</span>
+</div>
+<ul class="space-y-6 mb-12 flex-grow">
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+<span class="text-on-primary-container" style="">3-5 Dentist Accounts</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+<span class="text-on-primary-container" style="">2 Receptionist Seats</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+<span class="text-on-primary-container" style="">Unlimited Patients</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+<span class="text-on-primary-container" style="">Billing & Payments</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+<span class="text-on-primary-container" style="">Basic Reporting</span>
+</li>
+</ul>
+</div>
+<div class="bg-surface p-12 rounded-xl flex flex-col h-full border border-outline-variant/15 transition-all hover:translate-y-[-4px]">
+<h3 class="font-headline text-2xl font-bold mb-2" style="">Professional</h3>
+<div class="flex items-baseline gap-1 mb-8">
+<span class="text-4xl font-extrabold" style="">₱249</span>
+<span class="text-on-surface-variant" style="">/mo</span>
+</div>
+<ul class="space-y-6 mb-12 flex-grow">
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">10 Dentist Accounts</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">5 Receptionist Seats</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Advanced Clinical Features</span>
+</li>
+<li class="flex items-center gap-3" style="">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="check_circle" style="">check_circle</span>
+<span class="text-on-surface-variant" style="">Full Analytics</span>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+<section class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8 text-center">
+<span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-6 block" style="">Get In Touch</span>
+<h2 class="font-headline text-[3.5rem] font-extrabold tracking-tight mb-16" style="">Let's modernize <br/> your practice.</h2>
+<div class="grid grid-cols-1 gap-12 justify-center items-start max-w-4xl mx-auto md:grid-cols-2">
+<div class="flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="mail" style="">mail</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Email Us</h4>
+<p class="text-on-surface-variant" style="">TU$Brothers@oralsync.com</p>
+</div>
+<div class="flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-2xl bg-surface-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="call" style="">call</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Call Us</h4>
+<p class="text-on-surface-variant" style="">+1 (555) 012-3456</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<section id="about" class="py-32 bg-surface">
+<div class="max-w-7xl mx-auto px-8 text-center">
+<span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-6 block" style="">About Us</span>
+<h2 class="font-headline text-[3.5rem] font-extrabold tracking-tight mb-16" style="">Meet the OralSync Team</h2>
+<div class="grid grid-cols-1 gap-12 justify-center items-start max-w-4xl mx-auto md:grid-cols-2">
+<div class="flex flex-col items-center text-center">
+<div class="w-24 h-24 rounded-full bg-surface-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="engineering" style="">engineering</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Developers</h4>
+<p class="text-on-surface-variant" style="">A passionate team of developers dedicated to creating innovative healthcare solutions. We combine technical expertise with deep understanding of dental practice needs to build software that truly makes a difference.</p>
+</div>
+<div class="flex flex-col items-center text-center">
+<div class="w-24 h-24 rounded-full bg-surface-container flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="local_hospital" style="">local_hospital</span>
+</div>
+<h4 class="font-bold text-xl mb-2" style="">Our Mission</h4>
+<p class="text-on-surface-variant" style="">OralSync empowers dental clinics with modern technology to provide better patient care. From appointment management to clinical records, we offer comprehensive tools that streamline operations and enhance the patient experience.</p>
+</div>
+</div>
+<p class="text-lg text-on-surface-variant max-w-3xl mx-auto mt-16" style="">Founded with the vision to modernize dental practices, OralSync has grown to serve clinics of all sizes. Our platform continues to evolve with the latest features and security standards to meet the ever-changing needs of healthcare providers.</p>
+</div>
+</section>
+<footer class="bg-slate-900 text-slate-50">
+<div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-7xl mx-auto">
+<div class="mb-8 md:mb-0">
+<div class="text-xl font-black text-slate-50 mb-4" style="">OralSync</div>
+<p class="font-label text-slate-400 text-xs tracking-widest uppercase" style="">© 2026 ORALSYNC Management Systems. All rights reserved.</p>
+</div>
+<div class="flex gap-10">
+<a class="font-label text-xs tracking-widest uppercase text-slate-400 hover:text-white transition-colors" href="#" style="">Privacy Policy</a>
+<a class="font-label text-xs tracking-widest uppercase text-slate-400 hover:text-white transition-colors" href="#" style="">Terms of Service</a>
+<a class="font-label text-xs tracking-widest uppercase text-slate-400 hover:text-white transition-colors" href="#" style="">Cookies</a>
+<a class="font-label text-xs tracking-widest uppercase text-slate-400 hover:text-white transition-colors" href="#" style="">Contact</a>
+</div>
+</div>
+</footer>
+</body></html>

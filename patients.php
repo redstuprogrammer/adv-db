@@ -4,65 +4,42 @@ ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+    return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
+
+// Role Check Implementation - Ensure user is an Admin
+if (!isset($_SESSION['role'])) {
+    header("Location: tenant_login.php");
+    exit();
+}
+
+if ($_SESSION['role'] !== 'Admin') {
+    header("Location: tenant_login.php");
+    exit();
+}
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
-// Handle Add Patient
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
-    $firstName = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
-    $lastName = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
-    $contactNumber = isset($_POST['contact_number']) ? trim($_POST['contact_number']) : '';
-    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
-    $address = isset($_POST['address']) ? trim($_POST['address']) : '';
-    $birthdate = isset($_POST['birthdate']) ? trim($_POST['birthdate']) : '';
-    $gender = isset($_POST['gender']) ? trim($_POST['gender']) : '';
-    $occupation = isset($_POST['occupation']) ? trim($_POST['occupation']) : '';
-    $medicalHistory = isset($_POST['medical_history']) ? trim($_POST['medical_history']) : '';
-    $allergies = isset($_POST['allergies']) ? trim($_POST['allergies']) : '';
-    $notes = isset($_POST['notes']) ? trim($_POST['notes']) : '';
+// Handle toggle patient status
 
-    if ($firstName !== '' && $lastName !== '' && $contactNumber !== '') {
-        $username = isset($_POST['username']) ? trim($_POST['username']) : '';
-        $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
-        if ($username === '' || $rawPassword === '') {
-            // Fallback
-            $username = strtolower($firstName . '.' . $lastName);
-            $rawPassword = bin2hex(random_bytes(8));
-        }
-        $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-
-        $stmt = $conn->prepare('INSERT INTO patient (tenant_id, first_name, last_name, contact_number, email, username, password_hash, address, birthdate, gender, occupation, medical_history, allergies, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        if ($stmt) {
-            $stmt->bind_param('isssssssssssss', $tenantId, $firstName, $lastName, $contactNumber, $email, $username, $password, $address, $birthdate, $gender, $occupation, $medicalHistory, $allergies, $notes);
-            if ($stmt->execute()) {
-                $successMsg = 'Patient registered successfully! Username: ' . h($username);
-                logTenantActivity($conn, $tenantId, 'Patient Created', "New patient: " . h($firstName . ' ' . $lastName));
-            } else {
-                $errorMsg = 'Error registering patient. Please try again.';
-            }
-            $stmt->close();
-        } else {
-            $errorMsg = 'Database error: ' . $conn->error;
-        }
-    } else {
-        $errorMsg = 'Please fill in all required fields (First Name, Last Name, Contact Number).';
-    }
-}
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT patient_id, first_name, last_name, contact_number, email, birthdate, gender FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -140,30 +117,105 @@ if (isset($_GET['view_patient_id'])) {
         font-size: 13px;
       }
 
-      .patient-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        max-height: 600px;
-        overflow-y: auto;
+      .patient-table {
+        width: 100%;
+        border-collapse: collapse;
       }
 
-      .patient-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px;
-        background: var(--bg);
+      .patient-table th,
+      .patient-table td {
+        padding: 14px 16px;
+        border-bottom: 1px solid #e2e8f0;
+        text-align: left;
+        color: #334155;
+      }
+
+      .patient-table th {
+        background: #f8fafc;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .patient-table tbody tr:hover {
+        background: #f1f5f9;
+      }
+
+      .patient-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .patient-card {
+        background: white;
         border: 1px solid var(--border);
-        border-radius: 8px;
-        cursor: pointer;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
         transition: all 0.2s ease;
       }
 
-      .patient-item:hover {
-        background: white;
+      .patient-card:hover {
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
         border-color: var(--accent);
-        box-shadow: 0 2px 8px rgba(13, 59, 102, 0.1);
+      }
+
+      .patient-card-header {
+        margin-bottom: 16px;
+      }
+
+      .patient-id {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+
+      .patient-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .patient-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .patient-info {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .info-label {
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .info-value {
+        font-size: 14px;
+        color: #102a43;
+        font-weight: 500;
+      }
+
+      .patient-actions {
+        display: flex;
+        justify-content: flex-end;
       }
 
       .patient-info h3 {
@@ -355,80 +407,18 @@ if (isset($_GET['view_patient_id'])) {
         font-size: 13px;
         color: #64748b;
       }
+
     </style>
 </head>
 <body>
   <div class="tenant-layout">
-    <!-- Sidebar Navigation -->
-    <nav class="tenant-sidebar">
-      <div class="sidebar-header">
-        <div class="logo-white-box">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-          </svg>
-        </div>
-        <div>
-          <div class="sidebar-logo-text">OralSync</div>
-          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-        </div>
-      </div>
-
-      <div class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Main</div>
-          <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📊</span>
-            <span>Dashboard</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Core Features</div>
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
-            <span class="sidebar-nav-icon">👥</span>
-            <span>Patients</span>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📅</span>
-            <span>Appointments</span>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">💳</span>
-            <span>Billing</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Management</div>
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
-          </a>
-          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📈</span>
-            <span>Reports</span>
-          </a>
-          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">⚙️</span>
-            <span>Settings</span>
-          </a>
-        </div>
-      </div>
-
-      <div class="sidebar-footer">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-logout-btn">
-          <span>🚪</span>
-          <span>Sign Out</span>
-        </a>
-      </div>
-    </nav>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">👥 Patients</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <?php renderDateClock(); ?>
       </div>
 
       <div class="module-card">
@@ -441,135 +431,45 @@ if (isset($_GET['view_patient_id'])) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
           <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
-          <button class="btn-primary" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 
         <div class="search-bar">
           <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
         </div>
 
-        <div class="patient-list" id="patientList">
-          <?php if (empty($patients)): ?>
-            <div class="empty-state">
-              <p>No patients registered yet.</p>
-              <p style="font-size: 12px;">Click "Add Patient" to register your first patient.</p>
-            </div>
-          <?php else: ?>
-            <?php foreach ($patients as $patient):
-                  $birthdate = $patient['birthdate'] ?? '';
-                  $age = ($birthdate && strtotime($birthdate)) ? floor((time() - strtotime($birthdate)) / (365.25 * 24 * 3600)) : 'N/A';
-                  $gender = !empty($patient['gender']) ? h($patient['gender']) : 'N/A';
-            ?>
-              <div class="patient-item" data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
-                <div class="patient-info">
-                  <h3><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></h3>
-                  <p>Age: <?php echo $age; ?> | Gender: <?php echo $gender; ?> | Phone: <?php echo h($patient['contact_number']); ?></p>
-                </div>
-                <div class="patient-actions">
-                  <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo $patient['patient_id']; ?>" class="action-btn">View</a>
-                </div>
-              </div>
-            <?php endforeach; ?>
-          <?php endif; ?>
+        <div style="overflow-x:auto;">
+          <table class="patient-table" id="patientGrid">
+            <thead>
+              <tr>
+                <th>Patient ID</th>
+                <th>Full Name</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Last Visit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if (empty($patients)): ?>
+                <tr>
+                  <td colspan="5" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
+                </tr>
+              <?php else: ?>
+                <?php foreach ($patients as $patient):
+  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
+                ?>
+                  <tr data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
+                    <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
+                    <td><?php echo h($patient['first_name'] . ' ' . $patient['last_name']); ?></td>
+                    <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
+                    <td><?php echo h($lastVisit); ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Add Patient Modal -->
-  <div id="addPatientModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <span>Add New Patient</span>
-        <button class="close" onclick="closeAddPatientModal()">&times;</button>
-      </div>
-      <form method="POST">
-        <div class="form-row">
-          <div class="form-group required">
-            <label>First Name</label>
-            <input type="text" name="first_name" required>
-          </div>
-          <div class="form-group required">
-            <label>Last Name</label>
-            <input type="text" name="last_name" required>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group required">
-            <label>Contact Number</label>
-            <input type="tel" name="contact_number" required>
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="email">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group required">
-            <label>Username</label>
-            <input type="text" name="username" id="username" required>
-          </div>
-          <div class="form-group required">
-            <label>Temporary Password</label>
-            <input type="text" name="password" id="password" readonly required>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Address</label>
-          <input type="text" name="address">
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Birthdate</label>
-            <input type="date" name="birthdate">
-          </div>
-          <div class="form-group">
-            <label>Gender</label>
-            <select name="gender">
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Occupation</label>
-          <select name="occupation">
-            <option value="">Select Occupation</option>
-            <option value="Student">Student</option>
-            <option value="Employed">Employed</option>
-            <option value="Self-employed">Self-employed</option>
-            <option value="Unemployed">Unemployed</option>
-            <option value="Retired">Retired</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Medical History</label>
-          <textarea name="medical_history"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Allergies</label>
-          <textarea name="allergies"></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Notes</label>
-          <textarea name="notes"></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
-          <button type="submit" name="add_patient" class="btn-submit">Register Patient</button>
-        </div>
-      </form>
     </div>
   </div>
 
@@ -639,25 +539,12 @@ if (isset($_GET['view_patient_id'])) {
   <?php endif; ?>
 
   <script>
-    function openAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'block';
-      // Generate temporary password
-      const password = generateTempPassword();
-      document.getElementById('password').value = password;
-    }
+    <?php printDateClockScript(); ?>
 
-    function generateTempPassword() {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let password = '';
-      for (let i = 0; i < 8; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return password;
-    }
-
-    function closeAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'none';
-    }
+    // Verification logs
+    console.log('UI Parity Active - Version 2.0');
+    console.log('Patients Page Initialized');
+    console.log('FINAL UI SYNC COMPLETE');
 
     function closeViewPatientModal() {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';
@@ -665,24 +552,15 @@ if (isset($_GET['view_patient_id'])) {
 
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const patientItems = document.querySelectorAll('.patient-item');
-      
-      patientItems.forEach(item => {
-        const patientName = item.getAttribute('data-patient-name');
-        if (patientName.includes(searchInput)) {
-          item.style.display = 'flex';
-        } else {
-          item.style.display = 'none';
-        }
-      });
-    }
+      const rows = document.querySelectorAll('#patientGrid tbody tr');
 
-    window.onclick = function(event) {
-      const modal = document.getElementById('addPatientModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
-      }
+      rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchInput) ? '' : 'none';
+      });
     }
   </script>
 </body>
 </html>
+
+

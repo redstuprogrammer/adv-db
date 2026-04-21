@@ -86,6 +86,7 @@ body {
 
 .menu {
     padding: 16px 0;
+    overflow: visible;
 }
 
 .menu-item {
@@ -100,11 +101,12 @@ body {
     color: rgba(255, 255, 255, 0.9);
     border-left: 3px solid transparent;
     text-decoration: none;
+    overflow: hidden;
 }
 
 .menu-item.active {
     background: rgba(255, 255, 255, 0.15);
-    border-left: 3px solid #22c55e;
+    border-left: 3px solid #ffffff;
     color: var(--white);
     font-weight: 600;
 }
@@ -112,6 +114,27 @@ body {
 .menu-item:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--white);
+    border-left-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Dropdown toggle styling - no background to prevent white glitch */
+.menu-dropdown-toggle {
+    border-left: 3px solid transparent !important;
+}
+
+.menu-dropdown-toggle.active {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-left: 3px solid #ffffff !important;
+}
+
+.menu-dropdown-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-left-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.menu-dropdown-toggle.active {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    border-left: 3px solid #ffffff !important;
 }
 
 .sidebar-bottom {

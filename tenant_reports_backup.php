@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -111,63 +111,7 @@ $tenantId = getCurrentTenantId();
 </head>
 <body>
   <div class="tenant-layout">
-    <!-- Sidebar Navigation -->
-    <nav class="tenant-sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <div class="sidebar-logo-icon">🏥</div>
-          <div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Main</div>
-          <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📊</span>
-            <span>Dashboard</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Core Features</div>
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">👥</span>
-            <span>Patients</span>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📅</span>
-            <span>Appointments</span>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">💳</span>
-            <span>Billing</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Management</div>
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
-          </a>
-          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
-            <span class="sidebar-nav-icon">📈</span>
-            <span>Reports</span>
-          </a>
-        </div>
-      </div>
-
-      <div class="sidebar-footer">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-logout-btn">
-          <span>🚪</span>
-          <span>Sign Out</span>
-        </a>
-      </div>
-    </nav>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <!-- Main Content -->
     <div class="tenant-main-content">

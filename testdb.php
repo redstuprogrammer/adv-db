@@ -1,5 +1,5 @@
 <?php
-require_once("connect.php");
+require_once __DIR__ . '/includes/connect.php';
 
 $action = $_GET["action"] ?? $_POST["action"] ?? "";
 
@@ -24,7 +24,7 @@ if ($action === "login" && $_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
-    $stmt = $conn->prepare("SELECT p.*, t.company_name FROM patients p JOIN tenants t ON p.tenant_id = t.tenant_id WHERE (p.email = ? OR p.username = ?) AND t.status = 'active'");
+    $stmt = $conn->prepare("SELECT p.*, t.company_name FROM patient p JOIN tenants t ON p.tenant_id = t.tenant_id WHERE (p.email = ? OR p.username = ?) AND t.status = 'active'");
     $stmt->bind_param("ss", $identifier, $identifier);
     $stmt->execute();
     $result = $stmt->get_result();

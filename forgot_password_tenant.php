@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -22,10 +22,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Find tenant by email
         $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, contact_email, subdomain_slug FROM tenants WHERE contact_email = ? LIMIT 1");
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, "s", $email);
+            $bindEmail = $email; // Create a variable for binding
+            mysqli_stmt_bind_param($stmt, "s", $bindEmail);
             mysqli_stmt_execute($stmt);
             $res = mysqli_stmt_get_result($stmt);
             $tenant = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($stmt);
             
             if ($tenant) {
                 // Generate reset token
@@ -36,18 +38,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Store token in database
                 $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
                 if ($updateStmt) {
-                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, (int)$tenant['tenant_id']);
+                    $bindTokenHash = $tokenHash;
+                    $bindExpiresAt = $expiresAt;
+                    $bindTenantId = (int)$tenant['tenant_id'];
+                    mysqli_stmt_bind_param($updateStmt, "ssi", $bindTokenHash, $bindExpiresAt, $bindTenantId);
                     mysqli_stmt_execute($updateStmt);
+                    mysqli_stmt_close($updateStmt);
                     
                     // Build reset link
                     $resetLink = buildTenantResetPasswordUrl($token, (int)$tenant['tenant_id']);
                     
                     // Send email
-                    $emailSent = sendPasswordResetEmail([
-                        'to_email' => $tenant['contact_email'],
-                        'clinic_name' => $tenant['company_name'],
-                        'reset_link' => $resetLink
-                    ]);
+                    $emailSent = false;
+                    try {
+                        $emailSent = sendPasswordResetEmail([
+                            'to_email' => $tenant['contact_email'],
+                            'clinic_name' => $tenant['company_name'],
+                            'reset_link' => $resetLink
+                        ]);
+                    } catch (Exception $e) {
+                        error_log("Email sending failed: " . $e->getMessage());
+                    }
                     
                     if ($emailSent) {
                         $message = 'Password reset link has been sent to your email. Check your inbox and spam folder.';

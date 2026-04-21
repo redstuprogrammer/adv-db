@@ -1,12 +1,22 @@
 <?php
+/**
+ * ============================================
+ * TENANT APPOINTMENT MANAGEMENT - ENHANCED WITH STATUS UPDATES & CLINICAL NOTES
+ * Last Updated: April 4, 2026
+ * Features: Appointment Scheduling, Status Updates, Clinical Notes, Search/Filter
+ * ✓ FLAG TEST: Appointment management module successfully updated for Azure
+ * ============================================
+ */
+
 // Extend session timeout
 ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
 session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
 
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
-require_once 'tenant_utils.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -14,6 +24,17 @@ function h(string $s): string {
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
+
+// Role Check Implementation - Ensure user is an Admin
+if (!isset($_SESSION['role'])) {
+    header("Location: tenant_login.php");
+    exit();
+}
+
+if ($_SESSION['role'] !== 'Admin') {
+    header("Location: tenant_login.php");
+    exit();
+}
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
@@ -29,16 +50,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
         $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, status) VALUES (?, ?, ?, ?, ?)');
         $stmt->bind_param('iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);        if ($stmt->execute()) {
             $successMsg = 'Appointment scheduled successfully!';
-            logTenantActivity($conn, $tenantId, 'Appointment Created', "New appointment scheduled for patient ID: $patientId");
+            logTenantActivity($conn, $tenantId, 'Appointment', "New appointment scheduled for patient ID: $patientId");
         }
         $stmt->close();
     }
 }
 
-// Fetch appointments
+// Handle Update Appointment Status
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
+    $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
+    $newStatus = isset($_POST['new_status']) ? trim($_POST['new_status']) : '';
+
+    if ($appointmentId > 0 && $newStatus !== '') {
+        $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
+        $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
+        if ($stmt->execute()) {
+            $successMsg = 'Appointment updated successfully!';
+            logTenantActivity($conn, $tenantId, 'Appointment', "Appointment ID: $appointmentId updated to $newStatus");
+        }
+        $stmt->close();
+    }
+}
+
+// Fetch appointments with service info (if available)
 $appointments = [];
-$stmt = $conn->prepare('SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.status, p.first_name AS patient_first, p.last_name AS patient_last, u.username AS dentist_name FROM appointment a LEFT JOIN patient p ON a.patient_id = p.patient_id LEFT JOIN users u ON a.dentist_id = u.user_id WHERE a.tenant_id = ? ORDER BY a.appointment_date DESC');
-$stmt->bind_param('i', $tenantId);
+$perPage = 12;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
+$totalAppointments = 0;
+$countStmt = $conn->prepare('SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND status <> "Disapproved"');
+$countStmt->bind_param('i', $tenantId);
+$countStmt->execute();
+$countResult = $countStmt->get_result();
+if ($countRow = $countResult->fetch_assoc()) {
+    $totalAppointments = (int)$countRow['total'];
+}
+$countStmt->close();
+
+$query = "SELECT a.appointment_id, a.patient_id, a.dentist_id, a.appointment_date, a.appointment_time, a.status,
+                 a.procedure_name, a.notes,
+                 p.first_name AS patient_first, p.last_name AS patient_last,
+                 CONCAT('Dr. ', TRIM(CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')))) AS dentist_name
+          FROM appointment a
+          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
+          LEFT JOIN users u ON a.dentist_id = u.user_id AND u.tenant_id = a.tenant_id
+          WHERE a.tenant_id = ? AND a.status <> 'Disapproved'
+          ORDER BY a.appointment_date DESC, a.appointment_time DESC
+          LIMIT ?, ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param('iii', $tenantId, $offset, $perPage);
 $stmt->execute();
 $result = $stmt->get_result();
 while ($row = $result->fetch_assoc()) {
@@ -141,6 +202,138 @@ $stmt->close();
       .badge-confirmed { background: rgba(16, 185, 129, 0.1); color: #10b981; }
       .badge-pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
       .badge-cancelled { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+      /* Status Pills */
+      .status-pill {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+      }
+
+      .status-pill.pending { background: #fffbeb; color: #92400e; }
+      .status-pill.completed { background: #f0fdf4; color: #166534; }
+      .status-pill.cancelled { background: #fef2f2; color: #991b1b; }
+
+      /* Search and Filter */
+      .search-container {
+        margin-bottom: 20px;
+      }
+
+      .search-input {
+        width: 100%;
+        max-width: 400px;
+        padding: 12px 16px;
+        border: 1px solid var(--border);
+        border-radius: 25px;
+        outline: none;
+        font-size: 14px;
+      }
+
+      .search-input:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
+      /* Edit Modal Styles */
+      .edit-modal {
+        display: none;
+        position: fixed;
+        z-index: 9999;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.7);
+        align-items: center;
+        justify-content: center;
+      }
+
+      .edit-modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        width: 400px;
+        position: relative;
+      }
+
+      .edit-form-group {
+        margin-bottom: 18px;
+      }
+
+      .edit-form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        color: #64748b;
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .edit-form-group input,
+      .edit-form-group select,
+      .edit-form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-sizing: border-box;
+        font-size: 14px;
+      }
+
+      .edit-form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+      }
+
+      .edit-modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .edit-btn-cancel {
+        flex: 1;
+        padding: 12px;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        cursor: pointer;
+        background: white;
+        color: #64748b;
+      }
+
+      .edit-btn-save {
+        flex: 2;
+        padding: 12px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .action-btn {
+        display: inline-block;
+        padding: 8px 12px;
+        margin-right: 4px;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 12px;
+        color: white;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+
+      .action-btn:hover {
+        background: #0a2d4f;
+        border-color: #0a2d4f;
+      }
 
       .action-btn {
         display: inline-block;
@@ -260,80 +453,30 @@ $stmt->close();
         border-radius: 8px;
         margin-bottom: 16px;
       }
+
+      .live-clock-badge {
+        background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+        border: 2px solid var(--accent);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: 'Courier New', monospace;
+        letter-spacing: 1px;
+        white-space: nowrap;
+      }
     </style>
 </head>
 <body>
   <div class="tenant-layout">
-    <!-- Sidebar Navigation -->
-    <nav class="tenant-sidebar">
-      <div class="sidebar-header">
-        <div class="logo-white-box">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-            <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-            <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-          </svg>
-        </div>
-        <div>
-          <div class="sidebar-logo-text">OralSync</div>
-          <div class="sidebar-clinic-name"><?php echo h($tenantName); ?></div>
-        </div>
-      </div>
-
-      <div class="sidebar-nav">
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Main</div>
-          <a href="tenant_dashboard.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📊</span>
-            <span>Dashboard</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Core Features</div>
-          <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">👥</span>
-            <span>Patients</span>
-          </a>
-          <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item active">
-            <span class="sidebar-nav-icon">📅</span>
-            <span>Appointments</span>
-          </a>
-          <a href="billing.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">💳</span>
-            <span>Billing</span>
-          </a>
-        </div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-title">Management</div>
-          <a href="manage_users.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">👤</span>
-            <span>Staff & Users</span>
-          </a>
-          <a href="tenant_reports.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">📈</span>
-            <span>Reports</span>
-          </a>
-          <a href="tenant_settings.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-nav-item">
-            <span class="sidebar-nav-icon">⚙️</span>
-            <span>Settings</span>
-          </a>
-        </div>
-      </div>
-
-      <div class="sidebar-footer">
-        <a href="tenant_logout.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="sidebar-logout-btn">
-          <span>🚪</span>
-          <span>Sign Out</span>
-        </a>
-      </div>
-    </nav>
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">📅 Appointments</div>
-        <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
+        <?php renderDateClock(); ?>
       </div>
 
       <div class="module-card">
@@ -342,108 +485,118 @@ $stmt->close();
         <?php endif; ?>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Upcoming Appointments</h2>
-          <button class="btn-primary" onclick="openScheduleModal()">+ Schedule Appointment</button>
+          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Appointment Management</h2>
         </div>
         
-        <div class="filters">
-          <input type="date" placeholder="Filter by date" />
-          <select>
-            <option>All Status</option>
-            <option>Confirmed</option>
-            <option>Pending</option>
-            <option>Cancelled</option>
-          </select>
+        <div class="search-container">
+          <input type="text" id="appointmentSearch" class="search-input" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
         </div>
 
-        <table class="module-table">
+        <table class="module-table" id="appointmentTable">
           <thead>
             <tr>
+              <th>Date</th>
+              <th>Time</th>
               <th>Patient</th>
               <th>Dentist</th>
-              <th>Date & Time</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             <?php if (empty($appointments)): ?>
               <tr>
-                <td colspan="5" style="text-align: center; color: #64748b;">No appointments scheduled</td>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">No appointments found in the schedule.</td>
               </tr>
             <?php else: ?>
               <?php foreach ($appointments as $appt): ?>
                 <tr>
-                  <td><?php echo h(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')); ?></td>
-                  <td><?php echo h($appt['dentist_name'] ?: 'N/A'); ?></td>
-                  <td><?php echo h(date('M d, Y g:i A', strtotime($appt['appointment_date']))); ?></td>
-                  <td><span class="badge badge-<?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
+                  <td><strong><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></strong></td>
+                  <td><?php echo !empty($appt['appointment_time']) ? date('g:i A', strtotime($appt['appointment_time'])) : '-'; ?></td>
+                  <td><?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?></td>
+                  <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
+                  <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
-                    <a href="#" class="action-btn" onclick="alert('View appointment - coming soon'); return false;">View</a>
-                    <a href="#" class="action-btn" onclick="alert('Edit appointment - coming soon'); return false;">Edit</a>
+                    <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>')">Manage</button>
+                    <button class="action-btn" onclick="openDetailsModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo json_encode($appt['patient_first'] . ' ' . $appt['patient_last']); ?>, <?php echo json_encode($appt['dentist_name'] ?: 'Unassigned'); ?>, <?php echo json_encode(date('M d, Y', strtotime($appt['appointment_date']))); ?>, <?php echo json_encode(!empty($appt['appointment_time']) ? date('g:i A', strtotime($appt['appointment_time'])) : '-'); ?>, <?php echo json_encode($appt['procedure_name'] ?? ''); ?>, <?php echo json_encode($appt['notes'] ?? ''); ?>)">Details</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>
           </tbody>
         </table>
+
+        <?php if ($totalAppointments > $perPage):
+            $lastPage = (int)ceil($totalAppointments / $perPage);
+        ?>
+          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:18px;">
+            <?php if ($page > 1): ?>
+              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo $page - 1; ?>" class="action-btn">Previous</a>
+            <?php endif; ?>
+            <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
+            <?php if ($page < $lastPage): ?>
+              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo $page + 1; ?>" class="action-btn">Next</a>
+            <?php endif; ?>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
 
-  <!-- Schedule Appointment Modal -->
-  <div id="scheduleModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeScheduleModal()">&times;</span>
-      <div class="modal-header">Schedule Appointment</div>
-      <form method="POST">
-        <div class="form-group">
-          <label>Patient *</label>
-          <select name="patient_id" required>
-            <option value="">Select Patient</option>
-            <?php
-            $patientStmt = $conn->prepare('SELECT patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name');
-            $patientStmt->bind_param('i', $tenantId);
-            $patientStmt->execute();
-            $patientResult = $patientStmt->get_result();
-            while ($p = $patientResult->fetch_assoc()) {
-                echo '<option value="' . $p['patient_id'] . '">' . h($p['first_name'] . ' ' . $p['last_name']) . '</option>';
-            }
-            $patientStmt->close();
-            ?>
+  <!-- Appointment Details Modal -->
+  <div id="detailsModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <span class="close" onclick="closeDetailsModal()">&times;</span>
+      <h3 style="margin-top:0; color: var(--accent);">Appointment Details</h3>
+      <p><strong>Patient:</strong> <span id="detailPatient"></span></p>
+      <p><strong>Dentist:</strong> <span id="detailDentist"></span></p>
+      <p><strong>Date:</strong> <span id="detailDate"></span></p>
+      <p><strong>Time:</strong> <span id="detailTime"></span></p>
+      <p><strong>Procedure:</strong> <span id="detailProcedure"></span></p>
+      <p><strong>Notes:</strong></p>
+      <p id="detailNotes" style="white-space: pre-wrap; color: #334155; margin-top: 0;"></p>
+      <div class="edit-modal-actions">
+        <button type="button" class="edit-btn-cancel" onclick="closeDetailsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Appointment Modal -->
+  <div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+      <h3 style="margin-top:0; color: var(--accent);">Update Treatment Status</h3>
+      <form action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" method="POST">
+        <input type="hidden" name="update_id" id="edit_id">
+        <div class="edit-form-group">
+          <label>Patient</label>
+          <input type="text" id="edit_name_display" disabled style="background:#f1f5f9; border:none; font-weight:bold; color:#475569;">
+        </div>
+        <div class="edit-form-group">
+          <label>Status</label>
+          <select name="new_status" id="edit_status">
+            <!-- Options populated dynamically by JavaScript -->
           </select>
         </div>
-        <div class="form-group">
-          <label>Dentist *</label>
-          <select name="dentist_id" required>
-            <option value="">Select Dentist</option>
-            <?php
-            $dentistStmt = $conn->prepare('SELECT user_id, username FROM users WHERE tenant_id = ? AND LOWER(role) IN ("dentist", "doctor") ORDER BY username');
-            if ($dentistStmt) {
-                $dentistStmt->bind_param('i', $tenantId);
-                $dentistStmt->execute();
-                $dentistResult = $dentistStmt->get_result();
-                while ($d = $dentistResult->fetch_assoc()) {
-                    echo '<option value="' . (int)$d['user_id'] . '">' . h($d['username']) . '</option>';
-                }
-                $dentistStmt->close();
-            }
-            ?>
-          </select>
+        <div class="edit-form-group">
+          <label>Clinical Notes</label>
+          <p style="color:#64748b; margin: 0;">Clinical notes are not available in the current appointment schema.</p>
         </div>
-        <div class="form-group">
-          <label>Appointment Date & Time *</label>
-          <input type="datetime-local" name="appointment_date" required>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
-          <button type="submit" name="add_appointment" class="btn-submit">Schedule</button>
+        <div class="edit-modal-actions">
+          <button type="button" class="edit-btn-cancel" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" name="update_appointment" class="edit-btn-save">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
 
   <script>
+    // ✓ FLAG TEST: Appointment management logic active
+    console.log("Appointment Module Active");
+    console.log('UI Parity Active - Version 2.0');
+    console.log('Appointments Page Initialized');
+    console.log('FINAL UI SYNC COMPLETE');
+    
+    
     function openScheduleModal() {
       const dateInput = document.querySelector('input[name="appointment_date"]');
       if (dateInput) {
@@ -454,16 +607,77 @@ $stmt->close();
       document.getElementById('scheduleModal').style.display = 'block';
     }
 
-    function closeScheduleModal() {
-      document.getElementById('scheduleModal').style.display = 'none';
+    function openDetailsModal(id, patient, dentist, date, time, procedure, notes) {
+      document.getElementById('detailPatient').textContent = patient;
+      document.getElementById('detailDentist').textContent = dentist;
+      document.getElementById('detailDate').textContent = date;
+      document.getElementById('detailTime').textContent = time;
+      document.getElementById('detailProcedure').textContent = procedure || 'No procedure entered';
+      document.getElementById('detailNotes').textContent = notes || 'No notes available.';
+      document.getElementById('detailsModal').style.display = 'flex';
     }
 
+    function closeDetailsModal() {
+      document.getElementById('detailsModal').style.display = 'none';
+    }
+
+    // Edit Modal Functions
+    function openEditModal(id, name, status) {
+      document.getElementById("edit_id").value = id;
+      document.getElementById("edit_name_display").value = name;
+      
+      // Dynamically populate status dropdown
+      const statusSelect = document.getElementById("edit_status");
+      statusSelect.innerHTML = ''; // Clear existing options
+      
+      // Always include Completed and Cancelled
+      const options = ['Completed', 'Cancelled'];
+      
+      // Only include Pending if current status is not Pending
+      if (status !== 'Pending') {
+        options.unshift('Pending'); // Add to beginning
+      }
+      
+      // Create option elements
+      options.forEach(optionValue => {
+        const option = document.createElement('option');
+        option.value = optionValue;
+        option.textContent = optionValue;
+        if (optionValue === status) {
+          option.selected = true;
+        }
+        statusSelect.appendChild(option);
+      });
+      
+      document.getElementById("editModal").style.display = "flex";
+    }
+
+    function closeEditModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
+
+    // Filter Appointments
+    function filterAppointments() {
+      const query = document.getElementById('appointmentSearch').value.toLowerCase();
+      const rows = document.querySelectorAll('#appointmentTable tbody tr');
+      
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(query) ? '' : 'none';
+      });
+    }
+
+    // Close edit modal when clicking outside
     window.onclick = function(event) {
-      const modal = document.getElementById('scheduleModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
+      const editModal = document.getElementById('editModal');
+      
+      if (event.target == editModal) {
+        editModal.style.display = 'none';
       }
     }
   </script>
+  <?php printDateClockScript(); ?>
 </body>
 </html>
+
+

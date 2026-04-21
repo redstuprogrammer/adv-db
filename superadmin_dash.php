@@ -1,17 +1,35 @@
 <?php
-session_start();
-require_once __DIR__ . '/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
+// Extend session timeout for superadmin
+ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
+session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+
+define('ROOT_PATH', __DIR__ . '/');
+if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.use_only_cookies', 1);
+    session_start();
 }
-require_once __DIR__ . '/subscription_tiers.php';
+require_once ROOT_PATH . 'includes/security_headers.php';
+require_once ROOT_PATH . 'includes/session_utils.php';
+
+// Check auth state FIRST, before loading database
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireSuperAdmin();
+
+// Load settings and database after auth check
+require_once ROOT_PATH . 'settings.php';
+require_once ROOT_PATH . 'includes/subscription_tiers.php';
+try {
+    $currentSettings = getAllSettings();
+} catch (Exception $e) {
+    $currentSettings = [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>OralSync | Super Admin</title>
+    <title><?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync', ENT_QUOTES, 'UTF-8'); ?> | Super Admin</title>
     <link rel="stylesheet" href="style1.css">
     <link rel="stylesheet" href="tenant_style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -414,7 +432,12 @@ require_once __DIR__ . '/subscription_tiers.php';
         .sa-tenant-info {
             display: flex;
             flex-direction: column;
-                    }
+        }
+
+        /* Hide green circle indicators */
+        .green-circle, .status-dot, .status-blob {
+            display: none !important;
+        }
                     .clickable-row {
                 cursor: pointer;
                 transition: background 0.2s ease;
@@ -482,31 +505,60 @@ require_once __DIR__ . '/subscription_tiers.php';
     transition: background-color 0.2s;
     margin: 0;
     font-family: inherit;
+    border-left: 3px solid transparent;
 }
 
 .menu-dropdown-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.menu-dropdown-toggle::after {
+    content: '▸';
+    margin-left: auto;
+    transition: transform 0.2s ease;
+}
+
+.menu-dropdown-toggle.active {
+    background-color: rgba(13, 59, 102, 0.5);
+    border-left: 3px solid #22c55e;
+}
+
+.menu-dropdown-toggle.active::after {
+    transform: rotate(90deg);
+}
+
+.menu-dropdown {
+    position: relative;
+}
+
+.menu {
+    padding: 16px 0;
+    overflow: visible;
 }
 
 .menu-dropdown-items {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.05);
     border-left: 3px solid #22c55e;
     overflow: hidden;
+    flex-direction: column;
+    position: relative;
+    z-index: 10;
 }
 
 .menu-dropdown-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 20px;
+    padding: 12px 16px 12px 32px;
     color: #ffffff;
     text-decoration: none;
     font-size: 0.9rem;
     transition: background-color 0.15s;
+    overflow: hidden;
 }
 
 .menu-dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .clickable-row { cursor: pointer; transition: background 0.2s; }
@@ -516,34 +568,7 @@ require_once __DIR__ . '/subscription_tiers.php';
 <body>
 
 <div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="logo-white-box">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-                </svg>
-            </div>
-            <div class="sidebar-logo-text">OralSync</div>
-            <nav class="menu">
-                <a href="#" class="menu-item active" data-section="dashboard-section"><span>🛡️</span> Dashboard</a>
-                <a href="#" class="menu-item" data-section="tenant-section"><span>🏥</span> Tenant List</a>
-                <a href="#" class="menu-item" data-section="register-section"><span>➕</span> Register Clinic</a>
-                <div class="menu-dropdown" style="width: 100%;">
-                    <button class="menu-item menu-dropdown-toggle" type="button"><span>📊</span> Reports</button>
-                    <div class="menu-dropdown-items" style="display: none; flex-direction: column; width: 100%; overflow-x: hidden;">
-                        <a href="superadmin_reports.php" class="menu-dropdown-item"><span>📈</span> Tenant Reports</a>
-                        <a href="superadmin_sales_report.php" class="menu-dropdown-item"><span>💰</span> Sales Reports</a>
-                    </div>
-                </div>
-                <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
-                <a href="superadmin_settings.php" class="menu-item"><span>⚙️</span> Settings</a>
-            </nav>
-        </div>
-        <div class="sidebar-bottom">
-            <a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -778,6 +803,11 @@ require_once __DIR__ . '/subscription_tiers.php';
                             <input type="email" id="owner-email" required>
                         </div>
                         <div class="sa-form-group">
+                            <label for="clinic-username">Clinic Username <span class="sa-badge-required">*</span></label>
+                            <input type="text" id="clinic-username" required placeholder="clinic_username">
+                            <p style="margin: 6px 0 0; font-size: 12px; color: #64748b;">Letters, numbers, hyphens, and underscores only.</p>
+                        </div>
+                        <div class="sa-form-group">
                             <label for="clinic-phone">Clinic Phone Number <span class="sa-badge-required">*</span></label>
                             <input type="tel" id="clinic-phone" required>
                         </div>
@@ -787,7 +817,9 @@ require_once __DIR__ . '/subscription_tiers.php';
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-city">City / Municipality <span class="sa-badge-required">*</span></label>
-                            <input type="text" id="clinic-city" required>
+                            <select id="clinic-city" required>
+                                <option value="">Select city</option>
+                            </select>
                         </div>
                         <div class="sa-form-group">
                             <label for="clinic-province">Province / Area (Luzon only) <span class="sa-badge-required">*</span></label>
@@ -829,6 +861,14 @@ require_once __DIR__ . '/subscription_tiers.php';
                                 <!-- Tier details will be shown here -->
                             </div>
                         </div>
+                        <div class="sa-form-group">
+                            <label for="clinic-start-date">Subscription Start Date <span class="sa-badge-required">*</span></label>
+                            <input type="date" id="clinic-start-date" required value="<?php echo date('Y-m-d'); ?>">
+                        </div>
+                        <div class="sa-form-group">
+                            <label for="clinic-duration">Subscription Duration (Months) <span class="sa-badge-required">*</span></label>
+                            <input type="number" id="clinic-duration" required min="1" max="120" value="12">
+                        </div>
                         <div class="sa-form-group" style="grid-column: 1 / -1;">
                             <label for="clinic-notes">Notes / Special Instructions</label>
                             <textarea id="clinic-notes" placeholder="Optional notes about billing, onboarding preferences, or setup requirements."></textarea>
@@ -853,14 +893,17 @@ require_once __DIR__ . '/subscription_tiers.php';
     <div class="sa-credential-box">
         <div class="sa-credential-item">
             <span class="sa-label">Temporary Password:</span>
-            <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                 <code id="display-temp-password" class="sa-temp-pass">Generating...</code>
-                <button type="button" class="sa-copy-btn" onclick="copyPassword()">Copy</button>
+                <button type="button" class="sa-copy-btn" onclick="copyTemporaryPassword()" aria-label="Copy temporary password">📋</button>
             </div>
         </div>
         <div class="sa-credential-item">
             <span class="sa-label">Login URL:</span>
-            <div id="sample-login-link" class="sa-link-sample"></div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <a id="display-login-url" class="sa-link-sample" target="_blank" rel="noopener noreferrer" href="#">Loading...</a>
+                <button type="button" class="sa-copy-btn" onclick="copyLoginUrl()" aria-label="Copy login URL">📋</button>
+            </div>
         </div>
     </div>
 
@@ -903,6 +946,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                 <div class="detail-item"><strong>Email:</strong> <span id="dt-email"></span></div>
                 <div class="detail-item"><strong>Phone:</strong> <span id="dt-phone"></span></div>
                 <div class="detail-item"><strong>Status:</strong> <span id="dt-status"></span></div>
+                <div class="detail-item"><strong>Tier:</strong> <span id="dt-tier"></span></div>
                 <div class="detail-item" style="grid-column: 1 / -1;">
                     <strong>Address:</strong> <span id="dt-address"></span>
                 </div>
@@ -928,48 +972,73 @@ require_once __DIR__ . '/subscription_tiers.php';
 <div id="sa-toast" class="sa-toast"></div>
 
 <script>
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+        const dropdown = document.querySelector('.menu-dropdown');
+        
+        if (dropdown && !dropdown.contains(e.target)) {
+            dropdownItems.style.display = 'none';
+            if (dropdownToggle) dropdownToggle.classList.remove('active');
+        }
+    });
+
+    window.addEventListener('load', function() {
+        const currentPage = window.location.pathname.toLowerCase();
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+        if ((currentPage.includes('superadmin_reports') || currentPage.includes('superadmin_sales_report') || currentPage.includes('tenant_reports') || currentPage.includes('sales_reports')) && dropdownToggle && dropdownItems) {
+            dropdownItems.style.display = 'flex';
+            dropdownToggle.classList.add('active');
+        }
+    });
+
     // Sidebar navigation between sections
     (function () {
         const menuItems = document.querySelectorAll('.menu-item[data-section]');
         const sections = document.querySelectorAll('.sa-section');
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+
+        function activateSuperAdminSection(sectionId) {
+            if (!sectionId) return;
+            const targetSection = document.getElementById(sectionId);
+            if (!targetSection) return;
+
+            document.querySelectorAll('.menu-item[data-section]').forEach(mi => mi.classList.remove('active'));
+            if (dropdownToggle) dropdownToggle.classList.remove('active');
+            if (dropdownItems) dropdownItems.style.display = 'none';
+
+            const menuItem = document.querySelector(`.menu-item[data-section="${sectionId}"]`);
+            if (menuItem) {
+                menuItem.classList.add('active');
+            }
+
+            document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
+            targetSection.classList.add('active-section');
+        }
+
+        function handleSuperAdminHash() {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                activateSuperAdminSection(hash);
+            }
+        }
 
         menuItems.forEach(item => {
             item.addEventListener('click', function (e) {
                 e.preventDefault();
                 const target = this.getAttribute('data-section');
-
-                menuItems.forEach(mi => mi.classList.remove('active'));
-                this.classList.add('active');
-
-                sections.forEach(sec => {
-                    if (sec.id === target) {
-                        sec.classList.add('active-section');
-                    } else {
-                        sec.classList.remove('active-section');
-                    }
-                });
+                if (!target) return;
+                activateSuperAdminSection(target);
+                history.replaceState(null, '', '#' + target);
             });
         });
 
-        // Handle URL hash on page load
-        window.addEventListener('load', function() {
-            const hash = window.location.hash.substring(1); // Remove the '#'
-            if (hash) {
-                const targetSection = document.getElementById(hash);
-                if (targetSection) {
-                    // Remove active from all menu items
-                    document.querySelectorAll('.menu-item').forEach(mi => mi.classList.remove('active'));
-                    // Add active to the corresponding menu item
-                    const menuItem = document.querySelector(`.menu-item[data-section="${hash}"]`);
-                    if (menuItem) {
-                        menuItem.classList.add('active');
-                    }
-                    // Show the target section
-                    document.querySelectorAll('.sa-section').forEach(sec => sec.classList.remove('active-section'));
-                    targetSection.classList.add('active-section');
-                }
-            }
-        });
+        // Handle URL hash on page load and hash changes
+        window.addEventListener('load', handleSuperAdminHash);
+        window.addEventListener('hashchange', handleSuperAdminHash);
     })();
 
     // Dropdown menu toggle
@@ -980,10 +1049,17 @@ require_once __DIR__ . '/subscription_tiers.php';
         if (dropdownToggle && dropdownItems) {
             dropdownToggle.addEventListener('click', function (e) {
                 e.preventDefault();
+                e.stopPropagation();
                 const isVisible = dropdownItems.style.display !== 'none';
                 dropdownItems.style.display = isVisible ? 'none' : 'flex';
                 dropdownItems.style.flexDirection = 'column';
                 dropdownToggle.classList.toggle('active');
+            });
+
+            // Prevent dropdown from closing when clicking on dropdown items (allow page navigation)
+            dropdownItems.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Let the link navigate naturally - don't prevent default
             });
         }
     })();
@@ -1025,7 +1101,7 @@ require_once __DIR__ . '/subscription_tiers.php';
         document.getElementById('kpi-new-month').textContent = newMonth;
 
         // Fetch analytics for trend bars
-        fetch('superadmin_analytics_api.php')
+        fetch('superadmin/superadmin_analytics_api.php')
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(analytics => {
                 const last7d = analytics.last_7_days_superadmin_logs || 0;
@@ -1168,7 +1244,7 @@ require_once __DIR__ . '/subscription_tiers.php';
         tbody.innerHTML = '';
         const saLogs = analytics.daily_superadmin_logs || [];
         const today = new Date();
-        for (let i = 6; i >= 0; i--) {
+        for (let i = 0; i <= 6; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
             const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -1188,7 +1264,7 @@ require_once __DIR__ . '/subscription_tiers.php';
         tbody.innerHTML = '';
         const tenantLogs = analytics.daily_tenant_activities || [];
         const today = new Date();
-        for (let i = 6; i >= 0; i--) {
+        for (let i = 0; i <= 6; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
             const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -1319,7 +1395,7 @@ require_once __DIR__ . '/subscription_tiers.php';
             const tenantId = row.getAttribute('data-id');
             if (!tenantId) return;
 
-            fetch(`get_tenant_details.php?id=${tenantId}`)
+            fetch(`/get_tenant_details.php?id=${tenantId}`)
                 .then(res => res.json())
                 .then(tenant => {
                     document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1327,6 +1403,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                     document.getElementById('dt-email').textContent = tenant.contact_email;
                     document.getElementById('dt-phone').textContent = tenant.phone;
                     document.getElementById('dt-status').textContent = tenant.status;
+                    document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
                     document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                     const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                     document.getElementById('dt-date').textContent = date;
@@ -1344,7 +1421,7 @@ require_once __DIR__ . '/subscription_tiers.php';
     }
 
     function viewTenantProfile(tenantId) {
-        fetch(`get_tenant_details.php?id=${tenantId}`)
+        fetch(`/get_tenant_details.php?id=${tenantId}`)
             .then(res => res.json())
             .then(tenant => {
                 document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1352,6 +1429,7 @@ require_once __DIR__ . '/subscription_tiers.php';
                 document.getElementById('dt-email').textContent = tenant.contact_email;
                 document.getElementById('dt-phone').textContent = tenant.phone;
                 document.getElementById('dt-status').textContent = tenant.status;
+                document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
                 document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                 const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                 document.getElementById('dt-date').textContent = date;
@@ -1382,6 +1460,49 @@ require_once __DIR__ . '/subscription_tiers.php';
         // Tier definitions from PHP
         const tierDefinitions = <?php echo json_encode(getAllTiers()); ?>;
 
+        // Cities by province
+        const citiesByProvince = {
+            'Metro Manila': ['Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong', 'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque', 'Pasay', 'Pasig', 'Pateros', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'],
+            'Bulacan': ['Angat', 'Balagtas', 'Baliuag', 'Bocaue', 'Bulakan', 'Bustos', 'Calumpit', 'Doña Remedios Trinidad', 'Guiguinto', 'Hagonoy', 'Malolos', 'Marilao', 'Meycauayan', 'Norzagaray', 'Obando', 'Pandi', 'Paombong', 'Plaridel', 'Pulilan', 'San Ildefonso', 'San Jose del Monte', 'San Miguel', 'San Rafael', 'Santa Maria'],
+            'Pampanga': ['Angeles City', 'Apalit', 'Arayat', 'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Mabalacat', 'Macabebe', 'Magalang', 'Masantol', 'Mexico', 'Minalin', 'Porac', 'San Fernando', 'San Luis', 'San Simon', 'Santa Ana', 'Santa Rita', 'Santo Tomas', 'Sasmuan'],
+            'Tarlac': ['Anao', 'Bamban', 'Camiling', 'Capas', 'Concepcion', 'Gerona', 'La Paz', 'Mayantoc', 'Moncada', 'Paniqui', 'Pura', 'Ramos', 'San Clemente', 'San Jose', 'San Manuel', 'Santa Ignacia', 'Tarlac City', 'Victoria'],
+            'Bataan': ['Abucay', 'Bagac', 'Balanga', 'Dinalupihan', 'Hermosa', 'Limay', 'Mariveles', 'Morong', 'Orani', 'Orion', 'Pilar', 'Samal'],
+            'Nueva Ecija': ['Aliaga', 'Bongabon', 'Cabanatuan', 'Cabiao', 'Carranglan', 'Cuyapo', 'Gabaldon', 'Gapan', 'General Mamerto Natividad', 'General Tinio', 'Guimba', 'Jaen', 'Laur', 'Licab', 'Llanera', 'Lupao', 'Muñoz', 'Nampicuan', 'Palayan', 'Pantabangan', 'Peñaranda', 'Quezon', 'Rizal', 'San Antonio', 'San Isidro', 'San Jose City', 'San Leonardo', 'Santa Rosa', 'Santo Domingo', 'Talavera', 'Talugtug', 'Zaragoza'],
+            'Zambales': ['Botolan', 'Cabangan', 'Candelaria', 'Castillejos', 'Iba', 'Masinloc', 'Olongapo', 'Palauig', 'San Antonio', 'San Felipe', 'San Marcelino', 'San Narciso', 'Santa Cruz', 'Subic'],
+            'Cavite': ['Alfonso', 'Amadeo', 'Bacoor', 'Carmona', 'Cavite City', 'Dasmariñas', 'General Emilio Aguinaldo', 'General Mariano Alvarez', 'General Trias', 'Imus', 'Indang', 'Kawit', 'Magallanes', 'Maragondon', 'Mendez', 'Naic', 'Noveleta', 'Rosario', 'Silang', 'Tagaytay', 'Tanza', 'Trece Martires', 'Trece Martires City'],
+            'Laguna': ['Alaminos', 'Bay', 'Biñan', 'Cabuyao', 'Calamba', 'Calauan', 'Cavinti', 'Famy', 'Kalayaan', 'Liliw', 'Los Baños', 'Luisiana', 'Lumban', 'Mabitac', 'Magdalena', 'Majayjay', 'Nagcarlan', 'Paete', 'Pagsanjan', 'Pakil', 'Pangil', 'Pila', 'Rizal', 'San Pablo', 'San Pedro', 'Santa Cruz', 'Santa Maria', 'Santa Rosa', 'Siniloan', 'Victoria'],
+            'Batangas': ['Agoncillo', 'Alitagtag', 'Balayan', 'Balete', 'Batangas City', 'Bauan', 'Calaca', 'Calatagan', 'Cuenca', 'Ibaan', 'Laurel', 'Lemery', 'Lian', 'Lipa', 'Lobo', 'Mabini', 'Malvar', 'Mataasnakahoy', 'Nasugbu', 'Padre Garcia', 'Rosario', 'San Jose', 'San Juan', 'San Luis', 'San Nicolas', 'San Pascual', 'Santa Teresita', 'Santo Tomas', 'Taal', 'Talisay', 'Tanauan', 'Taysan', 'Tingloy', 'Tuy'],
+            'Rizal': ['Angono', 'Antipolo', 'Baras', 'Binangonan', 'Cainta', 'Cardona', 'Jalajala', 'Morong', 'Pililla', 'Rodriguez', 'San Mateo', 'Tanay', 'Taytay', 'Teresa'],
+            'Quezon': ['Agdangan', 'Alabat', 'Atimonan', 'Buenavista', 'Burdeos', 'Calauag', 'Candelaria', 'Catanauan', 'Dolores', 'General Luna', 'General Nakar', 'Guinayangan', 'Gumaca', 'Infanta', 'Jomalig', 'Lopez', 'Lucban', 'Lucena', 'Macalelon', 'Mauban', 'Mulanay', 'Padre Burgos', 'Pagbilao', 'Panukulan', 'Patnanungan', 'Perez', 'Pitogo', 'Plaridel', 'Polillo', 'Quezon', 'Real', 'Sampaloc', 'San Andres', 'San Antonio', 'San Francisco', 'San Narciso', 'Sariaya', 'Tagkawayan', 'Tayabas', 'Tiaong', 'Unisan'],
+            'Benguet': ['Atok', 'Baguio', 'Bakun', 'Bokod', 'Buguias', 'Itogon', 'Kabayan', 'Kapangan', 'Kibungan', 'La Trinidad', 'Mankayan', 'Sablan', 'Tuba', 'Tublay'],
+            'Ilocos Norte': ['Adams', 'Bacarra', 'Badoc', 'Bangui', 'Banna', 'Batac', 'Burgos', 'Carasi', 'Currimao', 'Dingras', 'Dumalneg', 'Laoag', 'Marcos', 'Nueva Era', 'Pagudpud', 'Paoay', 'Pasuquin', 'Piddig', 'Pinili', 'San Nicolas', 'Sarrat', 'Solsona', 'Vintar'],
+            'Ilocos Sur': ['Alilem', 'Banayoyo', 'Bantay', 'Burgos', 'Cabugao', 'Candon', 'Caoayan', 'Cervantes', 'Galimuyod', 'Gregorio del Pilar', 'Lidlidda', 'Magsingal', 'Nagbukel', 'Narvacan', 'Quirino', 'Salcedo', 'San Emilio', 'San Esteban', 'San Ildefonso', 'San Juan', 'San Vicente', 'Santa', 'Santa Catalina', 'Santa Cruz', 'Santa Lucia', 'Santa Maria', 'Santiago', 'Santo Domingo', 'Sigay', 'Sinait', 'Sugpon', 'Suyo', 'Tagudin', 'Vigan'],
+            'La Union': ['Agoo', 'Aringay', 'Bacnotan', 'Bagulin', 'Balaoan', 'Bangar', 'Bauang', 'Burgos', 'Caba', 'Luna', 'Naguilian', 'Pugo', 'Rosario', 'San Fernando', 'San Gabriel', 'San Juan', 'Santo Tomas', 'Santol', 'Sudipen', 'Tubao'],
+            'Pangasinan': ['Agno', 'Aguilar', 'Alaminos', 'Alcala', 'Anda', 'Asingan', 'Balungao', 'Bani', 'Basista', 'Bautista', 'Bayambang', 'Bida', 'Binmaley', 'Bolinao', 'Bugallon', 'Burgos', 'Calasiao', 'Dagupan', 'Dasol', 'Infanta', 'Labrador', 'Laoac', 'Lingayen', 'Mabini', 'Malasiqui', 'Manaoag', 'Mangaldan', 'Mangatarem', 'Mapandan', 'Natividad', 'Pozorrubio', 'Rosales', 'San Carlos', 'San Fabian', 'San Jacinto', 'San Manuel', 'San Nicolas', 'San Quintin', 'Santa Barbara', 'Santa Maria', 'Santo Tomas', 'Sison', 'Sual', 'Tayug', 'Umingan', 'Urbiztondo', 'Urdaneta', 'Villasis'],
+            'Cagayan': ['Abulug', 'Alcala', 'Allacapan', 'Amulung', 'Aparri', 'Baggao', 'Ballesteros', 'Buguey', 'Calayan', 'Camalaniugan', 'Claveria', 'Enrile', 'Gattaran', 'Gonzaga', 'Iguig', 'Lal-lo', 'Lasam', 'Pamplona', 'Peñablanca', 'Piat', 'Rizal', 'Sanchez-Mira', 'Santa Ana', 'Santa Praxedes', 'Santa Teresita', 'Santo Niño', 'Solana', 'Tuao', 'Tuguegarao'],
+            'Isabela': ['Alicia', 'Angadanan', 'Aurora', 'Benito Soliven', 'Burgos', 'Cabagan', 'Cabatuan', 'Cauayan', 'Cordon', 'Delfin Albano', 'Dinapigue', 'Divilacan', 'Echague', 'Gamu', 'Ilagan', 'Jones', 'Luna', 'Maconacon', 'Mallig', 'Naguilian', 'Palanan', 'Quezon', 'Quirino', 'Ramon', 'Reina Mercedes', 'Roxas', 'San Agustin', 'San Guillermo', 'San Isidro', 'San Manuel', 'San Mariano', 'San Mateo', 'San Pablo', 'Santa Maria', 'Santiago', 'Santo Tomas', 'Tumauini'],
+            'Abra': ['Bangued', 'Boliney', 'Bucay', 'Bucloc', 'Daguioman', 'Danglas', 'Dolores', 'La Paz', 'Lacub', 'Lagangilang', 'Lagayan', 'Langiden', 'Licuan-Baay', 'Luba', 'Malibcong', 'Manabo', 'Peñarrubia', 'Pidigan', 'Pilar', 'Sallapadan', 'San Isidro', 'San Juan', 'San Quintin', 'Tayum', 'Tineg', 'Tubo', 'Villaviciosa']
+        };
+
+        const provinceSelect = document.getElementById('clinic-province');
+        const citySelect = document.getElementById('clinic-city');
+
+        // Populate cities when province is selected
+        if (provinceSelect && citySelect) {
+            provinceSelect.addEventListener('change', function() {
+                const province = this.value;
+                citySelect.innerHTML = '<option value="">Select city</option>';
+                if (province && citiesByProvince[province]) {
+                    citiesByProvince[province].forEach(city => {
+                        const option = document.createElement('option');
+                        option.value = city;
+                        option.textContent = city;
+                        citySelect.appendChild(option);
+                    });
+                }
+            });
+        }
+
         // Show tier details when a tier is selected
         if (tierSelect) {
             tierSelect.addEventListener('change', function() {
@@ -1408,9 +1529,54 @@ require_once __DIR__ . '/subscription_tiers.php';
             });
         }
 
+        // Real-time duplicate checks on blur
+        function showFieldError(fieldId, message) {
+            let field = document.getElementById(fieldId);
+            let existing = document.getElementById(fieldId + '-error');
+            if (existing) existing.remove();
+            if (message) {
+                let err = document.createElement('p');
+                err.id = fieldId + '-error';
+                err.style.cssText = 'color:#b91c1c;font-size:0.8rem;margin:4px 0 0;';
+                err.textContent = message;
+                field.parentNode.appendChild(err);
+                field.style.borderColor = '#b91c1c';
+            } else {
+                field.style.borderColor = '';
+            }
+        }
+
+        document.getElementById('owner-email').addEventListener('blur', function() {
+            const email = this.value.trim();
+            if (!email) return;
+            fetch('check_clinic_unique.php?field=email&value=' + encodeURIComponent(email))
+                .then(r => r.json())
+                .then(data => {
+                    showFieldError('owner-email', data.exists ? 'This email is already registered to another clinic.' : '');
+                }).catch(() => {});
+        });
+
+        document.getElementById('clinic-username').addEventListener('blur', function() {
+            const username = this.value.trim();
+            if (!username) return;
+            fetch('check_clinic_unique.php?field=username&value=' + encodeURIComponent(username))
+                .then(r => r.json())
+                .then(data => {
+                    showFieldError('clinic-username', data.exists ? 'This username is already taken. Please choose another.' : '');
+                }).catch(() => {});
+        });
+
         // STEP 1: Intercept the form submission and show the modal
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+
+            // Block submission if there are visible field errors
+            const emailErr = document.getElementById('owner-email-error');
+            const usernameErr = document.getElementById('clinic-username-error');
+            if ((emailErr && emailErr.textContent) || (usernameErr && usernameErr.textContent)) {
+                showToast('Please fix the errors above before submitting.');
+                return;
+            }
 
             // Get values for review
             const tierValue = document.getElementById('clinic-tier').value;
@@ -1418,11 +1584,14 @@ require_once __DIR__ . '/subscription_tiers.php';
             
             const reviewData = {
                 'Clinic Name': document.getElementById('clinic-name').value,
+                'Clinic Username': document.getElementById('clinic-username').value,
                 'Owner': document.getElementById('owner-name').value,
                 'Email': document.getElementById('owner-email').value,
                 'Phone': document.getElementById('clinic-phone').value,
                 'Location': `${document.getElementById('clinic-city').value}, ${document.getElementById('clinic-province').value}`,
-                'Subscription Tier': tierName
+                'Subscription Tier': tierName,
+                'Start Date': document.getElementById('clinic-start-date').value,
+                'Duration': document.getElementById('clinic-duration').value + ' months'
             };
 
             // Build the review list inside the modal
@@ -1448,12 +1617,15 @@ require_once __DIR__ . '/subscription_tiers.php';
             const formData = new FormData();
             formData.append('clinicName', document.getElementById('clinic-name').value.trim());
             formData.append('ownerName', document.getElementById('owner-name').value.trim());
+            formData.append('username', document.getElementById('clinic-username').value.trim());
             formData.append('email', document.getElementById('owner-email').value.trim());
             formData.append('phone', document.getElementById('clinic-phone').value.trim());
             formData.append('address', document.getElementById('clinic-address').value.trim());
             formData.append('city', document.getElementById('clinic-city').value.trim());
             formData.append('province', document.getElementById('clinic-province').value);
             formData.append('tier', document.getElementById('clinic-tier').value);
+            formData.append('start_date', document.getElementById('clinic-start-date').value);
+            formData.append('duration', document.getElementById('clinic-duration').value);
 
             fetch('register_clinic.php', {
                 method: 'POST',
@@ -1465,8 +1637,10 @@ require_once __DIR__ . '/subscription_tiers.php';
                     refreshTenantList();
 
                     if (sampleLinkEl) {
-                        const baseUrl = window.location.origin;
-                        sampleLinkEl.textContent = `${baseUrl}/tenant/${encodeURIComponent(data.slug)}/login`;
+                        const loginUrl = data.login_url || `${window.location.origin}/tenant/${encodeURIComponent(data.slug)}/login`;
+                        sampleLinkEl.innerHTML = `
+                            <a id="display-login-url" class="sa-link-sample" href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a>
+                        `;
                     }
 
                     const passField = document.getElementById('display-temp-password');
@@ -1504,6 +1678,51 @@ require_once __DIR__ . '/subscription_tiers.php';
         });
     })();
 
+    function copyToClipboard(text, successText = 'Copied to clipboard') {
+        if (!text) {
+            showToast?.('Nothing to copy.');
+            return;
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(() => showToast?.(successText))
+                .catch(() => showToast?.('Copy failed. Please use Ctrl+C.'));
+        } else {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'absolute';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast?.(successText);
+            } catch (err) {
+                showToast?.('Copy failed. Please use Ctrl+C.');
+            }
+            document.body.removeChild(textarea);
+        }
+    }
+
+    function copyTemporaryPassword() {
+        const passwordElement = document.getElementById('display-temp-password');
+        if (!passwordElement) return;
+        copyToClipboard(passwordElement.textContent.trim(), 'Temporary password copied.');
+    }
+
+    function copyLoginUrl() {
+        const linkElement = document.getElementById('display-login-url');
+        if (!linkElement) return;
+        const url = linkElement.getAttribute('href') || linkElement.textContent.trim();
+        if (!url || url === '#') {
+            showToast?.('No login URL available yet.');
+            return;
+        }
+        copyToClipboard(url, 'Login URL copied.');
+    }
+
     // Initialize Sales Trends Chart
     (function() {
         const chartCanvas = document.getElementById('dashboardSalesChart');
@@ -1511,7 +1730,7 @@ require_once __DIR__ . '/subscription_tiers.php';
 
         // Generate last 12 months labels
         const labels = [];
-        for (let i = 11; i >= 0; i--) {
+        for (let i = 0; i <= 11; i++) {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
             labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
@@ -1564,4 +1783,5 @@ require_once __DIR__ . '/subscription_tiers.php';
 
 </body>
 </html>
+
 

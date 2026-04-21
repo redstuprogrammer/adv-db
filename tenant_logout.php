@@ -1,33 +1,32 @@
 <?php
 session_start();
-require_once __DIR__ . '/connect.php';
-require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/includes/session_utils.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
-$tenantSlug = trim((string)($_GET['tenant'] ?? ($_SESSION['tenant_slug'] ?? '')));
-$tenantId = (int)($_SESSION['tenant_id'] ?? 0);
-$tenantEmail = $_SESSION['tenant_email'] ?? '';
+$sessionManager = SessionManager::getInstance();
+$tenantSlug = $sessionManager->getCurrentTenantSlug() ?: 'unknown';
+$tenantId = $sessionManager->getTenantId();
+$username = $sessionManager->getUsername();
 
-if ($tenantId > 0) {
-    logActivity($conn, $tenantId, 'Tenant Logout', 'Tenant logged out', $tenantEmail, 'tenant_owner', 'Tenant Owner');
+if ($tenantId) {
+    require_once __DIR__ . '/includes/connect.php';
+    logActivity($conn, $tenantId, 'Logout', 'Tenant logged out', $username, strtolower($sessionManager->getRole()), ucfirst($sessionManager->getRole()));
 }
 
-$_SESSION = [];
-if (ini_get('session.use_cookies')) {
-    $params = session_get_cookie_params();
-    setcookie(
-        session_name(),
-        '',
-        time() - 42000,
-        $params['path'],
-        $params['domain'],
-        $params['secure'],
-        $params['httponly']
-    );
-}
+$sessionManager->logoutTenant($tenantSlug);
 
-session_destroy();
-$base = getAppBasePath();
-$redirect = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+// Prevent back button access after logout
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+
+// Build redirect URL — avoid double-slash when base is empty
+$base = rtrim(getAppBasePath(), '/');
+if ($tenantSlug && $tenantSlug !== 'unknown') {
+    $redirect = $base . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug);
+} else {
+    $redirect = $base . '/tenant_login.php';
+}
 header('Location: ' . $redirect);
 exit;
 ?>

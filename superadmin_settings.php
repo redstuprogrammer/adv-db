@@ -1,12 +1,13 @@
 <?php
 // Force redeployment - version 1.1
 session_start();
-require_once __DIR__ . '/security_headers.php';
+require_once __DIR__ . '/includes/security_headers.php';
 if (empty($_SESSION['superadmin_authed'])) {
     header('Location: superadmin_login.php');
     exit;
 }
-require_once __DIR__ . '/connect.php';
+require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/includes/tenant_utils.php';
 
 // Load current settings
 require_once __DIR__ . '/settings.php';
@@ -21,24 +22,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/settings.php';
 
     try {
-        // Save settings
-        setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
-        setSetting('max_tenants', $_POST['max_tenants'] ?? '');
-        setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
-        setSetting('storage_limit', $_POST['storage_limit'] ?? '');
-
-        // Handle logo upload
-        if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/uploads/';
-            if (!is_dir($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
+        if (isset($_POST['reset'])) {
+            // Reset to defaults
+            setSetting('system_name', 'OralSync');
+            // Delete existing logo file if exists
+            $currentLogo = $currentSettings['logo_path'] ?? '';
+            if ($currentLogo && file_exists(__DIR__ . '/' . ltrim($currentLogo, '/'))) {
+                unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
-            $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
-            move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
-            setSetting('logo_path', $filename);
-        }
+            setSetting('logo_path', '');
+            setSetting('max_tenants', '');
+            setSetting('max_users_per_tenant', '');
+            setSetting('storage_limit', '');
+            $message = "Settings reset to defaults!";
+        } else {
+            // Save settings
+            setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
+            setSetting('max_tenants', $_POST['max_tenants'] ?? '');
+            setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
+            setSetting('storage_limit', $_POST['storage_limit'] ?? '');
 
-        $message = "Settings saved successfully!";
+            // Handle logo upload
+            if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/uploads/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                $filename = 'logo_' . time() . '.' . pathinfo($_FILES['logo']['name'], PATHINFO_EXTENSION);
+                move_uploaded_file($_FILES['logo']['tmp_name'], $uploadDir . $filename);
+                setSetting('logo_path', '/uploads/' . $filename);
+            }
+
+            $message = "Settings saved successfully!";
+        }
     } catch (Exception $e) {
         $message = "Error saving settings: " . $e->getMessage();
     }
@@ -251,87 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 0.875rem;
         }
 
-        .login-customizer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            background: #f8fafc;
-            padding: 20px;
-            border: 1px solid var(--sa-border);
-            border-radius: 12px;
-        }
-
-        .login-customizer .customizer-panel {
-            background: white;
-            border: 1px solid var(--sa-border);
-            border-radius: 12px;
-            padding: 16px;
-        }
-
-        .login-customizer .customizer-panel h3 {
-            margin-top: 0;
-            font-size: 1rem;
-        }
-
-        .login-preview {
-            width: 100%;
-            border: 1px solid #cbd5e1;
-            border-radius: 12px;
-            padding: 20px;
-            background: white;
-            color: #1f2937;
-        }
-
-        .login-preview .preview-card {
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 18px;
-            text-align: center;
-            background: #ffffff;
-        }
-
-        .login-preview .preview-logo {
-            width: 80px;
-            height: 80px;
-            border-radius: 12px;
-            margin: 0 auto 12px;
-            background: #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-
-        .login-preview .preview-logo img {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .login-preview .preview-welcome {
-            font-size: 1.1rem;
-            font-weight: 700;
-            margin: 10px 0 12px;
-        }
-
-        .login-preview .preview-button {
-            display: inline-block;
-            padding: 10px 18px;
-            border-radius: 8px;
-            border: 1px solid #cbd5e1;
-            color: #ffffff;
-            background: #0d3b66;
-            text-decoration: none;
-            font-weight: 600;
-            margin: 12px 0;
-        }
-
-        .login-preview .preview-footer {
-            margin-top: 14px;
-            font-size: 0.9rem;
-            color: #4b5563;
-        }
-
         .success-message {
             background: #d1fae5;
             color: #065f46;
@@ -344,28 +279,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 
 <div class="container">
-    <aside class="sidebar">
-        <div class="sidebar-top">
-            <div class="logo-white-box">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" class="main-logo">
-                    <rect width="32" height="32" rx="8" fill="#0d3b66"/>
-                    <text x="16" y="22" font-size="20" font-weight="bold" fill="white" text-anchor="middle">O</text>
-                </svg>
-            </div>
-            <nav class="menu">
-                <a href="superadmin_dash.php" class="menu-item"><span>🛡️</span> Dashboard</a>
-                <a href="superadmin_dash.php#tenant-section" class="menu-item"><span>🏥</span> Tenant List</a>
-                <a href="superadmin_dash.php#register-section" class="menu-item"><span>➕</span> Register Clinic</a>
-                <a href="superadmin_reports.php" class="menu-item"><span>📊</span> Reports</a>
-                <a href="superadmin_sales_report.php" class="menu-item"><span>💰</span> Sales Report</a>
-                <a href="superadmin_audit_logs.php" class="menu-item"><span>📋</span> Audit Logs</a>
-                <a href="superadmin_settings.php" class="menu-item active"><span>⚙️</span> Settings</a>
-            </nav>
-        </div>
-        <div class="sidebar-bottom">
-            <a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
 
     <main class="main-content">
         <header class="sa-main-header">
@@ -383,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="success-message"><?php echo $message; ?></div>
         <?php endif; ?>
 
-        <form method="POST">
+        <form method="POST" id="settingsForm" enctype="multipart/form-data">
             <!-- System Name and Branding -->
             <div class="sa-card settings-section">
                 <div class="sa-card-header">
@@ -395,16 +309,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="sa-form-grid">
                     <div class="sa-form-group">
                         <label for="system_name">System Name</label>
-                        <input type="text" id="system_name" name="system_name" value="<?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?>" readonly>
+                        <input type="text" id="system_name" name="system_name" value="<?php echo htmlspecialchars($currentSettings['system_name'] ?? 'OralSync'); ?>">
                     </div>
                     <div class="sa-form-group">
-                        <label for="logo">Logo Upload</label>
-                        <input type="file" id="logo" name="logo" accept="image/*">
+                        <label for="logo">Logo / Icon Upload</label>
+                        <input type="file" id="logo" name="logo" accept="image/png, image/jpeg, image/jpg">
                         <div class="logo-preview" id="logo-preview">
-                            <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . '/uploads/' . $currentSettings['logo_path'])): ?>
-                                <img src="uploads/<?php echo htmlspecialchars($currentSettings['logo_path']); ?>" style="max-width: 100%; max-height: 100%;">
+                            <?php if (!empty($currentSettings['logo_path']) && file_exists(__DIR__ . $currentSettings['logo_path'])): ?>
+                                <img src="<?php echo htmlspecialchars($currentSettings['logo_path']); ?>?t=<?php echo time(); ?>" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">
                             <?php else: ?>
-                                No logo uploaded
+                                <span id="logo-placeholder" style="font-size: 48px;">🏥</span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -437,7 +351,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </thead>
                         <tbody>
                             <?php
-                            require_once __DIR__ . '/subscription_tiers.php';
+                            require_once __DIR__ . '/includes/subscription_tiers.php';
                             foreach (getAllTiers() as $tierKey => $tier) {
                                 $tierPrice = $tier['price_min'] === 0 && $tier['price_max'] === 0 
                                     ? 'Free' 
@@ -499,7 +413,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </thead>
                     <tbody>
                         <tr>
-                            <td>Owner (Admin)</td>
+                            <td>Admin</td>
                             <td>Full clinic management and administration</td>
                             <td>
                                 <div class="permissions-grid">
@@ -510,7 +424,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <input type="checkbox" checked disabled> <span>Patients</span>
                                     </label>
                                     <label class="permission-item">
-                                        <input type="checkbox" checked disabled> <span>Billing</span>
+                                        <input type="checkbox" disabled> <span>Billing</span>
                                     </label>
                                     <label class="permission-item">
                                         <input type="checkbox" checked disabled> <span>Staff Management</span>
@@ -522,7 +436,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </td>
                         </tr>
                         <tr>
-                            <td>Front Desk (Receptionist)</td>
+                            <td>Front Desk / Receptionist</td>
                             <td>Appointment scheduling and patient coordination</td>
                             <td>
                                 <div class="permissions-grid">
@@ -533,7 +447,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         <input type="checkbox" checked disabled> <span>Patients</span>
                                     </label>
                                     <label class="permission-item">
-                                        <input type="checkbox" disabled> <span>Billing</span>
+                                        <input type="checkbox" checked disabled> <span>Billing</span>
                                     </label>
                                     <label class="permission-item">
                                         <input type="checkbox" disabled> <span>Staff Management</span>
@@ -574,128 +488,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </table>
             </div>
 
-            <div class="sa-card settings-section">
-                <div class="sa-card-header">
-                    <div>
-                        <h3>Login Customizer (Preview only)</h3>
-                        <div class="sa-card-subtitle">Front-end prototype for clinic login page theming</div>
-                    </div>
-                </div>
-                <div class="login-customizer">
-                    <div class="customizer-panel">
-                        <h3>Inputs</h3>
-                        <div class="sa-form-group">
-                            <label for="custom_logo">Clinic Logo</label>
-                            <input type="file" id="custom_logo" accept="image/*">
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_accent">Accent Color</label>
-                            <input type="color" id="custom_accent" value="#0d3b66">
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_welcome">Welcome Message</label>
-                            <textarea id="custom_welcome" rows="3" placeholder="Welcome to your clinic portal..."></textarea>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="custom_support">Support Details</label>
-                            <input type="text" id="custom_support" placeholder="e.g., support@clinic.com | (123) 456 7890">
-                        </div>
-                        <div class="sa-form-actions" style="margin-top: 16px; gap: 10px;">
-                            <button type="button" class="sa-btn" id="custom_save">Save Customization</button>
-                            <button type="button" class="sa-btn sa-btn-outline" id="custom_reset">Reset Preview</button>
-                        </div>
-                    </div>
-                    <div class="customizer-panel login-preview" id="custom_preview">
-                        <div class="preview-card">
-                            <div class="preview-logo" id="preview_logo"><span>Logo</span></div>
-                            <div class="preview-welcome" id="preview_welcome">Welcome to Your Clinic</div>
-                            <a href="#" class="preview-button" id="preview_button">Login</a>
-                            <div class="preview-footer" id="preview_support">Contact support team at support@oral-sync.com</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="sa-form-actions">
                 <button type="submit" class="sa-btn">Save Settings</button>
-                <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Defaults</button>
+                <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Default</button>
             </div>
         </form>
     </div>
 
     <script>
-        // Logo preview
+        // Logo preview during upload
         document.getElementById('logo').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById('logo-preview').innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 100%;">';
+                    const preview = document.getElementById('logo-preview');
+                    preview.innerHTML = '<img src="' + e.target.result + '" style="max-width: 100%; max-height: 100%; object-fit: contain;" id="logo-img">';
                 };
                 reader.readAsDataURL(file);
             }
         });
 
+        // Handle form submission with auto-refresh
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Auto-refresh after 500ms to show updated logo and system name
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error saving settings');
+            });
+        });
+
+        // Dropdown toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+            const dropdownItems = document.querySelector('.menu-dropdown-items');
+            const dropdown = document.querySelector('.menu-dropdown');
+
+            if (dropdownToggle) {
+                dropdownToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (dropdownItems.style.display === 'none' || dropdownItems.style.display === '') {
+                        dropdownItems.style.display = 'flex';
+                        dropdownToggle.classList.add('active');
+                    } else {
+                        dropdownItems.style.display = 'none';
+                        dropdownToggle.classList.remove('active');
+                    }
+                });
+            }
+
+            // Prevent dropdown from closing when clicking dropdown items
+            if (dropdownItems) {
+                dropdownItems.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                });
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (dropdown && !dropdown.contains(e.target)) {
+                    if (dropdownItems) dropdownItems.style.display = 'none';
+                    if (dropdownToggle) dropdownToggle.classList.remove('active');
+                }
+            });
+            
+            // Expand dropdown if on a reports page
+            const currentPage = window.location.pathname;
+            if ((currentPage.includes('superadmin_reports') || currentPage.includes('superadmin_sales_report')) && dropdownToggle && dropdownItems) {
+                dropdownItems.style.display = 'flex';
+                dropdownToggle.classList.add('active');
+            }
+        });
+
+        function validateForm() {
+            return true;
+        }
+
         function resetSettings() {
             if (confirm('Are you sure you want to reset all settings to defaults?')) {
-                // Reset form
-                document.querySelector('form').reset();
-                document.getElementById('logo-preview').innerHTML = 'No logo uploaded';
+                // Send reset request
+                const formData = new FormData();
+                formData.append('reset', 'true');
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    // Update UI to show defaults
+                    document.getElementById('system_name').value = 'OralSync';
+                    document.getElementById('max_tenants').value = '';
+                    document.getElementById('max_users_per_tenant').value = '';
+                    document.getElementById('storage_limit').value = '';
+                    document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+                    // Clear file input
+                    document.getElementById('logo').value = '';
+                    // Show success message if needed, but since page reloads, maybe not
+                    alert('Settings reset to defaults!');
+                    // Reload to reflect changes
+                    setTimeout(() => {
+                        location.reload();
+                    }, 500);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error resetting settings');
+                });
             }
         }
-
-        function updateCustomizerPreview() {
-            const accent = document.getElementById('custom_accent').value;
-            const welcome = document.getElementById('custom_welcome').value || 'Welcome to Your Clinic';
-            const support = document.getElementById('custom_support').value || 'Contact support team at support@oral-sync.com';
-
-            document.documentElement.style.setProperty('--login-preview-accent', accent);
-            const previewBtn = document.getElementById('preview_button');
-            if (previewBtn) {
-                previewBtn.style.backgroundColor = accent;
-                previewBtn.style.borderColor = accent;
-            }
-
-            document.getElementById('preview_welcome').textContent = welcome;
-            document.getElementById('preview_support').textContent = support;
-        }
-
-        document.getElementById('custom_accent').addEventListener('input', updateCustomizerPreview);
-        document.getElementById('custom_welcome').addEventListener('input', updateCustomizerPreview);
-        document.getElementById('custom_support').addEventListener('input', updateCustomizerPreview);
-
-        document.getElementById('custom_logo').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) {
-                document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function (event) {
-                document.getElementById('preview_logo').innerHTML = '<img src="' + event.target.result + '" alt="Logo">';
-            };
-            reader.readAsDataURL(file);
-        });
-
-        document.getElementById('custom_save').addEventListener('click', function () {
-            const state = {
-                logo: document.getElementById('custom_logo').value,
-                accentColor: document.getElementById('custom_accent').value,
-                welcomeText: document.getElementById('custom_welcome').value,
-                supportText: document.getElementById('custom_support').value,
-            };
-            console.log('Login customizer state:', state);
-            alert('Login customization preview saved (client-side only).');
-        });
-
-        document.getElementById('custom_reset').addEventListener('click', function () {
-            document.getElementById('custom_logo').value = '';
-            document.getElementById('custom_accent').value = '#0d3b66';
-            document.getElementById('custom_welcome').value = '';
-            document.getElementById('custom_support').value = '';
-            document.getElementById('preview_logo').innerHTML = '<span>Logo</span>';
-            updateCustomizerPreview();
-        });
     </script>
     </main>
 </body>

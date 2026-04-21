@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -108,3 +108,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
     </div>
 </body>
 </html>
+

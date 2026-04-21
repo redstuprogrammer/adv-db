@@ -1,7 +1,7 @@
 <?php
 session_start();
-require_once __DIR__ . '/security_headers.php';
-require_once 'connect.php';
+require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/connect.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -11,56 +11,55 @@ $message = '';
 $isError = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = trim((string)($_POST['username'] ?? ''));
-    
-    if ($username === '') {
-        $message = 'Please enter your username.';
+    $email = trim((string)($_POST['email'] ?? ''));
+
+    if ($email === '') {
+        $message = 'Please enter your email address.';
+        $isError = true;
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = 'Please enter a valid email address.';
         $isError = true;
     } else {
-        // Find super admin by username
-        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE email = ? LIMIT 1");
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, "s", $username);
+            mysqli_stmt_bind_param($stmt, 's', $email);
             mysqli_stmt_execute($stmt);
             $res = mysqli_stmt_get_result($stmt);
-            $admin = mysqli_fetch_assoc($res);
-            
+            $admin = $res ? mysqli_fetch_assoc($res) : null;
+            mysqli_stmt_close($stmt);
+
             if ($admin) {
                 // Generate reset token
                 $token = bin2hex(random_bytes(32));
-                $tokenHash = password_hash($token, PASSWORD_DEFAULT);
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                $hashedToken = password_hash($token, PASSWORD_DEFAULT);
+                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
                 
-                // Store token in database
                 $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
-                if ($updateStmt) {
-                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, (int)$admin['id']);
-                    mysqli_stmt_execute($updateStmt);
-                    
-                    // Build reset link
-                    $resetLink = buildSuperAdminResetPasswordUrl($token, (int)$admin['id']);
-                    
-                    // Send email
-                    $adminEmail = getenv('SUPERADMIN_EMAIL') ?: $_ENV['SUPERADMIN_EMAIL'] ?? 'admin@oralsync.com';
-                    $emailSent = sendPasswordResetEmail([
-                        'to_email' => $adminEmail,
-                        'subject_name' => 'OralSync Super Admin',
-                        'reset_link' => $resetLink
-                    ]);
-                    
-                    if ($emailSent) {
-                        $message = 'Password reset link has been sent to the registered admin email. Check your inbox and spam folder.';
-                        $isError = false;
-                    } else {
-                        $message = 'Email could not be sent. Please try again later or contact support.';
-                        $isError = true;
-                    }
+                mysqli_stmt_bind_param($updateStmt, 'ssi', $hashedToken, $expires, $admin['id']);
+                mysqli_stmt_execute($updateStmt);
+                mysqli_stmt_close($updateStmt);
+                
+                // Send email
+                $resetUrl = buildSuperAdminResetPasswordUrl($token, $admin['id']);
+                $emailSent = sendPasswordResetEmail([
+                    'to_email' => $email,
+                    'subject_name' => 'OralSync',
+                    'reset_link' => $resetUrl
+                ]);
+                
+                if (!$emailSent) {
+                    error_log("Failed to send password reset email to $email");
                 }
+                
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
+                $isError = false;
             } else {
-                // Security: Don't reveal if username exists
-                $message = 'If this username is registered, you will receive a password reset link shortly.';
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
                 $isError = false;
             }
+        } else {
+            $message = 'Unable to process your request. Please try again later.';
+            $isError = true;
         }
     }
 }
@@ -209,7 +208,7 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
         <div class="t-shell" style="grid-template-columns: 1fr;">
             <section class="t-card">
                 <h1 class="t-cardTitle">Forgot Password</h1>
-                <div class="t-cardSub">Enter your username and we'll send you a link to reset your password.</div>
+                <div class="t-cardSub">Enter your email address to receive a password reset link.</div>
 
                 <?php if ($message): ?>
                     <div style="padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; <?php echo $isError ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'; ?>">
@@ -219,8 +218,8 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
 
                 <form class="t-form" method="POST">
                     <div class="t-field">
-                        <label for="username">Username</label>
-                        <input id="username" name="username" type="text" required placeholder="Enter your username" value="<?php echo h($_POST['username'] ?? ''); ?>">
+                        <label for="email">Email Address</label>
+                        <input id="email" name="email" type="email" required placeholder="Enter your email address" value="<?php echo h($_POST['email'] ?? ''); ?>">
                     </div>
                     <button class="t-btn t-btnPrimary" type="submit">Send Reset Link</button>
                 </form>
@@ -233,3 +232,4 @@ function logEmailLocally(string $toEmail, string $subjectName, string $resetLink
     </div>
 </body>
 </html>
+
