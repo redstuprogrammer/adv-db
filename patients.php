@@ -46,13 +46,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_patient_status
         $stmt->close();
         
         if ($patient) {
-            $newStatus = $patient['status'] === 'active' ? 'inactive' : 'active';
+            $newStatus = ($patient['status'] === 'active' || $patient['status'] === NULL) ? 'inactive' : 'active';
             $stmt = $conn->prepare('UPDATE patient SET status = ? WHERE patient_id = ? AND tenant_id = ?');
             if ($stmt) {
                 $stmt->bind_param('sii', $newStatus, $patientId, $tenantId);
                 $stmt->execute();
                 $stmt->close();
-                $successMsg = "Patient status updated successfully.";
+                $successMsg = "Patient status updated to: " . ucfirst($newStatus);
+            }
+        } else {
+            // If patient doesn't exist or status is not set, initialize as active
+            $newStatus = 'active';
+            $stmt = $conn->prepare('UPDATE patient SET status = ? WHERE patient_id = ? AND tenant_id = ?');
+            if ($stmt) {
+                $stmt->bind_param('sii', $newStatus, $patientId, $tenantId);
+                $stmt->execute();
+                $stmt->close();
+                $successMsg = "Patient status initialized to: " . ucfirst($newStatus);
             }
         }
     }
@@ -63,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_patient_status
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();

@@ -93,9 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
         $newTenantPatientId = ($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1;
         
         // Step C: Include in the INSERT statement
-        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $status = 'active';
+        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($insertStmt) {
-            $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash);
+            $insertStmt->bind_param('iissssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash, $status);
             if ($insertStmt->execute()) {
                 $successMessage = 'Patient added successfully. Temporary password: ' . $tempPassword;
             } else {

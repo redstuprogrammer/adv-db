@@ -7,7 +7,7 @@ function renderDateClock(): void {
 }
 
 function printDateClockScript(): void {
-    echo '
+    echo '<script>
         function initializeLiveClock(clockElementId = "liveClock") {
             const updateClock = () => {
                 const now = new Date();
@@ -38,5 +38,5 @@ function printDateClockScript(): void {
         } else {
             initializeLiveClock();
         }
-    ';
+    </script>';
 }

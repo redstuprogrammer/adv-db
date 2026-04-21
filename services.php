@@ -250,6 +250,125 @@ if ($stmt) {
         color: #991b1b;
         border: 1px solid #fecaca;
       }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.3s ease;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .modal-content {
+        background: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from { transform: translateY(-50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      .modal-header {
+        background: var(--accent);
+        color: white;
+        padding: 20px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .modal-body {
+        padding: 24px;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+
+      .modal-footer {
+        padding: 20px 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        background: #f8fafc;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .close {
+        color: white;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: background 0.2s ease;
+      }
+
+      .close:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .service-detail-row {
+        margin-bottom: 20px;
+      }
+
+      .service-detail-label {
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+
+      .service-detail-value {
+        font-size: 14px;
+        color: #334155;
+        padding: 8px 12px;
+        background: #f8fafc;
+        border-radius: 6px;
+        border-left: 3px solid var(--accent);
+      }
+
+      .btn-close {
+        background: #64748b;
+        color: white;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: background 0.2s ease;
+      }
+
+      .btn-close:hover {
+        background: #475569;
+      }
     </style>
 </head>
 <body>
@@ -339,6 +458,37 @@ if ($stmt) {
     </main>
   </div>
 
+  <!-- Service Details Modal -->
+  <div id="serviceModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span id="serviceModalTitle">Service Details</span>
+        <button class="close" onclick="closeServiceModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="service-detail-row">
+          <div class="service-detail-label">Service Name</div>
+          <div class="service-detail-value" id="serviceModalName"></div>
+        </div>
+        <div class="service-detail-row">
+          <div class="service-detail-label">Category</div>
+          <div class="service-detail-value" id="serviceModalCategory"></div>
+        </div>
+        <div class="service-detail-row">
+          <div class="service-detail-label">Price</div>
+          <div class="service-detail-value" id="serviceModalPrice"></div>
+        </div>
+        <div class="service-detail-row">
+          <div class="service-detail-label">Description</div>
+          <div class="service-detail-value" id="serviceModalDescription"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-close" onclick="closeServiceModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Live Clock - Update every second
     function updateClock() {
@@ -353,7 +503,24 @@ if ($stmt) {
     setInterval(updateClock, 1000);
 
     function viewService(id, name, description, category, price) {
-      alert(`Service Details:\n\nName: ${name}\nCategory: ${category}\nPrice: ₱${price.toFixed(2)}\nDescription: ${description || 'No description provided.'}`);
+      document.getElementById('serviceModalTitle').textContent = name;
+      document.getElementById('serviceModalName').textContent = name;
+      document.getElementById('serviceModalCategory').textContent = category || 'General';
+      document.getElementById('serviceModalPrice').textContent = '₱' + price.toFixed(2);
+      document.getElementById('serviceModalDescription').textContent = description || 'No description provided.';
+      document.getElementById('serviceModal').style.display = 'block';
+    }
+
+    function closeServiceModal() {
+      document.getElementById('serviceModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('serviceModal');
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
     }
   </script>
 </body>

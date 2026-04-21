@@ -230,25 +230,44 @@ $tenantId = getCurrentTenantId();
               while ($row = $result->fetch_assoc()) {
                 $rowCount++;
                 $badge = '';
+                $movementDetail = h($row['activity_description'] ?? $row['activity_type']);
+                
+                // Determine badge and movement detail based on activity type
                 switch ($row['activity_type']) {
-                  case 'Created': $badge = '<span class="badge badge-created">Created</span>'; break;
-                  case 'Updated': $badge = '<span class="badge badge-updated">Updated</span>'; break;
-                  case 'Deleted': $badge = '<span class="badge badge-deleted">Deleted</span>'; break;
-                  default: $badge = h($row['activity_type']);
+                  case 'Created': 
+                    $badge = '<span class="badge badge-created">Created</span>'; 
+                    break;
+                  case 'Updated': 
+                    $badge = '<span class="badge badge-updated">Updated</span>'; 
+                    break;
+                  case 'Deleted': 
+                    $badge = '<span class="badge badge-deleted">Deleted</span>'; 
+                    break;
+                  case 'Admin Login':
+                    $badge = '<span class="badge badge-created">Admin Login</span>';
+                    $movementDetail = '👤 Admin Login';
+                    break;
+                  case 'Admin Logout':
+                    $badge = '<span class="badge badge-deleted">Admin Logout</span>';
+                    $movementDetail = '👤 Admin Logout';
+                    break;
+                  default: 
+                    $badge = h($row['activity_type']);
                 }
+                
                 echo "<tr>
                   <td>" . h($row['log_id']) . "</td>
                   <td>" . date('h:i A', strtotime($row['log_time'])) . "</td>
                   <td>" . h($row['log_date']) . "</td>
                   <td>$badge</td>
-                  <td>" . h($row['activity_type']) . "</td>
+                  <td>$movementDetail</td>
                 </tr>";
               }
               $stmt->close();
               
               // Show sample data if no data exists
               if ($rowCount === 0) {
-                echo "<tr><td>1</td><td>10:45 AM</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Created</td></tr>";
+                echo "<tr><td>1</td><td>10:45 AM</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Admin Login</span></td><td>👤 Admin Login</td></tr>";
                 echo "<tr><td>2</td><td>09:30:15</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-updated'>Updated</span></td><td>Payment recorded</td></tr>";
                 echo "<tr><td>3</td><td>08:15:00</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Patient registered</td></tr>";
               }
@@ -446,12 +465,21 @@ $tenantId = getCurrentTenantId();
       tbody.innerHTML = '';
       data.forEach(row => {
         const badge = getBadge(row.activity_type);
+        let movementDetail = row.details || row.activity_description || row.activity_type;
+        
+        // Handle special cases for login/logout
+        if (row.activity_type === 'Admin Login') {
+          movementDetail = '👤 Admin Login';
+        } else if (row.activity_type === 'Admin Logout') {
+          movementDetail = '👤 Admin Logout';
+        }
+        
         tbody.innerHTML += `<tr>
           <td>${row.log_id}</td>
           <td>${row.log_time}</td>
           <td>${row.log_date}</td>
           <td>${badge}</td>
-          <td>${row.details}</td>
+          <td>${movementDetail}</td>
         </tr>`;
       });
     }
@@ -461,6 +489,8 @@ $tenantId = getCurrentTenantId();
         case 'Created': return '<span class="badge badge-created">Created</span>';
         case 'Updated': return '<span class="badge badge-updated">Updated</span>';
         case 'Deleted': return '<span class="badge badge-deleted">Deleted</span>';
+        case 'Admin Login': return '<span class="badge badge-created">Admin Login</span>';
+        case 'Admin Logout': return '<span class="badge badge-deleted">Admin Logout</span>';
         default: return type;
       }
     }

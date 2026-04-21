@@ -830,18 +830,9 @@ HTML;
             </div>
           </div>
 
-          <div class="form-group">
-            <label>Mobile App Download</label>
-            <div style="padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; max-width: 400px;">
-              <p style="margin: 0 0 15px 0; color: #374151; font-weight: 500;">Download the OralSync Mobile App</p>
-              <a href="https://drive.google.com/drive/folders/199ac2H14VbdUJSwrAsn3uJEL9Shbw_Xp?fbclid=IwY2xjawRFLrtleHRuA2FlbQIxMQBzcnRjBmFwcF9pZAEwAAEeOLp5Tv0f2lvvX684wbnpjO_n612da96L2LPI5fKjWbBH1LPqaR9--8jdfMQ_aem_CSWYBJ8xh9SJp0buAlJ17A" target="_blank" style="display: inline-block; background: #0d3b66; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.95rem; transition: background 0.2s;">📱 Access Google Drive</a>
-            </div>
-            <div class="hint-text">Click to access the mobile app folder and download the APK for Android or iOS.</div>
-          </div>
-
           <div class="form-actions">
-            <button type="submit" class="btn-primary">Save Login Settings</button>
-            <button type="button" class="btn-primary btn-secondary" onclick="resetLoginPreview()">Reset to Default</button>
+            <button type="submit" class="btn-primary">Save Changes</button>
+            <button type="button" class="btn-primary btn-secondary" onclick="openResetModal()">Reset to Default</button>
           </div>
         </form>
 
@@ -851,9 +842,9 @@ HTML;
           <div class="preview-split-layout">
             <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['brand_bg_color']); ?>; color: <?php echo h($tenantSettings['brand_text_color']); ?>; background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
               <div class="preview-left-content">
-                <div class="preview-clinic-logo" id="preview-clinic-logo">
+                <div class="preview-clinic-logo" id="preview-clinic-logo" style="font-size: 3rem; font-weight: 700;">
                   <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
-                    <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo">
+                    <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="max-height: 80px; max-width: 80px;">
                   <?php else: ?>
                     OS
                   <?php endif; ?>
@@ -1000,6 +991,12 @@ HTML;
         if (input) {
           input.value = defaults[key];
           input.dispatchEvent(new Event('input'));
+          // Update swatches
+          const swatchId = key.replace(/_/g, '-');
+          const label = document.getElementById(`label-${swatchId}`);
+          const swatch = document.getElementById(`swatch-${swatchId}`);
+          if (label) label.textContent = defaults[key];
+          if (swatch) swatch.style.backgroundColor = defaults[key];
         }
       });
 
@@ -1007,12 +1004,175 @@ HTML;
       document.getElementById('brand_logo_image').value = '';
       const logoPreview = document.getElementById('preview-clinic-logo');
       if (logoPreview) {
-        logoPreview.textContent = '🏥';
+        logoPreview.textContent = 'OS';
       }
     }
 
+    function openResetModal() {
+      document.getElementById('resetConfirmModal').style.display = 'block';
+    }
+
+    function closeResetModal() {
+      document.getElementById('resetConfirmModal').style.display = 'none';
+    }
+
+    function confirmReset() {
+      resetLoginPreview();
+      closeResetModal();
+      // Auto-submit the form
+      const form = document.querySelector('form[method="post"]');
+      if (form) {
+        form.submit();
+      }
+    }
+
+    // Live color swatch updates
+    document.querySelectorAll('.color-input').forEach(input => {
+      input.addEventListener('input', function() {
+        const swatchId = this.id.replace(/_/g, '-');
+        const label = document.getElementById(`label-${swatchId}`);
+        const swatch = document.getElementById(`swatch-${swatchId}`);
+        if (label) label.textContent = this.value;
+        if (swatch) swatch.style.backgroundColor = this.value;
+      });
+    });
+
     function validateForm() {
       return true;
+    }
+  </script>
+
+  <!-- Reset Confirmation Modal -->
+  <style>
+    .reset-modal {
+      display: none;
+      position: fixed;
+      z-index: 1100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .reset-modal-content {
+      background: white;
+      margin: 20% auto;
+      padding: 0;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+      animation: slideIn 0.3s ease;
+    }
+
+    .reset-modal-header {
+      background: #ef4444;
+      color: white;
+      padding: 20px;
+      border-radius: 12px 12px 0 0;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .reset-modal-body {
+      padding: 24px;
+      color: #374151;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .reset-modal-footer {
+      padding: 20px 24px;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      background: #f9fafb;
+      border-radius: 0 0 12px 12px;
+    }
+
+    .reset-modal-footer button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+
+    .reset-modal-footer .btn-confirm {
+      background: #ef4444;
+      color: white;
+    }
+
+    .reset-modal-footer .btn-confirm:hover {
+      background: #dc2626;
+    }
+
+    .reset-modal-footer .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .reset-modal-footer .btn-cancel:hover {
+      background: #d1d5db;
+    }
+
+    .reset-modal-close {
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reset-modal-close:hover {
+      opacity: 0.8;
+    }
+  </style>
+
+  <div id="resetConfirmModal" class="reset-modal">
+    <div class="reset-modal-content">
+      <div class="reset-modal-header">
+        <span>Reset to Default Settings</span>
+        <button class="reset-modal-close" onclick="closeResetModal()">&times;</button>
+      </div>
+      <div class="reset-modal-body">
+        <p>Are you sure you want to reset all login customization settings to their default values?</p>
+        <p><strong>This action will:</strong></p>
+        <ul style="margin: 12px 0; padding-left: 20px;">
+          <li>Restore all colors to defaults</li>
+          <li>Remove any custom background image</li>
+          <li>Remove any custom clinic logo</li>
+        </ul>
+        <p>This change will be automatically saved.</p>
+      </div>
+      <div class="reset-modal-footer">
+        <button class="btn-cancel" onclick="closeResetModal()">Cancel</button>
+        <button class="btn-confirm" onclick="confirmReset()">Reset Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Close modal when clicking outside -->
+  <script>
+    window.onclick = function(event) {
+      const modal = document.getElementById('resetConfirmModal');
+      if (event.target == modal) {
+        modal.style.display = 'none';
+      }
     }
   </script>
 </body>
