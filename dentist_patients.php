@@ -88,9 +88,7 @@ if (isset($_GET['view_patient_id'])) {
       .patient-table th { background: #f8fafc; color: var(--accent); font-weight: 700; font-size: 13px; }
       .patient-table tbody tr:hover { background: #f1f5f9; }
 
-      .status-pill { display: inline-flex; align-items: center; justify-content: center; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-      .status-active   { background: #d1fae5; color: #065f46; }
-      .status-inactive { background: #fef3c7; color: #92400e; }
+
 
       .action-btn { padding: 6px 12px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; text-decoration: none; display: inline-block; }
       .action-btn:hover { background: #0a2d4f; }
@@ -139,17 +137,15 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
-                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
-                <tr><td colspan="7" style="text-align:center; padding:32px; color:#64748b;">No patients found in your records.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding:32px; color:#64748b;">No patients found in your records.</td></tr>
               <?php else: ?>
                 <?php foreach ($patients as $patient):
                   $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
-                  $isActive  = ($patient['last_visit'] && strtotime($patient['last_visit']) > strtotime('-1 year'));
                 ?>
                   <tr data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
                     <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
@@ -157,7 +153,6 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($lastVisit); ?></td>
-                    <td><span class="status-pill <?php echo $isActive ? 'status-active' : 'status-inactive'; ?>"><?php echo $isActive ? 'Active' : 'Inactive'; ?></span></td>
                     <td style="display:flex; gap:6px;">
                       <button class="action-btn" onclick="openPatientModal(<?php echo (int)$patient['patient_id']; ?>)">View</button>
                       <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&patient_id=<?php echo (int)$patient['patient_id']; ?>" class="action-btn outline">Records</a>

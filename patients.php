@@ -35,45 +35,11 @@ $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 
 // Handle toggle patient status
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_patient_status'])) {
-    $patientId = (int)$_POST['patient_id'];
-    $stmt = $conn->prepare('SELECT status FROM patient WHERE patient_id = ? AND tenant_id = ?');
-    if ($stmt) {
-        $stmt->bind_param('ii', $patientId, $tenantId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $patient = $result->fetch_assoc();
-        $stmt->close();
-        
-        if ($patient) {
-            $newStatus = ($patient['status'] === 'active' || $patient['status'] === NULL) ? 'inactive' : 'active';
-            $stmt = $conn->prepare('UPDATE patient SET status = ? WHERE patient_id = ? AND tenant_id = ?');
-            if ($stmt) {
-                $stmt->bind_param('sii', $newStatus, $patientId, $tenantId);
-                $stmt->execute();
-                $stmt->close();
-                $successMsg = "Patient status updated to: " . ucfirst($newStatus);
-            }
-        } else {
-            // If patient doesn't exist or status is not set, initialize as active
-            $newStatus = 'active';
-            $stmt = $conn->prepare('UPDATE patient SET status = ? WHERE patient_id = ? AND tenant_id = ?');
-            if ($stmt) {
-                $stmt->bind_param('sii', $newStatus, $patientId, $tenantId);
-                $stmt->execute();
-                $stmt->close();
-                $successMsg = "Patient status initialized to: " . ucfirst($newStatus);
-            }
-        }
-    }
-    // Redirect to avoid form resubmission
-    header("Location: patients.php?tenant=" . urlencode($tenantSlug));
-    exit();
-}
+
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, p.status ORDER BY p.first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -198,27 +164,6 @@ if (isset($_GET['view_patient_id'])) {
 
       .patient-card-header {
         margin-bottom: 16px;
-      }
-
-      .status-pill {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 8px 12px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-
-      .status-active {
-        background: #d1fae5;
-        color: #065f46;
-      }
-
-      .status-inactive {
-        background: #fef3c7;
-        color: #92400e;
       }
 
       .patient-id {
@@ -501,22 +446,16 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
-                <th>Status</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
                 <tr>
-                  <td colspan="7" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
+                  <td colspan="5" style="text-align:center; padding: 32px; color: #64748b;">No patients registered yet.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($patients as $patient):
-                  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
-                  $status = $patient['status'];
-                  $statusClass = $status === 'active' ? 'status-active' : 'status-inactive';
-                  $statusText = ucfirst($status);
-                  $toggleText = $status === 'active' ? 'Deactivate' : 'Activate';
+  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
                 ?>
                   <tr data-patient-name="<?php echo strtolower(h($patient['first_name'] . ' ' . $patient['last_name'])); ?>">
                     <td><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></td>
@@ -524,13 +463,6 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($lastVisit); ?></td>
-                    <td><span class="status-pill <?php echo $statusClass; ?>"><?php echo $statusText; ?></span></td>
-                    <td>
-                      <form method="post" style="display:inline;">
-                        <input type="hidden" name="patient_id" value="<?php echo $patient['patient_id']; ?>">
-                        <button type="submit" name="toggle_patient_status" class="action-btn" onclick="return confirm('Are you sure you want to <?php echo strtolower($toggleText); ?> this patient?')"><?php echo $toggleText; ?></button>
-                      </form>
-                    </td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>

@@ -93,10 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
         $newTenantPatientId = ($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1;
         
         // Step C: Include in the INSERT statement
-        $status = 'active';
-        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         if ($insertStmt) {
-            $insertStmt->bind_param('iissssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash, $status);
+            $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash);
             if ($insertStmt->execute()) {
                 $successMessage = 'Patient added successfully. Temporary password: ' . $tempPassword;
             } else {
@@ -451,13 +450,12 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
-                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
                 <tr>
-                  <td colspan="6" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
+                  <td colspan="5" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
                 </tr>
               <?php else: ?>
                 <?php foreach ($patients as $patient): ?>
@@ -467,7 +465,6 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['last_visit'] ?? 'Never'); ?></td>
-                    <td><span class="status-pill <?php echo (!empty($patient['last_visit']) && strtotime($patient['last_visit']) > strtotime('-1 year')) ? 'status-paid' : 'status-pending'; ?>"><?php echo (!empty($patient['last_visit']) && strtotime($patient['last_visit']) > strtotime('-1 year')) ? 'Active' : 'Inactive'; ?></span></td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
