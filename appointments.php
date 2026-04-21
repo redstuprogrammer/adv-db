@@ -676,8 +676,10 @@ $stmt->close();
       }
     }
   </script>
+        </script>
+      </body>
+    </html>
   <?php printDateClockScript(); ?>
-</body>
-</html>
+
 
 

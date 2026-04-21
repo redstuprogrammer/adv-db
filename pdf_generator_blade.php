@@ -20,7 +20,8 @@ class OralSyncPDFGenerator {
         $this->pdf->SetAuthor('Super Admin');
         $this->pdf->SetTitle('OralSync Report');
 
-        $this->pdf->setHeaderFont(Array(PDF_FONT_NAME_MAIN, '', PDF_FONT_SIZE_MAIN));
+$this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
+
         $this->pdf->setFooterFont(Array(PDF_FONT_DATA, '', PDF_FONT_SIZE_DATA));
 
         $this->pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
@@ -37,10 +38,13 @@ class OralSyncPDFGenerator {
             return $this->createLineChartSVG($chartConfig, $width, $height);
         } elseif ($chartConfig['type'] === 'bar') {
             return $this->createBarChartSVG($chartConfig, $width, $height);
+        } elseif ($chartConfig['type'] === 'pie') {
+            return $this->createPieChartSVG($chartConfig, $width, $height);
         } else {
             return $this->createPlaceholderChart($chartConfig, $width, $height);
         }
     }
+
 
     private function createLineChartSVG($config, $width, $height) {
         $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];

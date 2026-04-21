@@ -366,7 +366,14 @@ foreach ($defaultSchedule as $day => $data) {
 
         <main class="t-main">
             <div class="t-content">
-                <div class="schedule-container">
+                    <!-- Tenant Header with Clock -->
+                    <div class="tenant-header-bar" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                      <div class="tenant-header-title" style="font-size: 24px; font-weight: 700; color: var(--text-primary);">Clinic Schedule</div>
+                      <?php renderDateClock(); ?>
+                    </div>
+
+                    <div class="schedule-container">
+
                     <?php if ($message): ?>
                         <div class="message-box <?php echo $messageType; ?>">
                             <?php echo h($message); ?>
@@ -456,8 +463,11 @@ foreach ($defaultSchedule as $day => $data) {
         </main>
     </div>
 
+    <?php printDateClockScript(); ?>
+
     <script>
         function updateRowClass(checkbox) {
+
             const row = checkbox.closest('tr');
             const statusBadge = row.querySelector('.status-badge');
             const timeInputs = row.querySelectorAll('.time-input');

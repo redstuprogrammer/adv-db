@@ -197,6 +197,7 @@ if ($stmt) {
     </main>
   </div>
 
-  <?php printDateClockScript(); ?>
-</body>
-</html>
+    </body>
+  </html>
+<?php printDateClockScript(); ?>
+

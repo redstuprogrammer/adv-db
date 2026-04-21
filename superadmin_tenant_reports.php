@@ -388,8 +388,7 @@ try {
             </div>
         </header>
 
-        <!-- Reports Dashboard with Tabs -->
-        <div class="sa-card">
+
             <div class="sa-card-header">
                 <div>
                     <div class="sa-card-title">Reports Dashboard</div>

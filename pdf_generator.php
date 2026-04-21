@@ -11,14 +11,16 @@ class OralSyncPDF extends TCPDF {
         $this->Image(__DIR__ . '/logo.png', 10, 10, 30, 0, 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
 
         // Title
-        $this->SetFont('helvetica', 'B', 16);
+$this->SetFont('dejavusans', 'B', 16);
+
         $this->Cell(0, 15, 'OralSync - System Report', 0, false, 'C', 0, '', 0, false, 'M', 'M');
         $this->Ln(20);
     }
 
     public function Footer() {
         $this->SetY(-15);
-        $this->SetFont('helvetica', 'I', 8);
+$this->SetFont('dejavusans', 'I', 8);
+
         $this->Cell(0, 10, 'Generated on ' . date('Y-m-d H:i:s') . ' | Page ' . $this->getAliasNumPage() . '/' . $this->getAliasNbPages(), 0, false, 'C', 0, '', 0, false, 'T', 'M');
     }
 }

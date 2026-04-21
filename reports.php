@@ -495,12 +495,18 @@ $tenantId = getCurrentTenantId();
       }
     }
 
-    function loadRevenueReport() {
+function loadRevenueReport() {
       const dateFrom = document.getElementById('revenue_date_from').value;
       const dateTo = document.getElementById('revenue_date_to').value;
+      const url = `/get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`;
+      console.log('Fetching revenue:', url);
 
-      fetch(`/get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`)
-        .then(resp => resp.json())
+      fetch(url)
+        .then(resp => {
+          console.log('Response status:', resp.status);
+          return resp.json();
+        })
+
         .then(data => {
           if (data.success) {
             renderRevenueTable(data.data);

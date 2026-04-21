@@ -91,6 +91,18 @@ function buildTenantResetPasswordUrl(string $token, int $tenantId): string {
     return $url;
 }
 
+function envOrNull(string $key): ?string {
+    $val = getenv($key);
+    if ($val === false || $val === null || $val === '') {
+        if (isset($_ENV[$key])) $val = (string)$_ENV[$key];
+        else if (isset($_SERVER[$key])) $val = (string)$_SERVER[$key];
+        else $val = null;
+    }
+    if ($val === null) return null;
+    $val = trim((string)$val);
+    return $val === '' ? null : $val;
+}
+
 function sendPasswordResetEmail(array $params): bool {
     $toEmail = $params['to_email'] ?? '';
     $clinicName = $params['clinic_name'] ?? '';
@@ -101,7 +113,7 @@ function sendPasswordResetEmail(array $params): bool {
     }
     
     // Try to use PHPMailer if configured
-    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? null;
+    $smtpHost = envOrNull('SMTP_HOST');
     
     if ($smtpHost) {
         return sendEmailViaSmtp($toEmail, $clinicName, $resetLink);
@@ -114,11 +126,11 @@ function sendPasswordResetEmail(array $params): bool {
 function sendEmailViaSmtp(string $toEmail, string $clinicName, string $resetLink): bool {
     require_once __DIR__ . '/vendor/autoload.php';
     
-    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? null;
-    $smtpPort = getenv('SMTP_PORT') ?: $_ENV['SMTP_PORT'] ?? null;
-    $smtpUser = getenv('SMTP_USERNAME') ?: $_ENV['SMTP_USERNAME'] ?? null;
-    $smtpPass = getenv('SMTP_PASSWORD') ?: $_ENV['SMTP_PASSWORD'] ?? null;
-    $fromEmail = getenv('SMTP_FROM_EMAIL') ?: $_ENV['SMTP_FROM_EMAIL'] ?? $smtpUser;
+    $smtpHost = envOrNull('SMTP_HOST');
+    $smtpPort = envOrNull('SMTP_PORT');
+    $smtpUser = envOrNull('SMTP_USERNAME');
+    $smtpPass = envOrNull('SMTP_PASSWORD');
+    $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
     $fromName = 'OralSync';
     
     if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass) {

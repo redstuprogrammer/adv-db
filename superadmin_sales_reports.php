@@ -359,11 +359,11 @@ try {
             </div>
             <div style="padding: 20px;">
                 <button class="sa-btn" onclick="exportSalesPDF()">Export PDF Report</button>
-                <button class="sa-btn" onclick="exportSalesCSV()">Export CSV Data</button>
             </div>
         </div>
 
         <!-- Sales Summary -->
+
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
@@ -374,20 +374,12 @@ try {
 
             <div class="sa-grid">
                 <?php
+require_once __DIR__ . '/includes/revenue_queries.php';
                 try {
-                    // Total revenue
-                    $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid'");
-                    $total_revenue = $stmt->fetch()['total'] ?? 0;
-
-                    // This month revenue
-                    $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND MONTH(payment_date) = MONTH(CURDATE()) AND YEAR(payment_date) = YEAR(CURDATE())");
-                    $month_revenue = $stmt->fetch()['total'] ?? 0;
-
-                    // Active subscriptions
+                    $total_revenue = getTotalRevenue($conn);
+                    $month_revenue = getMonthlyRevenue($conn); 
                     $stmt = $pdo->query("SELECT COUNT(DISTINCT tenant_id) as count FROM tenants WHERE status = 'active'");
                     $active_subscriptions = $stmt->fetch()['count'] ?? 0;
-
-                    // Average revenue per tenant
                     $avg_revenue = $active_subscriptions > 0 ? $total_revenue / $active_subscriptions : 0;
                 } catch (Exception $e) {
                     $total_revenue = $month_revenue = $active_subscriptions = $avg_revenue = 0;
@@ -497,25 +489,7 @@ try {
             ],
             datasets: [{
                 label: 'Monthly Revenue',
-                data: [
-                    <?php
-                    $revenueData = [];
-                    try {
-                        for ($i = 0; $i <= 11; $i++) {
-                            $month = date('Y-m', strtotime("-{$i} months"));
-                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND DATE_FORMAT(payment_date, '%Y-%m') = ?");
-                            $stmt->execute([$month]);
-                            $result = $stmt->fetch();
-                            $revenueData[] = (int)$result['total'];
-                        }
-                        
-                    } catch (Exception $e) {
-                        $revenueData = array_fill(0, 12, 0);
-                    }
-                    
-                    echo implode(',', $revenueData);
-                    ?>
-                ],
+                data: <?php echo json_encode(getRevenueTrendData($conn, 12)); ?>,
                 borderColor: '#0d3b66',
                 backgroundColor: 'rgba(13, 59, 102, 0.1)',
                 tension: 0.3,
