@@ -39,13 +39,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($updateStmt);
                 mysqli_stmt_close($updateStmt);
                 
-                // Send email (placeholder - in real implementation, use mail() or PHPMailer)
+                // Send email
                 $resetUrl = buildSuperAdminResetPasswordUrl($token, $admin['id']);
-                $subject = 'Password Reset Request';
-                $body = "Click the following link to reset your password: $resetUrl\n\nThis link will expire in 1 hour.";
+                $emailSent = sendPasswordResetEmail([
+                    'to_email' => $email,
+                    'subject_name' => 'OralSync',
+                    'reset_link' => $resetUrl
+                ]);
                 
-                // For now, just log the email content
-                error_log("Password reset email for $email: $body");
+                if (!$emailSent) {
+                    error_log("Failed to send password reset email to $email");
+                }
                 
                 $message = 'If this email is registered, a reset link has been sent to your email address.';
                 $isError = false;

@@ -12,10 +12,15 @@ $username = $sessionManager->getUsername();
 if ($tenantId && $username) {
     require_once __DIR__ . '/includes/connect.php';
     require_once __DIR__ . '/includes/tenant_utils.php';
-    logActivity($conn, $tenantId, 'Receptionist Logout', 'Receptionist logged out', $username, 'receptionist', 'Receptionist');
+    logActivity($conn, $tenantId, 'Logout', 'Receptionist logged out', $username, 'receptionist', 'Receptionist');
 }
 
 $sessionManager->logoutTenant($tenantSlug);
+
+// Prevent back button access after logout
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 header('Location: tenant_login.php?tenant=' . rawurlencode($tenantSlug));
 exit();

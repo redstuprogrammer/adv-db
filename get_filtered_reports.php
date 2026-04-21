@@ -101,7 +101,46 @@ try {
                 'Status' => $row['status']
             ];
         }
-    } elseif ($type === 'usage_statistics') {
+    } elseif ($type === 'revenue') {
+        $query = "SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount, a.appointment_date
+                  FROM payment py
+                  LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+                  LEFT JOIN patient p ON a.patient_id = p.patient_id
+                  LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
+                  WHERE py.status = 'Paid'";
+
+        $params = [];
+
+        if ($date_from) {
+            $query .= " AND a.appointment_date >= ?";
+            $params[] = $date_from;
+        }
+        if ($date_to) {
+            $query .= " AND a.appointment_date <= ?";
+            $params[] = $date_to;
+        }
+        if (!$isSuperAdmin && $tenantSessionId > 0) {
+            $query .= " AND py.tenant_id = ?";
+            $params[] = $tenantSessionId;
+        } elseif ($tenant_id) {
+            $query .= " AND py.tenant_id = ?";
+            $params[] = $tenant_id;
+        }
+
+        $query .= " ORDER BY a.appointment_date DESC";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+
+        while ($row = $stmt->fetch()) {
+            $data[] = [
+                'appointment_date' => $row['appointment_date'],
+                'first_name' => $row['first_name'],
+                'last_name' => $row['last_name'],
+                'service' => $row['service'],
+                'amount' => $row['amount']
+            ];
+        }
         // Aggregate usage stats
         $query = "SELECT
                     COUNT(DISTINCT tal.tenant_id) as active_tenants,

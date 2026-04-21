@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
         $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, status) VALUES (?, ?, ?, ?, ?)');
         $stmt->bind_param('iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);        if ($stmt->execute()) {
             $successMsg = 'Appointment scheduled successfully!';
-            logTenantActivity($conn, $tenantId, 'Appointment Created', "New appointment scheduled for patient ID: $patientId");
+            logTenantActivity($conn, $tenantId, 'Appointment', "New appointment scheduled for patient ID: $patientId");
         }
         $stmt->close();
     }
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
         $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
         if ($stmt->execute()) {
             $successMsg = 'Appointment updated successfully!';
-            logTenantActivity($conn, $tenantId, 'Appointment Updated', "Appointment ID: $appointmentId updated to $newStatus");
+            logTenantActivity($conn, $tenantId, 'Appointment', "Appointment ID: $appointmentId updated to $newStatus");
         }
         $stmt->close();
     }

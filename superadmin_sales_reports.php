@@ -438,114 +438,6 @@ try {
             </div>
         </div>
 
-        <!-- Top Performing Tenants -->
-        <div class="sa-card">
-            <div class="sa-card-header">
-                <div>
-                    <div class="sa-card-title">Top Performing Tenants</div>
-                    <div class="sa-card-subtitle">Highest revenue generating clinics</div>
-                </div>
-            </div>
-
-            <table class="sa-table">
-                <thead>
-                    <tr>
-                        <th>Clinic Name</th>
-                        <th>Tier</th>
-                        <th>Total Revenue</th>
-                        <th>Months Active</th>
-                        <th>Monthly Average</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    try {
-                        $stmt = $pdo->query("
-                            SELECT 
-                                t.company_name,
-                                t.subscription_tier,
-                                SUM(tsr.amount) as total_revenue,
-                                COUNT(DISTINCT MONTH(tsr.payment_date)) as months_active,
-                                AVG(tsr.amount) as avg_revenue
-                            FROM tenant_subscription_revenue tsr
-                            JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                            WHERE tsr.status = 'paid'
-                            GROUP BY tsr.tenant_id, t.company_name, t.subscription_tier
-                            ORDER BY total_revenue DESC
-                            LIMIT 10
-                        ");
-                        
-                        while ($row = $stmt->fetch()) {
-                            $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
-                            echo "<tr>
-                                    <td>{$row['company_name']}</td>
-                                    <td><span class='sa-pill sa-pill-paid'>{$tierName}</span></td>
-                                    <td><span class='currency'>₱" . number_format($row['total_revenue'], 2) . "</span></td>
-                                    <td>{$row['months_active']}</td>
-                                    <td><span class='currency'>₱" . number_format($row['avg_revenue'], 2) . "</span></td>
-                                  </tr>";
-                        }
-                    } catch (Exception $e) {
-                        echo "<tr><td colspan='5' style='text-align: center; color: var(--sa-muted);'>No data available</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Transaction History -->
-        <div class="sa-card">
-            <div class="sa-card-header">
-                <div>
-                    <div class="sa-card-title">Recent Transactions</div>
-                    <div class="sa-card-subtitle">Latest subscription payments</div>
-                </div>
-            </div>
-
-            <table class="sa-table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Clinic</th>
-                        <th>Tier</th>
-                        <th>Amount</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php
-                    try {
-                        $stmt = $pdo->query("
-                            SELECT 
-                                tsr.payment_date,
-                                t.company_name,
-                                tsr.subscription_tier,
-                                tsr.amount,
-                                tsr.status
-                            FROM tenant_subscription_revenue tsr
-                            JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                            ORDER BY tsr.payment_date DESC
-                            LIMIT 20
-                        ");
-                        
-                        while ($row = $stmt->fetch()) {
-                            $statusClass = $row['status'] === 'paid' ? 'sa-pill-paid' : 'sa-pill-pending';
-                            echo "<tr>
-                                    <td>" . formatDateTimeReadable($row['payment_date']) . "</td>
-                                    <td>{$row['company_name']}</td>
-                                    <td>" . getTierByKey($row['subscription_tier'])['display_name'] . "</td>
-                                    <td><span class='currency'>₱" . number_format($row['amount'], 2) . "</span></td>
-                                    <td><span class='sa-pill {$statusClass}'>" . ucfirst($row['status']) . "</span></td>
-                                  </tr>";
-                        }
-                    } catch (Exception $e) {
-                        echo "<tr><td colspan='5' style='text-align: center; color: var(--sa-muted);'>No transactions found</td></tr>";
-                    }
-                    ?>
-                </tbody>
-            </table>
-        </div>
-
     </main>
 </div>
 
@@ -597,7 +489,7 @@ try {
             labels: [
                 <?php
                 // Generate last 12 months
-                for ($i = 11; $i >= 0; $i--) {
+                for ($i = 0; $i <= 11; $i++) {
                     $date = date('M Y', strtotime("-{$i} months"));
                     echo "'" . $date . "',";
                 }
@@ -609,7 +501,7 @@ try {
                     <?php
                     $revenueData = [];
                     try {
-                        for ($i = 11; $i >= 0; $i--) {
+                        for ($i = 0; $i <= 11; $i++) {
                             $month = date('Y-m', strtotime("-{$i} months"));
                             $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND DATE_FORMAT(payment_date, '%Y-%m') = ?");
                             $stmt->execute([$month]);
@@ -644,7 +536,7 @@ try {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toFixed(0);
+                            return '₱' + value.toFixed(0);
                         }
                     }
                 }
@@ -714,62 +606,8 @@ try {
             ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
             ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
             ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
-            [''],
-            ['Top Performing Tenants'],
-            ['Clinic Name', 'Tier', 'Total Revenue', 'Months Active', 'Monthly Average']
+            ['']
         ];
-
-        <?php
-        try {
-            $stmt = $pdo->query("
-                SELECT 
-                    t.company_name,
-                    t.subscription_tier,
-                    SUM(tsr.amount) as total_revenue,
-                    COUNT(DISTINCT MONTH(tsr.payment_date)) as months_active,
-                    AVG(tsr.amount) as avg_revenue
-                FROM tenant_subscription_revenue tsr
-                JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                WHERE tsr.status = 'paid'
-                GROUP BY tsr.tenant_id, t.company_name, t.subscription_tier
-                ORDER BY total_revenue DESC
-                LIMIT 10
-            ");
-            
-            while ($row = $stmt->fetch()) {
-                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
-                echo "salesData.push(['" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['total_revenue'], 2) . "', '" . $row['months_active'] . "', '₱" . number_format($row['avg_revenue'], 2) . "']);\n";
-            }
-        } catch (Exception $e) {
-            // No data
-        }
-        ?>
-
-        salesData.push([''], ['Recent Transactions'], ['Date', 'Clinic', 'Tier', 'Amount', 'Status']);
-
-        <?php
-        try {
-            $stmt = $pdo->query("
-                SELECT 
-                    tsr.payment_date,
-                    t.company_name,
-                    tsr.subscription_tier,
-                    tsr.amount,
-                    tsr.status
-                FROM tenant_subscription_revenue tsr
-                JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                ORDER BY tsr.payment_date DESC
-                LIMIT 20
-            ");
-            
-            while ($row = $stmt->fetch()) {
-                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
-                echo "salesData.push(['" . addslashes(formatDateTimeReadable($row['payment_date'])) . "', '" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['amount'], 2) . "', '" . ucfirst($row['status']) . "']);\n";
-            }
-        } catch (Exception $e) {
-            // No data
-        }
-        ?>
 
         fetch('generate_pdf.php', {
             method: 'POST',
@@ -801,63 +639,8 @@ try {
             ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
             ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
             ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
-            [''],
-            ['Top Performing Tenants'],
-            ['Clinic Name', 'Tier', 'Total Revenue', 'Months Active', 'Monthly Average']
+            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>']
         ];
-
-        <?php
-        try {
-            $stmt = $pdo->query("
-                SELECT 
-                    t.company_name,
-                    t.subscription_tier,
-                    SUM(tsr.amount) as total_revenue,
-                    COUNT(DISTINCT MONTH(tsr.payment_date)) as months_active,
-                    AVG(tsr.amount) as avg_revenue
-                FROM tenant_subscription_revenue tsr
-                JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                WHERE tsr.status = 'paid'
-                GROUP BY tsr.tenant_id, t.company_name, t.subscription_tier
-                ORDER BY total_revenue DESC
-                LIMIT 10
-            ");
-            
-            while ($row = $stmt->fetch()) {
-                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
-                echo "csvData.push(['" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['total_revenue'], 2) . "', '" . $row['months_active'] . "', '₱" . number_format($row['avg_revenue'], 2) . "']);\n";
-            }
-        } catch (Exception $e) {
-            // No data
-        }
-        ?>
-
-        csvData.push([''], ['Recent Transactions'], ['Date', 'Clinic', 'Tier', 'Amount', 'Status']);
-
-        <?php
-        try {
-            $stmt = $pdo->query("
-                SELECT 
-                    tsr.payment_date,
-                    t.company_name,
-                    tsr.subscription_tier,
-                    tsr.amount,
-                    tsr.status
-                FROM tenant_subscription_revenue tsr
-                JOIN tenants t ON tsr.tenant_id = t.tenant_id
-                ORDER BY tsr.payment_date DESC
-                LIMIT 100
-            ");
-            
-            while ($row = $stmt->fetch()) {
-                $tierName = getTierByKey($row['subscription_tier'])['display_name'] ?? $row['subscription_tier'];
-                echo "csvData.push(['" . addslashes(formatDateTimeReadable($row['payment_date'])) . "', '" . addslashes($row['company_name']) . "', '" . addslashes($tierName) . "', '₱" . number_format($row['amount'], 2) . "', '" . ucfirst($row['status']) . "']);\n";
-            }
-        } catch (Exception $e) {
-            // No data
-        }
-        ?>
 
         const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });

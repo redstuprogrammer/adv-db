@@ -1244,7 +1244,7 @@ try {
         tbody.innerHTML = '';
         const saLogs = analytics.daily_superadmin_logs || [];
         const today = new Date();
-        for (let i = 6; i >= 0; i--) {
+        for (let i = 0; i <= 6; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
             const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -1264,7 +1264,7 @@ try {
         tbody.innerHTML = '';
         const tenantLogs = analytics.daily_tenant_activities || [];
         const today = new Date();
-        for (let i = 6; i >= 0; i--) {
+        for (let i = 0; i <= 6; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() - i);
             const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -1730,7 +1730,7 @@ try {
 
         // Generate last 12 months labels
         const labels = [];
-        for (let i = 11; i >= 0; i--) {
+        for (let i = 0; i <= 11; i++) {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
             labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));

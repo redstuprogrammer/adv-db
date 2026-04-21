@@ -46,16 +46,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $updates[] = [
             'day' => $day,
-            'is_open' => $isOpen,
-            'open_time' => $openTime,
-            'close_time' => $closeTime
+            'is_closed' => 1 - $isOpen,
+            'opening_time' => $openTime,
+            'closing_time' => $closeTime
         ];
     }
 
     // Save to database
     foreach ($updates as $update) {
-        $stmt = $conn->prepare("INSERT INTO clinic_schedules (tenant_id, day_of_week, is_open, open_time, close_time) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE is_open = VALUES(is_open), open_time = VALUES(open_time), close_time = VALUES(close_time)");
-        $stmt->bind_param('isiss', $tenantId, $update['day'], $update['is_open'], $update['open_time'], $update['close_time']);
+        $stmt = $conn->prepare("INSERT INTO clinic_schedules (tenant_id, day_of_week, is_closed, opening_time, closing_time) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE is_closed = VALUES(is_closed), opening_time = VALUES(opening_time), closing_time = VALUES(closing_time)");
+        $stmt->bind_param('iisss', $tenantId, $update['day'], $update['is_closed'], $update['opening_time'], $update['closing_time']);
         $stmt->execute();
         $stmt->close();
     }
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Load schedule from database
 $schedule = [];
-$stmt = $conn->prepare("SELECT day_of_week, is_open, open_time, close_time FROM clinic_schedules WHERE tenant_id = ?");
+$stmt = $conn->prepare("SELECT day_of_week, CASE WHEN is_closed = 0 THEN 1 ELSE 0 END as is_open, opening_time as open_time, closing_time as close_time FROM clinic_schedules WHERE tenant_id = ?");
 $stmt->bind_param('i', $tenantId);
 $stmt->execute();
 $result = $stmt->get_result();

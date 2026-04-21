@@ -19,7 +19,7 @@ try {
     // Get monthly revenue for last 12 months
     $monthlyRevenue = [];
 
-    for ($i = 11; $i >= 0; $i--) {
+    for ($i = 0; $i <= 11; $i++) {
         $month = date('Y-m', strtotime("-{$i} months"));
 
         $stmt = mysqli_prepare($conn, "

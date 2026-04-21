@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
         if ($formError === '') {
             $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-            $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name) VALUES (?, ?, ?, ?, ?, ?, ?)');
+            $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())');
             if ($stmt) {
                 $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
                 if ($stmt->execute()) {

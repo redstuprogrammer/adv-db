@@ -245,11 +245,6 @@ HTML;
             $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
             $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
             $linkColor = trim($_POST['link_color'] ?? '#2563eb');
-            $loginTitle = trim($_POST['login_title'] ?? 'Clinic Login');
-            $loginDescription = trim($_POST['login_description'] ?? 'Please sign in to access your clinic portal.');
-            $usernamePlaceholder = trim($_POST['username_placeholder'] ?? 'Username or Email');
-            $passwordPlaceholder = trim($_POST['password_placeholder'] ?? 'Password');
-            $brandSubtitle = trim($_POST['brand_subtitle'] ?? 'Powered by OralSync');
 
             $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
             $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
@@ -285,11 +280,6 @@ HTML;
                     'brand_text_color' => $brandTextColor,
                     'primary_btn_color' => $primaryBtnColor,
                     'link_color' => $linkColor,
-                    'login_title' => $loginTitle,
-                    'login_description' => $loginDescription,
-                    'username_placeholder' => $usernamePlaceholder,
-                    'password_placeholder' => $passwordPlaceholder,
-                    'brand_subtitle' => $brandSubtitle,
                 ];
 
                 if ($brandLogoPath !== null) {
@@ -825,37 +815,6 @@ HTML;
 
           <div class="customizer-grid">
             <div class="form-group">
-              <label for="login_title">Login Page Title</label>
-              <input type="text" id="login_title" name="login_title" class="live-update" data-target="preview-login-title" data-property="textContent" value="<?php echo h($tenantSettings['login_title']); ?>" placeholder="Clinic Login" maxlength="255">
-              <div class="hint-text">Displayed above the login form.</div>
-            </div>
-
-            <div class="form-group">
-              <label for="brand_subtitle">Brand Card Subtitle</label>
-              <input type="text" id="brand_subtitle" name="brand_subtitle" class="live-update" data-target="preview-subtitle" data-property="textContent" value="<?php echo h($tenantSettings['brand_subtitle']); ?>" placeholder="Powered by OralSync" maxlength="255">
-              <div class="hint-text">Text shown on the brand panel.</div>
-            </div>
-
-            <div class="form-group">
-              <label for="username_placeholder">Username Placeholder</label>
-              <input type="text" id="username_placeholder" name="username_placeholder" value="<?php echo h($tenantSettings['username_placeholder']); ?>" placeholder="Username or Email" maxlength="255">
-              <div class="hint-text">Placeholder text for the username field.</div>
-            </div>
-
-            <div class="form-group">
-              <label for="password_placeholder">Password Placeholder</label>
-              <input type="text" id="password_placeholder" name="password_placeholder" value="<?php echo h($tenantSettings['password_placeholder']); ?>" placeholder="Password" maxlength="255">
-              <div class="hint-text">Placeholder text for the password field.</div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="login_description">Login Page Description</label>
-            <textarea id="login_description" name="login_description" class="live-update" data-target="preview-description" data-property="textContent" rows="3" placeholder="Please sign in to access your clinic portal."><?php echo h($tenantSettings['login_description']); ?></textarea>
-          </div>
-
-          <div class="customizer-grid">
-            <div class="form-group">
               <label for="brand_bg_image">Background Image Upload</label>
               <input type="file" id="brand_bg_image" name="brand_bg_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-left-panel" data-style="backgroundImage">
               <?php if (!empty($tenantSettings['brand_bg_image_path'])): ?>
@@ -901,42 +860,20 @@ HTML;
                 </div>
                 <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
               </div>
-              <div class="preview-subtitle" id="preview-subtitle"><?php echo h($tenantSettings['brand_subtitle']); ?></div>
+              <div class="preview-subtitle">Powered by OralSync</div>
             </div>
 
             <div class="preview-right-panel">
-              <div class="preview-login-title" id="preview-login-title"><?php echo h($tenantSettings['login_title']); ?></div>
-              <div class="preview-description" id="preview-description"><?php echo h($tenantSettings['login_description']); ?></div>
-              <input type="text" class="preview-input" placeholder="<?php echo h($tenantSettings['username_placeholder']); ?>" readonly>
-              <input type="password" class="preview-input" placeholder="<?php echo h($tenantSettings['password_placeholder']); ?>" readonly>
+              <div class="preview-login-title">Clinic Login</div>
+              <div class="preview-description">Please sign in to access your clinic portal.</div>
+              <input type="text" class="preview-input" placeholder="Username or Email" readonly>
+              <input type="password" class="preview-input" placeholder="Password" readonly>
               <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
               <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
             </div>
           </div>
         </div>
 
-        <!-- Account Settings -->
-        <div class="settings-section">
-          <h3>Account Settings</h3>
-          <p style="color: #64748b; margin-bottom: 20px;">Manage your account password and security settings.</p>
-
-          <form method="POST" id="passwordChangeForm">
-            <input type="hidden" name="change_password" value="1">
-            <div class="form-group">
-              <label for="current_password">Current Password</label>
-              <input type="password" id="current_password" name="current_password" required>
-            </div>
-            <div class="form-group">
-              <label for="new_password">New Password</label>
-              <input type="password" id="new_password" name="new_password" required minlength="8">
-            </div>
-            <div class="form-group">
-              <label for="confirm_password">Confirm New Password</label>
-              <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
-            </div>
-            <button type="submit" class="btn-primary">Change Password</button>
-          </form>
-        </div>
       </div>
     </div>
   </div>
@@ -966,6 +903,19 @@ HTML;
       }
     }
 
+    function getContrastingColor(hex) {
+      // Remove # if present
+      hex = hex.replace('#', '');
+      // Convert to RGB
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      // Calculate luminance
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      // Return black or white
+      return luminance > 0.5 ? '#000000' : '#ffffff';
+    }
+
     document.querySelectorAll('.live-update').forEach(input => {
       input.addEventListener('input', function() {
         const targetId = this.dataset.target;
@@ -986,6 +936,9 @@ HTML;
           }
         } else if (style) {
           target.style[style] = value;
+          if (style === 'backgroundColor' && targetId === 'preview-left-panel') {
+            target.style.color = getContrastingColor(value);
+          }
         } else if (property) {
           target[property] = value;
         }
@@ -1040,11 +993,6 @@ HTML;
         brand_text_color: '#ffffff',
         primary_btn_color: '#22c55e',
         link_color: '#2563eb',
-        login_title: 'Clinic Login',
-        login_description: 'Please sign in to access your clinic portal.',
-        username_placeholder: 'Username or Email',
-        password_placeholder: 'Password',
-        brand_subtitle: 'Powered by OralSync',
       };
 
       Object.keys(defaults).forEach(key => {

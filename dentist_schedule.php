@@ -1,7 +1,7 @@
 <?php
 /**
- * DENTIST SCHEDULE MANAGEMENT
- * Allows dentists to view and manage their personal schedule
+ * DENTIST SCHEDULE AVAILABILITY MANAGEMENT
+ * Allows dentists to set and manage their personal availability/working hours
  */
 
 session_start();
@@ -20,45 +20,95 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-function baseUrl(): string {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    return $scheme . '://' . $host;
-}
-
-$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantData = $sessionManager->getTenantData();
 $tenantName = $tenantData['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 $dentistId = $sessionManager->getUserId();
 $dentistName = $sessionManager->getUsername() ?? 'Doctor';
 
-// Get dentist's appointments for today and upcoming
-$today = date('Y-m-d');
-$upcomingAppointments = [];
+$message = '';
+$messageType = '';
 
+// Handle POST for setting availability
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) {
+    $dayOfWeek = trim($_POST['day_of_week'] ?? '');
+    $isAvailable = isset($_POST['is_available']) ? 1 : 0;
+    $startTime = trim($_POST['start_time'] ?? '09:00');
+    $endTime = trim($_POST['end_time'] ?? '17:00');
+
+    $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    
+    if (!in_array($dayOfWeek, $daysOfWeek)) {
+        $message = 'Invalid day selected.';
+        $messageType = 'error';
+    } elseif ($isAvailable && ($startTime >= $endTime)) {
+        $message = 'End time must be after start time.';
+        $messageType = 'error';
+    } else {
+        try {
+            // Check if record exists
+            $checkStmt = mysqli_prepare($conn, "SELECT id FROM dentist_availability WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
+            if ($checkStmt) {
+                mysqli_stmt_bind_param($checkStmt, "iis", $tenantId, $dentistId, $dayOfWeek);
+                mysqli_stmt_execute($checkStmt);
+                $checkResult = mysqli_stmt_get_result($checkStmt);
+                $exists = mysqli_num_rows($checkResult) > 0;
+                mysqli_stmt_close($checkStmt);
+
+                if ($exists) {
+                    // Update
+                    $updateStmt = mysqli_prepare($conn, "UPDATE dentist_availability SET is_available = ?, start_time = ?, end_time = ? WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
+                    if ($updateStmt) {
+                        mysqli_stmt_bind_param($updateStmt, "isssii", $isAvailable, $startTime, $endTime, $tenantId, $dentistId, $dayOfWeek);
+                        if (mysqli_stmt_execute($updateStmt)) {
+                            $message = 'Availability updated successfully.';
+                            $messageType = 'success';
+                            logActivity($conn, $tenantId, 'Schedule', 'Dentist updated availability', $dentistName, 'dentist', 'Dentist');
+                        } else {
+                            $message = 'Failed to update availability.';
+                            $messageType = 'error';
+                        }
+                        mysqli_stmt_close($updateStmt);
+                    }
+                } else {
+                    // Insert
+                    $insertStmt = mysqli_prepare($conn, "INSERT INTO dentist_availability (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)");
+                    if ($insertStmt) {
+                        mysqli_stmt_bind_param($insertStmt, "iisiss", $tenantId, $dentistId, $dayOfWeek, $isAvailable, $startTime, $endTime);
+                        if (mysqli_stmt_execute($insertStmt)) {
+                            $message = 'Availability added successfully.';
+                            $messageType = 'success';
+                            logActivity($conn, $tenantId, 'Schedule', 'Dentist added availability', $dentistName, 'dentist', 'Dentist');
+                        } else {
+                            $message = 'Failed to add availability.';
+                            $messageType = 'error';
+                        }
+                        mysqli_stmt_close($insertStmt);
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            $message = 'Error setting availability.';
+            $messageType = 'error';
+        }
+    }
+}
+
+// Fetch current availability
+$availability = [];
 try {
-    $stmt = mysqli_prepare($conn, "
-        SELECT a.appointment_id, a.appointment_date, a.appointment_time, a.status, a.notes,
-               p.first_name, p.last_name, s.service_name
-        FROM appointment a
-        LEFT JOIN patient p ON a.patient_id = p.patient_id
-        LEFT JOIN service s ON a.service_id = s.service_id
-        WHERE a.tenant_id = ? AND a.dentist_id = ? AND a.appointment_date >= ?
-        ORDER BY a.appointment_date, a.appointment_time
-        LIMIT 20
-    ");
+    $stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end_time FROM dentist_availability WHERE tenant_id = ? AND dentist_id = ? ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "iis", $tenantId, $dentistId, $today);
+        mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         while ($row = mysqli_fetch_assoc($result)) {
-            $upcomingAppointments[] = $row;
+            $availability[$row['day_of_week']] = $row;
         }
         mysqli_stmt_close($stmt);
     }
 } catch (Exception $e) {
-    error_log("Error fetching dentist appointments: " . $e->getMessage());
+    error_log("Error fetching dentist availability: " . $e->getMessage());
 }
 ?>
 <!DOCTYPE html>
@@ -69,16 +119,86 @@ try {
     <title>My Schedule - OralSync</title>
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
-        .schedule-card { background: white; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; border: 1px solid #e2e8f0; }
-        .appointment-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 0.5rem; }
-        .appointment-info { flex: 1; }
-        .appointment-time { font-weight: 600; color: #059669; }
-        .appointment-patient { font-weight: 500; margin: 0.25rem 0; }
-        .appointment-service { color: #6b7280; font-size: 0.9rem; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .status-confirmed { background: #d1fae5; color: #065f46; }
-        .status-pending { background: #fef3c7; color: #92400e; }
-        .status-cancelled { background: #fee2e2; color: #991b1b; }
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .schedule-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        .schedule-card h3 {
+            margin-top: 0;
+            color: #1f2937;
+            font-size: 1.1rem;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.95rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.95rem;
+        }
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        .btn-save {
+            background: #22c55e;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-save:hover {
+            background: #16a34a;
+        }
+        .btn-save:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .message.success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -88,79 +208,75 @@ try {
         <main class="t-main">
             <div class="t-header">
                 <h1 class="t-title">My Schedule</h1>
-                <p class="t-subtitle">View your upcoming appointments and availability</p>
+                <p class="t-subtitle">Set your working hours and availability</p>
+                <?php renderDateClock(); ?>
             </div>
 
+            <?php if ($message): ?>
+                <div class="message <?php echo $messageType; ?>">
+                    <?php echo h($message); ?>
+                </div>
+            <?php endif; ?>
+
             <div class="t-content">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div class="schedule-grid">
+                    <?php
+                    $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                    foreach ($daysOfWeek as $day):
+                        $dayData = $availability[$day] ?? null;
+                        $isAvailable = $dayData ? (int)$dayData['is_available'] : 0;
+                        $startTime = $dayData ? $dayData['start_time'] : '09:00';
+                        $endTime = $dayData ? $dayData['end_time'] : '17:00';
+                    ?>
                     <div class="schedule-card">
-                        <h2 style="margin-bottom: 1rem; color: #1f2937;">Today's Appointments</h2>
-                        <?php
-                        $todayAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
-                            return $apt['appointment_date'] === $today;
-                        });
+                        <h3><?php echo h($day); ?></h3>
+                        <form method="POST">
+                            <input type="hidden" name="set_availability" value="1">
+                            <input type="hidden" name="day_of_week" value="<?php echo h($day); ?>">
 
-                        if (empty($todayAppointments)): ?>
-                            <p style="color: #6b7280; font-style: italic;">No appointments scheduled for today.</p>
-                        <?php else: ?>
-                            <?php foreach ($todayAppointments as $appointment): ?>
-                                <div class="appointment-item">
-                                    <div class="appointment-info">
-                                        <div class="appointment-time">
-                                            <?php echo date('g:i A', strtotime($appointment['appointment_time'])); ?>
-                                        </div>
-                                        <div class="appointment-patient">
-                                            <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
-                                        </div>
-                                        <div class="appointment-service">
-                                            <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
-                                            <?php echo h(ucfirst($appointment['status'])); ?>
-                                        </span>
-                                    </div>
+                            <div class="checkbox-label">
+                                <input type="checkbox" id="available-<?php echo $day; ?>" name="is_available" value="1" <?php echo $isAvailable ? 'checked' : ''; ?> onchange="toggleTimeInputs(this)">
+                                <label for="available-<?php echo $day; ?>" style="margin: 0; font-weight: 600;">
+                                    <?php echo $isAvailable ? 'Available' : 'Not Available'; ?>
+                                </label>
+                            </div>
+
+                            <div class="time-inputs" style="display: <?php echo $isAvailable ? 'grid' : 'none'; ?>;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="start-<?php echo $day; ?>">Start Time</label>
+                                    <input type="time" id="start-<?php echo $day; ?>" name="start_time" value="<?php echo h($startTime); ?>" required>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="schedule-card">
-                        <h2 style="margin-bottom: 1rem; color: #1f2937;">Upcoming Appointments</h2>
-                        <?php
-                        $futureAppointments = array_filter($upcomingAppointments, function($apt) use ($today) {
-                            return $apt['appointment_date'] > $today;
-                        });
-
-                        if (empty($futureAppointments)): ?>
-                            <p style="color: #6b7280; font-style: italic;">No upcoming appointments.</p>
-                        <?php else: ?>
-                            <?php foreach ($futureAppointments as $appointment): ?>
-                                <div class="appointment-item">
-                                    <div class="appointment-info">
-                                        <div class="appointment-time">
-                                            <?php echo date('M j, g:i A', strtotime($appointment['appointment_date'] . ' ' . $appointment['appointment_time'])); ?>
-                                        </div>
-                                        <div class="appointment-patient">
-                                            <?php echo h($appointment['first_name'] . ' ' . $appointment['last_name']); ?>
-                                        </div>
-                                        <div class="appointment-service">
-                                            <?php echo h($appointment['service_name'] ?? 'General Checkup'); ?>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <span class="status-badge status-<?php echo strtolower($appointment['status']); ?>">
-                                            <?php echo h(ucfirst($appointment['status'])); ?>
-                                        </span>
-                                    </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label for="end-<?php echo $day; ?>">End Time</label>
+                                    <input type="time" id="end-<?php echo $day; ?>" name="end_time" value="<?php echo h($endTime); ?>" required>
                                 </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                            </div>
+
+                            <button type="submit" class="btn-save" style="margin-top: 0.75rem;">Save</button>
+                        </form>
                     </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </main>
     </div>
+
+    <script>
+        <?php printDateClockScript(); ?>
+
+        function toggleTimeInputs(checkbox) {
+            const card = checkbox.closest('.schedule-card');
+            const timeInputs = card.querySelector('.time-inputs');
+            const label = checkbox.nextElementSibling;
+            
+            if (checkbox.checked) {
+                timeInputs.style.display = 'grid';
+                label.textContent = 'Available';
+            } else {
+                timeInputs.style.display = 'none';
+                label.textContent = 'Not Available';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -39,7 +39,6 @@ switch ($role) {
                 ['href' => $basePath . '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
                 ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
                 ['href' => $basePath . '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
-                ['href' => $basePath . '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
             ]],
         ];
         $logoutLink = $basePath . '/dentist_logout.php' . $baseTenantQuery;
@@ -53,7 +52,6 @@ switch ($role) {
                 ['href' => $basePath . '/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
                 ['href' => $basePath . '/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
                 ['href' => $basePath . '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
-                ['href' => $basePath . '/profile_settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Profile', 'active' => 'profile_settings.php'],
             ]],
         ];
         $logoutLink = $basePath . '/receptionist_logout.php' . $baseTenantQuery;

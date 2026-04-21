@@ -228,12 +228,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Regenerate session ID BEFORE writing session data to prevent
             // the new session file from being empty on the next request.
-            session_regenerate_id(true);
+            if (empty($_SESSION['superadmin']['authed'])) {
+                session_regenerate_id(true);
+            }
 
             $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
 
             // Log activity
-            $activityType = ucfirst(strtolower($userRole)) . ' Login';
+            $activityType = 'Login';
             try {
                 logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $sessionUserData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
             } catch (Exception $e) {

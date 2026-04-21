@@ -451,14 +451,15 @@ body{
 }
 
 .live-clock-badge {
-  background: linear-gradient(135deg, var(--tenant-accent), var(--tenant-accent-2));
-  color: white;
+  background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 2px solid var(--tenant-accent);
   padding: 8px 16px;
   border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tenant-accent);
   font-family: 'Courier New', monospace;
-  box-shadow: 0 2px 8px rgba(13, 59, 102, 0.2);
+  letter-spacing: 1px;
   white-space: nowrap;
 }
 

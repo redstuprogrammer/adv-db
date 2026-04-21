@@ -31,10 +31,8 @@ if (!$user_id) {
 }
 
 // Fetch staff details
-$stmt = $conn->prepare("SELECT u.user_id, u.username, u.email, u.role, u.first_name, u.last_name, 
-                       d.license_number, d.joined_system, d.professional_biography, d.contact_phone
+$stmt = $conn->prepare("SELECT u.user_id, u.username, u.email, u.role, u.first_name, u.last_name
                        FROM users u 
-                       LEFT JOIN dentist d ON u.user_id = d.dentist_id 
                        WHERE u.user_id = ? AND u.tenant_id = ?");
 if (!$stmt) {
     error_log("Prepare failed: " . $conn->error);
@@ -210,38 +208,6 @@ if (!$staff) {
             font-size: 12px;
             font-weight: 700;
             text-transform: capitalize;
-        }
-        .clinical-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        .clinical-section h3 {
-            color: var(--primary);
-            font-size: 18px;
-            margin-bottom: 20px;
-        }
-
-        .clinical-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        .bio-section {
-            grid-column: span 2;
-            margin-top: 20px;
-        }
-
-        .bio-section p {
-            line-height: 1.6;
-        }
-
-        .edit-link {
-            margin-top: 20px;
-            text-align: center;
         }    </style>
 </head>
 <body>
@@ -281,36 +247,6 @@ if (!$staff) {
                 <div class="info-section">
                     <label>User ID</label>
                     <p>#<?php echo $user_id; ?></p>
-                </div>
-            </div>
-
-            <!-- Clinical Credentials Section -->
-            <div class="clinical-section">
-                <h3>Clinical Credentials</h3>
-                <div class="clinical-grid">
-                    <div class="info-section">
-                        <label>Primary Specialization</label>
-                        <p><?php echo h($staff['primary_specialization'] ?? 'General Practitioner'); ?></p>
-                    </div>
-                    <div class="info-section">
-                        <label>License Number</label>
-                        <p><?php echo h($staff['license_number'] ?? 'Pending Verification'); ?></p>
-                    </div>
-                    <div class="info-section">
-                        <label>Contact Phone</label>
-                        <p><?php echo h($staff['contact_phone'] ?? 'Not Provided'); ?></p>
-                    </div>
-                    <div class="info-section">
-                        <label>Joined System</label>
-                        <p><?php echo $staff['joined_system'] ? date('F d, Y', strtotime($staff['joined_system'])) : 'Not Set'; ?></p>
-                    </div>
-                </div>
-                <div class="info-section bio-section">
-                    <label>Professional Biography</label>
-                    <p><?php echo nl2br(h($staff['professional_biography'] ?? 'No biography provided yet.')); ?></p>
-                </div>
-                <div class="edit-link">
-                    <a href="edit_staff_details.php?id=<?php echo $user_id; ?>&tenant=<?php echo rawurlencode($tenantSlug); ?>" class="btn btn-primary">Update Details</a>
                 </div>
             </div>
 

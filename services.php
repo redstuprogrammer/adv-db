@@ -314,7 +314,6 @@ if ($stmt) {
               <th>Service Name</th>
               <th>Category</th>
               <th>Price</th>
-              <th>Description</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -324,8 +323,8 @@ if ($stmt) {
               <td><?php echo h($service['service_name']); ?></td>
               <td><?php echo h($service['category'] ?? 'General'); ?></td>
               <td>₱<?php echo number_format($service['price'], 2); ?></td>
-              <td><?php echo h($service['description'] ?? ''); ?></td>
               <td>
+                <button type="button" class="btn-primary" style="margin-right: 8px;" onclick="viewService(<?php echo $service['service_id']; ?>, '<?php echo addslashes($service['service_name']); ?>', '<?php echo addslashes($service['description'] ?? ''); ?>', '<?php echo addslashes($service['category'] ?? 'General'); ?>', <?php echo $service['price']; ?>)">View</button>
                 <form method="post" style="display: inline;">
                   <input type="hidden" name="service_id" value="<?php echo $service['service_id']; ?>">
                   <button type="submit" name="delete_service" class="btn-danger" onclick="return confirm('Are you sure you want to delete this service?')">Delete</button>
@@ -352,6 +351,10 @@ if ($stmt) {
     updateClock();
     // Update every second
     setInterval(updateClock, 1000);
+
+    function viewService(id, name, description, category, price) {
+      alert(`Service Details:\n\nName: ${name}\nCategory: ${category}\nPrice: ₱${price.toFixed(2)}\nDescription: ${description || 'No description provided.'}`);
+    }
   </script>
 </body>
 </html>

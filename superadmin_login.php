@@ -41,8 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($inputUser !== '' && $inputPass !== '') {
         // 1. Check database for the user
-        $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? LIMIT 1");
-        mysqli_stmt_bind_param($stmt, "s", $inputUser);
+        $stmt = mysqli_prepare($conn, "SELECT id, password_hash FROM super_admins WHERE username = ? OR email = ? LIMIT 1");
+        mysqli_stmt_bind_param($stmt, "ss", $inputUser, $inputUser);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         
@@ -55,11 +55,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($validPassword) {
-                session_regenerate_id(true);
+                if (empty($_SESSION['tenant'])) {
+                    session_regenerate_id(true);
+                }
                 $sessionManager->loginSuperAdmin($admin['id'], $inputUser);
 
                 // Log superadmin login event
-                logActivity($conn, 1, 'Superadmin Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
+                logActivity($conn, 1, 'Login', 'Superadmin logged in', $inputUser, 'superadmin', 'Super Admin');
 
                 // Update last login timestamp
                 $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET last_login = NOW() WHERE id = ?");
@@ -102,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <form class="t-form" method="POST" action="superadmin_login.php">
                     <div class="t-field">
-                        <label for="username">Username</label>
+                        <label for="username">Username / Email</label>
                         <input id="username" name="username" type="text" required />
                     </div>
                     <div class="t-field">

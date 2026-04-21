@@ -253,7 +253,7 @@ try {
                 'enterprise' => 499.00
             ];
             $monthly_amount = $tier_prices[$tier] ?? 124.00;
-            $amount = $monthly_amount * max(1, $duration);
+            $amount = $monthly_amount;
             $billing_period_start = $start_date . ' 00:00:00';
             $billing_period_end = date('Y-m-d 23:59:59', strtotime('+' . max(1, $duration) . ' months -1 day', strtotime($start_date)));
             $payment_date = date('Y-m-d H:i:s');
@@ -268,7 +268,7 @@ try {
             }
             
             if (function_exists('logActivity')) {
-                logActivity($conn, (int)$new_id, 'Tenant Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
+                logActivity($conn, (int)$new_id, 'Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
             }
             
             $login_url = buildTenantLoginUrl($slug);

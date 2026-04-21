@@ -10,7 +10,7 @@ $username = $sessionManager->getUsername();
 
 if ($tenantId) {
     require_once __DIR__ . '/includes/connect.php';
-    logActivity($conn, $tenantId, 'Tenant Logout', 'Tenant logged out', $username, strtolower($sessionManager->getRole()), ucfirst($sessionManager->getRole()));
+    logActivity($conn, $tenantId, 'Logout', 'Tenant logged out', $username, strtolower($sessionManager->getRole()), ucfirst($sessionManager->getRole()));
 }
 
 $sessionManager->logoutTenant($tenantSlug);

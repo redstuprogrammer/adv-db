@@ -5,7 +5,7 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 
 if (isset($_SESSION['superadmin_authed']) && $_SESSION['superadmin_authed']) {
     $username = $_SESSION['superadmin_username'] ?? 'Unknown';
-    logActivity($conn, 1, 'Superadmin Logout', 'Superadmin logged out', $username, 'superadmin', 'Super Admin');
+    logActivity($conn, 1, 'Logout', 'Superadmin logged out', $username, 'superadmin', 'Super Admin');
 }
 
 $_SESSION = [];
