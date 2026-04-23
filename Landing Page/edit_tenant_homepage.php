@@ -3,7 +3,7 @@
  * Edit Tenant Homepage - Management Panel
  * Allows updating of clinic information displayed on the landing page.
  */
-require_once 'includes/connect.php';
+require_once '../includes/connect.php';
 
 $message = '';
 
