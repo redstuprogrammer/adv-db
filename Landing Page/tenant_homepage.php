@@ -50,7 +50,7 @@ try {
 
 <header class="fixed top-0 w-full z-50 bg-[#f8fafb]/80 backdrop-blur-md shadow-sm">
     <nav class="flex justify-between items-center w-full px-8 py-4 max-w-7xl mx-auto">
-        <div class="text-2xl font-bold text-sky-900 tracking-tighter">The Curated Breath</div>
+        <div class="text-2xl font-bold text-sky-900 tracking-tighter">ToothFairy</div>
         <div class="hidden md:flex items-center space-x-8">
             <a class="text-sky-900 font-bold border-b-2 border-sky-900 pb-1" href="#">Home</a>
             <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors" href="#about">About</a>
@@ -103,19 +103,19 @@ try {
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                         <div class="flex justify-between items-center py-3 border-b border-slate-100">
                             <span class="font-semibold text-slate-700">Monday — Wednesday</span>
-                            <span class="text-emerald-700 font-medium">08:00 — 19:00</span>
+                            <span class="text-emerald-700 font-medium">8:00 AM — 7:00 PM</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-100">
                             <span class="font-semibold text-slate-700">Thursday</span>
-                            <span class="text-emerald-700 font-medium">08:00 — 21:00</span>
+                            <span class="text-emerald-700 font-medium">8:00 AM — 9:00 PM</span>
                         </div>
                         <div class="flex justify-between items-center py-3 border-b border-slate-100">
                             <span class="font-semibold text-slate-700">Friday</span>
-                            <span class="text-emerald-700 font-medium">08:00 — 17:00</span>
+                            <span class="text-emerald-700 font-medium">8:00 AM — 5:00 PM</span>
                         </div>
                         <div class="flex justify-between items-center py-3">
                             <span class="font-bold text-sky-900">Saturday</span>
-                            <span class="text-sky-700 font-bold">10:00 — 15:00</span>
+                            <span class="text-sky-700 font-bold">10:00 AM — 3:00 PM</span>
                         </div>
                     </div>
                 </div>

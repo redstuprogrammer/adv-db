@@ -180,7 +180,7 @@ foreach ($defaultSchedule as $day => $data) {
         }
 
         .schedule-table th {
-            padding: 14px 16px;
+            padding: 12px 16px;
             text-align: left;
             font-weight: 700;
             color: var(--accent);
@@ -188,6 +188,7 @@ foreach ($defaultSchedule as $day => $data) {
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
 
         .schedule-table tbody tr {
             border-bottom: 1px solid var(--border);
@@ -208,9 +209,10 @@ foreach ($defaultSchedule as $day => $data) {
         }
 
         .schedule-table td {
-            padding: 16px;
+            padding: 12px 16px;
             color: var(--text-primary);
         }
+
 
         .day-cell {
             font-weight: 700;
@@ -254,6 +256,10 @@ foreach ($defaultSchedule as $day => $data) {
             gap: 12px;
         }
 
+        .time-input.closed {
+            opacity: 0.5;
+        }
+        
         .time-input {
             padding: 8px 12px;
             border: 1px solid var(--border);
@@ -262,6 +268,7 @@ foreach ($defaultSchedule as $day => $data) {
             font-size: 13px;
             width: 100px;
         }
+
 
         .time-input:focus {
             border-color: var(--accent);
@@ -366,13 +373,14 @@ foreach ($defaultSchedule as $day => $data) {
 
         <main class="t-main">
             <div class="t-content">
-                    <!-- Tenant Header with Clock -->
-                    <div class="tenant-header-bar" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-                      <div class="tenant-header-title" style="font-size: 24px; font-weight: 700; color: var(--text-primary);">Clinic Schedule</div>
-                      <?php renderDateClock(); ?>
-                    </div>
+                <!-- Fixed Header - Services Style -->
+                <div class="tenant-header-bar" style="background: white; height: 70px; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div class="tenant-header-title" style="font-size: 24px; font-weight: 700; color: #1f2937; margin: 0;">Clinic Schedule</div>
+                    <?php renderDateClock(); ?>
+                </div>
 
-                    <div class="schedule-container">
+                <div class="schedule-container" style="max-width: 1000px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); overflow: hidden;">
+
 
                     <?php if ($message): ?>
                         <div class="message-box <?php echo $messageType; ?>">
@@ -454,9 +462,10 @@ foreach ($defaultSchedule as $day => $data) {
                             </tbody>
                         </table>
 
-                        <div class="action-buttons">
-                            <button type="submit" class="btn-save">💾 Save Schedule</button>
+                        <div style="padding: 24px; text-align: right;">
+                            <button type="submit" class="btn-save" style="background: var(--accent); color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">💾 Save Schedule</button>
                         </div>
+
                     </form>
                 </div>
             </div>

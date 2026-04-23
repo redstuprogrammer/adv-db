@@ -1,5 +1,5 @@
 <?php 
-require_once "db_connection.php"; 
+require_once "../includes/connect.php"; 
 $current_tenant = 1; // Simulation
 $stmt = $pdo->prepare("SELECT * FROM announcements WHERE tenant_id = ? ORDER BY publish_date DESC");
 $stmt->execute([$current_tenant]);

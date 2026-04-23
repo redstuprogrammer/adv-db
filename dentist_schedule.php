@@ -46,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) 
         $messageType = 'error';
     } else {
         try {
-            // Check if record exists
-            $checkStmt = mysqli_prepare($conn, "SELECT id FROM dentist_availability WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
+// Check if record exists
+            $checkStmt = mysqli_prepare($conn, "SELECT schedule_id FROM dentist_schedule WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
             if ($checkStmt) {
                 mysqli_stmt_bind_param($checkStmt, "iis", $tenantId, $dentistId, $dayOfWeek);
                 mysqli_stmt_execute($checkStmt);
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) 
 
                 if ($exists) {
                     // Update
-                    $updateStmt = mysqli_prepare($conn, "UPDATE dentist_availability SET is_available = ?, start_time = ?, end_time = ? WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
+                    $updateStmt = mysqli_prepare($conn, "UPDATE dentist_schedule SET is_available = ?, start_time = ?, end_time = ? WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
                     if ($updateStmt) {
                         mysqli_stmt_bind_param($updateStmt, "isssii", $isAvailable, $startTime, $endTime, $tenantId, $dentistId, $dayOfWeek);
                         if (mysqli_stmt_execute($updateStmt)) {
@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) 
                     }
                 } else {
                     // Insert
-                    $insertStmt = mysqli_prepare($conn, "INSERT INTO dentist_availability (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)");
+                    $insertStmt = mysqli_prepare($conn, "INSERT INTO dentist_schedule (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)"); 
                     if ($insertStmt) {
                         mysqli_stmt_bind_param($insertStmt, "iisiss", $tenantId, $dentistId, $dayOfWeek, $isAvailable, $startTime, $endTime);
                         if (mysqli_stmt_execute($insertStmt)) {
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) 
 // Fetch current availability
 $availability = [];
 try {
-    $stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end_time FROM dentist_availability WHERE tenant_id = ? AND dentist_id = ? ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
+$stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end_time FROM dentist_schedule WHERE tenant_id = ? AND dentist_id = ? ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
     if ($stmt) {
         mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
         mysqli_stmt_execute($stmt);

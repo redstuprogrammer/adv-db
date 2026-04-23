@@ -439,9 +439,19 @@ $tenantId = getCurrentTenantId();
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
+        const targetTab = document.getElementById(tab.dataset.tab);
+        if (targetTab) {
+          targetTab.classList.add('active');
+          // Load data for Revenue tab
+          if (tab.dataset.tab === 'revenue') {
+            loadRevenueReport();
+          } else if (tab.dataset.tab === 'activity') {
+            loadActivityReport();
+          }
+        }
       });
     });
+
 
     function loadActivityReport() {
       const dateFrom = document.getElementById('activity_date_from').value;

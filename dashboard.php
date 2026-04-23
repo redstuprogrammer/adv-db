@@ -361,20 +361,21 @@ if ($stmt) {
         margin-bottom: 20px;
       }
 
-      .search-input {
+.search-input {
         width: 100%;
         max-width: 400px;
         padding: 12px 16px;
-        border: 1px solid var(--dashboard-border);
+        border: 2px solid #d1d5db !important;
         border-radius: 25px;
         outline: none;
         font-size: 14px;
       }
 
       .search-input:focus {
-        border-color: var(--dashboard-accent);
+        border-color: var(--dashboard-accent) !important;
         box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
       }
+
 
       .patient-table {
         width: 100%;

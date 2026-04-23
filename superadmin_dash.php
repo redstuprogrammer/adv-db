@@ -1728,9 +1728,9 @@ try {
         const chartCanvas = document.getElementById('dashboardSalesChart');
         if (!chartCanvas) return;
 
-        // Generate last 12 months labels
+        // Generate last 12 months labels (oldest first)
         const labels = [];
-        for (let i = 0; i <= 11; i++) {
+        for (let i = 11; i >= 0; i--) {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
             labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
@@ -1740,13 +1740,14 @@ try {
         fetch('get_sales_data.php')
             .then(response => response.json())
             .then(data => {
+                const revenueData = (data.monthlyRevenue || []).map(val => parseFloat(val) || 0);
                 new Chart(chartCanvas, {
                     type: 'line',
                     data: {
                         labels: labels,
                         datasets: [{
                             label: 'Monthly Revenue',
-                            data: data.monthlyRevenue || [],
+                            data: revenueData,
                             borderColor: '#0d3b66',
                             backgroundColor: 'rgba(13, 59, 102, 0.1)',
                             tension: 0.3,
@@ -1762,6 +1763,13 @@ try {
                             legend: {
                                 display: true,
                                 position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return '₱' + context.parsed.y.toLocaleString();
+                                    }
+                                }
                             }
                         },
                         scales: {
@@ -1769,8 +1777,14 @@ try {
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function(value) {
-                                        return '₱' + value.toFixed(0);
+                                        return '₱' + value.toLocaleString();
                                     }
+                                }
+                            },
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'month'
                                 }
                             }
                         }
@@ -1778,6 +1792,7 @@ try {
                 });
             })
             .catch(error => console.error('Error loading sales data:', error));
+
     })();
 </script>
 

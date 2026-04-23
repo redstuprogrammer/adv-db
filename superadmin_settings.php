@@ -577,7 +577,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return true;
         }
 
-        function resetSettings() {
+function resetSettings() {
             if (confirm('Are you sure you want to reset all settings to defaults?')) {
                 // Send reset request
                 const formData = new FormData();
@@ -597,8 +597,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
                     // Clear file input
                     document.getElementById('logo').value = '';
-                    // Show success message if needed, but since page reloads, maybe not
-                    alert('Settings reset to defaults!');
                     // Reload to reflect changes
                     setTimeout(() => {
                         location.reload();
@@ -606,10 +604,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error resetting settings');
                 });
             }
         }
+
     </script>
     </main>
 </body>

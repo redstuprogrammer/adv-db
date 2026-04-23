@@ -1067,7 +1067,7 @@ HTML;
     }
 
     .reset-modal-header {
-      background: #ef4444;
+      background: linear-gradient(135deg, #0d3b66, #0a2f52);
       color: white;
       padding: 20px;
       border-radius: 12px 12px 0 0;
@@ -1077,6 +1077,7 @@ HTML;
       justify-content: space-between;
       align-items: center;
     }
+
 
     .reset-modal-body {
       padding: 24px;
@@ -1106,13 +1107,14 @@ HTML;
     }
 
     .reset-modal-footer .btn-confirm {
-      background: #ef4444;
+      background: linear-gradient(135deg, #0d3b66, #0a2f52);
       color: white;
     }
 
     .reset-modal-footer .btn-confirm:hover {
-      background: #dc2626;
+      background: #0a2f52;
     }
+
 
     .reset-modal-footer .btn-cancel {
       background: #e5e7eb;

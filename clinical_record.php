@@ -14,6 +14,11 @@ require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
 
+// Add error reporting for debugging
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+
 // Security Check
 if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist') {
     header("Location: tenant_login.php");

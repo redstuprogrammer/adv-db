@@ -32,12 +32,30 @@ function getTotalRevenue($conn) {
 /**
  * Returns array of [month_ym => revenue] for last N months
  */
-function getRevenueTrendData($conn, $months = 12) {
+function getRevenueTrendData($pdo, $months = 12) {
     $trend = [];
-    for ($i = $months - 1; $i >= 0; $i--) {
-        $month = date('Y-m', strtotime("-{$i} months"));
-        $trend[$month] = getMonthlyRevenue($conn, $month);
+    $endDate = new DateTime();
+    $startDate = clone $endDate;
+    $startDate->modify('-' . $months . ' months');
+    
+    $stmt = $pdo->prepare("
+        SELECT DATE_FORMAT(date_paid, '%Y-%m') as month_ym, 
+               COALESCE(SUM(amount), 0) as revenue
+        FROM tenant_subscription_revenue 
+        WHERE date_paid >= ? 
+        GROUP BY month_ym 
+        ORDER BY month_ym ASC
+    ");
+    $stmt->execute([$startDate->format('Y-m-01')]);
+    
+    $currentDate = clone $startDate;
+    while ($currentDate <= $endDate) {
+        $monthKey = $currentDate->format('Y-m');
+        $row = $stmt->fetch();
+        $trend[] = $row && $row['month_ym'] === $monthKey ? (float)$row['revenue'] : 0.0;
+        $currentDate->modify('+1 month');
     }
-    return array_values($trend); // Chart.js needs numeric array
+    
+    return $trend;
 }
 

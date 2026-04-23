@@ -99,7 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
             if ($insertStmt->execute()) {
                 $successMessage = 'Patient added successfully. Temporary password: ' . $tempPassword;
             } else {
-                $errorMessage = 'Unable to add patient. Please try again.';
+                $errorMessage = 'Unable to add patient. DB Error: ' . $conn->error;
+                error_log("Patient add failed for tenant $tenantId: " . $conn->error);
             }
             $insertStmt->close();
         } else {
@@ -183,10 +184,16 @@ if (isset($_GET['view_patient_id'])) {
       .search-input {
         width: 100%;
         padding: 12px 16px;
-        border: 1px solid var(--border);
+        border: 2px solid #d1d5db !important;
         border-radius: 8px;
         font-size: 14px;
       }
+
+      .search-input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
 
       .patient-table {
         width: 100%;
@@ -556,11 +563,15 @@ if (isset($_GET['view_patient_id'])) {
     }
 
     function openAddPatientModal() {
-      // Generate random temporary password
-      const tempPassword = Math.random().toString(36).slice(-8);
-      document.getElementById('temp_password').value = tempPassword;
+      // Clear form
+      document.querySelector('.patient-form').reset();
       document.getElementById('addPatientModal').classList.add('active');
+      console.log('Add Patient modal opened');
     }
+
+    document.querySelector('.patient-form').addEventListener('submit', function(e) {
+      console.log('Patient form submitted');
+    });
 
     function closeAddPatientModal() {
       document.getElementById('addPatientModal').classList.remove('active');

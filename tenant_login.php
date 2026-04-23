@@ -165,8 +165,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userRole = '';
         $userData = null;
 
+
         // First, try tenant owner login using email or username.
-        if ((strcasecmp($username, (string)$tenant['contact_email']) === 0 || strcasecmp($username, (string)$tenant['username']) === 0) && password_verify($password, (string)$tenant['password'])) {
+        if ((strcasecmp($username, (string)$tenant['contact_email']) === 0 || ($tenant['username'] !== null && strcasecmp($username, (string)$tenant['username']) === 0)) && password_verify($password, (string)$tenant['password'])) {
             $authenticated = true;
             $userRole = 'Admin';
             $userData = [
@@ -176,6 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'role' => 'Admin'
             ];
         } else {
+
             // Fallback: check users table for receptionist/dentist
             $isEmailInput = strpos($username, '@') !== false;
             try {

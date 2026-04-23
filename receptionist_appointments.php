@@ -53,7 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
             if (mysqli_stmt_execute($stmtAdd)) {
                 $successMessage = 'Appointment scheduled successfully.';
             } else {
-                $errorMessage = 'Unable to schedule appointment. Please try again.';
+                $errorMessage = 'Unable to schedule appointment. DB Error: ' . $conn->error;
+                error_log("Appt add failed for tenant $tenantId: " . $conn->error);
             }
             mysqli_stmt_close($stmtAdd);
         } else {
@@ -707,17 +708,22 @@ if ($stmtReq) {
     }
 
     function openScheduleModal() {
+      console.log('Schedule modal opened');
       const dateInput = document.getElementById('appointment_date');
       if (dateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        // Set min to tomorrow (not today)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         dateInput.min = tomorrow.toISOString().split('T')[0];
         dateInput.value = '';
       }
+      const form = document.querySelector('#scheduleModal form');
+      if (form) form.reset();
       document.getElementById('scheduleModal').classList.add('active');
     }
+
+    document.querySelector('#scheduleModal form').addEventListener('submit', function(e) {
+      console.log('Schedule form submitted');
+    });
 
     function closeScheduleModal() {
       document.getElementById('scheduleModal').classList.remove('active');
@@ -743,9 +749,11 @@ if ($stmtReq) {
       }
 
       const apiUrl = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${encodeURIComponent(selectedDate)}`;
+      console.log('Loading dentists API:', apiUrl);
       try {
         const response = await fetch(apiUrl);
         const data = await response.json();
+        console.log('Dentists data:', data);
         if (!data.success) {
           dentistSelect.innerHTML = '<option value="">No dentists available</option>';
           return;
@@ -793,9 +801,11 @@ if ($stmtReq) {
       }
 
       const apiUrl = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${encodeURIComponent(selectedDate)}`;
+      console.log('Loading slots API:', apiUrl);
       try {
         const response = await fetch(apiUrl);
         const data = await response.json();
+        console.log('Slots data:', data);
         if (!data.success) {
           timeSelect.innerHTML = '<option value="">No available times</option>';
           return;

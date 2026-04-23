@@ -30,13 +30,22 @@ function printDateClockScript(): void {
             setInterval(updateClock, 1000);
         }
 
-        // Run immediately if DOM is ready, or on load
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", function() {
-                initializeLiveClock();
-            });
-        } else {
-            initializeLiveClock();
-        }
+        // Robust init with error handling
+        setTimeout(() => {
+            function initClock() {
+                try {
+                    const updateClock = () => {
+                        const now = new Date();
+                        const timeString = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+                        const element = document.getElementById("liveClock");
+                        if (element) element.textContent = timeString;
+                    };
+                    updateClock();
+                    setInterval(updateClock, 1000);
+                    console.log("Live clock started");
+                } catch(e) { console.error("Clock error:", e); }
+            }
+            initClock();
+        }, 100);
     </script>';
 }

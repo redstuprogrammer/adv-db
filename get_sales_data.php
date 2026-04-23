@@ -16,12 +16,13 @@ require_once __DIR__ . '/includes/connect.php';
 header('Content-Type: application/json');
 
 try {
-    require_once __DIR__ . '/includes/revenue_queries.php';
+require_once __DIR__ . '/includes/revenue_queries.php';
     
     echo json_encode([
         'success' => true,
-        'monthlyRevenue' => getRevenueTrendData($conn, 12)
+        'monthlyRevenue' => getRevenueTrendData($pdo, 12)
     ]);
+
 
 } catch (Exception $e) {
     error_log('Error in get_sales_data.php: ' . $e->getMessage());

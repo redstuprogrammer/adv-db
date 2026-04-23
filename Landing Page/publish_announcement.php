@@ -1,5 +1,5 @@
 <?php
-require_once "db_connection.php";
+require_once "../includes/connect.php";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // In a real app, get this from $_SESSION['tenant_id']

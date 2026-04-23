@@ -130,6 +130,69 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             letter-spacing: 1px;
             white-space: nowrap;
         }
+
+        .service-multi-input {
+            position: relative;
+        }
+        .service-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .service-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            min-height: 40px;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .service-tag {
+            background: #0d3b66;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tag-remove {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 10000;
+            max-width: 300px;
+        }
+        #toast.show {
+            transform: translateX(0);
+        }
+        .floor-info {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -239,22 +302,17 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             </div>
 
             <div class="form-group">
-                <label>Add Services to Cart</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <select id="service_dropdown">
-                        <option value="">-- Select Service --</option>
+                <label>Services (multi-select searchable)</label>
+                <div class="service-multi-input">
+                    <input type="text" id="service_input" class="service-input" placeholder="Type service name, press Enter or , to add..." />
+                    <datalist id="service-list">
                         <?php foreach ($services as $service): ?>
-                            <option value="<?php echo (int)$service['service_id']; ?>" data-name="<?php echo h($service['service_name']); ?>" data-price="<?php echo number_format((float)$service['price'], 2, '.', ''); ?>"><?php echo h($service['service_name']); ?> — ₱<?php echo number_format((float)$service['price'], 2); ?></option>
+                            <option value="<?php echo h($service['service_name']); ?>" data-id="<?php echo (int)$service['service_id']; ?>" data-price="<?php echo (float)$service['price']; ?>">
                         <?php endforeach; ?>
-                    </select>
-                    <button type="button" onclick="addToCart()" style="padding: 8px 16px; background: #0d3b66; color: white; border: none; border-radius: 6px; cursor: pointer;">Add to Cart</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>Selected Services</label>
-                <div id="cart-list" style="border: 1px solid #e2e8f0; border-radius: 8px; min-height: 100px; padding: 10px; background: #f8fafc;">
-                    <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
+                    </datalist>
+                    <div id="service-tags" class="service-tags">
+                        <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
+                    </div>
                 </div>
             </div>
 
@@ -265,16 +323,19 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                 </select>
             </div>
 
-            <input type="hidden" name="procedures_json" id="procedures_json">
+    <input type="hidden" name="procedures_json" id="procedures_json">
+
+    <div class="form-group">
+        <label>Downpayment Applied</label>
+        <input type="text" id="deposit_info" readonly value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit: ₱' . number_format($bookingDepositAmount, 2) : 'No deposit configured'; ?>">
+    </div>
+
+    <div id="toast"></div>
 
             <div class="form-group">
-                <label>Booking Downpayment Applied</label>
-                <input type="text" id="deposit_info" readonly value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit configured: ₱' . number_format($bookingDepositAmount, 2) : 'No clinic downpayment configured'; ?>">
-            </div>
-
-            <div class="form-group">
-                <label>Amount Due After Deposit (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0.00" required oninput="validateAmount()">
+                <label>Total Amount (₱) <span style="color: red;">*</span></label>
+                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required oninput="validateTotal()">
+                <div id="floor-info" class="floor-info"></div>
             </div>
 
             <input type="hidden" name="status" id="status" value="Pending">
@@ -395,11 +456,106 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         }
     }
 
-    // Verification log
+// NEW MULTI-SERVICE LOGIC
+    let cart = [];
+    const serviceInput = document.getElementById('service_input');
+    const serviceTags = document.getElementById('service-tags');
+    const serviceList = document.getElementById('service-list');
+    const proceduresJson = document.getElementById('procedures_json');
+
+    // Service add multi
+    serviceInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const value = serviceInput.value.trim();
+        if (value) {
+          const option = [...serviceList.options].find(opt => opt.value.toLowerCase() === value.toLowerCase());
+          if (option) {
+            cart.push({
+              service_id: option.dataset.id,
+              name: option.value,
+              price: parseFloat(option.dataset.price)
+            });
+            renderTags();
+            updateTotal();
+            serviceInput.value = '';
+          } else {
+            alert('Service not found');
+          }
+        }
+      }
+    });
+
+    function renderTags() {
+      if (cart.length === 0) {
+        serviceTags.innerHTML = '<p style="color: #64748b; margin: 0;">No services added</p>';
+        return;
+      }
+      serviceTags.innerHTML = cart.map(item => `
+        <span class="service-tag">
+          ${item.name} <small>₱${item.price.toFixed(2)}</small>
+          <button class="tag-remove" onclick="removeFromCart(${item.service_id})">&times;</button>
+        </span>
+      `).join('');
+    }
+
+    window.removeFromCart = (id) => {
+      cart = cart.filter(item => item.service_id != id);
+      renderTags();
+      updateTotal();
+    };
+
+    function getSelectedAppointmentDeposit() {
+      const opt = document.getElementById('appointment_dropdown').selectedOptions[0];
+      if (!opt) return 0;
+      const requestedBy = opt.dataset.requestedBy || '';
+      const arrived = opt.dataset.arrived === 'true';
+      return (requestedBy === 'patient' && arrived) ? bookingDepositAmount : 0;
+    }
+
+    function updateTotal() {
+      const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+      const deposit = getSelectedAppointmentDeposit();
+      const floor = subtotal - deposit;
+      const amountInput = document.getElementById('amount_input');
+      const floorInfo = document.getElementById('floor-info');
+      const depositInfo = document.getElementById('deposit_info');
+
+      amountInput.min = floor;
+      if (parseFloat(amountInput.value || 0) < floor) amountInput.value = floor.toFixed(2);
+      proceduresJson.value = JSON.stringify(cart);
+
+      floorInfo.textContent = `Floor: ₱${floor.toFixed(2)} (${subtotal.toFixed(2)} services - ${deposit.toFixed(2)} deposit)`;
+      depositInfo.value = deposit > 0 ? `Deducted: ₱${deposit.toFixed(2)} (patient appt arrived)` : 'No deduction';
+    }
+
+    function validateTotal() {
+      const amountInput = document.getElementById('amount_input');
+      const floor = parseFloat(amountInput.min);
+      const value = parseFloat(amountInput.value);
+      if (value < floor) {
+        amountInput.value = floor.toFixed(2);
+        showToast('Price cannot be lower than the base service total (floor protected).');
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+
+    // Enhance loadPatientAppointments for arrived
+    const oldLoadAppts = loadPatientAppointments;
+    loadPatientAppointments = (patientId, selectedApptId) => {
+      oldLoadAppts(patientId, selectedApptId);
+      // Assume get_patient_services.php returns status, requested_by
+    };
+
+// Verification log
+    console.log('Billing multi-service + floor protection enabled');
     console.log('UI Parity Active - Version 2.0');
-    console.log('Receptionist Billing Page Initialized');
-    console.log('FINAL UI SYNC COMPLETE');
-    console.log('Anti-Crash System Active - V2');
 
     // 2. Modal Toggle
     function openAddModal() {

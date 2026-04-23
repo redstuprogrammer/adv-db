@@ -109,13 +109,19 @@ if (isset($_GET['view_patient_id'])) {
         margin-bottom: 20px;
       }
 
-      .search-bar input {
+.search-bar input {
         flex: 1;
         padding: 10px 12px;
-        border: 1px solid var(--border);
+        border: 2px solid #d1d5db !important;
         border-radius: 8px;
         font-size: 13px;
       }
+
+      .search-bar input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
 
       .patient-table {
         width: 100%;
