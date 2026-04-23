@@ -1,6 +1,6 @@
 <?php 
 require_once '../includes/connect.php';
-$clinic = $pdo->query("SELECT * FROM clinic_info WHERE id = 1")->fetch();
+$clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
 ?>
 <!DOCTYPE html>
 

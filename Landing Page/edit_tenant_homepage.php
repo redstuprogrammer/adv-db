@@ -9,8 +9,8 @@ $message = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_clinic'])) {
-    $sql = "UPDATE clinic_info 
-            SET hero_title = ?, hero_subtitle = ?, about_text = ?, phone = ? 
+    $sql = "UPDATE clinic_settings 
+            SET hero_title = ?, hero_description = ?, about_description = ?, contact_phone = ? 
             WHERE id = 1";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_clinic'])) {
 }
 
 // Fetch current clinic data
-$clinic = $pdo->query("SELECT * FROM clinic_info WHERE id = 1")->fetch() ?: [];
-$clinic_name = $clinic['name'] ?? 'Your Clinic';
+$clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch() ?: [];
+$clinic_name = $clinic['hero_title'] ?? 'Your Clinic';
 ?>
 
 <!DOCTYPE html>
