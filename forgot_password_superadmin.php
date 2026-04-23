@@ -3,108 +3,231 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 
-$error = '';
+function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
 $message = '';
+$isError = false;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
+    $email = trim((string)($_POST['email'] ?? ''));
 
-    if (empty($email)) {
-        $error = 'Please enter your email address.';
+    if ($email === '') {
+        $message = 'Please enter your email address.';
+        $isError = true;
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = 'Please enter a valid email address.';
+        $message = 'Please enter a valid email address.';
+        $isError = true;
     } else {
-        try {
-            // Check if superadmin exists
-            $stmt = $pdo->prepare("SELECT superadmin_id FROM superadmins WHERE email = ?");
-            $stmt->execute([$email]);
-            $superadmin = $stmt->fetch();
+        $stmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE email = ? LIMIT 1");
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, 's', $email);
+            mysqli_stmt_execute($stmt);
+            $res = mysqli_stmt_get_result($stmt);
+            $admin = $res ? mysqli_fetch_assoc($res) : null;
+            mysqli_stmt_close($stmt);
 
-            if ($superadmin) {
-                // Generate secure token
+            if ($admin) {
+                // Generate reset token
                 $token = bin2hex(random_bytes(32));
-                $expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
-
-                // Insert token
-                $stmt = $pdo->prepare("INSERT INTO superadmin_reset_tokens (token, sa_email, expiry) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE token = ?, expiry = ?");
-                $stmt->execute([$token, $email, $expiry, $token, $expiry]);
-
-                // Send email (PHPMailer or log)
-                $resetUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . 
-                           '://' . $_SERVER['HTTP_HOST'] . 
-                           dirname($_SERVER['SCRIPT_NAME']) . '/reset_password_superadmin.php?token=' . urlencode($token);
-
-                $emailSent = sendResetEmail($email, $resetUrl);
-
-                $message = $emailSent ? 'Reset link sent to your email!' : 'Token generated. Check temp_emails/emails.log for link.';
+                $hashedToken = password_hash($token, PASSWORD_DEFAULT);
+                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                
+                $updateStmt = mysqli_prepare($conn, "UPDATE super_admins SET password_reset_token = ?, password_reset_expires = ? WHERE id = ?");
+                mysqli_stmt_bind_param($updateStmt, 'ssi', $hashedToken, $expires, $admin['id']);
+                mysqli_stmt_execute($updateStmt);
+                mysqli_stmt_close($updateStmt);
+                
+                // Send email
+                $resetUrl = buildSuperAdminResetPasswordUrl($token, $admin['id']);
+                $emailSent = sendPasswordResetEmail([
+                    'to_email' => $email,
+                    'subject_name' => 'OralSync',
+                    'reset_link' => $resetUrl
+                ]);
+                
+                if (!$emailSent) {
+                    error_log("Failed to send password reset email to $email");
+                }
+                
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
+                $isError = false;
             } else {
-                $message = 'If email registered, reset link sent (privacy).'; // Don't reveal emails
+                $message = 'If this email is registered, a reset link has been sent to your email address.';
+                $isError = false;
             }
-        } catch (Exception $e) {
-            $error = 'Error processing request. Try again.';
-            error_log('Forgot password superadmin error: ' . $e->getMessage());
+        } else {
+            $message = 'Unable to process your request. Please try again later.';
+            $isError = true;
         }
     }
 }
 
-function sendResetEmail($email, $resetUrl) {
-    $logDir = __DIR__ . '/temp_emails';
-    if (!is_dir($logDir)) mkdir($logDir, 0755, true);
+function buildSuperAdminResetPasswordUrl(string $token, int $adminId): string {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $scriptPath = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
+    $base = ($scriptPath === '/' || $scriptPath === '\\' || $scriptPath === '.') ? '' : $scriptPath;
+    
+    $url = $scheme . '://' . $host;
+    if ($base !== '') {
+        $url .= $base;
+    }
+    $url .= '/reset_password_superadmin.php?token=' . urlencode($token) . '&id=' . urlencode((string)$adminId);
+    
+    return $url;
+}
 
-    $logEntry = date('Y-m-d H:i:s') . " SuperAdmin Reset\nTo: $email\nLink: $resetUrl\n" . str_repeat('=', 60) . "\n\n";
-    return file_put_contents($logDir . '/emails.log', $logEntry, FILE_APPEND | LOCK_EX) !== false;
+function sendPasswordResetEmail(array $params): bool {
+    $toEmail = $params['to_email'] ?? '';
+    $subjectName = $params['subject_name'] ?? 'OralSync';
+    $resetLink = $params['reset_link'] ?? '';
+    
+    if (!$toEmail || !$resetLink) {
+        return false;
+    }
+    
+    // Try to use PHPMailer if configured
+    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? null;
+    
+    if ($smtpHost) {
+        return sendEmailViaSmtp($toEmail, $subjectName, $resetLink);
+    } else {
+        // Fallback: Log to file for testing
+        return logEmailLocally($toEmail, $subjectName, $resetLink);
+    }
+}
+
+function sendEmailViaSmtp(string $toEmail, string $subjectName, string $resetLink): bool {
+    require_once __DIR__ . '/vendor/autoload.php';
+    
+    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? null;
+    $smtpPort = getenv('SMTP_PORT') ?: $_ENV['SMTP_PORT'] ?? null;
+    $smtpUser = getenv('SMTP_USERNAME') ?: $_ENV['SMTP_USERNAME'] ?? null;
+    $smtpPass = getenv('SMTP_PASSWORD') ?: $_ENV['SMTP_PASSWORD'] ?? null;
+    $fromEmail = getenv('SMTP_FROM_EMAIL') ?: $_ENV['SMTP_FROM_EMAIL'] ?? $smtpUser;
+    $fromName = 'OralSync';
+    
+    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass) {
+        return false;
+    }
+    
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = (int)$smtpPort;
+        
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($toEmail);
+        
+        $subject = "Reset Your Password - {$subjectName}";
+        $resetLink = htmlspecialchars($resetLink, ENT_QUOTES, 'UTF-8');
+        
+        $html = <<<HTML
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Password Reset</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+    <div style="padding:24px 12px;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
+          <div style="font-weight:800;font-size:18px;">OralSync</div>
+          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Admin Password Reset</div>
+        </div>
+        <div style="padding:22px;">
+          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
+            Hello Super Admin,<br /><br />
+            You requested to reset your password. Click the link below to create a new password. 
+            This link will expire in 1 hour.
+          </div>
+          <div style="margin-top:16px;">
+            <a href="{$resetLink}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Reset Password</a>
+          </div>
+          <div style="margin-top:16px;font-size:12px;color:#64748b;">
+            Or copy this link: <br />
+            <code style="word-break:break-all;">{$resetLink}</code>
+          </div>
+          <div style="margin-top:20px;font-size:12px;color:#64748b;">
+            If you didn't request this, you can ignore this email.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+HTML;
+        
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $html;
+        $mail->send();
+        return true;
+    } catch (Throwable $e) {
+        error_log("Email error: " . $e->getMessage());
+        return false;
+    }
+}
+
+function logEmailLocally(string $toEmail, string $subjectName, string $resetLink): bool {
+    $logDir = __DIR__ . '/temp_emails';
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    
+    $timestamp = date('Y-m-d H:i:s');
+    $logEntry = "[{$timestamp}] SuperAdmin Password Reset Email\n";
+    $logEntry .= "To: {$toEmail}\n";
+    $logEntry .= "Name: {$subjectName}\n";
+    $logEntry .= "Reset Link: {$resetLink}\n";
+    $logEntry .= str_repeat("=", 80) . "\n\n";
+    
+    $file = $logDir . '/emails.log';
+    return file_put_contents($file, $logEntry, FILE_APPEND) !== false;
 }
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forgot Password - OralSync Super Admin</title>
-    <link rel="stylesheet" href="style1.css">
-    <style>
-        .auth-container { max-width: 420px; margin: 80px auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
-        .auth-header { text-align: center; margin-bottom: 2rem; }
-        .auth-header h1 { color: #0d3b66; font-size: 1.75rem; margin: 0 0 0.5rem 0; font-weight: 800; }
-        .auth-header p { color: #64748b; margin: 0; }
-        .form-group { margin-bottom: 1.5rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151; }
-        .form-group input { width: 100%; padding: 0.875rem 1rem; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1rem; transition: all 0.2s; box-sizing: border-box; }
-        .form-group input:focus { outline: none; border-color: #0d3b66; box-shadow: 0 0 0 3px rgba(13,59,102,0.1); }
-        .sa-btn { width: 100%; padding: 1rem; background: #0d3b66; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .sa-btn:hover { background: #0a2f52; }
-        .alert { padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; font-weight: 500; }
-        .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .back-link { text-align: center; margin-top: 1.5rem; }
-        .back-link a { color: #0d3b66; text-decoration: none; font-weight: 500; }
-        .back-link a:hover { text-decoration: underline; }
-    </style>
+    <title>Forgot Password | OralSync Super Admin</title>
+    <link rel="stylesheet" href="tenant_style.css">
 </head>
-<body style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;">
-    <div class="auth-container">
-        <div class="auth-header">
-            <h1>Forgot Password?</h1>
-            <p>Enter your email to receive a reset link</p>
-        </div>
+<body>
+    <div class="t-wrap">
+        <div class="t-shell" style="grid-template-columns: 1fr;">
+            <section class="t-card">
+                <h1 class="t-cardTitle">Forgot Password</h1>
+                <div class="t-cardSub">Enter your email address to receive a password reset link.</div>
 
-        <?php if ($error): ?>
-            <div class="alert alert-error"><?php echo htmlspecialchars($error); ?></div>
-        <?php endif; ?>
-        <?php if ($message): ?>
-            <div class="alert alert-success"><?php echo htmlspecialchars($message); ?></div>
-        <?php endif; ?>
+                <?php if ($message): ?>
+                    <div style="padding: 12px; border-radius: 8px; margin-top: 12px; font-size: 13px; <?php echo $isError ? 'background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;' : 'background: #dcfce7; color: #166534; border: 1px solid #bbf7d0;'; ?>">
+                        <?php echo h($message); ?>
+                    </div>
+                <?php endif; ?>
 
-        <form method="POST">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="your-superadmin@example.com" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
-            </div>
-            <button type="submit" class="sa-btn">Send Reset Link</button>
-        </form>
+                <form class="t-form" method="POST">
+                    <div class="t-field">
+                        <label for="email">Email Address</label>
+                        <input id="email" name="email" type="email" required placeholder="Enter your email address" value="<?php echo h($_POST['email'] ?? ''); ?>">
+                    </div>
+                    <button class="t-btn t-btnPrimary" type="submit">Send Reset Link</button>
+                </form>
 
-        <div class="back-link">
-            <a href="superadmin_login.php">← Back to Login</a>
+                <div class="t-foot">
+                    <a href="superadmin_login.php" style="color: #0d3b66; text-decoration: none; font-weight: 600;">Back to Login</a>
+                </div>
+            </section>
         </div>
     </div>
 </body>
