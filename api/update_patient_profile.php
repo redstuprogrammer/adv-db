@@ -37,6 +37,7 @@ if ($patient_id <= 0 || $tenant_id <= 0) {
 // Editable fields — only what the patient is allowed to change
 $first_name      = trim($data['first_name']      ?? '');
 $last_name       = trim($data['last_name']       ?? '');
+$username        = trim($data['username']        ?? '');
 $contact_number  = trim($data['contact_number']  ?? '');
 $address         = trim($data['address']         ?? '');
 $gender          = trim($data['gender']          ?? '');
@@ -48,6 +49,21 @@ $medical_history = trim($data['medical_history'] ?? '');
 // Basic validation
 if (empty($first_name) || empty($last_name)) {
     echo json_encode(['success' => false, 'message' => 'First name and last name are required']);
+    exit;
+}
+
+if (empty($username)) {
+    echo json_encode(['success' => false, 'message' => 'Username is required']);
+    exit;
+}
+
+if (strlen($username) < 3) {
+    echo json_encode(['success' => false, 'message' => 'Username must be at least 3 characters']);
+    exit;
+}
+
+if (!preg_match('/^[a-zA-Z0-9_]+$/', $username)) {
+    echo json_encode(['success' => false, 'message' => 'Username can only contain letters, numbers, and underscores']);
     exit;
 }
 
@@ -83,6 +99,19 @@ if ($check->num_rows === 0) {
 }
 $check->close();
 
+// Check username is not taken by another patient
+$ucheck = $conn->prepare("SELECT patient_id FROM patient WHERE username = ? AND patient_id != ?");
+$ucheck->bind_param("si", $username, $patient_id);
+$ucheck->execute();
+$ucheck->store_result();
+
+if ($ucheck->num_rows > 0) {
+    $ucheck->close();
+    echo json_encode(['success' => false, 'message' => 'Username is already taken. Please choose another.']);
+    exit;
+}
+$ucheck->close();
+
 // Update
 $birthdateValue = !empty($birthdate) ? $birthdate : null;
 
@@ -91,6 +120,7 @@ $stmt = $conn->prepare("
     SET
         first_name      = ?,
         last_name       = ?,
+        username        = ?,
         contact_number  = ?,
         address         = ?,
         gender          = ?,
@@ -102,9 +132,10 @@ $stmt = $conn->prepare("
 ");
 
 $stmt->bind_param(
-    "sssssssssii",
+    "ssssssssssii",
     $first_name,
     $last_name,
+    $username,
     $contact_number,
     $address,
     $gender,
@@ -124,6 +155,7 @@ if ($stmt->execute()) {
             'patient_id'     => $patient_id,
             'first_name'     => $first_name,
             'last_name'      => $last_name,
+            'username'       => $username,
             'contact_number' => $contact_number,
             'address'        => $address,
             'gender'         => $gender,
