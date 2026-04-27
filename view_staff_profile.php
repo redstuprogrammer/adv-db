@@ -27,23 +27,51 @@ $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 
 $staff_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$user_id = isset($_GET['uid']) ? (int)$_GET['uid'] : 0;
 
-if (!$staff_id) {
+if (!$staff_id && !$user_id) {
     header("Location: staff.php?tenant=" . rawurlencode($tenantSlug));
     exit();
 }
 
-// Fetch staff from 'staff_details' table
+// Fetch staff joined with users for robustness
 $staff = null;
-$stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE staff_id = ? AND tenant_id = ?");
-if ($stmt) {
-    mysqli_stmt_bind_param($stmt, 'ii', $staff_id, $tenantId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    if ($result) {
+if ($staff_id > 0) {
+    // Try by staff_id first
+    $sql = "SELECT sd.*, u.user_id, u.role as user_role, u.first_name as u_fname, u.last_name as u_lname 
+            FROM staff_details sd 
+            LEFT JOIN users u ON sd.email = u.email AND sd.tenant_id = u.tenant_id
+            WHERE sd.staff_id = ? AND sd.tenant_id = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'ii', $staff_id, $tenantId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
         $staff = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
     }
-    mysqli_stmt_close($stmt);
+}
+
+if (!$staff && $user_id > 0) {
+    // Fallback or direct access by user_id
+    $sql = "SELECT 
+                u.user_id, u.first_name, u.last_name, u.email, u.role,
+                sd.staff_id, sd.phone, sd.specialties, sd.profile_image_path, sd.status, sd.public_bio, sd.hired_date, sd.is_public_visible
+            FROM users u
+            LEFT JOIN staff_details sd ON u.email = sd.email AND u.tenant_id = sd.tenant_id
+            WHERE u.user_id = ? AND u.tenant_id = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'ii', $user_id, $tenantId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $staff = mysqli_fetch_assoc($result);
+        if ($staff) {
+            // Ensure status and other fields have defaults if sd record is missing
+            $staff['status'] = $staff['status'] ?? 'Active';
+        }
+        mysqli_stmt_close($stmt);
+    }
 }
 
 if (!$staff) {

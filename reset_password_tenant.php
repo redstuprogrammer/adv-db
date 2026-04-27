@@ -9,21 +9,28 @@ function h(string $s): string {
 }
 
 $token = trim((string)($_GET['token'] ?? ''));
-$tenantId = (int)($_GET['id'] ?? 0);
+$id = (int)($_GET['id'] ?? 0);
+$type = trim((string)($_GET['type'] ?? 'tenant')); // 'tenant' or 'user'
 $message = '';
 $isError = false;
 $tokenValid = false;
 
 // Verify token
-if ($token && $tenantId) {
-    $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM tenants WHERE tenant_id = ? AND password_reset_expires > NOW()");
+if ($token && $id) {
+    if ($type === 'tenant') {
+        $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM tenants WHERE tenant_id = ? AND password_reset_expires > NOW()");
+    } else {
+        $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM users WHERE user_id = ? AND password_reset_expires > NOW()");
+    }
+    
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $tenantId);
+        mysqli_stmt_bind_param($stmt, "i", $id);
         mysqli_stmt_execute($stmt);
         $res = mysqli_stmt_get_result($stmt);
-        $tenant = mysqli_fetch_assoc($res);
+        $account = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
         
-        if ($tenant && password_verify($token, (string)$tenant['password_reset_token'])) {
+        if ($account && password_verify($token, (string)$account['password_reset_token'])) {
             $tokenValid = true;
         }
     }
@@ -45,20 +52,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
     } else {
         // Hash and update password
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+        
+        if ($type === 'tenant') {
+            $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+        } else {
+            $updateStmt = mysqli_prepare($conn, "UPDATE users SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE user_id = ?");
+        }
+        
         if ($updateStmt) {
-            mysqli_stmt_bind_param($updateStmt, "si", $hashedPassword, $tenantId);
+            mysqli_stmt_bind_param($updateStmt, "si", $hashedPassword, $id);
             if (mysqli_stmt_execute($updateStmt)) {
                 $message = 'Password reset successfully! You can now log in with your new password.';
                 $isError = false;
                 $tokenValid = false; // Prevent further resets
                 
-                // Redirect to login after 3 seconds
-                header('Refresh: 3; url=tenant_login.php');
+                // Redirect to login
+                $loginUrl = 'tenant_login.php';
+                header("Refresh: 3; url=$loginUrl");
             } else {
                 $message = 'An error occurred. Please try again.';
                 $isError = true;
             }
+            mysqli_stmt_close($updateStmt);
         }
     }
 }

@@ -20,7 +20,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
     
     echo json_encode([
         'success' => true,
-        'monthlyRevenue' => getRevenueTrendData($pdo, 12)
+        'monthlyRevenue' => getRevenueTrendData($conn, 12)
     ]);
 
 

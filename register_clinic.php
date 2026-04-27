@@ -267,6 +267,39 @@ try {
                 mysqli_stmt_execute($revenue_stmt);
                 mysqli_stmt_close($revenue_stmt);
             }
+
+            // Handle file uploads
+            if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
+                $upload_dir = __DIR__ . '/uploads/tenant_docs/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
+                    if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK) {
+                        $original_name = mysqli_real_escape_string($conn, $_FILES['documents']['name'][$key]);
+                        $file_type = $_FILES['documents']['type'][$key];
+                        $file_size = $_FILES['documents']['size'][$key];
+                        $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+                        
+                        // Basic security: allowed extensions
+                        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+                        if (in_array($ext, $allowed)) {
+                            $safe_name = uniqid('doc_' . $new_id . '_') . '.' . $ext;
+                            $dest_path = $upload_dir . $safe_name;
+                            
+                            if (move_uploaded_file($tmp_name, $dest_path)) {
+                                $db_path = 'uploads/tenant_docs/' . $safe_name;
+                                $doc_sql = "INSERT INTO tenant_documents (tenant_id, document_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?)";
+                                $doc_stmt = mysqli_prepare($conn, $doc_sql);
+                                mysqli_stmt_bind_param($doc_stmt, "isssi", $new_id, $original_name, $db_path, $file_type, $file_size);
+                                mysqli_stmt_execute($doc_stmt);
+                                mysqli_stmt_close($doc_stmt);
+                            }
+                        }
+                    }
+                }
+            }
             
             if (function_exists('logActivity')) {
                 logActivity($conn, (int)$new_id, 'Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');

@@ -30,15 +30,16 @@ function getTotalRevenue($conn) {
 }
 
 /**
- * Returns array of [month_ym => revenue] for last N months
+ * Returns array of revenues for last N months (using mysqli)
  */
-function getRevenueTrendData($pdo, $months = 12) {
+function getRevenueTrendData($conn, $months = 12) {
     $trend = [];
     $endDate = new DateTime();
     $startDate = clone $endDate;
-    $startDate->modify('-' . $months . ' months');
-    
-    $stmt = $pdo->prepare("
+    $startDate->modify('-' . ($months - 1) . ' months');
+    $startStr = $startDate->format('Y-m-01');
+
+    $stmt = mysqli_prepare($conn, "
         SELECT DATE_FORMAT(payment_date, '%Y-%m') as month_ym, 
                COALESCE(SUM(amount), 0) as revenue
         FROM tenant_subscription_revenue 
@@ -46,16 +47,23 @@ function getRevenueTrendData($pdo, $months = 12) {
         GROUP BY month_ym 
         ORDER BY month_ym ASC
     ");
-    $stmt->execute([$startDate->format('Y-m-01')]);
-    
+    mysqli_stmt_bind_param($stmt, 's', $startStr);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+
+    $dbData = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $dbData[$row['month_ym']] = (float)$row['revenue'];
+    }
+    mysqli_stmt_close($stmt);
+
     $currentDate = clone $startDate;
-    while ($currentDate <= $endDate) {
+    for ($i = 0; $i < $months; $i++) {
         $monthKey = $currentDate->format('Y-m');
-        $row = $stmt->fetch();
-        $trend[] = $row && $row['month_ym'] === $monthKey ? (float)$row['revenue'] : 0.0;
+        $trend[] = $dbData[$monthKey] ?? 0.0;
         $currentDate->modify('+1 month');
     }
-    
+
     return $trend;
 }
 

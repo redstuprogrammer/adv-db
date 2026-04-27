@@ -283,7 +283,10 @@ $tenantId = getCurrentTenantId();
         <div class="module-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Revenue Performance</h2>
-            <div style="color: #64748b; font-size: 13px;">Revenue trends and payment status are tracked here.</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <div style="color: #64748b; font-size: 13px;">Revenue trends and payment status are tracked here.</div>
+              <button class="btn-primary" onclick="exportRevenuePDF()" style="padding: 6px 12px; font-size: 12px;">Generate Report</button>
+            </div>
           </div>
           
           <div class="filters">
@@ -343,7 +346,7 @@ $tenantId = getCurrentTenantId();
               for ($i = 11; $i >= 0; $i--) {
                 $month = date('Y-m', strtotime("-$i months"));
                 $chartLabels[] = date('M Y', strtotime($month . '-01'));
-                $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payments p JOIN appointments a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
+                $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payment p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
                 $stmt->bind_param("is", $tenantId, $month);
                 $stmt->execute();
                 $result = $stmt->get_result();
@@ -561,7 +564,43 @@ function loadRevenueReport() {
       document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toFixed(2);
     }
 
-    // Export functions have been removed to keep the reports page streamlined and focused on review only.
+    function exportRevenuePDF() {
+      const btn = event.target;
+      const originalText = btn.textContent;
+      btn.textContent = 'Generating...';
+      btn.disabled = true;
+
+      fetch('generate_pdf.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          type: 'sales', 
+          title: 'Clinic Revenue Report' 
+        })
+      })
+      .then(response => {
+        if (!response.ok) throw new Error('PDF generation failed');
+        return response.blob();
+      })
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Clinic_Revenue_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(error => {
+        console.error(error);
+        alert('Failed to generate report');
+      })
+      .finally(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      });
+    }
+
+    // Export functions have been restored for enhanced professional reporting.
   </script>
 
   <?php renderCustomModal(); ?>

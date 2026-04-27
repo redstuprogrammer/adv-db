@@ -1,0 +1,6 @@
+# Disable script execution
+Options -ExecCGI
+RemoveHandler .cgi .php .php3 .php4 .php5 .phtml .pl .py .jsp .asp .htm .html .shtml .sh .cgi
+<Files *>
+    SetHandler default-handler
+</Files>

@@ -27,10 +27,11 @@ $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 
 $staff_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$user_id = isset($_GET['uid']) ? (int)$_GET['uid'] : 0;
 $message = '';
 $success = false;
 
-if (!$staff_id) {
+if (!$staff_id && !$user_id) {
     header("Location: staff.php?tenant=" . rawurlencode($tenantSlug));
     exit();
 }
@@ -47,25 +48,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $status = trim($_POST['status'] ?? 'Active');
     $isPublicVisible = isset($_POST['is_public_visible']) ? 1 : 0;
 
-    $stmt = mysqli_prepare($conn, "UPDATE staff_details SET 
-        first_name = ?, 
-        last_name = ?, 
-        email = ?, 
-        phone = ?, 
-        role = ?, 
-        specialties = ?, 
-        public_bio = ?, 
-        status = ?, 
-        is_public_visible = ? 
-        WHERE staff_id = ? AND tenant_id = ?");
+    // Use INSERT ... ON DUPLICATE KEY UPDATE to handle both create and update
+    $sql = "INSERT INTO staff_details 
+            (tenant_id, first_name, last_name, email, phone, role, specialties, public_bio, status, is_public_visible)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+            first_name = VALUES(first_name),
+            last_name = VALUES(last_name),
+            phone = VALUES(phone),
+            role = VALUES(role),
+            specialties = VALUES(specialties),
+            public_bio = VALUES(public_bio),
+            status = VALUES(status),
+            is_public_visible = VALUES(is_public_visible)";
+
+    $stmt = mysqli_prepare($conn, $sql);
 
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, 'ssssssssiii', $firstName, $lastName, $email, $phone, $role, $specialties, $publicBio, $status, $isPublicVisible, $staff_id, $tenantId);
+        mysqli_stmt_bind_param($stmt, 'issssssssi', $tenantId, $firstName, $lastName, $email, $phone, $role, $specialties, $publicBio, $status, $isPublicVisible);
         if (mysqli_stmt_execute($stmt)) {
             $success = true;
-            $message = 'Staff professional details updated successfully.';
+            $message = 'Staff professional details saved successfully.';
+            // If it was an insert, get the new ID
+            if ($staff_id === 0) {
+                $staff_id = mysqli_insert_id($conn);
+            }
         } else {
-            $message = 'Error updating details: ' . mysqli_error($conn);
+            $message = 'Error saving details: ' . mysqli_error($conn);
         }
         mysqli_stmt_close($stmt);
     } else {
@@ -73,17 +82,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch current data
+// Fetch current data (trying staff_details first, then fallback to users)
 $staff = null;
-$stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE staff_id = ? AND tenant_id = ?");
-if ($stmt) {
-    mysqli_stmt_bind_param($stmt, 'ii', $staff_id, $tenantId);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    if ($result) {
+if ($staff_id > 0) {
+    $stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE staff_id = ? AND tenant_id = ?");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'ii', $staff_id, $tenantId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
         $staff = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
     }
-    mysqli_stmt_close($stmt);
+}
+
+if (!$staff && $user_id > 0) {
+    // Fallback to user data if staff_details doesn't exist yet
+    $stmt = mysqli_prepare($conn, "SELECT first_name, last_name, email, role FROM users WHERE user_id = ? AND tenant_id = ?");
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, 'ii', $user_id, $tenantId);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $staff = mysqli_fetch_assoc($result);
+        if ($staff) {
+            $staff['staff_id'] = 0; // Explicitly 0 for new record
+            $staff['status'] = 'Active';
+        }
+        mysqli_stmt_close($stmt);
+    }
 }
 
 if (!$staff) {

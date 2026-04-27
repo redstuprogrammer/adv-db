@@ -869,6 +869,11 @@ try {
                             <label for="clinic-duration">Subscription Duration (Months) <span class="sa-badge-required">*</span></label>
                             <input type="number" id="clinic-duration" required min="1" max="120" value="12">
                         </div>
+                        <div class="sa-form-group">
+                            <label for="clinic-documents">Upload Documents</label>
+                            <input type="file" id="clinic-documents" multiple accept=".pdf,.doc,.docx,.jpg,.png">
+                            <p style="margin: 6px 0 0; font-size: 12px; color: #64748b;">PDF, Word, or Images (Max 5MB each)</p>
+                        </div>
                         <div class="sa-form-group" style="grid-column: 1 / -1;">
                             <label for="clinic-notes">Notes / Special Instructions</label>
                             <textarea id="clinic-notes" placeholder="Optional notes about billing, onboarding preferences, or setup requirements."></textarea>
@@ -949,6 +954,12 @@ try {
                 <div class="detail-item"><strong>Tier:</strong> <span id="dt-tier"></span></div>
                 <div class="detail-item" style="grid-column: 1 / -1;">
                     <strong>Address:</strong> <span id="dt-address"></span>
+                </div>
+                <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                    <strong>Documents:</strong>
+                    <div id="dt-documents" style="margin-top: 5px;">
+                        <span class="sa-note">No documents uploaded.</span>
+                    </div>
                 </div>
             </div>
             <hr>
@@ -1101,7 +1112,7 @@ try {
         document.getElementById('kpi-new-month').textContent = newMonth;
 
         // Fetch analytics for trend bars
-        fetch('superadmin/superadmin_analytics_api.php')
+        fetch('superadmin_analytics_api.php')
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(analytics => {
                 const last7d = analytics.last_7_days_superadmin_logs || 0;
@@ -1117,9 +1128,9 @@ try {
 
                 // Render charts
                 const growthLabels = [];
+                const now = new Date();
                 for (let i = 11; i >= 0; i--) {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() - i);
+                    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     growthLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
                 }
                 const ctxGrowth = document.getElementById('growthChart');
@@ -1148,9 +1159,10 @@ try {
                 }
 
                 const activityLabels = [];
+                const todayDate = new Date();
                 for (let i = 6; i >= 0; i--) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
+                    const date = new Date(todayDate);
+                    date.setDate(todayDate.getDate() - i);
                     activityLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
                 }
                 const ctxActivity = document.getElementById('activityChart');
@@ -1407,6 +1419,19 @@ try {
                     document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                     const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                     document.getElementById('dt-date').textContent = date;
+
+                    // Display documents
+                    const docsContainer = document.getElementById('dt-documents');
+                    if (docsContainer) {
+                        if (tenant.documents && tenant.documents.length > 0) {
+                            docsContainer.innerHTML = '<ul style="margin: 0; padding-left: 20px;">' + 
+                                tenant.documents.map(doc => `<li><a href="${doc.file_path}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; text-decoration: underline;">${doc.document_name}</a></li>`).join('') + 
+                                '</ul>';
+                        } else {
+                            docsContainer.innerHTML = '<span class="sa-note">No documents uploaded.</span>';
+                        }
+                    }
+
                     document.getElementById('details-modal').style.display = 'flex';
                 })
                 .catch(err => {
@@ -1433,6 +1458,19 @@ try {
                 document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                 const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                 document.getElementById('dt-date').textContent = date;
+
+                // Display documents
+                const docsContainer = document.getElementById('dt-documents');
+                if (docsContainer) {
+                    if (tenant.documents && tenant.documents.length > 0) {
+                        docsContainer.innerHTML = '<ul style="margin: 0; padding-left: 20px;">' + 
+                            tenant.documents.map(doc => `<li><a href="${doc.file_path}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; text-decoration: underline;">${doc.document_name}</a></li>`).join('') + 
+                            '</ul>';
+                    } else {
+                        docsContainer.innerHTML = '<span class="sa-note">No documents uploaded.</span>';
+                    }
+                }
+
                 document.getElementById('details-modal').style.display = 'flex';
             })
             .catch(err => {
@@ -1591,7 +1629,9 @@ try {
                 'Location': `${document.getElementById('clinic-city').value}, ${document.getElementById('clinic-province').value}`,
                 'Subscription Tier': tierName,
                 'Start Date': document.getElementById('clinic-start-date').value,
-                'Duration': document.getElementById('clinic-duration').value + ' months'
+                'Duration': document.getElementById('clinic-duration').value + ' months',
+                'Documents': document.getElementById('clinic-documents').files.length > 0 ? 
+                             Array.from(document.getElementById('clinic-documents').files).map(f => f.name).join(', ') : 'None'
             };
 
             // Build the review list inside the modal
@@ -1626,6 +1666,13 @@ try {
             formData.append('tier', document.getElementById('clinic-tier').value);
             formData.append('start_date', document.getElementById('clinic-start-date').value);
             formData.append('duration', document.getElementById('clinic-duration').value);
+
+            const docInput = document.getElementById('clinic-documents');
+            if (docInput && docInput.files.length > 0) {
+                for (let i = 0; i < docInput.files.length; i++) {
+                    formData.append('documents[]', docInput.files[i]);
+                }
+            }
 
             fetch('register_clinic.php', {
                 method: 'POST',
@@ -1730,11 +1777,18 @@ try {
 
         // Generate last 12 months labels (oldest first)
         const labels = [];
+        const now = new Date();
         for (let i = 11; i >= 0; i--) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - i);
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
             labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
         }
+
+        const phCurrency = new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
 
         // Fetch sales data
         fetch('get_sales_data.php')
@@ -1767,7 +1821,7 @@ try {
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        return '₱' + context.parsed.y.toLocaleString();
+                                        return phCurrency.format(context.parsed.y);
                                     }
                                 }
                             }
@@ -1777,7 +1831,7 @@ try {
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function(value) {
-                                        return '₱' + value.toLocaleString();
+                                        return phCurrency.format(value);
                                     }
                                 }
                             },

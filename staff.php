@@ -27,9 +27,34 @@ $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 
-// Fetch staff from 'staff_details' table
+// Fetch staff from 'users' table joined with 'staff_details'
 $staffMembers = [];
-$stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE tenant_id = ? ORDER BY last_name ASC, first_name ASC");
+// We pull from users as the source of truth for clinic members, 
+// and left join staff_details for professional info (bio, phone, specialties, image).
+$sql = "SELECT 
+            u.user_id,
+            u.first_name as user_fname,
+            u.last_name as user_lname,
+            u.email as user_email,
+            u.role as user_role,
+            sd.staff_id,
+            sd.phone,
+            sd.specialties,
+            sd.profile_image_path,
+            sd.status as staff_status,
+            sd.is_public_visible,
+            COALESCE(sd.first_name, u.first_name) as first_name,
+            COALESCE(sd.last_name, u.last_name) as last_name,
+            COALESCE(sd.email, u.email) as email,
+            COALESCE(sd.role, u.role) as role,
+            COALESCE(sd.status, 'Active') as status
+        FROM users u
+        LEFT JOIN staff_details sd ON u.email = sd.email AND u.tenant_id = sd.tenant_id
+        WHERE u.tenant_id = ? 
+        AND u.role IN ('Admin', 'Dentist', 'Receptionist', 'Assistant')
+        ORDER BY u.last_name ASC, u.first_name ASC";
+
+$stmt = mysqli_prepare($conn, $sql);
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
@@ -226,7 +251,7 @@ if ($stmt) {
                         <?php echo h($staff['status']); ?>
                     </span>
                   </div>
-                  <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['staff_id']; ?>" class="btn-view">View Professional Profile</a>
+                  <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['staff_id'] ?? 0; ?>&uid=<?php echo $staff['user_id']; ?>" class="btn-view">View Professional Profile</a>
                 </div>
               </div>
             <?php endforeach; ?>

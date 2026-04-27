@@ -7,39 +7,34 @@
  * ============================================
  */
 
-session_start();
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('dentist');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
-
-// Add error reporting for debugging
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-
-// Security Check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist') {
-    header("Location: tenant_login.php");
-    exit();
-}
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
 
-$tenantName = $_SESSION['tenant_name'];
-$tenantId = $_SESSION['tenant_id'];
-$dentistId = $_SESSION['user_id'] ?? 0;
-if (!$dentistId) {
+$tenantData  = $sessionManager->getTenantData();
+$tenantName  = $tenantData['tenant_name'] ?? '';
+$tenantId    = $sessionManager->getTenantId();
+$dentistId   = $sessionManager->getUserId() ?? 0;
+$dentistName = $sessionManager->getUsername() ?? 'Dentist';
+
+if (!$tenantId || !$dentistId) {
     echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
     exit();
 }
-$dentistName = $_SESSION['username'] ?? 'Dentist';
 
 // Get patient_id from URL - checking both 'patient_id' and 'id' for compatibility
 $patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);

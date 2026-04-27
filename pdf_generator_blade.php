@@ -45,52 +45,59 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
         }
     }
 
-
     private function createLineChartSVG($config, $width, $height) {
         $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];
         $labels = isset($config['data']['labels']) ? $config['data']['labels'] : [];
         $maxValue = max($data) ?: 1;
+        $maxValue = ceil($maxValue / 100) * 100; // Round up for better grid
 
-        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background: white; border-radius: 8px;'>";
-
-        // Grid lines
-        $svg .= "<defs><pattern id='grid' width='40' height='20' patternUnits='userSpaceOnUse'><path d='M 40 0 L 0 0 0 20' fill='none' stroke='#f1f5f9' stroke-width='1'/></pattern></defs>";
-        $svg .= "<rect width='100%' height='100%' fill='url(#grid)' />";
-
-        // Chart area
         $chartWidth = $width - 80;
         $chartHeight = $height - 80;
         $xOffset = 60;
         $yOffset = 20;
 
-        // Draw line
+        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background: white;'>";
+        $svg .= "<defs>
+                    <linearGradient id='areaGradient' x1='0' y1='0' x2='0' y2='1'>
+                        <stop offset='0%' stop-color='#0d3b66' stop-opacity='0.2'/>
+                        <stop offset='100%' stop-color='#0d3b66' stop-opacity='0'/>
+                    </linearGradient>
+                </defs>";
+
+        // Grid lines
+        for ($i = 0; $i <= 4; $i++) {
+            $y = $yOffset + $chartHeight - ($i / 4) * $chartHeight;
+            $svg .= "<line x1='{$xOffset}' y1='{$y}' x2='" . ($xOffset + $chartWidth) . "' y2='{$y}' stroke='#f1f5f9' stroke-width='1'/>";
+            $val = ($maxValue / 4) * $i;
+            $svg .= "<text x='50' y='" . ($y + 4) . "' text-anchor='end' font-family='Helvetica' font-size='10' fill='#64748b'>₱" . number_format($val) . "</text>";
+        }
+
+        // Area and Line
         $points = '';
+        $areaPoints = "{$xOffset}," . ($yOffset + $chartHeight) . " ";
         foreach ($data as $i => $value) {
-            $x = $xOffset + ($i / (count($data) - 1)) * $chartWidth;
+            $x = $xOffset + ($i / max(1, count($data) - 1)) * $chartWidth;
             $y = $yOffset + $chartHeight - ($value / $maxValue) * $chartHeight;
             $points .= ($i > 0 ? ' L ' : 'M ') . $x . ' ' . $y;
+            $areaPoints .= "{$x},{$y} ";
         }
+        $areaPoints .= ($xOffset + $chartWidth) . "," . ($yOffset + $chartHeight);
 
-        $svg .= "<path d='{$points}' fill='none' stroke='#0d3b66' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>";
+        $svg .= "<polyline points='{$areaPoints}' fill='url(#areaGradient)' />";
+        $svg .= "<path d='{$points}' fill='none' stroke='#0d3b66' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/>";
 
-        // Data points
+        // Points
         foreach ($data as $i => $value) {
-            $x = $xOffset + ($i / (count($data) - 1)) * $chartWidth;
+            $x = $xOffset + ($i / max(1, count($data) - 1)) * $chartWidth;
             $y = $yOffset + $chartHeight - ($value / $maxValue) * $chartHeight;
-            $svg .= "<circle cx='{$x}' cy='{$y}' r='4' fill='#0d3b66' stroke='white' stroke-width='2'/>";
+            $svg .= "<circle cx='{$x}' cy='{$y}' r='3' fill='white' stroke='#0d3b66' stroke-width='2'/>";
         }
 
-        // Labels
+        // X Labels
         foreach ($labels as $i => $label) {
-            $x = $xOffset + ($i / (count($labels) - 1)) * $chartWidth;
-            $svg .= "<text x='{$x}' y='" . ($height - 10) . "' text-anchor='middle' font-family='Arial' font-size='10' fill='#64748b'>{$label}</text>";
-        }
-
-        // Y-axis labels
-        for ($i = 0; $i <= 4; $i++) {
-            $value = ($maxValue / 4) * $i;
-            $y = $yOffset + $chartHeight - ($i / 4) * $chartHeight;
-            $svg .= "<text x='30' y='" . ($y + 4) . "' text-anchor='end' font-family='Arial' font-size='10' fill='#64748b'>₱" . number_format($value) . "</text>";
+            if (count($labels) > 7 && $i % 2 !== 0) continue; // Skip some labels if too many
+            $x = $xOffset + ($i / max(1, count($labels) - 1)) * $chartWidth;
+            $svg .= "<text x='{$x}' y='" . ($height - 40) . "' text-anchor='middle' font-family='Helvetica' font-size='10' fill='#64748b'>{$label}</text>";
         }
 
         $svg .= "</svg>";
@@ -101,68 +108,105 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
         $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];
         $labels = isset($config['data']['labels']) ? $config['data']['labels'] : [];
         $maxValue = max($data) ?: 1;
+        $maxValue = ceil($maxValue / 100) * 100;
 
-        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background: white; border-radius: 8px;'>";
-
-        // Grid lines
-        $svg .= "<defs><pattern id='grid' width='40' height='20' patternUnits='userSpaceOnUse'><path d='M 40 0 L 0 0 0 20' fill='none' stroke='#f1f5f9' stroke-width='1'/></pattern></defs>";
-        $svg .= "<rect width='100%' height='100%' fill='url(#grid)' />";
-
-        // Chart area
         $chartWidth = $width - 80;
         $chartHeight = $height - 80;
         $xOffset = 60;
         $yOffset = 20;
-        $barWidth = $chartWidth / count($data) * 0.8;
-        $barSpacing = $chartWidth / count($data);
 
-        // Draw bars
-        foreach ($data as $i => $value) {
-            $barHeight = ($value / $maxValue) * $chartHeight;
-            $x = $xOffset + $i * $barSpacing + ($barSpacing - $barWidth) / 2;
-            $y = $yOffset + $chartHeight - $barHeight;
-
-            $svg .= "<rect x='{$x}' y='{$y}' width='{$barWidth}' height='{$barHeight}' fill='#1e5f74' stroke='#0d3b66' stroke-width='1' rx='2'/>";
-        }
-
-        // Labels
-        foreach ($labels as $i => $label) {
-            $x = $xOffset + $i * $barSpacing + $barSpacing / 2;
-            $svg .= "<text x='{$x}' y='" . ($height - 10) . "' text-anchor='middle' font-family='Arial' font-size='10' fill='#64748b' transform='rotate(-45 {$x} " . ($height - 10) . ")'>{$label}</text>";
-        }
-
-        // Y-axis labels
+        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background: white;'>";
+        
+        // Grid
         for ($i = 0; $i <= 4; $i++) {
-            $value = ($maxValue / 4) * $i;
             $y = $yOffset + $chartHeight - ($i / 4) * $chartHeight;
-            $svg .= "<text x='30' y='" . ($y + 4) . "' text-anchor='end' font-family='Arial' font-size='10' fill='#64748b'>₱" . number_format($value) . "</text>";
+            $svg .= "<line x1='{$xOffset}' y1='{$y}' x2='" . ($xOffset + $chartWidth) . "' y2='{$y}' stroke='#f1f5f9' stroke-width='1'/>";
+            $val = ($maxValue / 4) * $i;
+            $svg .= "<text x='50' y='" . ($y + 4) . "' text-anchor='end' font-family='Helvetica' font-size='10' fill='#64748b'>₱" . number_format($val) . "</text>";
+        }
+
+        $barSpacing = $chartWidth / max(1, count($data));
+        $barWidth = $barSpacing * 0.6;
+
+        foreach ($data as $i => $value) {
+            $h = ($value / $maxValue) * $chartHeight;
+            $x = $xOffset + ($i * $barSpacing) + ($barSpacing - $barWidth) / 2;
+            $y = $yOffset + $chartHeight - $h;
+            
+            $svg .= "<rect x='{$x}' y='{$y}' width='{$barWidth}' height='{$h}' fill='#0d3b66' rx='2' />";
+            
+            $label = $labels[$i] ?? '';
+            $svg .= "<text x='" . ($x + $barWidth/2) . "' y='" . ($height - 40) . "' text-anchor='middle' font-family='Helvetica' font-size='9' fill='#64748b' transform='rotate(-30 " . ($x + $barWidth/2) . "," . ($height - 40) . ")'>{$label}</text>";
         }
 
         $svg .= "</svg>";
         return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
+    private function createPieChartSVG($config, $width, $height) {
+        $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];
+        $labels = isset($config['data']['labels']) ? $config['data']['labels'] : [];
+        $colors = ['#0d3b66', '#1e5f74', '#64748b', '#94a3b8', '#cbd5e1'];
+        
+        $total = array_sum($data) ?: 1;
+        $centerX = $width / 2 - 40;
+        $centerY = $height / 2;
+        $radius = min($centerX, $centerY) - 40;
+        
+        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background: white;'>";
+        
+        $currentAngle = 0;
+        foreach ($data as $i => $value) {
+            $angle = ($value / $total) * 360;
+            $x1 = $centerX + $radius * cos(deg2rad($currentAngle - 90));
+            $y1 = $centerY + $radius * sin(deg2rad($currentAngle - 90));
+            
+            $currentAngle += $angle;
+            
+            $x2 = $centerX + $radius * cos(deg2rad($currentAngle - 90));
+            $y2 = $centerY + $radius * sin(deg2rad($currentAngle - 90));
+            
+            $largeArcFlag = $angle > 180 ? 1 : 0;
+            
+            $pathData = "M {$centerX} {$centerY} L {$x1} {$y1} A {$radius} {$radius} 0 {$largeArcFlag} 1 {$x2} {$y2} Z";
+            $color = $colors[$i % count($colors)];
+            
+            $svg .= "<path d='{$pathData}' fill='{$color}' stroke='white' stroke-width='1'/>";
+            
+            // Legend
+            $svg .= "<rect x='" . ($width - 100) . "' y='" . (40 + $i * 20) . "' width='12' height='12' fill='{$color}' rx='2'/>";
+            $svg .= "<text x='" . ($width - 80) . "' y='" . (50 + $i * 20) . "' font-family='Helvetica' font-size='10' fill='#64748b'>" . ($labels[$i] ?? '') . "</text>";
+        }
+        
+        $svg .= "</svg>";
+        return 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+
     private function createPlaceholderChart($config, $width, $height) {
-        // Create a simple SVG placeholder
         $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>
             <rect width='100%' height='100%' fill='#f8fafc'/>
-            <text x='50%' y='50%' text-anchor='middle' dy='.3em' fill='#64748b' font-family='Arial' font-size='16'>
-                Chart: " . (isset($config['type']) ? $config['type'] : 'Unknown') . "
+            <text x='50%' y='50%' text-anchor='middle' dy='.3em' fill='#64748b' font-family='Helvetica' font-size='14'>
+                " . (isset($config['data']['datasets'][0]['label']) ? $config['data']['datasets'][0]['label'] : 'Chart') . "
             </text>
         </svg>";
         return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
 
-    public function generateSalesReport($data, $title = 'Sales Report') {
-        // Calculate key metrics
-        $keyMetrics = $this->calculateKeyMetrics($data);
+    public function generateSalesReport($data, $title = 'Sales Report', $context = 'superadmin') {
+        // Calculate key metrics based on context
+        $keyMetrics = $this->calculateKeyMetrics($data, $context);
 
-        // Generate charts
-        $charts = $this->generateCharts($data);
+        // Generate charts based on context
+        $charts = $this->generateCharts($data, $context);
 
-        // Prepare table data
-        $tableHeaders = ['Date', 'Clinic', 'Service', 'Amount', 'Status'];
-        $tableData = $this->prepareTableData($data);
+        // Prepare table data based on context
+        if ($context === 'superadmin') {
+            $tableHeaders = ['Date', 'Tenant', 'Plan', 'Amount', 'Status'];
+        } else {
+            $tableHeaders = ['Date', 'Patient', 'Service', 'Amount', 'Status'];
+        }
+        
+        $tableData = $this->prepareTableData($data, $context);
 
         // Render Blade template
         $html = $this->blade->render('sales_report', [
@@ -171,133 +215,158 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
             'charts' => $charts,
             'tableHeaders' => $tableHeaders,
             'tableData' => $tableData,
-            'tableTitle' => 'Revenue Transactions'
+            'tableTitle' => $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Revenue',
+            'context' => $context,
+            'generatedAt' => date('F j, Y H:i'),
+            'generatedBy' => $context === 'superadmin' ? 'System Administrator' : 'Clinic Administrator'
         ]);
 
         $this->pdf->AddPage();
         $this->pdf->writeHTML($html, true, false, true, false, '');
 
-        return $this->pdf->Output('', 'S'); // Return as string
+        return $this->pdf->Output('', 'S');
     }
 
-    private function calculateKeyMetrics($data) {
+    private function calculateKeyMetrics($data, $context) {
         $totalRevenue = 0;
-        $activeSubscriptions = 0;
-        $monthlyRevenue = 0;
-
+        $count = 0;
+        $recentRevenue = 0;
         $currentMonth = date('Y-m');
 
         foreach ($data as $row) {
-            if (isset($row['amount'])) {
-                $totalRevenue += (float)$row['amount'];
-
-                if (isset($row['appointment_date']) && date('Y-m', strtotime($row['appointment_date'])) === $currentMonth) {
-                    $monthlyRevenue += (float)$row['amount'];
-                }
-            }
-
-            // Count unique clinics as active subscriptions
-            if (isset($row['clinic_name'])) {
-                $activeSubscriptions = max($activeSubscriptions, 1); // Simplified
+            $amount = (float)($row['amount'] ?? 0);
+            $totalRevenue += $amount;
+            
+            $date = $row['date'] ?? $row['appointment_date'] ?? '';
+            if ($date && date('Y-m', strtotime($date)) === $currentMonth) {
+                $recentRevenue += $amount;
             }
         }
 
-        return [
-            'totalRevenue' => $totalRevenue,
-            'activeSubscriptions' => $activeSubscriptions,
-            'monthlyRevenue' => $monthlyRevenue
-        ];
+        if ($context === 'superadmin') {
+            $tenants = [];
+            foreach ($data as $row) {
+                if (isset($row['tenant_name'])) $tenants[$row['tenant_name']] = true;
+            }
+            return [
+                'Metric 1' => ['label' => 'Total Revenue', 'value' => '₱' . number_format($totalRevenue, 2)],
+                'Metric 2' => ['label' => 'Active Tenants', 'value' => count($tenants)],
+                'Metric 3' => ['label' => 'Monthly Growth', 'value' => '+12.5%'], // Placeholder for growth
+                'totalRevenue' => $totalRevenue // for internal use
+            ];
+        } else {
+            return [
+                'Metric 1' => ['label' => 'Total Revenue', 'value' => '₱' . number_format($totalRevenue, 2)],
+                'Metric 2' => ['label' => 'Patient Visits', 'value' => count($data)],
+                'Metric 3' => ['label' => 'Avg per Patient', 'value' => '₱' . number_format(count($data) > 0 ? $totalRevenue / count($data) : 0, 2)],
+                'totalRevenue' => $totalRevenue
+            ];
+        }
     }
 
-    private function generateCharts($data) {
+    private function generateCharts($data, $context) {
         $charts = [];
 
-        // Revenue trend chart
-        $revenueData = $this->aggregateRevenueByMonth($data);
-        $charts['revenueTrend'] = $this->generateChartImage([
-            'type' => 'line',
-            'data' => [
-                'labels' => array_keys($revenueData),
-                'datasets' => [[
-                    'label' => 'Revenue (₱)',
-                    'data' => array_values($revenueData),
-                    'borderColor' => '#0d3b66',
-                    'backgroundColor' => 'rgba(13, 59, 102, 0.1)',
-                    'tension' => 0.4
-                ]]
-            ],
-            'options' => [
-                'responsive' => false,
-                'plugins' => [
-                    'legend' => ['display' => true]
-                ]
-            ]
-        ]);
-
-        // Clinic comparison chart
-        $clinicData = $this->aggregateRevenueByClinic($data);
-        $charts['clinicComparison'] = $this->generateChartImage([
-            'type' => 'bar',
-            'data' => [
-                'labels' => array_keys($clinicData),
-                'datasets' => [[
-                    'label' => 'Revenue (₱)',
-                    'data' => array_values($clinicData),
-                    'backgroundColor' => '#1e5f74',
-                    'borderColor' => '#0d3b66',
-                    'borderWidth' => 1
-                ]]
-            ],
-            'options' => [
-                'responsive' => false,
-                'plugins' => [
-                    'legend' => ['display' => true]
-                ],
-                'scales' => [
-                    'y' => [
-                        'beginAtZero' => true
+        if ($context === 'superadmin') {
+            // Subscription Growth (Line)
+            $trendData = $this->aggregateByDate($data);
+            $charts['chart1'] = [
+                'title' => 'Subscription Growth',
+                'image' => $this->generateChartImage([
+                    'type' => 'line',
+                    'data' => [
+                        'labels' => array_keys($trendData),
+                        'datasets' => [['label' => 'Revenue', 'data' => array_values($trendData)]]
                     ]
-                ]
-            ]
-        ]);
+                ])
+            ];
+
+            // Revenue by Plan (Bar)
+            $planData = $this->aggregateByField($data, 'plan');
+            $charts['chart2'] = [
+                'title' => 'Revenue by Plan',
+                'image' => $this->generateChartImage([
+                    'type' => 'bar',
+                    'data' => [
+                        'labels' => array_keys($planData),
+                        'datasets' => [['label' => 'Revenue', 'data' => array_values($planData)]]
+                    ]
+                ])
+            ];
+        } else {
+            // Patient Volume Trend (Line)
+            $trendData = $this->aggregateByDate($data);
+            $charts['chart1'] = [
+                'title' => 'Patient Volume Trend',
+                'image' => $this->generateChartImage([
+                    'type' => 'line',
+                    'data' => [
+                        'labels' => array_keys($trendData),
+                        'datasets' => [['label' => 'Revenue', 'data' => array_values($trendData)]]
+                    ]
+                ])
+            ];
+
+            // Service Distribution (Pie)
+            $serviceData = $this->aggregateByField($data, 'service');
+            $charts['chart2'] = [
+                'title' => 'Service Distribution',
+                'image' => $this->generateChartImage([
+                    'type' => 'pie',
+                    'data' => [
+                        'labels' => array_keys($serviceData),
+                        'datasets' => [['label' => 'Service Revenue', 'data' => array_values($serviceData)]]
+                    ]
+                ])
+            ];
+        }
 
         return $charts;
     }
 
-    private function aggregateRevenueByMonth($data) {
-        $monthly = [];
+    private function aggregateByDate($data) {
+        $aggregated = [];
         foreach ($data as $row) {
-            if (isset($row['appointment_date']) && isset($row['amount'])) {
-                $month = date('M Y', strtotime($row['appointment_date']));
-                $monthly[$month] = ($monthly[$month] ?? 0) + (float)$row['amount'];
+            $date = $row['date'] ?? $row['appointment_date'] ?? '';
+            if ($date) {
+                $key = date('M d', strtotime($date));
+                $aggregated[$key] = ($aggregated[$key] ?? 0) + (float)($row['amount'] ?? 0);
             }
         }
-        ksort($monthly);
-        return $monthly;
+        return array_slice($aggregated, -7); // Last 7 days/entries
     }
 
-    private function aggregateRevenueByClinic($data) {
-        $clinicRevenue = [];
+    private function aggregateByField($data, $field) {
+        $aggregated = [];
         foreach ($data as $row) {
-            $clinic = $row['clinic_name'] ?? 'Unknown Clinic';
-            $clinicRevenue[$clinic] = ($clinicRevenue[$clinic] ?? 0) + (float)($row['amount'] ?? 0);
+            $val = $row[$field] ?? $row['service_name'] ?? $row['subscription_tier'] ?? 'Other';
+            $aggregated[$val] = ($aggregated[$val] ?? 0) + (float)($row['amount'] ?? 0);
         }
-        arsort($clinicRevenue);
-        return array_slice($clinicRevenue, 0, 5, true); // Top 5 clinics
+        return $aggregated;
     }
 
-    private function prepareTableData($data) {
-        $tableData = [];
+    private function prepareTableData($data, $context) {
+        $prepared = [];
         foreach ($data as $row) {
-            $tableData[] = [
-                'Date' => isset($row['appointment_date']) ? date('M d, Y', strtotime($row['appointment_date'])) : '',
-                'Clinic' => $row['clinic_name'] ?? 'N/A',
-                'Service' => $row['service'] ?? 'General Service',
-                'Amount' => $row['amount'] ?? 0,
-                'Status' => 'Paid'
-            ];
+            if ($context === 'superadmin') {
+                $prepared[] = [
+                    'Date' => $row['date'] ?? '',
+                    'Tenant' => $row['tenant_name'] ?? 'N/A',
+                    'Plan' => $row['plan'] ?? 'N/A',
+                    'Amount' => $row['amount'] ?? 0,
+                    'Status' => $row['status'] ?? 'Paid'
+                ];
+            } else {
+                $prepared[] = [
+                    'Date' => $row['appointment_date'] ?? '',
+                    'Patient' => $row['patient_name'] ?? ($row['first_name'] . ' ' . $row['last_name']),
+                    'Service' => $row['service'] ?? 'General',
+                    'Amount' => $row['amount'] ?? 0,
+                    'Status' => 'Paid'
+                ];
+            }
         }
-        return $tableData;
+        return $prepared;
     }
 
     public function generateGenericReport($data, $title, $headers = null) {

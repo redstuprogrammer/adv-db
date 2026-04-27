@@ -516,6 +516,11 @@ if (isset($_GET['view_patient_id'])) {
             <label for="email">Email</label>
             <input type="email" id="email" name="email">
           </div>
+          <div class="form-group">
+            <label for="temp_password">Temporary Password</label>
+            <input type="text" id="temp_password" name="temp_password" readonly value="<?php echo bin2hex(random_bytes(4)); ?>">
+            <small style="color: #666;">This password will be given to the patient for login.</small>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -535,11 +540,6 @@ if (isset($_GET['view_patient_id'])) {
         <div class="form-group">
           <label for="address">Address</label>
           <input type="text" id="address" name="address">
-        </div>
-        <div class="form-group">
-          <label for="temp_password">Temporary Password</label>
-          <input type="text" id="temp_password" name="temp_password" readonly value="<?php echo bin2hex(random_bytes(4)); ?>">
-          <small style="color: #666;">This password will be given to the patient for login.</small>
         </div>
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>

@@ -41,10 +41,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $type       = $data['type'] ?? 'standard';
 
     // Use new Blade-based generator for sales reports
-    if ($type === 'sales') {
+    if ($type === 'sales' || $type === 'professional') {
         require_once __DIR__ . '/pdf_generator_blade.php';
-        $generator  = new OralSyncPDFGenerator();
-        $pdfContent = $generator->generateSalesReport($reportData, $title);
+        require_once __DIR__ . '/includes/connect.php';
+        
+        $generator = new OralSyncPDFGenerator();
+        $reportData = [];
+        $context = '';
+
+        if ($isSuperAdmin) {
+            $context = 'superadmin';
+            // Fetch aggregated revenue from all Tenant Subscriptions
+            $query = "SELECT r.*, t.company_name as tenant_name, r.subscription_tier as plan 
+                      FROM tenant_subscription_revenue r
+                      JOIN tenants t ON r.tenant_id = t.tenant_id
+                      WHERE r.status = 'paid'
+                      ORDER BY r.date DESC";
+            $result = $conn->query($query);
+            while ($row = $result->fetch_assoc()) {
+                $reportData[] = $row;
+            }
+            $title = 'Super Admin Sales Report';
+        } elseif ($isTenantAdmin) {
+            $context = 'tenant';
+            $tenantId = $sessionManager->getTenantId();
+            // Fetch clinic-specific revenue
+            $query = "SELECT py.*, p.first_name, p.last_name, 
+                             COALESCE(s.service_name, 'General Service') AS service, 
+                             a.appointment_date
+                      FROM payment py
+                      LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+                      LEFT JOIN patient p ON a.patient_id = p.patient_id
+                      LEFT JOIN service s ON a.service_id = s.service_id
+                      WHERE py.tenant_id = ? AND py.status = 'Paid'
+                      ORDER BY a.appointment_date DESC";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $reportData[] = $row;
+            }
+            $title = 'Clinic Revenue Report';
+        }
+
+        if (empty($reportData)) {
+            ob_end_clean();
+            http_response_code(404);
+            echo 'No data found for the selected report.';
+            exit;
+        }
+
+        $pdfContent = $generator->generateSalesReport($reportData, $title, $context);
     } else {
         // Use original generator for other reports
         require_once __DIR__ . '/pdf_generator.php';

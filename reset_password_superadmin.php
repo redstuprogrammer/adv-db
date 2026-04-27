@@ -20,24 +20,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Passwords do not match.';
     } else {
         try {
-            // Verify token and get superadmin email
-            $stmt = $pdo->prepare("SELECT sa_email, expiry FROM superadmin_reset_tokens WHERE token = ? AND expiry > NOW()");
-            $stmt->execute([$token]);
-            $token_data = $stmt->fetch();
+            // Verify token and get superadmin data
+            // We use id + token for verification
+            $id = (int)($_POST['id'] ?? 0);
+            $stmt = $pdo->prepare("SELECT id, password_reset_token, password_reset_expires FROM super_admins WHERE id = ? AND password_reset_expires > NOW()");
+            $stmt->execute([$id]);
+            $admin = $stmt->fetch();
 
-            if (!$token_data) {
-                $error = 'Invalid or expired reset token.';
+            if (!$admin || !password_verify($token, (string)$admin['password_reset_token'])) {
+                $error = 'Invalid or expired reset link.';
             } else {
                 // Hash new password
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
                 // Update superadmin password
-                $stmt = $pdo->prepare("UPDATE superadmins SET password = ? WHERE email = ?");
-                $stmt->execute([$hashed_password, $token_data['sa_email']]);
-
-                // Delete used token
-                $stmt = $pdo->prepare("DELETE FROM superadmin_reset_tokens WHERE token = ?");
-                $stmt->execute([$token]);
+                $stmt = $pdo->prepare("UPDATE super_admins SET password_hash = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE id = ?");
+                $stmt->execute([$hashed_password, $admin['id']]);
 
                 $success = 'Password reset successfully! You can now log in with your new password.';
             }
@@ -46,14 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log('Superadmin password reset error: ' . $e->getMessage());
         }
     }
-} elseif (isset($_GET['token'])) {
+} elseif (isset($_GET['token']) && isset($_GET['id'])) {
     $token = $_GET['token'];
+    $id = (int)$_GET['id'];
     // Verify token exists and not expired (display form if valid)
     try {
-        $stmt = $pdo->prepare("SELECT 1 FROM superadmin_reset_tokens WHERE token = ? AND expiry > NOW()");
-        $stmt->execute([$token]);
-        if (!$stmt->fetch()) {
-            $error = 'Invalid or expired reset token.';
+        $stmt = $pdo->prepare("SELECT password_reset_token, password_reset_expires FROM super_admins WHERE id = ? AND password_reset_expires > NOW()");
+        $stmt->execute([$id]);
+        $admin = $stmt->fetch();
+        if (!$admin || !password_verify($token, (string)$admin['password_reset_token'])) {
+            $error = 'Invalid or expired reset link.';
         }
     } catch (Exception $e) {
         $error = 'Token verification failed.';
@@ -165,6 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <form method="POST">
                 <input type="hidden" name="token" value="<?php echo htmlspecialchars($token ?? ''); ?>">
+                <input type="hidden" name="id" value="<?php echo htmlspecialchars($id ?? ''); ?>">
                 
                 <div class="reset-form-group">
                     <label for="password">New Password</label>

@@ -109,6 +109,7 @@ class SessionManager {
             'dashboard.php'              => 'admin',
             'dentist_dashboard.php'      => 'dentist',
             'receptionist_dashboard.php' => 'receptionist',
+            'clinical_record.php'        => 'dentist',
             'tenant_login.php'           => null,
             'tenant_logout.php'          => null,
         ];

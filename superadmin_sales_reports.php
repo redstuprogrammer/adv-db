@@ -475,13 +475,21 @@ require_once __DIR__ . '/includes/revenue_queries.php';
 
     // Revenue trends chart
     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    
+    const phCurrency = new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+
     new Chart(revenueCtx, {
         type: 'line',
         data: {
             labels: [
                 <?php
-                // Generate last 12 months
-                for ($i = 0; $i <= 11; $i++) {
+                // Generate last 12 months in ASCENDING order (oldest first)
+                for ($i = 11; $i >= 0; $i--) {
                     $date = date('M Y', strtotime("-{$i} months"));
                     echo "'" . $date . "',";
                 }
@@ -503,6 +511,13 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                 legend: {
                     display: true,
                     position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return phCurrency.format(context.parsed.y);
+                        }
+                    }
                 }
             },
             scales: {
@@ -510,7 +525,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₱' + value.toFixed(0);
+                            return phCurrency.format(value);
                         }
                     }
                 }
@@ -570,23 +585,18 @@ require_once __DIR__ . '/includes/revenue_queries.php';
     });
 
     window.exportSalesPDF = function() {
-        // Enhanced professional report with charts and detailed data
-        const salesData = [
-            ['OralSync Professional Sales Report'],
-            ['Generated on: <?php echo date('F j, Y'); ?>'],
-            [''],
-            ['Key Metrics'],
-            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
-            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
-            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
-            ['']
-        ];
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = 'Generating...';
+        btn.disabled = true;
 
         fetch('generate_pdf.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: salesData, title: 'OralSync Professional Sales Report', type: 'professional' })
+            body: JSON.stringify({ 
+                type: 'professional', 
+                title: 'OralSync Professional Sales Report' 
+            })
         }).then(response => {
             if (!response.ok) throw new Error('PDF generation failed');
             return response.blob();
@@ -600,6 +610,9 @@ require_once __DIR__ . '/includes/revenue_queries.php';
         }).catch(error => {
             console.error(error);
             alert('Failed to export PDF');
+        }).finally(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
         });
     };
 

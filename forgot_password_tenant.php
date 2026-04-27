@@ -19,65 +19,107 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $message = 'Please enter your email address.';
         $isError = true;
     } else {
-        // Find tenant by email
-        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, contact_email, subdomain_slug FROM tenants WHERE contact_email = ? LIMIT 1");
+        // Find in tenants (Owner) or users (Staff)
+        $accountFound = false;
+        $accountType = ''; // 'tenant' or 'user'
+        $accountId = 0;
+        $accountEmail = '';
+        $accountName = '';
+        
+        // 1. Check tenants table
+        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, contact_email FROM tenants WHERE contact_email = ? LIMIT 1");
         if ($stmt) {
-            $bindEmail = $email; // Create a variable for binding
-            mysqli_stmt_bind_param($stmt, "s", $bindEmail);
+            mysqli_stmt_bind_param($stmt, "s", $email);
             mysqli_stmt_execute($stmt);
             $res = mysqli_stmt_get_result($stmt);
             $tenant = mysqli_fetch_assoc($res);
             mysqli_stmt_close($stmt);
             
             if ($tenant) {
-                // Generate reset token
-                $token = bin2hex(random_bytes(32));
-                $tokenHash = password_hash($token, PASSWORD_DEFAULT);
-                $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
-                
-                // Store token in database
-                $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
-                if ($updateStmt) {
-                    $bindTokenHash = $tokenHash;
-                    $bindExpiresAt = $expiresAt;
-                    $bindTenantId = (int)$tenant['tenant_id'];
-                    mysqli_stmt_bind_param($updateStmt, "ssi", $bindTokenHash, $bindExpiresAt, $bindTenantId);
-                    mysqli_stmt_execute($updateStmt);
-                    mysqli_stmt_close($updateStmt);
-                    
-                    // Build reset link
-                    $resetLink = buildTenantResetPasswordUrl($token, (int)$tenant['tenant_id']);
-                    
-                    // Send email
-                    $emailSent = false;
-                    try {
-                        $emailSent = sendPasswordResetEmail([
-                            'to_email' => $tenant['contact_email'],
-                            'clinic_name' => $tenant['company_name'],
-                            'reset_link' => $resetLink
-                        ]);
-                    } catch (Exception $e) {
-                        error_log("Email sending failed: " . $e->getMessage());
-                    }
-                    
-                    if ($emailSent) {
-                        $message = 'Password reset link has been sent to your email. Check your inbox and spam folder.';
-                        $isError = false;
-                    } else {
-                        $message = 'Email could not be sent. Please try again later or contact support.';
-                        $isError = true;
-                    }
-                }
-            } else {
-                // Security: Don't reveal if email exists
-                $message = 'If this email address is registered, you will receive a password reset link shortly.';
-                $isError = false;
+                $accountFound = true;
+                $accountType = 'tenant';
+                $accountId = (int)$tenant['tenant_id'];
+                $accountEmail = $tenant['contact_email'];
+                $accountName = $tenant['company_name'];
             }
+        }
+        
+        // 2. Check users table if not found in tenants
+        if (!$accountFound) {
+            $stmt = mysqli_prepare($conn, "SELECT user_id, email, username FROM users WHERE email = ? LIMIT 1");
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, "s", $email);
+                mysqli_stmt_execute($stmt);
+                $res = mysqli_stmt_get_result($stmt);
+                $user = mysqli_fetch_assoc($res);
+                mysqli_stmt_close($stmt);
+                
+                if ($user) {
+                    $accountFound = true;
+                    $accountType = 'user';
+                    $accountId = (int)$user['user_id'];
+                    $accountEmail = $user['email'];
+                    $accountName = $user['username'];
+                }
+            }
+        }
+        
+        if ($accountFound) {
+            // Generate reset token
+            $token = bin2hex(random_bytes(32));
+            $tokenHash = password_hash($token, PASSWORD_DEFAULT);
+            $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            
+            // Store token in correct table
+            $success = false;
+            if ($accountType === 'tenant') {
+                $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
+                mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $accountId);
+                $success = mysqli_stmt_execute($updateStmt);
+                mysqli_stmt_close($updateStmt);
+            } else {
+                // Ensure columns exist or handle gracefully
+                $updateStmt = mysqli_prepare($conn, "UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE user_id = ?");
+                if ($updateStmt) {
+                    mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $accountId);
+                    $success = mysqli_stmt_execute($updateStmt);
+                    mysqli_stmt_close($updateStmt);
+                }
+            }
+            
+            if ($success) {
+                // Build reset link
+                $resetLink = buildTenantResetPasswordUrl($token, $accountId, $accountType);
+                
+                // Send email
+                $emailSent = false;
+                try {
+                    $emailSent = sendPasswordResetEmail([
+                        'to_email' => $accountEmail,
+                        'clinic_name' => $accountName,
+                        'reset_link' => $resetLink
+                    ]);
+                } catch (Exception $e) {
+                    error_log("Email sending failed: " . $e->getMessage());
+                }
+                
+                if ($emailSent) {
+                    $message = 'Password reset link has been sent to your email. Check your inbox and spam folder.';
+                    $isError = false;
+                } else {
+                    $message = 'Email could not be sent. Please try again later or contact support.';
+                    $isError = true;
+                }
+            }
+        } else {
+            // Security: Don't reveal if email exists
+            $message = 'If this email address is registered, you will receive a password reset link shortly.';
+            $isError = false;
         }
     }
 }
 
-function buildTenantResetPasswordUrl(string $token, int $tenantId): string {
+function buildTenantResetPasswordUrl(string $token, int $id, string $type): string {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $base = getAppBasePath();
@@ -86,7 +128,7 @@ function buildTenantResetPasswordUrl(string $token, int $tenantId): string {
     if ($base !== '') {
         $url .= $base;
     }
-    $url .= '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
+    $url .= '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$id) . '&type=' . urlencode($type);
     
     return $url;
 }
@@ -96,12 +138,12 @@ function sendPasswordResetEmail(array $params): bool {
     $clinicName = $params['clinic_name'] ?? '';
     $resetLink = $params['reset_link'] ?? '';
     
-    if (!$toEmail || !$clinicName || !$resetLink) {
+    if (!$toEmail || !$resetLink) {
         return false;
     }
     
-    // Try to use PHPMailer if configured (same pattern as superadmin)
-    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? null;
+    // Check for SMTP settings using environment detection
+    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? $_SERVER['SMTP_HOST'] ?? null;
     
     if ($smtpHost) {
         return sendEmailViaSmtp($toEmail, $clinicName, $resetLink);
