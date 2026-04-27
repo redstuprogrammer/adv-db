@@ -275,8 +275,8 @@ $tenantId = getCurrentTenantId();
               ?>
             </tbody>
           </table>
-        </div>
-      </div>
+        </div><!-- end .module-card -->
+      </div><!-- end #activity tab-content -->
 
       <!-- Revenue Performance Tab -->
       <div class="tab-content" id="revenue">
@@ -339,54 +339,56 @@ $tenantId = getCurrentTenantId();
               if ($revenueRowCount === 0) {
                 echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No subscription revenue records are available yet.</td></tr>";
               }
-              echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
-              // Revenue chart data - last 12 months
-              $chartLabels = [];
-              $chartData = [];
-              for ($i = 11; $i >= 0; $i--) {
-                $month = date('Y-m', strtotime("-$i months"));
-                $chartLabels[] = date('M Y', strtotime($month . '-01'));
-                $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payment p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
-                $stmt->bind_param("is", $tenantId, $month);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $row = $result->fetch_assoc();
-                $chartData[] = $row['monthly_total'] ?? 0;
-                $stmt->close();
-              }
               ?>
-              <script>
-                const ctx = document.getElementById('revenueChart').getContext('2d');
-                new Chart(ctx, {
-                  type: 'line',
-                  data: {
-                    labels: <?php echo json_encode($chartLabels); ?>,
-                    datasets: [{
-                      label: 'Monthly Revenue (₱)',
-                      data: <?php echo json_encode($chartData); ?>,
-                      borderColor: 'rgba(75, 192, 192, 1)',
-                      backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                      tension: 0.1
-                    }]
-                  },
-                  options: {
-                    responsive: true,
-                    scales: {
-                      y: {
-                        beginAtZero: true,
-                        ticks: {
-                          callback: function(value) {
-                            return '₱' + value.toLocaleString();
-                          }
-                        }
+            </tbody>
+          </table>
+          <?php
+          echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
+          // Revenue chart data - last 12 months
+          $chartLabels = [];
+          $chartData = [];
+          for ($i = 11; $i >= 0; $i--) {
+            $month = date('Y-m', strtotime("-$i months"));
+            $chartLabels[] = date('M Y', strtotime($month . '-01'));
+            $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payment p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
+            $stmt->bind_param("is", $tenantId, $month);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $chartData[] = $row['monthly_total'] ?? 0;
+            $stmt->close();
+          }
+          ?>
+          <script>
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: <?php echo json_encode($chartLabels); ?>,
+                datasets: [{
+                  label: 'Monthly Revenue (₱)',
+                  data: <?php echo json_encode($chartData); ?>,
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                  tension: 0.1
+                }]
+              },
+              options: {
+                responsive: true,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: function(value) {
+                        return '₱' + value.toLocaleString();
                       }
                     }
                   }
-                });
-              </script>
-            </tbody>
-          </table>
-        </div>
+                }
+              }
+            });
+          </script>
+        </div><!-- end .module-card -->
       </div><!-- end #revenue tab-content -->
 
     </div><!-- end tenant-main-content -->
@@ -558,10 +560,10 @@ function loadRevenueReport() {
           <td>${row.appointment_date}</td>
           <td>${row.first_name} ${row.last_name}</td>
           <td>${row.service}</td>
-          <td>₱${row.amount}</td>
+          <td>₱${parseFloat(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         </tr>`;
       });
-      document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toFixed(2);
+      document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
     function exportRevenuePDF() {
@@ -607,5 +609,3 @@ function loadRevenueReport() {
 
 </body>
 </html>
-
-
