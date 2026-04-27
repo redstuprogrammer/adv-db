@@ -589,15 +589,16 @@ $stmt->close();
     </div>
   </div>
 
-  <script>
-    // ✓ FLAG TEST: Appointment management logic active
-    console.log("Appointment Module Active");
-    console.log('UI Parity Active - Version 2.0');
-    console.log('Appointments Page Initialized');
-    console.log('FINAL UI SYNC COMPLETE');
-    
-    
-    function openScheduleModal() {
+    <script>
+      // ✓ FLAG TEST: Appointment management logic active
+      console.log("Appointment Module Active");
+      console.log('UI Parity Active - Version 2.0');
+      console.log('Appointments Page Initialized');
+      console.log('FINAL UI SYNC COMPLETE');
+      
+      <?php printDateClockScript(); ?>
+      
+      function openScheduleModal() {
       const dateInput = document.querySelector('input[name="appointment_date"]');
       if (dateInput) {
         const now = new Date();
@@ -676,10 +677,8 @@ $stmt->close();
       }
     }
   </script>
-        </script>
-      </body>
-    </html>
-  <?php printDateClockScript(); ?>
+</body>
+</html>
 
 
 

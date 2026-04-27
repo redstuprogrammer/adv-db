@@ -36,15 +36,16 @@ $tenantName = $_SESSION['tenant_name'];
 $tenantId = $_SESSION['tenant_id'];
 $dentistId = $_SESSION['user_id'] ?? 0;
 if (!$dentistId) {
-    echo "<script>showCustomAlert('Access denied: Invalid session.'); window.history.back();</script>";
+    echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
     exit();
 }
 $dentistName = $_SESSION['username'] ?? 'Dentist';
 
-// Get patient_id from URL
-$patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// Get patient_id from URL - checking both 'patient_id' and 'id' for compatibility
+$patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
+
 if (!$patient_id) {
-    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
+    echo "<script>alert('Patient not found.'); window.history.back();</script>";
     exit();
 }
 
@@ -59,7 +60,7 @@ if ($patientStmt) {
 }
 
 if (!$patient) {
-    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
+    echo "<script>alert('Patient not found or access denied.'); window.history.back();</script>";
     exit();
 }
 
@@ -343,7 +344,10 @@ if ($historyStmt) {
 <div class="clinical-container">
     <div class="header-section">
         <h1>Clinical Record</h1>
-        <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Back to Appointments</a>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <?php renderDateClock(); ?>
+            <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Back to Appointments</a>
+        </div>
     </div>
 
     <?php if ($successMsg): ?>
@@ -425,6 +429,10 @@ if ($historyStmt) {
 </div>
 
 <?php renderCustomModal(); ?>
+
+<script>
+    <?php printDateClockScript(); ?>
+</script>
 
 </body>
 </html>

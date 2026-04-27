@@ -550,43 +550,45 @@ if (isset($_GET['view_patient_id'])) {
   </div>
 
   <script>
-    <?php printDateClockScript(); ?>
+    function openAddPatientModal() {
+      const form = document.querySelector('.patient-form');
+      if (form) form.reset();
+      const modal = document.getElementById('addPatientModal');
+      if (modal) modal.classList.add('active');
+      console.log('Add Patient modal opened');
+    }
+
+    function closeAddPatientModal() {
+      const modal = document.getElementById('addPatientModal');
+      if (modal) modal.classList.remove('active');
+    }
 
     function filterPatients() {
-      const searchInput = document.getElementById('searchInput').value.toLowerCase();
+      const searchInput = document.getElementById('searchInput');
+      const filter = searchInput ? searchInput.value.toLowerCase() : '';
       const rows = document.querySelectorAll('#patientTable tbody tr');
 
       rows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchInput) ? '' : 'none';
+        row.style.display = text.includes(filter) ? '' : 'none';
       });
     }
 
-    function openAddPatientModal() {
-      // Clear form
-      document.querySelector('.patient-form').reset();
-      document.getElementById('addPatientModal').classList.add('active');
-      console.log('Add Patient modal opened');
-    }
-
-    document.querySelector('.patient-form').addEventListener('submit', function(e) {
-      console.log('Patient form submitted');
-    });
-
-    function closeAddPatientModal() {
-      document.getElementById('addPatientModal').classList.remove('active');
+    const patientForm = document.querySelector('.patient-form');
+    if (patientForm) {
+      patientForm.addEventListener('submit', function(e) {
+        console.log('Patient form submitted');
+      });
     }
 
     // Click outside modal to close
-    window.onclick = function(e) {
+    window.addEventListener('click', function(e) {
       const modal = document.getElementById('addPatientModal');
       if (e.target === modal) {
         modal.classList.remove('active');
       }
-    }
+    });
 
-    // Verification logs
-    console.log('UI Parity Active - Version 2.0');
     console.log('Receptionist Patients Page Initialized');
   </script>
 </body>

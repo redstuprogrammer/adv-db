@@ -1,14 +1,13 @@
 <?php
 /**
- * DENTIST SCHEDULE AVAILABILITY MANAGEMENT
- * Allows dentists to set and manage their personal availability/working hours
+ * DENTIST SCHEDULE AVAILABILITY MANAGEMENT - REFACTORED
+ * Consolidates individual day cards into a single management table.
  */
 
 session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/session_utils.php';
 
-// Role Check Implementation - Ensure user is logged in as dentist
 $sessionManager = SessionManager::getInstance();
 $sessionManager->requireTenantUser('dentist');
 
@@ -20,8 +19,6 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
-$tenantData = $sessionManager->getTenantData();
-$tenantName = $tenantData['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 $dentistId = $sessionManager->getUserId();
 $dentistName = $sessionManager->getUsername() ?? 'Doctor';
@@ -29,87 +26,44 @@ $dentistName = $sessionManager->getUsername() ?? 'Doctor';
 $message = '';
 $messageType = '';
 
-// Handle POST for setting availability
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_availability'])) {
-    $dayOfWeek = trim($_POST['day_of_week'] ?? '');
-    $isAvailable = isset($_POST['is_available']) ? 1 : 0;
-    $startTime = trim($_POST['start_time'] ?? '09:00');
-    $endTime = trim($_POST['end_time'] ?? '17:00');
-
+// Handle Single POST for the entire week
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all_schedule'])) {
     $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    
-    if (!in_array($dayOfWeek, $daysOfWeek)) {
-        $message = 'Invalid day selected.';
-        $messageType = 'error';
-    } elseif ($isAvailable && ($startTime >= $endTime)) {
-        $message = 'End time must be after start time.';
-        $messageType = 'error';
-    } else {
-        try {
-// Check if record exists
-            $checkStmt = mysqli_prepare($conn, "SELECT schedule_id FROM dentist_schedule WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
-            if ($checkStmt) {
-                mysqli_stmt_bind_param($checkStmt, "iis", $tenantId, $dentistId, $dayOfWeek);
-                mysqli_stmt_execute($checkStmt);
-                $checkResult = mysqli_stmt_get_result($checkStmt);
-                $exists = mysqli_num_rows($checkResult) > 0;
-                mysqli_stmt_close($checkStmt);
+    $successCount = 0;
 
-                if ($exists) {
-                    // Update
-                    $updateStmt = mysqli_prepare($conn, "UPDATE dentist_schedule SET is_available = ?, start_time = ?, end_time = ? WHERE tenant_id = ? AND dentist_id = ? AND day_of_week = ?");
-                    if ($updateStmt) {
-                        mysqli_stmt_bind_param($updateStmt, "isssii", $isAvailable, $startTime, $endTime, $tenantId, $dentistId, $dayOfWeek);
-                        if (mysqli_stmt_execute($updateStmt)) {
-                            $message = 'Availability updated successfully.';
-                            $messageType = 'success';
-                            logActivity($conn, $tenantId, 'Schedule', 'Dentist updated availability', $dentistName, 'dentist', 'Dentist');
-                        } else {
-                            $message = 'Failed to update availability.';
-                            $messageType = 'error';
-                        }
-                        mysqli_stmt_close($updateStmt);
-                    }
-                } else {
-                    // Insert
-                    $insertStmt = mysqli_prepare($conn, "INSERT INTO dentist_schedule (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) VALUES (?, ?, ?, ?, ?, ?)"); 
-                    if ($insertStmt) {
-                        mysqli_stmt_bind_param($insertStmt, "iisiss", $tenantId, $dentistId, $dayOfWeek, $isAvailable, $startTime, $endTime);
-                        if (mysqli_stmt_execute($insertStmt)) {
-                            $message = 'Availability added successfully.';
-                            $messageType = 'success';
-                            logActivity($conn, $tenantId, 'Schedule', 'Dentist added availability', $dentistName, 'dentist', 'Dentist');
-                        } else {
-                            $message = 'Failed to add availability.';
-                            $messageType = 'error';
-                        }
-                        mysqli_stmt_close($insertStmt);
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            $message = 'Error setting availability.';
-            $messageType = 'error';
+    foreach ($daysOfWeek as $day) {
+        $isAvailable = isset($_POST["available_$day"]) ? 1 : 0;
+        $startTime = $_POST["start_$day"] ?? '09:00';
+        $endTime = $_POST["end_$day"] ?? '17:00';
+
+        $query = "INSERT INTO dentist_schedule (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) 
+                  VALUES (?, ?, ?, ?, ?, ?) 
+                  ON DUPLICATE KEY UPDATE is_available = VALUES(is_available), start_time = VALUES(start_time), end_time = VALUES(end_time)";
+        
+        if ($stmt = mysqli_prepare($conn, $query)) {
+            mysqli_stmt_bind_param($stmt, "iisiss", $tenantId, $dentistId, $day, $isAvailable, $startTime, $endTime);
+            if (mysqli_stmt_execute($stmt)) $successCount++;
+            mysqli_stmt_close($stmt);
         }
+    }
+
+    if ($successCount === 7) {
+        $message = 'Weekly schedule updated successfully.';
+        $messageType = 'success';
+        logActivity($conn, $tenantId, 'Schedule', 'Dentist updated full weekly schedule', $dentistName, 'dentist', 'Dentist');
     }
 }
 
 // Fetch current availability
 $availability = [];
-try {
-$stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end_time FROM dentist_schedule WHERE tenant_id = ? AND dentist_id = ? ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')");
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $availability[$row['day_of_week']] = $row;
-        }
-        mysqli_stmt_close($stmt);
-    }
-} catch (Exception $e) {
-    error_log("Error fetching dentist availability: " . $e->getMessage());
+$stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end_time FROM dentist_schedule WHERE tenant_id = ? AND dentist_id = ?");
+mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
+while ($row = mysqli_fetch_assoc($result)) {
+    $availability[$row['day_of_week']] = $row;
 }
+mysqli_stmt_close($stmt);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -119,144 +73,157 @@ $stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end
     <title>My Schedule - OralSync</title>
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
-        .schedule-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
-        }
-        .schedule-card {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 1.5rem;
-        }
-        .schedule-card h3 {
-            margin-top: 0;
-            color: #1f2937;
-            font-size: 1.1rem;
-        }
-        .form-group {
-            margin-bottom: 1rem;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #374151;
-            font-size: 0.95rem;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 0.95rem;
-        }
-        .form-group input[type="checkbox"] {
-            width: auto;
-            margin-right: 0.5rem;
-        }
-        .checkbox-label {
+        /* Modern Table Dashboard Styles */
+        .t-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            margin-bottom: 0.75rem;
+            padding: 1.5rem 2rem;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
         }
-        .time-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem;
+        .schedule-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
         }
-        .btn-save {
-            background: #22c55e;
+        .management-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .compact-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .compact-table th {
+            background: #f8fafc;
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            color: #64748b;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .compact-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            transition: background 0.2s;
+        }
+        .row-unavailable {
+            background: #f8fafc;
+            opacity: 0.6;
+        }
+        .time-input {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .batch-bar {
+            display: flex;
+            justify-content: flex-end;
+            padding-bottom: 1rem;
+        }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #d1d5db;
+            color: #4b5563;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-ghost:hover { background: #f1f5f9; }
+        
+        .btn-primary-save {
+            background: #0d3b66;
             color: white;
-            padding: 0.75rem 1.5rem;
+            padding: 0.75rem 2rem;
             border: none;
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        .btn-save:hover {
-            background: #16a34a;
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
         }
-        .btn-save:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        .message {
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-        .message.success {
-            background: rgba(34, 197, 94, 0.1);
-            color: #16a34a;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-        .message.error {
-            background: rgba(239, 68, 68, 0.1);
-            color: #dc2626;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
+        .pill-available { background: #dcfce7; color: #166534; }
+        .pill-not { background: #fee2e2; color: #991b1b; }
     </style>
 </head>
 <body>
     <div class="t-wrap">
         <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
-
         <main class="t-main">
             <div class="t-header">
-                <h1 class="t-title">My Schedule</h1>
-                <p class="t-subtitle">Set your working hours and availability</p>
+                <div>
+                    <h1 class="t-title" style="margin:0;">My Schedule</h1>
+                    <p class="t-subtitle" style="margin:0;">Manage your weekly clinical availability</p>
+                </div>
                 <?php renderDateClock(); ?>
             </div>
 
-            <?php if ($message): ?>
-                <div class="message <?php echo $messageType; ?>">
-                    <?php echo h($message); ?>
+            <div class="schedule-container">
+                <?php if ($message): ?>
+                    <div class="message <?php echo $messageType; ?>"><?php echo h($message); ?></div>
+                <?php endif; ?>
+
+                <div class="batch-bar">
+                    <button type="button" class="btn-ghost" onclick="copyMonday()">📋 Copy Monday to Weekdays</button>
                 </div>
-            <?php endif; ?>
 
-            <div class="t-content">
-                <div class="schedule-grid">
-                    <?php
-                    $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                    foreach ($daysOfWeek as $day):
-                        $dayData = $availability[$day] ?? null;
-                        $isAvailable = $dayData ? (int)$dayData['is_available'] : 0;
-                        $startTime = $dayData ? $dayData['start_time'] : '09:00';
-                        $endTime = $dayData ? $dayData['end_time'] : '17:00';
-                    ?>
-                    <div class="schedule-card">
-                        <h3><?php echo h($day); ?></h3>
-                        <form method="POST">
-                            <input type="hidden" name="set_availability" value="1">
-                            <input type="hidden" name="day_of_week" value="<?php echo h($day); ?>">
-
-                            <div class="checkbox-label">
-                                <input type="checkbox" id="available-<?php echo $day; ?>" name="is_available" value="1" <?php echo $isAvailable ? 'checked' : ''; ?> onchange="toggleTimeInputs(this)">
-                                <label for="available-<?php echo $day; ?>" style="margin: 0; font-weight: 600;">
-                                    <?php echo $isAvailable ? 'Available' : 'Not Available'; ?>
-                                </label>
-                            </div>
-
-                            <div class="time-inputs" style="display: <?php echo $isAvailable ? 'grid' : 'none'; ?>;">
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="start-<?php echo $day; ?>">Start Time</label>
-                                    <input type="time" id="start-<?php echo $day; ?>" name="start_time" value="<?php echo h($startTime); ?>" required>
-                                </div>
-                                <div class="form-group" style="margin-bottom: 0;">
-                                    <label for="end-<?php echo $day; ?>">End Time</label>
-                                    <input type="time" id="end-<?php echo $day; ?>" name="end_time" value="<?php echo h($endTime); ?>" required>
-                                </div>
-                            </div>
-
-                            <button type="submit" class="btn-save" style="margin-top: 0.75rem;">Save</button>
-                        </form>
+                <form method="POST" class="management-card">
+                    <input type="hidden" name="save_all_schedule" value="1">
+                    <table class="compact-table">
+                        <thead>
+                            <tr>
+                                <th>Day of Week</th>
+                                <th>Availability</th>
+                                <th>Working Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+                            foreach ($days as $day):
+                                $data = $availability[$day] ?? ['is_available' => 0, 'start_time' => '09:00', 'end_time' => '17:00'];
+                                $isAvail = (int)$data['is_available'];
+                            ?>
+                            <tr id="row-<?php echo $day; ?>" class="<?php echo !$isAvail ? 'row-unavailable' : ''; ?>">
+                                <td style="font-weight:600; color:#1f2937;"><?php echo $day; ?></td>
+                                <td>
+                                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                        <input type="checkbox" name="available_<?php echo $day; ?>" value="1" 
+                                               <?php echo $isAvail ? 'checked' : ''; ?> 
+                                               onchange="updateRowState('<?php echo $day; ?>', this)">
+                                        <span id="pill-<?php echo $day; ?>" class="status-pill <?php echo $isAvail ? 'pill-available' : 'pill-not'; ?>">
+                                            <?php echo $isAvail ? 'Available' : 'Not Available'; ?>
+                                        </span>
+                                    </label>
+                                </td>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <input type="time" name="start_<?php echo $day; ?>" class="time-input" 
+                                               value="<?php echo h($data['start_time']); ?>" <?php echo !$isAvail ? 'disabled' : ''; ?>>
+                                        <span style="color:#94a3b8;">to</span>
+                                        <input type="time" name="end_<?php echo $day; ?>" class="time-input" 
+                                               value="<?php echo h($data['end_time']); ?>" <?php echo !$isAvail ? 'disabled' : ''; ?>>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                    <div style="padding: 1.5rem; text-align: right; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                        <button type="submit" class="btn-primary-save">Save All Changes</button>
                     </div>
-                    <?php endforeach; ?>
-                </div>
+                </form>
             </div>
         </main>
     </div>
@@ -264,18 +231,37 @@ $stmt = mysqli_prepare($conn, "SELECT day_of_week, is_available, start_time, end
     <script>
         <?php printDateClockScript(); ?>
 
-        function toggleTimeInputs(checkbox) {
-            const card = checkbox.closest('.schedule-card');
-            const timeInputs = card.querySelector('.time-inputs');
-            const label = checkbox.nextElementSibling;
+        function updateRowState(day, checkbox) {
+            const row = document.getElementById(`row-${day}`);
+            const pill = document.getElementById(`pill-${day}`);
+            const inputs = row.querySelectorAll('input[type="time"]');
             
             if (checkbox.checked) {
-                timeInputs.style.display = 'grid';
-                label.textContent = 'Available';
+                row.classList.remove('row-unavailable');
+                pill.textContent = 'Available';
+                pill.className = 'status-pill pill-available';
+                inputs.forEach(i => i.disabled = false);
             } else {
-                timeInputs.style.display = 'none';
-                label.textContent = 'Not Available';
+                row.classList.add('row-unavailable');
+                pill.textContent = 'Not Available';
+                pill.className = 'status-pill pill-not';
+                inputs.forEach(i => i.disabled = true);
             }
+        }
+
+        function copyMonday() {
+            const start = document.querySelector('input[name="start_Monday"]').value;
+            const end = document.querySelector('input[name="end_Monday"]').value;
+            const avail = document.querySelector('input[name="available_Monday"]').checked;
+            const weekdays = ['Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+            weekdays.forEach(day => {
+                const cb = document.querySelector(`input[name="available_${day}"]`);
+                document.querySelector(`input[name="start_${day}"]`).value = start;
+                document.querySelector(`input[name="end_${day}"]`).value = end;
+                cb.checked = avail;
+                updateRowState(day, cb);
+            });
         }
     </script>
 </body>

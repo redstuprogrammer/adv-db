@@ -671,28 +671,36 @@ if ($stmtReq) {
   </div>
 
   <script>
-    <?php printDateClockScript(); ?>
+    const tenantId = <?php echo json_encode($tenantId); ?>;
 
     function showAppointmentsTab() {
-      document.getElementById('appointmentsSection').style.display = 'block';
-      document.getElementById('requestsSection').style.display = 'none';
+      const apptSec = document.getElementById('appointmentsSection');
+      const reqSec = document.getElementById('requestsSection');
+      if (apptSec) apptSec.style.display = 'block';
+      if (reqSec) reqSec.style.display = 'none';
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       const buttons = document.querySelectorAll('.tab-button');
       if (buttons[0]) buttons[0].classList.add('active');
     }
 
     function showRequestsTab() {
-      document.getElementById('appointmentsSection').style.display = 'none';
-      document.getElementById('requestsSection').style.display = 'block';
+      const apptSec = document.getElementById('appointmentsSection');
+      const reqSec = document.getElementById('requestsSection');
+      if (apptSec) apptSec.style.display = 'none';
+      if (reqSec) reqSec.style.display = 'block';
       document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
       const buttons = document.querySelectorAll('.tab-button');
       if (buttons[1]) buttons[1].classList.add('active');
     }
 
     function submitRequestAction(id, action) {
-      document.getElementById('request_id').value = id;
-      document.getElementById('request_action').value = action;
-      document.getElementById('requestActionForm').submit();
+      const formId = document.getElementById('request_id');
+      const formAction = document.getElementById('request_action');
+      if (formId && formAction) {
+          formId.value = id;
+          formAction.value = action;
+          document.getElementById('requestActionForm').submit();
+      }
     }
 
     function openRequestViewModal(id, patientName, dentistName, date, time) {
@@ -721,23 +729,16 @@ if ($stmtReq) {
       document.getElementById('scheduleModal').classList.add('active');
     }
 
-    document.querySelector('#scheduleModal form').addEventListener('submit', function(e) {
-      console.log('Schedule form submitted');
-    });
-
     function closeScheduleModal() {
       document.getElementById('scheduleModal').classList.remove('active');
     }
 
     async function loadAvailableDentists() {
-      const tenantId = <?php echo json_encode($tenantId); ?>;
       const dateInput = document.getElementById('appointment_date');
       const dentistSelect = document.getElementById('dentist_id');
       const timeSelect = document.getElementById('appointment_time');
 
-      if (!dateInput || !dentistSelect || !timeSelect) {
-        return;
-      }
+      if (!dateInput || !dentistSelect || !timeSelect) return;
 
       dentistSelect.innerHTML = '<option value="">Loading available dentists...</option>';
       timeSelect.innerHTML = '<option value="">Select time</option>';
@@ -749,26 +750,17 @@ if ($stmtReq) {
       }
 
       const apiUrl = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${encodeURIComponent(selectedDate)}`;
-      console.log('Loading dentists API:', apiUrl);
       try {
         const response = await fetch(apiUrl);
         const data = await response.json();
-        console.log('Dentists data:', data);
         if (!data.success) {
           dentistSelect.innerHTML = '<option value="">No dentists available</option>';
           return;
         }
-
         if (data.clinic_closed) {
           dentistSelect.innerHTML = '<option value="">Clinic closed on this date</option>';
           return;
         }
-
-        if (!data.dentists || data.dentists.length === 0) {
-          dentistSelect.innerHTML = '<option value="">No dentists available</option>';
-          return;
-        }
-
         dentistSelect.innerHTML = '<option value="">Select dentist</option>';
         data.dentists.forEach(dentist => {
           const option = document.createElement('option');
@@ -777,19 +769,17 @@ if ($stmtReq) {
           dentistSelect.appendChild(option);
         });
       } catch (err) {
+        console.error('Dentist load error:', err);
         dentistSelect.innerHTML = '<option value="">Unable to load dentists</option>';
       }
     }
 
     async function loadAvailableTimes() {
-      const tenantId = <?php echo json_encode($tenantId); ?>;
       const dateInput = document.getElementById('appointment_date');
       const dentistSelect = document.getElementById('dentist_id');
       const timeSelect = document.getElementById('appointment_time');
 
-      if (!dateInput || !dentistSelect || !timeSelect) {
-        return;
-      }
+      if (!dateInput || !dentistSelect || !timeSelect) return;
 
       const selectedDate = dateInput.value;
       const dentistId = dentistSelect.value;
@@ -801,22 +791,18 @@ if ($stmtReq) {
       }
 
       const apiUrl = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${encodeURIComponent(selectedDate)}`;
-      console.log('Loading slots API:', apiUrl);
       try {
         const response = await fetch(apiUrl);
         const data = await response.json();
-        console.log('Slots data:', data);
         if (!data.success) {
           timeSelect.innerHTML = '<option value="">No available times</option>';
           return;
         }
-
         const hourlySlots = data.slots.filter(slot => slot.time.endsWith(':00') && slot.available);
         if (hourlySlots.length === 0) {
           timeSelect.innerHTML = '<option value="">No hourly slots available</option>';
           return;
         }
-
         timeSelect.innerHTML = '<option value="">Select time</option>';
         hourlySlots.forEach(slot => {
           const option = document.createElement('option');
@@ -825,6 +811,7 @@ if ($stmtReq) {
           timeSelect.appendChild(option);
         });
       } catch (err) {
+        console.error('Slots load error:', err);
         timeSelect.innerHTML = '<option value="">Unable to load times</option>';
       }
     }
@@ -868,64 +855,18 @@ if ($stmtReq) {
       document.getElementById('editModal').classList.remove('active');
     }
 
-    function printAppointment(id, patientName, dentistName, appointmentDate, status) {
-      const printWindow = window.open('', '_blank', 'width=800,height=600');
-      if (!printWindow) {
-        alert('Unable to open print window. Please allow pop-ups for this site.');
-        return;
-      }
-
-      const html = `
-        <html>
-          <head>
-            <title>Print Appointment</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 24px; color: #102a43; }
-              h1 { font-size: 22px; margin-bottom: 12px; }
-              .detail { margin: 10px 0; }
-              .label { font-weight: 700; color: #0d3b66; }
-              .value { margin-left: 8px; }
-              .status-pill { display:inline-block; padding:6px 12px; border-radius:12px; background:#f3f4f6; color:#0f172a; font-weight:700; }
-            </style>
-          </head>
-          <body>
-            <h1>Appointment Details</h1>
-            <div class="detail"><span class="label">Appointment ID:</span><span class="value">${id}</span></div>
-            <div class="detail"><span class="label">Patient:</span><span class="value">${patientName}</span></div>
-            <div class="detail"><span class="label">Dentist:</span><span class="value">${dentistName}</span></div>
-            <div class="detail"><span class="label">Date:</span><span class="value">${appointmentDate}</span></div>
-            <div class="detail"><span class="label">Status:</span><span class="status-pill">${status}</span></div>
-          </body>
-        </html>
-      `;
-
-      printWindow.document.write(html);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-    }
-
-    // Click outside modal to close
     window.addEventListener('click', function(event) {
       const scheduleModal = document.getElementById('scheduleModal');
       const manageModal = document.getElementById('manageModal');
       const editModal = document.getElementById('editModal');
-      if (event.target === scheduleModal) {
-        closeScheduleModal();
-      }
-      if (event.target === manageModal) {
-        closeManageModal();
-      }
-      if (event.target === editModal) {
-        closeEditModal();
-      }
+      const requestViewModal = document.getElementById('requestViewModal');
+      if (event.target === scheduleModal) closeScheduleModal();
+      if (event.target === manageModal) closeManageModal();
+      if (event.target === editModal) closeEditModal();
+      if (event.target === requestViewModal) closeRequestViewModal();
     });
     
-    // Verification logs
-    console.log('UI Parity Active - Version 2.0');
     console.log('Receptionist Appointments Page Initialized');
-    console.log('FINAL UI SYNC COMPLETE');
-    console.log('Anti-Crash System Active - V2');
   </script>
 </body>
 </html>

@@ -240,6 +240,22 @@ HTML;
                 $stmt->close();
             }
         } elseif (isset($_POST['save_login_settings'])) {
+            // Check if this is a full reset to defaults
+            if (!empty($_POST['reset_to_default'])) {
+                $resetDefaults = [
+                    'brand_bg_color'      => '#001f3f',
+                    'brand_text_color'    => '#ffffff',
+                    'primary_btn_color'   => '#22c55e',
+                    'link_color'          => '#2563eb',
+                    'brand_logo_path'     => '',
+                    'brand_bg_image_path' => '',
+                ];
+                if (saveTenantConfig($tenantId, $resetDefaults)) {
+                    $message = 'Login customization settings reset to defaults successfully!';
+                } else {
+                    $message = 'Unable to reset settings. Please try again.';
+                }
+            } else {
             // Save login customization settings into tenant_configs
             $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
             $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
@@ -296,6 +312,7 @@ HTML;
                     $message = 'Unable to save login customization settings. Please try again.';
                 }
             }
+            } // end else (not reset_to_default)
         } elseif (isset($_POST['change_password'])) {
             // Change password with email verification
             $currentPassword = $_POST['current_password'] ?? '';
@@ -534,7 +551,7 @@ HTML;
 
       /* High-Fidelity Preview Styles */
       .login-preview-container {
-        background: #f8fafc;
+        background: #e8ecf0;
         border: 2px solid var(--border);
         border-radius: 12px;
         padding: 0;
@@ -551,96 +568,163 @@ HTML;
         font-size: 13px;
       }
 
-      .preview-split-layout {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        min-height: 400px;
+      /* Full-page chrome simulating the actual login page background */
+      .preview-page-chrome {
+        background: linear-gradient(135deg, #e8ecf0 0%, #d1dbe8 50%, #c8e6d0 100%);
+        padding: 30px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 420px;
+        position: relative;
       }
 
+      /* Top-left logo that appears on the full page (not inside the card) */
+      .preview-topleft-logo {
+        display: none; /* hidden in this layout since logo is inside the card */
+      }
+
+      /* The two-panel card wrapper */
+      .preview-card-wrap {
+        width: 100%;
+        max-width: 680px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(15,23,42,0.18), 0 4px 16px rgba(15,23,42,0.08);
+      }
+
+      .preview-split-layout {
+        display: grid;
+        grid-template-columns: 55% 45%;
+        min-height: 340px;
+      }
+
+      /* Left dark navy panel */
       .preview-left-panel {
+        background-color: #0d2340;
         background-size: cover;
         background-position: center;
+        background-repeat: no-repeat;
         position: relative;
-        padding: 40px 30px;
+        padding: 24px 20px;
         color: white;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        image-rendering: high-quality;
       }
 
-      .preview-left-panel::before {
-        content: '';
+      .preview-left-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.35);
         z-index: 1;
       }
 
       .preview-left-content {
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
       }
 
-      .preview-clinic-logo {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.2);
+      /* Brand row: logo box + clinic name + subtitle */
+      .preview-left-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .preview-left-logo-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 900;
-        font-size: 24px;
-        margin-bottom: 20px;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .preview-left-logo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        image-rendering: high-quality;
       }
 
       .preview-clinic-name {
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 700;
-        margin-bottom: 8px;
+        line-height: 1.2;
       }
 
       .preview-subtitle {
-        font-size: 13px;
-        opacity: 0.9;
+        font-size: 10px;
+        opacity: 0.75;
       }
 
+      .preview-left-body {
+        flex: 1;
+      }
+
+      .preview-coming-soon-box {
+        border: 1px dashed rgba(255,255,255,0.35);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-top: 8px;
+      }
+
+      /* Right white login panel */
       .preview-right-panel {
         background: white;
-        padding: 40px 30px;
+        padding: 28px 24px;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
 
       .preview-login-title {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 900;
-        color: var(--accent);
-        margin-bottom: 8px;
+        color: #0d2340;
+        margin-bottom: 4px;
       }
 
       .preview-description {
-        font-size: 13px;
+        font-size: 11px;
         color: #64748b;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
         line-height: 1.5;
       }
 
+      .preview-field-group {
+        margin-bottom: 10px;
+      }
+
+      .preview-field-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 4px;
+      }
+
       .preview-signin-btn {
-        display: inline-block;
-        padding: 12px 24px;
+        display: block;
+        width: 100%;
+        padding: 10px 20px;
         border-radius: 8px;
-        background: var(--accent);
         color: white;
         text-decoration: none;
-        font-weight: 600;
-        font-size: 14px;
+        font-weight: 700;
+        font-size: 13px;
         border: none;
         cursor: pointer;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         transition: opacity 0.2s ease;
-        width: 100%;
         text-align: center;
       }
 
@@ -649,25 +733,36 @@ HTML;
       }
 
       .preview-forgot-link {
-        color: #2563eb;
         text-decoration: none;
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 500;
         cursor: pointer;
+        display: block;
+        margin-bottom: 8px;
       }
 
       .preview-forgot-link:hover {
         text-decoration: underline;
       }
 
+      .preview-no-account {
+        font-size: 10px;
+        color: #94a3b8;
+      }
+
       .preview-input {
         width: 100%;
-        padding: 12px;
-        margin-bottom: 10px;
+        padding: 8px 10px;
+        margin-bottom: 0;
         border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
+        border-radius: 6px;
+        font-size: 12px;
         box-sizing: border-box;
+        background: #fafafa;
+      }
+
+      .preview-clinic-logo {
+        /* legacy - kept for reset function reference */
       }
 
       .form-actions {
@@ -766,30 +861,11 @@ HTML;
         <form method="POST" enctype="multipart/form-data" id="loginSettingsForm" onsubmit="return validateForm()">
           <input type="hidden" name="save_login_settings" value="1">
           
+          <!-- Hidden fields to preserve brand_bg_color and brand_text_color values without showing pickers -->
+          <input type="hidden" name="brand_bg_color" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
+          <input type="hidden" name="brand_text_color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
+
           <div class="customizer-grid">
-            <div class="form-group">
-              <label for="brand_bg_color">Brand Card Background</label>
-              <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_bg_color">
-                  <span class="swatch-box" id="swatch-brand-bg" style="background: <?php echo h($tenantSettings['brand_bg_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-bg"><?php echo h($tenantSettings['brand_bg_color']); ?></span>
-                </button>
-                <input type="color" id="brand_bg_color" name="brand_bg_color" class="live-update color-input" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
-              </div>
-              <div class="hint-text">Select the main brand panel background.</div>
-            </div>
-
-            <div class="form-group">
-              <label for="brand_text_color">Brand Text Color</label>
-              <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_text_color">
-                  <span class="swatch-box" id="swatch-brand-text" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-text-color"><?php echo h($tenantSettings['brand_text_color']); ?></span>
-                </button>
-                <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-panel" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
-              </div>
-            </div>
-
             <div class="form-group">
               <label for="primary_btn_color">Sign In Button Color</label>
               <div class="color-swatch-wrap">
@@ -838,29 +914,65 @@ HTML;
 
         <!-- WYSIWYG Login Preview -->
         <div class="login-preview-container">
-          <div class="preview-label">📱 Live Preview - How Your Login Will Look</div>
-          <div class="preview-split-layout">
-            <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['brand_bg_color']); ?>; color: <?php echo h($tenantSettings['brand_text_color']); ?>; background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
-              <div class="preview-left-content">
-                <div class="preview-clinic-logo" id="preview-clinic-logo" style="font-size: 3rem; font-weight: 700;">
-                  <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
-                    <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="max-height: 80px; max-width: 80px;">
-                  <?php else: ?>
-                    OS
-                  <?php endif; ?>
-                </div>
-                <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
-              </div>
-              <div class="preview-subtitle">Powered by OralSync</div>
+          <div class="preview-label">📱 Live Preview — How Your Login Page Will Look</div>
+          <!-- Outer chrome simulating browser/full page -->
+          <div class="preview-page-chrome" id="preview-page-chrome">
+            <!-- Top-left corner logo overlay (outside the card) -->
+            <div class="preview-topleft-logo" id="preview-topleft-logo">
+              <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                <img id="preview-logo-img" src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">
+              <?php else: ?>
+                <span id="preview-logo-initials" style="font-weight:800;font-size:15px;color:#fff;letter-spacing:0.5px;">OS</span>
+              <?php endif; ?>
             </div>
 
-            <div class="preview-right-panel">
-              <div class="preview-login-title">Clinic Login</div>
-              <div class="preview-description">Please sign in to access your clinic portal.</div>
-              <input type="text" class="preview-input" placeholder="Username or Email" readonly>
-              <input type="password" class="preview-input" placeholder="Password" readonly>
-              <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
-              <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
+            <!-- Centered two-panel card (matches actual tenant_login.php layout) -->
+            <div class="preview-card-wrap">
+              <div class="preview-split-layout">
+                <!-- Left dark panel -->
+                <div class="preview-left-panel" id="preview-left-panel" style="background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
+                  <div class="preview-left-overlay"></div>
+                  <div class="preview-left-content">
+                    <div class="preview-left-brand">
+                      <div class="preview-left-logo-box" id="preview-clinic-logo">
+                        <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                          <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="max-height:38px;max-width:60px;object-fit:contain;">
+                        <?php else: ?>
+                          <span style="font-weight:800;font-size:13px;color:#fff;">OS</span>
+                        <?php endif; ?>
+                      </div>
+                      <div>
+                        <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
+                        <div class="preview-subtitle">Powered by OralSync</div>
+                      </div>
+                    </div>
+                    <div class="preview-left-body">
+                      <p style="margin:0 0 10px;font-size:12px;opacity:0.9;line-height:1.5;">Sign in to manage appointments, patients, and clinic operations. Your clinic can customize this portal soon.</p>
+                      <div class="preview-coming-soon-box">
+                        <div style="font-size:10px;font-weight:700;margin-bottom:5px;opacity:0.8;">Customization spots (coming soon)</div>
+                        <div style="font-size:10px;opacity:0.7;line-height:1.6;">- Clinic logo upload<br>- Accent color / theme<br>- Welcome message / announcements<br>- Support contact details</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right white panel (login form) -->
+                <div class="preview-right-panel">
+                  <div class="preview-login-title">Clinic Login</div>
+                  <div class="preview-description">Please sign in to access your clinic portal.</div>
+                  <div class="preview-field-group">
+                    <label class="preview-field-label">Email / Username</label>
+                    <input type="text" class="preview-input" placeholder="" readonly>
+                  </div>
+                  <div class="preview-field-group">
+                    <label class="preview-field-label">Password</label>
+                    <input type="password" class="preview-input" placeholder="" readonly>
+                  </div>
+                  <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
+                  <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
+                  <div class="preview-no-account">Don't have an account? Contact your clinic for access.</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -914,24 +1026,10 @@ HTML;
         if (!target) return;
 
         const style = this.dataset.style;
-        const property = this.dataset.property;
         const value = this.value;
 
-        if (style === 'backgroundImage') {
-          if (value.trim()) {
-            target.style.backgroundImage = `url('${value}')`;
-            target.style.backgroundSize = 'cover';
-            target.style.backgroundPosition = 'center';
-          } else {
-            target.style.backgroundImage = 'none';
-          }
-        } else if (style) {
+        if (style && style !== 'backgroundImage') {
           target.style[style] = value;
-          if (style === 'backgroundColor' && targetId === 'preview-left-panel') {
-            target.style.color = getContrastingColor(value);
-          }
-        } else if (property) {
-          target[property] = value;
         }
 
         if (this.type === 'color') {
@@ -939,7 +1037,10 @@ HTML;
         }
       });
 
-      input.dispatchEvent(new Event('input'));
+      // Trigger initial state for visible color pickers only
+      if (input.type === 'color' && document.getElementById(input.id)) {
+        input.dispatchEvent(new Event('input'));
+      }
     });
 
     document.querySelectorAll('.color-swatch').forEach(button => {
@@ -954,22 +1055,29 @@ HTML;
 
     document.querySelectorAll('.file-input').forEach(input => {
       input.addEventListener('change', function() {
-        const targetId = this.dataset.target;
-        const target = document.getElementById(targetId);
-        if (!target || !this.files.length) {
-          return;
-        }
-
         const file = this.files[0];
+        if (!file) return;
+
         const reader = new FileReader();
         reader.onload = function(event) {
-          const value = event.target.result;
-          if (input.dataset.property === 'logoPreview') {
-            target.innerHTML = `<img src="${value}" alt="Logo preview">`;
-          } else {
-            target.style.backgroundImage = `url('${value}')`;
-            target.style.backgroundSize = 'cover';
-            target.style.backgroundPosition = 'center';
+          const dataUrl = event.target.result;
+
+          if (input.id === 'brand_bg_image') {
+            // Update background of left panel — high quality
+            const leftPanel = document.getElementById('preview-left-panel');
+            if (leftPanel) {
+              leftPanel.style.backgroundImage = `url('${dataUrl}')`;
+              leftPanel.style.backgroundSize = 'cover';
+              leftPanel.style.backgroundPosition = 'center';
+              leftPanel.style.backgroundRepeat = 'no-repeat';
+              leftPanel.style.imageRendering = 'high-quality';
+            }
+          } else if (input.id === 'brand_logo_image') {
+            // Update logo inside the left panel card brand area
+            const logoBox = document.getElementById('preview-clinic-logo');
+            if (logoBox) {
+              logoBox.innerHTML = `<img src="${dataUrl}" alt="Logo" style="max-height:38px;max-width:60px;object-fit:contain;image-rendering:high-quality;">`;
+            }
           }
         };
         reader.readAsDataURL(file);
@@ -977,21 +1085,17 @@ HTML;
     });
 
     function resetLoginPreview() {
-      if (!confirm('Reset all login settings to defaults?')) return;
-
       const defaults = {
-        brand_bg_color: '#001f3f',
-        brand_text_color: '#ffffff',
         primary_btn_color: '#22c55e',
         link_color: '#2563eb',
       };
 
+      // Reset color pickers and swatches
       Object.keys(defaults).forEach(key => {
         const input = document.getElementById(key);
         if (input) {
           input.value = defaults[key];
           input.dispatchEvent(new Event('input'));
-          // Update swatches
           const swatchId = key.replace(/_/g, '-');
           const label = document.getElementById(`label-${swatchId}`);
           const swatch = document.getElementById(`swatch-${swatchId}`);
@@ -1000,12 +1104,35 @@ HTML;
         }
       });
 
-      document.getElementById('brand_bg_image').value = '';
-      document.getElementById('brand_logo_image').value = '';
-      const logoPreview = document.getElementById('preview-clinic-logo');
-      if (logoPreview) {
-        logoPreview.textContent = 'OS';
+      // Reset hidden brand colors
+      const bgColorInput = document.querySelector('input[name="brand_bg_color"]');
+      if (bgColorInput) bgColorInput.value = '#001f3f';
+      const textColorInput = document.querySelector('input[name="brand_text_color"]');
+      if (textColorInput) textColorInput.value = '#ffffff';
+
+      // Reset file inputs
+      const bgFileInput = document.getElementById('brand_bg_image');
+      if (bgFileInput) bgFileInput.value = '';
+      const logoFileInput = document.getElementById('brand_logo_image');
+      if (logoFileInput) logoFileInput.value = '';
+
+      // Reset preview left panel background image
+      const leftPanel = document.getElementById('preview-left-panel');
+      if (leftPanel) {
+        leftPanel.style.backgroundImage = 'none';
       }
+
+      // Reset logo inside the card brand area
+      const logoBox = document.getElementById('preview-clinic-logo');
+      if (logoBox) {
+        logoBox.innerHTML = '<span style="font-weight:800;font-size:13px;color:#fff;">OS</span>';
+      }
+
+      // Reset sign-in button and forgot link colors in preview
+      const signinBtn = document.getElementById('preview-signin-btn');
+      if (signinBtn) signinBtn.style.backgroundColor = '#22c55e';
+      const forgotLink = document.getElementById('preview-forgot-link');
+      if (forgotLink) forgotLink.style.color = '#2563eb';
     }
 
     function openResetModal() {
@@ -1019,9 +1146,17 @@ HTML;
     function confirmReset() {
       resetLoginPreview();
       closeResetModal();
-      // Auto-submit the form
-      const form = document.querySelector('form[method="post"]');
+      // Add a hidden field to tell the server this is a full reset
+      const form = document.getElementById('loginSettingsForm');
       if (form) {
+        let resetFlag = form.querySelector('input[name="reset_to_default"]');
+        if (!resetFlag) {
+          resetFlag = document.createElement('input');
+          resetFlag.type = 'hidden';
+          resetFlag.name = 'reset_to_default';
+          form.appendChild(resetFlag);
+        }
+        resetFlag.value = '1';
         form.submit();
       }
     }

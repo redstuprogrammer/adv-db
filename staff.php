@@ -1,10 +1,20 @@
 <?php
-// Extend session timeout
-ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
+/**
+ * ============================================
+ * STAFF DIRECTORY - ADMIN
+ * Fetches data from 'staff_details' table as requested.
+ * UI consistent with the project's dashboard.
+ * ============================================
+ */
 
-session_start();
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check - Ensure user is admin
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('admin');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
@@ -14,18 +24,12 @@ function h(string $s): string {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
+$tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin') {
-    header('Location: tenant_login.php');
-    exit();
-}
-
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
-
+// Fetch staff from 'staff_details' table
 $staffMembers = [];
-$stmt = mysqli_prepare($conn, "SELECT user_id, username, email, role, COALESCE(NULLIF(first_name, ''), username) AS first_name, COALESCE(NULLIF(last_name, ''), '') AS last_name FROM users WHERE tenant_id = ? AND role IN ('Dentist', 'Receptionist') ORDER BY last_name ASC, first_name ASC");
+$stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE tenant_id = ? ORDER BY last_name ASC, first_name ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
@@ -94,6 +98,13 @@ if ($stmt) {
         font-size: 20px;
         font-weight: 800;
         color: var(--accent);
+        overflow: hidden;
+      }
+
+      .staff-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
       }
 
       .staff-info h3 {
@@ -156,7 +167,20 @@ if ($stmt) {
         text-align: center;
         padding: 50px 20px;
         color: #94a3b8;
+        grid-column: 1 / -1;
       }
+      
+      .status-pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      
+      .status-active { background: #dcfce7; color: #166534; }
+      .status-inactive { background: #f1f5f9; color: #64748b; }
     </style>
 </head>
 <body>
@@ -169,13 +193,24 @@ if ($stmt) {
         <?php renderDateClock(); ?>
       </div>
 
-      <div class="module-card">
+      <div class="dashboard-card" style="padding: 24px; background: white; border: 1px solid var(--border); border-radius: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 18px; color: var(--accent);">Professional Staff List</h2>
+            <a href="users.php<?php echo $baseTenantQuery; ?>" class="btn-view" style="width: auto; margin-top: 0; padding: 8px 16px;">Manage System Users</a>
+        </div>
+
         <div class="staff-grid">
           <?php if (!empty($staffMembers)): ?>
             <?php foreach ($staffMembers as $staff): ?>
               <div class="staff-card">
                 <div class="staff-header">
-                  <div class="staff-avatar"><?php echo h(substr($staff['first_name'], 0, 1)); ?></div>
+                  <div class="staff-avatar">
+                    <?php if (!empty($staff['profile_image_path'])): ?>
+                        <img src="<?php echo h($staff['profile_image_path']); ?>" alt="Profile">
+                    <?php else: ?>
+                        <?php echo h(substr($staff['first_name'], 0, 1)); ?>
+                    <?php endif; ?>
+                  </div>
                   <div class="staff-info">
                     <h3><?php echo ($staff['role'] === 'Dentist' ? 'Dr. ' : ''); ?><?php echo h(trim($staff['first_name'] . ' ' . $staff['last_name'])); ?></h3>
                     <p><?php echo h($staff['role']); ?></p>
@@ -184,20 +219,31 @@ if ($stmt) {
 
                 <div class="staff-details">
                   <div class="detail-item"><span>📧</span> <?php echo h($staff['email']); ?></div>
-                  <div class="detail-item"><span>📅</span> Active</div>
-                  <a href="view_staff.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['user_id']; ?>" class="btn-view">View Profile</a>
+                  <div class="detail-item"><span>📞</span> <?php echo h($staff['phone'] ?? 'N/A'); ?></div>
+                  <div class="detail-item">
+                    <span>🛡️</span> 
+                    <span class="status-pill <?php echo (strtolower($staff['status']) === 'active') ? 'status-active' : 'status-inactive'; ?>">
+                        <?php echo h($staff['status']); ?>
+                    </span>
+                  </div>
+                  <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['staff_id']; ?>" class="btn-view">View Professional Profile</a>
                 </div>
               </div>
             <?php endforeach; ?>
           <?php else: ?>
-            <p class="empty-state">No staff members found.</p>
+            <div class="empty-state">
+                <div style="font-size: 48px; margin-bottom: 16px;">👨‍⚕️</div>
+                <h3>No Staff Records Found</h3>
+                <p>Staff members listed here come from the professional details table. You can add them via the database or a registration module.</p>
+            </div>
           <?php endif; ?>
         </div>
       </div>
     </main>
   </div>
 
-    </body>
-  </html>
-<?php printDateClockScript(); ?>
-
+  <script>
+    <?php printDateClockScript(); ?>
+  </script>
+</body>
+</html>

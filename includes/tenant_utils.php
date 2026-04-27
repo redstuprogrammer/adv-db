@@ -585,3 +585,36 @@ function saveTenantConfig(int $tenantId, array $values): bool {
     
     return false;
 }
+
+/**
+ * Generate a unique alphanumeric tenant code for patient registration
+ * 
+ * @param mysqli $conn Database connection
+ * @param int $length Length of the code (default 8)
+ * @return string Unique tenant code
+ */
+function generateUniqueTenantCode($conn, $length = 8) {
+    $exists = true;
+    $code = '';
+    
+    while ($exists) {
+        // Generate random alphanumeric string (excluding confusing characters like 0, O, 1, I)
+        $chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        $code = '';
+        for ($i = 0; $i < $length; $i++) {
+            $code .= $chars[rand(0, strlen($chars) - 1)];
+        }
+        
+        // Check if code already exists
+        $stmt = $conn->prepare("SELECT 1 FROM tenants WHERE tenant_code = ?");
+        $stmt->bind_param("s", $code);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($res->num_rows === 0) {
+            $exists = false;
+        }
+        $stmt->close();
+    }
+    
+    return $code;
+}

@@ -359,294 +359,221 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     </div>
 </div>
 
-<script>
-    <?php printDateClockScript(); ?>
-</script>
+
 
 <script>
     let bookingDepositAmount = <?php echo json_encode($bookingDepositAmount); ?>;
     let cart = [];
 
-    function getSelectedAppointmentDeposit() {
-        const apptSelect = document.getElementById('appointment_dropdown');
-        const selectedOption = apptSelect.selectedOptions[0];
-        if (!selectedOption || !selectedOption.value) return 0;
-        const requestedBy = selectedOption.dataset.requestedBy || '';
-        return requestedBy.toLowerCase() === 'patient' ? Number(bookingDepositAmount || 0) : 0;
-    }
-
-    function addToCart() {
-        const serviceSelect = document.getElementById('service_dropdown');
-        const selectedOption = serviceSelect.selectedOptions[0];
-        if (!selectedOption || !selectedOption.value) return;
-
-        const serviceId = selectedOption.value;
-        const serviceName = selectedOption.dataset.name;
-        const price = parseFloat(selectedOption.dataset.price);
-
-        // Check if already in cart
-        if (cart.some(item => item.service_id == serviceId)) {
-            alert('Service already in cart.');
-            return;
-        }
-
-        cart.push({ service_id: serviceId, name: serviceName, price: price });
-        updateCartDisplay();
-        updateTotal();
-        serviceSelect.value = '';
-    }
-
-    function removeFromCart(serviceId) {
-        cart = cart.filter(item => item.service_id != serviceId);
-        updateCartDisplay();
-        updateTotal();
-    }
-
-    function updateCartDisplay() {
-        const cartList = document.getElementById('cart-list');
-        cartList.innerHTML = '';
-
-        if (cart.length === 0) {
-            cartList.innerHTML = '<p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>';
-            return;
-        }
-
-        cart.forEach(item => {
-            const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.style.alignItems = 'center';
-            div.style.padding = '5px 0';
-            div.innerHTML = `
-                <span>${item.name} - ₱${item.price.toFixed(2)}</span>
-                <button type="button" onclick="removeFromCart(${item.service_id})" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Remove</button>
-            `;
-            cartList.appendChild(div);
-        });
-    }
-
-    function updateTotal() {
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const depositAmount = getSelectedAppointmentDeposit();
-        const amountInput = document.getElementById('amount_input');
-        const depositInfo = document.getElementById('deposit_info');
-        const amountDue = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
-
-        amountInput.min = amountDue.toFixed(2);
-        amountInput.value = amountDue.toFixed(2);
-        document.getElementById('procedures_json').value = JSON.stringify(cart);
-
-        if (depositAmount > 0) {
-            depositInfo.value = `Deposit available: ₱${depositAmount.toFixed(2)} will be applied to this invoice.`;
-        } else if (bookingDepositAmount > 0) {
-            depositInfo.value = 'Deposit configured but not applicable to the selected appointment.';
-        } else {
-            depositInfo.value = 'No clinic downpayment configured';
-        }
-    }
-
-    function validateAmount() {
-        const amountInput = document.getElementById('amount_input');
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const depositAmount = getSelectedAppointmentDeposit();
-        const minAmount = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
-        let value = parseFloat(amountInput.value);
-        if (isNaN(value) || value < minAmount) {
-            amountInput.value = minAmount.toFixed(2);
-        }
-    }
-
-// NEW MULTI-SERVICE LOGIC
-    let cart = [];
     const serviceInput = document.getElementById('service_input');
     const serviceTags = document.getElementById('service-tags');
     const serviceList = document.getElementById('service-list');
     const proceduresJson = document.getElementById('procedures_json');
+    const amountInput = document.getElementById('amount_input');
+    const floorInfo = document.getElementById('floor-info');
+    const depositInfo = document.getElementById('deposit_info');
 
     // Service add multi
-    serviceInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ',') {
-        e.preventDefault();
-        const value = serviceInput.value.trim();
-        if (value) {
-          const option = [...serviceList.options].find(opt => opt.value.toLowerCase() === value.toLowerCase());
-          if (option) {
-            cart.push({
-              service_id: option.dataset.id,
-              name: option.value,
-              price: parseFloat(option.dataset.price)
-            });
-            renderTags();
-            updateTotal();
-            serviceInput.value = '';
-          } else {
-            alert('Service not found');
-          }
-        }
-      }
-    });
+    if (serviceInput) {
+        serviceInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const value = serviceInput.value.trim();
+                if (value) {
+                    const option = [...serviceList.options].find(opt => opt.value.toLowerCase() === value.toLowerCase());
+                    if (option) {
+                        if (cart.some(item => item.service_id == option.dataset.id)) {
+                            showToast('Service already in cart');
+                        } else {
+                            cart.push({
+                                service_id: option.dataset.id,
+                                name: option.value,
+                                price: parseFloat(option.dataset.price)
+                            });
+                            renderTags();
+                            updateTotal();
+                        }
+                        serviceInput.value = '';
+                    } else {
+                        showToast('Service not found');
+                    }
+                }
+            }
+        });
+    }
 
     function renderTags() {
-      if (cart.length === 0) {
-        serviceTags.innerHTML = '<p style="color: #64748b; margin: 0;">No services added</p>';
-        return;
-      }
-      serviceTags.innerHTML = cart.map(item => `
-        <span class="service-tag">
-          ${item.name} <small>₱${item.price.toFixed(2)}</small>
-          <button class="tag-remove" onclick="removeFromCart(${item.service_id})">&times;</button>
-        </span>
-      `).join('');
+        if (!serviceTags) return;
+        if (cart.length === 0) {
+            serviceTags.innerHTML = '<p style="color: #64748b; margin: 0;">No services added</p>';
+            return;
+        }
+        serviceTags.innerHTML = cart.map(item => `
+            <span class="service-tag">
+                ${item.name} <small>₱${item.price.toFixed(2)}</small>
+                <button type="button" class="tag-remove" onclick="removeFromCart(${item.service_id})">&times;</button>
+            </span>
+        `).join('');
     }
 
     window.removeFromCart = (id) => {
-      cart = cart.filter(item => item.service_id != id);
-      renderTags();
-      updateTotal();
+        cart = cart.filter(item => item.service_id != id);
+        renderTags();
+        updateTotal();
     };
 
     function getSelectedAppointmentDeposit() {
-      const opt = document.getElementById('appointment_dropdown').selectedOptions[0];
-      if (!opt) return 0;
-      const requestedBy = opt.dataset.requestedBy || '';
-      const arrived = opt.dataset.arrived === 'true';
-      return (requestedBy === 'patient' && arrived) ? bookingDepositAmount : 0;
+        const apptSelect = document.getElementById('appointment_dropdown');
+        if (!apptSelect) return 0;
+        const opt = apptSelect.selectedOptions[0];
+        if (!opt || !opt.value) return 0;
+        const requestedBy = opt.dataset.requestedBy || '';
+        // If it was a patient request, and it's arrived (or just generally for billing), apply deposit
+        return (requestedBy.toLowerCase() === 'patient') ? Number(bookingDepositAmount || 0) : 0;
     }
 
     function updateTotal() {
-      const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
-      const deposit = getSelectedAppointmentDeposit();
-      const floor = subtotal - deposit;
-      const amountInput = document.getElementById('amount_input');
-      const floorInfo = document.getElementById('floor-info');
-      const depositInfo = document.getElementById('deposit_info');
+        if (!amountInput) return;
+        const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+        const deposit = getSelectedAppointmentDeposit();
+        const floor = Math.max(subtotal - deposit, 0);
+        
+        amountInput.min = floor.toFixed(2);
+        if (parseFloat(amountInput.value || 0) < floor) {
+            amountInput.value = floor.toFixed(2);
+        }
+        if (proceduresJson) proceduresJson.value = JSON.stringify(cart);
 
-      amountInput.min = floor;
-      if (parseFloat(amountInput.value || 0) < floor) amountInput.value = floor.toFixed(2);
-      proceduresJson.value = JSON.stringify(cart);
-
-      floorInfo.textContent = `Floor: ₱${floor.toFixed(2)} (${subtotal.toFixed(2)} services - ${deposit.toFixed(2)} deposit)`;
-      depositInfo.value = deposit > 0 ? `Deducted: ₱${deposit.toFixed(2)} (patient appt arrived)` : 'No deduction';
+        if (floorInfo) {
+            floorInfo.textContent = `Floor: ₱${floor.toFixed(2)} (${subtotal.toFixed(2)} services - ${deposit.toFixed(2)} deposit)`;
+        }
+        if (depositInfo) {
+            depositInfo.value = deposit > 0 ? `Deducted: ₱${deposit.toFixed(2)} (patient appt deposit)` : 'No deduction applied';
+        }
     }
 
     function validateTotal() {
-      const amountInput = document.getElementById('amount_input');
-      const floor = parseFloat(amountInput.min);
-      const value = parseFloat(amountInput.value);
-      if (value < floor) {
-        amountInput.value = floor.toFixed(2);
-        showToast('Price cannot be lower than the base service total (floor protected).');
-      }
+        const floor = parseFloat(amountInput.min || 0);
+        const value = parseFloat(amountInput.value || 0);
+        if (value < floor) {
+            amountInput.value = floor.toFixed(2);
+            showToast('Price cannot be lower than the base service total (floor protected).');
+        }
     }
 
     function showToast(msg) {
-      const toast = document.getElementById('toast');
-      toast.textContent = msg;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 4000);
+        const toast = document.getElementById('toast');
+        if (!toast) {
+            alert(msg);
+            return;
+        }
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
     }
 
-    // Enhance loadPatientAppointments for arrived
-    const oldLoadAppts = loadPatientAppointments;
-    loadPatientAppointments = (patientId, selectedApptId) => {
-      oldLoadAppts(patientId, selectedApptId);
-      // Assume get_patient_services.php returns status, requested_by
-    };
-
-// Verification log
-    console.log('Billing multi-service + floor protection enabled');
-    console.log('UI Parity Active - Version 2.0');
-
-    // 2. Modal Toggle
+    // Modal Toggles
     function openAddModal() {
-      document.getElementById('paymentForm').reset();
-      document.getElementById('payment_id').value = "";
-      document.getElementById('modalTitle').innerText = "Create New Invoice";
-      cart = [];
-      updateCartDisplay();
-      updateTotal();
-      document.getElementById("paymentModal").style.display = "flex";
+        const form = document.getElementById('paymentForm');
+        if (form) form.reset();
+        document.getElementById('payment_id').value = "";
+        document.getElementById('modalTitle').innerText = "Create New Invoice";
+        cart = [];
+        renderTags();
+        updateTotal();
+        document.getElementById("paymentModal").style.display = "flex";
     }
 
     function closeModal() {
-      document.getElementById("paymentModal").style.display = "none";
+        document.getElementById("paymentModal").style.display = "none";
     }
 
     function openDepositModal() {
-      document.getElementById('booking_deposit_amount').value = bookingDepositAmount.toFixed(2);
-      document.getElementById('depositModalMessage').textContent = '';
-      document.getElementById('depositModal').style.display = 'flex';
+        const depInput = document.getElementById('booking_deposit_amount');
+        if (depInput) depInput.value = Number(bookingDepositAmount || 0).toFixed(2);
+        const msg = document.getElementById('depositModalMessage');
+        if (msg) msg.textContent = '';
+        document.getElementById('depositModal').style.display = 'flex';
     }
 
     function closeDepositModal() {
-      document.getElementById('depositModal').style.display = 'none';
+        document.getElementById('depositModal').style.display = 'none';
     }
 
     async function saveDepositConfig() {
-      const amountField = document.getElementById('booking_deposit_amount');
-      const rawAmount = amountField.value;
-      const amount = parseFloat(rawAmount);
+        const amountField = document.getElementById('booking_deposit_amount');
+        const rawAmount = amountField.value;
+        const amount = parseFloat(rawAmount);
 
-      if (isNaN(amount) || amount < 0) {
-        document.getElementById('depositModalMessage').textContent = 'Please enter a valid non-negative amount.';
-        return;
-      }
+        if (isNaN(amount) || amount < 0) {
+            const msg = document.getElementById('depositModalMessage');
+            if (msg) msg.textContent = 'Please enter a valid non-negative amount.';
+            return;
+        }
 
-      const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_deposit_amount: amount })
-      });
+        try {
+            const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booking_deposit_amount: amount })
+            });
 
-      const result = await response.json();
-      if (result.success) {
-        document.getElementById('depositModalMessage').textContent = result.message;
-        document.getElementById('deposit_info').value = amount > 0 ? `Clinic deposit configured: ₱${amount.toFixed(2)}` : 'No clinic downpayment configured';
-        document.getElementById('depositModalMessage').style.color = '#166534';
-        document.getElementById('depositModal').style.display = 'none';
-        window.bookingDepositAmount = amount;
-      } else {
-        document.getElementById('depositModalMessage').textContent = result.message || 'Unable to save deposit config.';
-        document.getElementById('depositModalMessage').style.color = '#b91c1c';
-      }
+            const result = await response.json();
+            const msg = document.getElementById('depositModalMessage');
+            if (result.success) {
+                if (msg) {
+                    msg.textContent = result.message;
+                    msg.style.color = '#166534';
+                }
+                bookingDepositAmount = amount;
+                updateTotal();
+                setTimeout(closeDepositModal, 1500);
+            } else {
+                if (msg) {
+                    msg.textContent = result.message || 'Unable to save deposit config.';
+                    msg.style.color = '#b91c1c';
+                }
+            }
+        } catch (err) {
+            console.error('Save config error:', err);
+        }
     }
 
-    // 3. Edit Modal Trigger - Simplified for now
-    function openEditModal(data) {
-        alert('Editing existing invoices with cart system is not yet implemented. Please create a new invoice.');
-        return;
-        // Future: Load cart from procedures_json
-    }
-
-    // 4. Dynamic Appointment Loading
     function loadPatientAppointments(patientId, selectedApptId = null) {
-      const apptSelect = document.getElementById('appointment_dropdown');
-      apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
-      
-      if (!patientId) return;
+        const apptSelect = document.getElementById('appointment_dropdown');
+        if (!apptSelect) return;
+        apptSelect.innerHTML = '<option value="">-- Loading --</option>';
+        
+        if (!patientId) {
+            apptSelect.innerHTML = '<option value="">-- Select Patient First --</option>';
+            return;
+        }
 
-      const params = new URLSearchParams({
-        patient_id: patientId,
-        tenant_id: <?php echo $tenantId; ?>
-      });
-      
-      fetch('get_patient_services.php?' + params)
-        .then(res => res.json())
-        .then(data => {
-          data.forEach(item => {
-            let opt = document.createElement('option');
-            opt.value = item.appointment_id;
-            opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
-            opt.dataset.requestedBy = item.requested_by || '';
-            if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
-            apptSelect.appendChild(opt);
-          });
-          updateTotal();
-        })
-        .catch(err => console.error('Error loading appointments:', err));
+        const params = new URLSearchParams({
+            patient_id: patientId,
+            tenant_id: <?php echo $tenantId; ?>
+        });
+        
+        fetch('get_patient_services.php?' + params)
+            .then(res => res.json())
+            .then(data => {
+                apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
+                data.forEach(item => {
+                    let opt = document.createElement('option');
+                    opt.value = item.appointment_id;
+                    opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString() + " (" + (item.status || 'Pending') + ")";
+                    opt.dataset.requestedBy = item.requested_by || '';
+                    if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
+                    apptSelect.appendChild(opt);
+                });
+                updateTotal();
+            })
+            .catch(err => {
+                console.error('Error loading appointments:', err);
+                apptSelect.innerHTML = '<option value="">-- Error loading --</option>';
+            });
     }
 
-    // 5. Search Filter
     function filterMainTable() {
         let q = document.getElementById('tableSearch').value.toLowerCase();
         let rows = document.querySelectorAll('#paymentTable tbody tr');
@@ -655,11 +582,12 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         });
     }
 
-    // Close modal if clicking outside
     window.onclick = function(e) {
         if (e.target.id === 'paymentModal') closeModal();
         if (e.target.id === 'depositModal') closeDepositModal();
     }
+
+    console.log('Billing Management Initialized');
 </script>
 </body>
 </html>

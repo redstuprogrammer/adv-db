@@ -1,99 +1,129 @@
 <?php
-session_start();
+/**
+ * ============================================
+ * EDIT STAFF DETAILS - ADMIN
+ * Updates data in 'staff_details' table.
+ * ============================================
+ */
+
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+// Role Check - Ensure user is admin
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('admin');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Admin' || $_SESSION['tenant_slug'] !== $tenantSlug) {
-    header("Location: tenant_login.php?tenant=" . rawurlencode($tenantSlug));
-    exit();
-}
+$tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
+$tenantId = $sessionManager->getTenantId();
 
-requireTenantLogin($tenantSlug);
-$tenantName = getCurrentTenantName();
-$tenantId = getCurrentTenantId();
-
-$user_id = (int)$_GET['id'];
+$staff_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $message = '';
 $success = false;
 
-// Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $specialization = trim($_POST['specialization'] ?? '');
-    $license_number = trim($_POST['license_number'] ?? '');
-    $contact_phone = trim($_POST['contact_phone'] ?? '');
-    $professional_biography = trim($_POST['professional_biography'] ?? '');
+if (!$staff_id) {
+    header("Location: staff.php?tenant=" . rawurlencode($tenantSlug));
+    exit();
+}
 
-    // Update dentist table
-    $stmt = $conn->prepare("UPDATE dentist SET 
-        primary_specialization = ?,
-        license_number = ?,
-        contact_phone = ?,
-        professional_biography = ?
-        WHERE username = (SELECT username FROM users WHERE user_id = ? AND tenant_id = ?) AND tenant_id = ?");
+// Handle Form Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
+    $role = trim($_POST['role'] ?? 'Receptionist');
+    $specialties = trim($_POST['specialties'] ?? '');
+    $publicBio = trim($_POST['public_bio'] ?? '');
+    $status = trim($_POST['status'] ?? 'Active');
+    $isPublicVisible = isset($_POST['is_public_visible']) ? 1 : 0;
+
+    $stmt = mysqli_prepare($conn, "UPDATE staff_details SET 
+        first_name = ?, 
+        last_name = ?, 
+        email = ?, 
+        phone = ?, 
+        role = ?, 
+        specialties = ?, 
+        public_bio = ?, 
+        status = ?, 
+        is_public_visible = ? 
+        WHERE staff_id = ? AND tenant_id = ?");
 
     if ($stmt) {
-        $stmt->bind_param('ssssiii', $specialization, $license_number, $contact_phone, $professional_biography, $user_id, $tenantId, $tenantId);
-        if ($stmt->execute()) {
+        mysqli_stmt_bind_param($stmt, 'ssssssssiii', $firstName, $lastName, $email, $phone, $role, $specialties, $publicBio, $status, $isPublicVisible, $staff_id, $tenantId);
+        if (mysqli_stmt_execute($stmt)) {
             $success = true;
-            $message = 'Staff details updated successfully.';
+            $message = 'Staff professional details updated successfully.';
         } else {
-            $message = 'Error updating details: ' . $stmt->error;
+            $message = 'Error updating details: ' . mysqli_error($conn);
         }
-        $stmt->close();
+        mysqli_stmt_close($stmt);
     } else {
-        $message = 'Database error: ' . $conn->error;
+        $message = 'Database error: ' . mysqli_error($conn);
     }
 }
 
 // Fetch current data
-$stmt = $conn->prepare("SELECT u.username, u.first_name, u.last_name, 
-                       d.primary_specialization, d.license_number, d.contact_phone, d.professional_biography
-                       FROM users u 
-                       LEFT JOIN dentist d ON u.username = d.username 
-                       WHERE u.user_id = ? AND u.tenant_id = ?");
+$staff = null;
+$stmt = mysqli_prepare($conn, "SELECT * FROM staff_details WHERE staff_id = ? AND tenant_id = ?");
 if ($stmt) {
-    $stmt->bind_param('ii', $user_id, $tenantId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $data = $result->fetch_assoc();
-    $stmt->close();
+    mysqli_stmt_bind_param($stmt, 'ii', $staff_id, $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    if ($result) {
+        $staff = mysqli_fetch_assoc($result);
+    }
+    mysqli_stmt_close($stmt);
 }
 
-if (!$data) {
-    die("Staff member not found.");
+if (!$staff) {
+    die("Staff member not found or access denied.");
 }
 ?>
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Edit Staff Details</title>
-    <link rel="stylesheet" href="style1.css">
     <link rel="stylesheet" href="tenant_style.css">
     <style>
+        :root {
+            --accent: #0d3b66;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+            --text: #334155;
+            --muted: #64748b;
+        }
+
         .form-container {
             max-width: 800px;
             margin: 20px auto;
             background: white;
-            border-radius: 12px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
         }
 
         .form-header {
-            text-align: center;
             margin-bottom: 30px;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 16px;
         }
 
         .form-header h1 {
-            color: var(--primary, #0d3b66);
+            color: var(--accent);
             margin: 0;
             font-size: 24px;
         }
@@ -101,7 +131,7 @@ if (!$data) {
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 24px;
         }
 
         .form-group {
@@ -114,24 +144,28 @@ if (!$data) {
 
         label {
             display: block;
-            font-weight: 600;
-            color: #374151;
+            font-weight: 700;
+            color: var(--text);
             margin-bottom: 8px;
-            font-size: 14px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        input, textarea {
+        input, select, textarea {
             width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d5db;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
             border-radius: 8px;
             font-size: 14px;
-            transition: border-color 0.2s;
+            color: var(--text);
+            transition: all 0.2s;
+            background: #fff;
         }
 
-        input:focus, textarea:focus {
+        input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: var(--primary, #0d3b66);
+            border-color: var(--accent);
             box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
         }
 
@@ -140,57 +174,71 @@ if (!$data) {
             min-height: 120px;
         }
 
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input {
+            width: auto;
+        }
+
         .button-group {
             display: flex;
-            gap: 15px;
-            margin-top: 30px;
+            gap: 16px;
+            margin-top: 32px;
         }
 
         .btn {
             flex: 1;
-            padding: 12px 24px;
+            padding: 14px 24px;
             border: none;
-            border-radius: 8px;
-            font-weight: 600;
+            border-radius: 10px;
+            font-weight: 700;
             cursor: pointer;
             text-decoration: none;
             text-align: center;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            font-size: 14px;
         }
 
         .btn-primary {
-            background: var(--primary, #0d3b66);
+            background: var(--accent);
             color: white;
         }
 
         .btn-primary:hover {
             background: #002855;
+            transform: translateY(-1px);
         }
 
         .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
-            border: 1px solid #d1d5db;
+            background: #f1f5f9;
+            color: var(--muted);
+            border: 1px solid var(--border);
         }
 
         .btn-secondary:hover {
-            background: #e5e7eb;
+            background: #e2e8f0;
         }
 
-        .message {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-weight: 500;
+        .alert {
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 24px;
+            font-weight: 600;
+            font-size: 14px;
         }
 
-        .message.success {
+        .alert-success {
             background: #dcfce7;
             color: #166534;
             border: 1px solid #bbf7d0;
         }
 
-        .message.error {
+        .alert-error {
             background: #fef2f2;
             color: #991b1b;
             border: 1px solid #fecaca;
@@ -198,57 +246,93 @@ if (!$data) {
     </style>
 </head>
 <body>
-    <div class="t-wrap">
-        <div class="t-shell">
-            <div class="form-container">
-                <div class="form-header">
-                    <h1>Edit Staff Details</h1>
-                    <p>Updating profile for: <strong><?php echo h($data['first_name'] . ' ' . $data['last_name']); ?></strong></p>
+  <div class="tenant-layout">
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
+
+    <main class="tenant-main-content">
+      <div class="tenant-header-bar">
+        <div class="tenant-header-title">Edit Staff Professional Details</div>
+        <?php renderDateClock(); ?>
+      </div>
+
+      <div class="form-container">
+        <div class="form-header">
+            <h1>Update Professional Profile</h1>
+            <p style="margin-top: 8px; color: var(--muted);">Managing details for: <strong><?php echo h($staff['first_name'] . ' ' . $staff['last_name']); ?></strong></p>
+        </div>
+
+        <?php if ($message): ?>
+            <div class="alert <?php echo $success ? 'alert-success' : 'alert-error'; ?>">
+                <?php echo h($message); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name" value="<?php echo h($staff['first_name']); ?>" required>
                 </div>
 
-                <?php if ($message): ?>
-                    <div class="message <?php echo $success ? 'success' : 'error'; ?>">
-                        <?php echo h($message); ?>
-                    </div>
-                <?php endif; ?>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" value="<?php echo h($staff['last_name']); ?>" required>
+                </div>
 
-                <form method="POST">
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="specialization">Primary Specialization</label>
-                            <input type="text" id="specialization" name="specialization" 
-                                   value="<?php echo h($data['primary_specialization'] ?? ''); ?>" 
-                                   placeholder="e.g. Orthodontics, General Dentistry">
-                        </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="<?php echo h($staff['email']); ?>" required>
+                </div>
 
-                        <div class="form-group">
-                            <label for="license_number">License Number</label>
-                            <input type="text" id="license_number" name="license_number" 
-                                   value="<?php echo h($data['license_number'] ?? ''); ?>" 
-                                   placeholder="e.g. PRC-1234567">
-                        </div>
+                <div class="form-group">
+                    <label for="phone">Contact Phone</label>
+                    <input type="text" id="phone" name="phone" value="<?php echo h($staff['phone'] ?? ''); ?>" placeholder="0917-XXX-XXXX">
+                </div>
 
-                        <div class="form-group">
-                            <label for="contact_phone">Contact Phone</label>
-                            <input type="text" id="contact_phone" name="contact_phone" 
-                                   value="<?php echo h($data['contact_phone'] ?? ''); ?>" 
-                                   placeholder="e.g. 0917-XXX-XXXX">
-                        </div>
+                <div class="form-group">
+                    <label for="role">Staff Role</label>
+                    <select id="role" name="role">
+                        <option value="Dentist" <?php echo ($staff['role'] === 'Dentist') ? 'selected' : ''; ?>>Dentist</option>
+                        <option value="Receptionist" <?php echo ($staff['role'] === 'Receptionist') ? 'selected' : ''; ?>>Receptionist</option>
+                        <option value="Assistant" <?php echo ($staff['role'] === 'Assistant') ? 'selected' : ''; ?>>Assistant</option>
+                    </select>
+                </div>
 
-                        <div class="form-group full-width">
-                            <label for="professional_biography">Professional Biography</label>
-                            <textarea id="professional_biography" name="professional_biography" 
-                                      placeholder="Enter background, education, experience, and qualifications..."><?php echo h($data['professional_biography'] ?? ''); ?></textarea>
-                        </div>
-                    </div>
+                <div class="form-group">
+                    <label for="status">Account Status</label>
+                    <select id="status" name="status">
+                        <option value="Active" <?php echo ($staff['status'] === 'Active') ? 'selected' : ''; ?>>Active</option>
+                        <option value="Inactive" <?php echo ($staff['status'] === 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
+                    </select>
+                </div>
 
-                    <div class="button-group">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                        <a href="view_staff.php?id=<?php echo $user_id; ?>&tenant=<?php echo rawurlencode($tenantSlug); ?>" class="btn btn-secondary">Cancel</a>
-                    </div>
-                </form>
+                <div class="form-group full-width">
+                    <label for="specialties">Specialties / Expertise</label>
+                    <input type="text" id="specialties" name="specialties" value="<?php echo h($staff['specialties'] ?? ''); ?>" placeholder="e.g. Orthodontics, Periodontics, Oral Surgery">
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="public_bio">Professional Biography</label>
+                    <textarea id="public_bio" name="public_bio" placeholder="Enter educational background, experience, and certifications..."><?php echo h($staff['public_bio'] ?? ''); ?></textarea>
+                </div>
+
+                <div class="form-group full-width checkbox-group">
+                    <input type="checkbox" id="is_public_visible" name="is_public_visible" <?php echo $staff['is_public_visible'] ? 'checked' : ''; ?>>
+                    <label for="is_public_visible" style="margin-bottom: 0; text-transform: none;">Make profile visible to public/patients</label>
+                </div>
             </div>
-        </div>
-    </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn btn-primary">Save Professional Details</button>
+                <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff_id; ?>" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    <?php printDateClockScript(); ?>
+  </script>
 </body>
 </html>

@@ -226,7 +226,6 @@ try {
 
       <div class="module-card">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Team Members</h2>
           <a href="#" class="btn-primary" onclick="openAddUserModal()">+ Add User</a>
         </div>
         

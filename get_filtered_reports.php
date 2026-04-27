@@ -71,6 +71,49 @@ try {
                 'Tenant' => $row['company_name'] ?? ($tenant_id ? 'Selected Tenant' : 'All Tenants')
             ];
         }
+    } elseif ($type === 'usage_statistics') {
+        $query = "
+            SELECT 
+                t.company_name AS Tenant,
+                t.subscription_tier AS Tier,
+                COALESCE(pt.cnt, 0) AS Patients,
+                COALESCE(ap.cnt, 0) AS Appointments,
+                COALESCE(st.cnt, 0) AS Staff,
+                COALESCE(dt.cnt, 0) AS Dentists,
+                COALESCE(pym.total_amount, 0) AS Revenue,
+                COALESCE(notes.cnt, 0) AS Notes,
+                COALESCE(logs.activity_count, 0) AS Activities
+            FROM tenants t
+            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM patient GROUP BY tenant_id) pt ON t.tenant_id = pt.tenant_id
+            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM appointment GROUP BY tenant_id) ap ON t.tenant_id = ap.tenant_id
+            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM staff_details GROUP BY tenant_id) st ON t.tenant_id = st.tenant_id
+            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM dentist GROUP BY tenant_id) dt ON t.tenant_id = dt.tenant_id
+            LEFT JOIN (SELECT tenant_id, SUM(amount) total_amount FROM payment GROUP BY tenant_id) pym ON t.tenant_id = pym.tenant_id
+            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM clinical_notes GROUP BY tenant_id) notes ON t.tenant_id = notes.tenant_id
+            LEFT JOIN (SELECT tenant_id, COUNT(*) activity_count FROM tenant_activity_logs GROUP BY tenant_id) logs ON t.tenant_id = logs.tenant_id
+            WHERE 1=1";
+
+        $params = [];
+        if ($date_from) {
+            $query .= " AND logs.log_date >= ?";
+            $params[] = $date_from;
+        }
+        if ($date_to) {
+            $query .= " AND logs.log_date <= ?";
+            $params[] = $date_to;
+        }
+        if ($tenant_id) {
+            $query .= " AND t.tenant_id = ?";
+            $params[] = $tenant_id;
+        }
+        $query .= " ORDER BY t.company_name";
+
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+
+        while ($row = $stmt->fetch()) {
+            $data[] = $row;
+        }
     } elseif ($type === 'user_registration') {
         $query = "SELECT company_name, owner_name, contact_email, status, created_at
                   FROM tenants

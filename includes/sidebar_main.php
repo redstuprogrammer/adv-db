@@ -111,3 +111,11 @@ switch ($role) {
         </a>
     </div>
 </nav>
+
+<script>
+<?php 
+if (function_exists('printDateClockScript')) {
+    printDateClockScript();
+} 
+?>
+</script>

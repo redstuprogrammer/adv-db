@@ -102,7 +102,7 @@ $tenant = null;
 
 if ($tenantSlug !== '') {
     try {
-        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, password, status, subdomain_slug FROM tenants WHERE subdomain_slug = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, username, password, status, subdomain_slug, tenant_code FROM tenants WHERE subdomain_slug = ? LIMIT 1");
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, "s", $tenantSlug);
             if (mysqli_stmt_execute($stmt)) {
@@ -222,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sessionUserData = [
                 'tenant_id' => (int)$tenant['tenant_id'],
                 'tenant_name' => (string)$tenant['company_name'],
+                'tenant_code' => (string)($tenant['tenant_code'] ?? ''),
                 'role' => $userRole,
                 'user_id' => $userData['user_id'],
                 'username' => $userData['username'],

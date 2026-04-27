@@ -425,6 +425,7 @@ if (isset($_GET['view_patient_id'])) {
       <div class="tenant-header-bar">
         <div class="tenant-header-title">👥 Patients</div>
         <?php renderDateClock(); ?>
+        <span id="liveClock" style="font-size:13px; font-weight:600; color:#64748b;"></span>
       </div>
 
       <div class="module-card">
@@ -545,12 +546,31 @@ if (isset($_GET['view_patient_id'])) {
   <?php endif; ?>
 
   <script>
-    <?php printDateClockScript(); ?>
+    // Live clock - self-contained, does not depend on date_clock.php output
+    (function startClock() {
+      function updateClock() {
+        var now = new Date();
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var s = now.getSeconds();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        var timeStr = [h, pad(m), pad(s)].join(':') + ' ' + ampm;
+        var el = document.getElementById('liveClock');
+        if (el) el.textContent = timeStr;
+      }
+      function pad(n) { return n < 10 ? '0' + n : n; }
+      updateClock();
+      setInterval(updateClock, 1000);
+    })();
+  </script>
 
+  <script>
     // Verification logs
     console.log('UI Parity Active - Version 2.0');
     console.log('Patients Page Initialized');
     console.log('FINAL UI SYNC COMPLETE');
+
 
     function closeViewPatientModal() {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';

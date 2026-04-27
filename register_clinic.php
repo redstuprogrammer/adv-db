@@ -233,15 +233,16 @@ try {
             }
         }
 
-        // 3. Generate Slug
+        // 3. Generate Slug and Tenant Code
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
+        $tenant_code = generateUniqueTenantCode($conn);
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier, subscription_start_date, subscription_duration) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tenant_code, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
@@ -285,6 +286,7 @@ try {
                 'message' => 'Clinic registered successfully!',
                 'temp_password' => $temp_password, 
                 'slug' => $slug,
+                'tenant_code' => $tenant_code,
                 'login_url' => $login_url,
                 'email_sent' => (bool)($emailResult['sent'] ?? false)
             ];

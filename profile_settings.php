@@ -14,6 +14,7 @@ $sessionManager->requireTenantUser();
 
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -140,9 +141,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
         <main class="t-main">
-            <div class="t-header">
-                <h1 class="t-title">Profile Settings</h1>
-                <p class="t-subtitle">Update your personal information</p>
+            <div class="t-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="t-title">Profile Settings</h1>
+                    <p class="t-subtitle">Update your personal information</p>
+                </div>
+                <?php renderDateClock(); ?>
             </div>
 
             <div class="t-content">
@@ -186,5 +190,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </main>
     </div>
+    <script>
+        <?php printDateClockScript(); ?>
+    </script>
 </body>
 </html>

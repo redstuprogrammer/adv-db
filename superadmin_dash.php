@@ -179,7 +179,7 @@ try {
             width: 100%;
             padding: 11px 40px 11px 36px;
             border-radius: 999px;
-            border: 1px solid var(--sa-border);
+            border: 2px solid #cbd5e1;
             font-size: 0.9rem;
             outline: none;
             transition: all 0.2s ease;
@@ -1782,9 +1782,8 @@ try {
                                 }
                             },
                             x: {
-                                type: 'time',
-                                time: {
-                                    unit: 'month'
+                                grid: {
+                                    display: false
                                 }
                             }
                         }

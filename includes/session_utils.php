@@ -231,6 +231,7 @@ class SessionManager {
             'tenant_id'   => $userData['tenant_id'],
             'tenant_slug' => $tenantSlug,
             'tenant_name' => $userData['tenant_name'] ?? '',
+            'tenant_code' => $userData['tenant_code'] ?? '',
             'role'        => $role,
             'user_id'     => $userData['user_id'],
             'username'    => $userData['username'],

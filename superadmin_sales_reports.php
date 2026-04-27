@@ -569,7 +569,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
         }
     });
 
-    function exportSalesPDF() {
+    window.exportSalesPDF = function() {
         // Enhanced professional report with charts and detailed data
         const salesData = [
             ['OralSync Professional Sales Report'],
@@ -601,9 +601,9 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             console.error(error);
             alert('Failed to export PDF');
         });
-    }
+    };
 
-    function exportSalesCSV() {
+    window.exportSalesCSV = function() {
         const csvData = [
             ['OralSync Sales Data Export'],
             ['Generated on: <?php echo date('F j, Y'); ?>'],
@@ -624,7 +624,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
         a.download = 'oralsync_professional_sales_data.csv';
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
 </script>
 </body>
 </html>
