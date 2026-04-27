@@ -39,10 +39,10 @@ function getRevenueTrendData($pdo, $months = 12) {
     $startDate->modify('-' . $months . ' months');
     
     $stmt = $pdo->prepare("
-        SELECT DATE_FORMAT(date_paid, '%Y-%m') as month_ym, 
+        SELECT DATE_FORMAT(payment_date, '%Y-%m') as month_ym, 
                COALESCE(SUM(amount), 0) as revenue
         FROM tenant_subscription_revenue 
-        WHERE date_paid >= ? 
+        WHERE payment_date >= ? 
         GROUP BY month_ym 
         ORDER BY month_ym ASC
     ");
