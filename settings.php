@@ -239,10 +239,6 @@ HTML;
             // Check if this is a full reset to defaults
             if (!empty($_POST['reset_to_default'])) {
                 $resetDefaults = [
-        } elseif (isset($_POST['save_login_settings'])) {
-            // Check if this is a full reset to defaults
-            if (!empty($_POST['reset_to_default'])) {
-                $resetDefaults = [
                     'brand_bg_color'      => '#001f3f',
                     'brand_text_color'    => '#ffffff',
                     'primary_btn_color'   => '#22c55e',
@@ -256,111 +252,62 @@ HTML;
                     $message = 'Unable to reset settings. Please try again.';
                 }
             } else {
-            // Save login customization settings into tenant_configs
-            $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
-            $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
-            $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
-            $linkColor = trim($_POST['link_color'] ?? '#2563eb');
+                // Save login customization settings into tenant_configs
+                $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
+                $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
+                $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
+                $linkColor = trim($_POST['link_color'] ?? '#2563eb');
 
-            // Validate uploaded images
-            $errors = [];
-            if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['brand_logo_image'];
-                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
-                    $errors[] = 'Brand logo image must be smaller than 5MB.';
-                }
-                $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false) {
-                    $errors[] = 'Brand logo image must be a valid image file.';
-                }
-            }
-            if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['brand_bg_image'];
-                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
-                    $errors[] = 'Brand background image must be smaller than 5MB.';
-                }
-                $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false) {
-                    $errors[] = 'Brand background image must be a valid image file.';
-                }
-            }
-
-            if (!empty($errors)) {
-                $message = implode(' ', $errors);
-            } else {
-                $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
-                $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
-                $configValues = [
-                    'brand_bg_color' => $brandBgColor,
-                    'brand_text_color' => $brandTextColor,
-                    'primary_btn_color' => $primaryBtnColor,
-                    'link_color' => $linkColor,
-                ];
-
-                if ($brandLogoPath !== null) {
-                    $configValues['brand_logo_path'] = $brandLogoPath;
-                }
-
-                if ($brandBgImagePath !== null) {
-                    $configValues['brand_bg_image_path'] = $brandBgImagePath;
-                }
-
-                if (saveTenantConfig($tenantId, $configValues)) {
-                    $message = 'Login customization settings saved successfully!';
-                } else {
-                    $message = 'Unable to save login customization settings. Please try again.';
-                }
-            }
-            } // end else (not reset_to_default)
-        } elseif (isset($_POST['change_password'])) {
-            // Change password with email verification
-            $currentPassword = $_POST['current_password'] ?? '';
-            $newPassword = $_POST['new_password'] ?? '';
-            $confirmPassword = $_POST['confirm_password'] ?? '';
-
-            if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
-                $message = 'All fields are required.';
-            } elseif ($newPassword !== $confirmPassword) {
-                $message = 'New passwords do not match.';
-            } elseif (strlen($newPassword) < 8) {
-                $message = 'New password must be at least 8 characters.';
-            } else {
-                // Get current tenant data
-                $stmt = $conn->prepare("SELECT password_hash, email FROM tenants WHERE tenant_id = ?");
-                $stmt->bind_param("i", $tenantId);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                if ($result->num_rows === 1) {
-                    $tenant = $result->fetch_assoc();
-                    if (password_verify($currentPassword, $tenant['password_hash'])) {
-                        // Generate token
-                        $token = bin2hex(random_bytes(32));
-                        $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
-
-                        // Save token
-                        $stmt = $conn->prepare("INSERT INTO password_resets (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE token = ?, expires_at = ?");
-                        $stmt->bind_param("sssss", $tenant['email'], $token, $expires, $token, $expires);
-                        if ($stmt->execute()) {
-                            // Send email
-                            $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/reset_password.php?token=" . $token;
-                            $subject = "Password Change Verification";
-                            $body = "Click the link to confirm your password change: " . $resetLink;
-                            if (mail($tenant['email'], $subject, $body)) {
-                                $message = 'A verification email has been sent to your email address. Please check your email and click the link to confirm the password change.';
-                            } else {
-                                $message = 'Failed to send verification email. Please try again.';
-                            }
-                        } else {
-                            $message = 'Failed to generate reset token. Please try again.';
-                        }
-                    } else {
-                        $message = 'Current password is incorrect.';
+                // Validate uploaded images
+                $errors = [];
+                if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
+                    $file = $_FILES['brand_logo_image'];
+                    if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                        $errors[] = 'Brand logo image must be smaller than 5MB.';
                     }
-                } else {
-                    $message = 'Tenant not found.';
+                    $imageInfo = getimagesize($file['tmp_name']);
+                    if ($imageInfo === false) {
+                        $errors[] = 'Brand logo image must be a valid image file.';
+                    }
                 }
-                $stmt->close();
-            }
+                if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
+                    $file = $_FILES['brand_bg_image'];
+                    if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                        $errors[] = 'Brand background image must be smaller than 5MB.';
+                    }
+                    $imageInfo = getimagesize($file['tmp_name']);
+                    if ($imageInfo === false) {
+                        $errors[] = 'Brand background image must be a valid image file.';
+                    }
+                }
+
+                if (!empty($errors)) {
+                    $message = implode(' ', $errors);
+                } else {
+                    $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
+                    $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
+                    $configValues = [
+                        'brand_bg_color' => $brandBgColor,
+                        'brand_text_color' => $brandTextColor,
+                        'primary_btn_color' => $primaryBtnColor,
+                        'link_color' => $linkColor,
+                    ];
+
+                    if ($brandLogoPath !== null) {
+                        $configValues['brand_logo_path'] = $brandLogoPath;
+                    }
+
+                    if ($brandBgImagePath !== null) {
+                        $configValues['brand_bg_image_path'] = $brandBgImagePath;
+                    }
+
+                    if (saveTenantConfig($tenantId, $configValues)) {
+                        $message = 'Login customization settings saved successfully!';
+                    } else {
+                        $message = 'Unable to save login customization settings. Please try again.';
+                    }
+                }
+            } // end else (not reset_to_default)
         }
     }
     ?>
