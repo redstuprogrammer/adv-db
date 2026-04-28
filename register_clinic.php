@@ -215,7 +215,7 @@ try {
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
         // 2. Duplicate Check (clinic name, username, email)
-        $checkQuery = "SELECT company_name, username, email FROM tenants WHERE company_name = ? OR username = ? OR email = ? LIMIT 1";
+        $checkQuery = "SELECT company_name, username, contact_email FROM tenants WHERE company_name = ? OR username = ? OR contact_email = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
         mysqli_stmt_bind_param($stmtCheck, "sss", $clinic, $username, $email);
         mysqli_stmt_execute($stmtCheck);
@@ -228,7 +228,7 @@ try {
             if ($row['username'] === $username) {
                 throw new Exception("Clinic username is already taken. Please choose a different username.");
             }
-            if ($row['email'] === $email) {
+            if ($row['contact_email'] === $email) {
                 throw new Exception("Email address is already registered. Please use a different email.");
             }
         }

@@ -110,7 +110,6 @@ if ($isSettingsPage) {
         <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
           <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
           <div style="opacity:0.9;margin-top:4px;font-size:13px;">Password change verification</div>
-        </div>
         <div style="padding:22px;">
           <div style="font-size:14px;color:#0f172a;line-height:1.6;">
             Hi <strong>{$safeName}</strong>,<br />
@@ -123,13 +122,10 @@ if ($isSettingsPage) {
             <div style="margin-top:14px;">
               <a href="{$safeUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Verify Password Change</a>
             </div>
-          </div>
           <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
             If you did not request this change, please contact your clinic administrator immediately.
           </div>
-        </div>
         <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">This message was sent by OralSync.</div>
-      </div>
     </div>
   </body>
 </html>
@@ -239,6 +235,10 @@ HTML;
                 }
                 $stmt->close();
             }
+        } elseif (isset($_POST['save_login_settings'])) {
+            // Check if this is a full reset to defaults
+            if (!empty($_POST['reset_to_default'])) {
+                $resetDefaults = [
         } elseif (isset($_POST['save_login_settings'])) {
             // Check if this is a full reset to defaults
             if (!empty($_POST['reset_to_default'])) {
