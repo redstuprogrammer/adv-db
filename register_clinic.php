@@ -242,7 +242,7 @@ try {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tenant_code, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tenant_code, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
