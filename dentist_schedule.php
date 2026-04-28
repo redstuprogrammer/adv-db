@@ -74,18 +74,10 @@ mysqli_stmt_close($stmt);
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
         /* Modern Table Dashboard Styles */
-        .t-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1.5rem 2rem;
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
-        }
         .schedule-container {
-            max-width: 1000px;
+            max-width: 960px;
             margin: 2rem auto;
-            padding: 0 1rem;
+            padding: 0 1.5rem;
         }
         .management-card {
             background: white;
@@ -158,10 +150,10 @@ mysqli_stmt_close($stmt);
     </style>
 </head>
 <body>
-    <div class="t-wrap">
+    <div class="tenant-layout">
         <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
-        <main class="t-main">
-            <div class="t-header">
+        <main class="tenant-main-content">
+            <div class="tenant-header-bar">
                 <div>
                     <h1 class="t-title" style="margin:0;">My Schedule</h1>
                     <p class="t-subtitle" style="margin:0;">Manage your weekly clinical availability</p>

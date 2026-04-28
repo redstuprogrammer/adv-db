@@ -33,37 +33,24 @@ function getTotalRevenue($conn) {
  * Returns array of revenues for last N months (using mysqli)
  */
 function getRevenueTrendData($conn, $months = 12) {
-    $trend = [];
-    $endDate = new DateTime();
-    $startDate = clone $endDate;
-    $startDate->modify('-' . ($months - 1) . ' months');
-    $startStr = $startDate->format('Y-m-01');
-
-    $stmt = mysqli_prepare($conn, "
-        SELECT DATE_FORMAT(payment_date, '%Y-%m') as month_ym, 
-               COALESCE(SUM(amount), 0) as revenue
-        FROM tenant_subscription_revenue 
-        WHERE payment_date >= ? 
-        GROUP BY month_ym 
-        ORDER BY month_ym ASC
-    ");
-    mysqli_stmt_bind_param($stmt, 's', $startStr);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-
-    $dbData = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $dbData[$row['month_ym']] = (float)$row['revenue'];
+    $data = [];
+    
+    for ($i = $months - 1; $i >= 0; $i--) {
+        $year  = date('Y', strtotime("-{$i} months"));
+        $month = date('m', strtotime("-{$i} months"));
+        
+        // Use billing_period_start to match the correct month
+        $sql = "SELECT COALESCE(SUM(amount), 0) as total 
+                FROM tenant_subscription_revenue 
+                WHERE status = 'paid'
+                AND YEAR(billing_period_start) = $year 
+                AND MONTH(billing_period_start) = $month";
+        
+        $result = mysqli_query($conn, $sql);
+        $row = mysqli_fetch_assoc($result);
+        $data[] = (float)($row['total'] ?? 0);
     }
-    mysqli_stmt_close($stmt);
-
-    $currentDate = clone $startDate;
-    for ($i = 0; $i < $months; $i++) {
-        $monthKey = $currentDate->format('Y-m');
-        $trend[] = $dbData[$monthKey] ?? 0.0;
-        $currentDate->modify('+1 month');
-    }
-
-    return $trend;
+    
+    return $data;
 }
 

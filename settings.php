@@ -262,9 +262,6 @@ HTML;
             $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
             $linkColor = trim($_POST['link_color'] ?? '#2563eb');
 
-            $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
-            $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
-
             // Validate uploaded images
             $errors = [];
             if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
@@ -273,8 +270,8 @@ HTML;
                     $errors[] = 'Brand logo image must be smaller than 5MB.';
                 }
                 $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
-                    $errors[] = 'Brand logo image must be at least 100x100 pixels.';
+                if ($imageInfo === false) {
+                    $errors[] = 'Brand logo image must be a valid image file.';
                 }
             }
             if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
@@ -283,14 +280,16 @@ HTML;
                     $errors[] = 'Brand background image must be smaller than 5MB.';
                 }
                 $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
-                    $errors[] = 'Brand background image must be at least 100x100 pixels.';
+                if ($imageInfo === false) {
+                    $errors[] = 'Brand background image must be a valid image file.';
                 }
             }
 
             if (!empty($errors)) {
                 $message = implode(' ', $errors);
             } else {
+                $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
+                $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
                 $configValues = [
                     'brand_bg_color' => $brandBgColor,
                     'brand_text_color' => $brandTextColor,
@@ -509,6 +508,41 @@ HTML;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 16px;
         margin-top: 16px;
+      }
+
+      .theme-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .theme-preset-btn {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .theme-preset-btn:hover {
+        border-color: #94a3b8;
+      }
+
+      .theme-preview-dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .theme-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
       }
 
       .login-preview {
@@ -866,6 +900,45 @@ HTML;
           <input type="hidden" name="brand_text_color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
 
           <div class="customizer-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Color Theme Presets</label>
+              <div class="theme-preset-grid">
+                <button type="button" class="theme-preset-btn" data-theme-bg="#001f3f" data-theme-text="#ffffff" data-theme-btn="#22c55e" data-theme-link="#2563eb">
+                  Classic OralSync
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#001f3f;"></span>
+                    <span class="theme-dot" style="background:#22c55e;"></span>
+                    <span class="theme-dot" style="background:#2563eb;"></span>
+                  </div>
+                </button>
+                <button type="button" class="theme-preset-btn" data-theme-bg="#0f172a" data-theme-text="#f8fafc" data-theme-btn="#3b82f6" data-theme-link="#38bdf8">
+                  Midnight Blue
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#0f172a;"></span>
+                    <span class="theme-dot" style="background:#3b82f6;"></span>
+                    <span class="theme-dot" style="background:#38bdf8;"></span>
+                  </div>
+                </button>
+                <button type="button" class="theme-preset-btn" data-theme-bg="#14532d" data-theme-text="#ecfdf5" data-theme-btn="#22c55e" data-theme-link="#16a34a">
+                  Fresh Green
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#14532d;"></span>
+                    <span class="theme-dot" style="background:#22c55e;"></span>
+                    <span class="theme-dot" style="background:#16a34a;"></span>
+                  </div>
+                </button>
+                <button type="button" class="theme-preset-btn" data-theme-bg="#4c1d95" data-theme-text="#f5f3ff" data-theme-btn="#8b5cf6" data-theme-link="#a78bfa">
+                  Purple Care
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#4c1d95;"></span>
+                    <span class="theme-dot" style="background:#8b5cf6;"></span>
+                    <span class="theme-dot" style="background:#a78bfa;"></span>
+                  </div>
+                </button>
+              </div>
+              <div class="hint-text">Pick a preset, then fine-tune button/link colors if needed.</div>
+            </div>
+
             <div class="form-group">
               <label for="primary_btn_color">Sign In Button Color</label>
               <div class="color-swatch-wrap">
@@ -893,6 +966,7 @@ HTML;
             <div class="form-group">
               <label for="brand_bg_image">Background Image Upload</label>
               <input type="file" id="brand_bg_image" name="brand_bg_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-left-panel" data-style="backgroundImage">
+              <div class="hint-text">Any image dimension is allowed. Best quality: landscape images (e.g. 1600x900+).</div>
               <?php if (!empty($tenantSettings['brand_bg_image_path'])): ?>
                 <div class="hint-text">Current image: <?php echo h($tenantSettings['brand_bg_image_path']); ?></div>
               <?php endif; ?>
@@ -900,6 +974,7 @@ HTML;
             <div class="form-group">
               <label for="brand_logo_image">Clinic Logo Upload</label>
               <input type="file" id="brand_logo_image" name="brand_logo_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-clinic-logo" data-property="logoPreview">
+              <div class="hint-text">Any image dimension is allowed. Transparent PNG logos look best.</div>
               <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
                 <div class="hint-text">Current logo: <?php echo h($tenantSettings['brand_logo_path']); ?></div>
               <?php endif; ?>
@@ -1018,6 +1093,35 @@ HTML;
       // Return black or white
       return luminance > 0.5 ? '#000000' : '#ffffff';
     }
+
+    function applyThemePreset(theme) {
+      const bgColorInput = document.querySelector('input[name="brand_bg_color"]');
+      const textColorInput = document.querySelector('input[name="brand_text_color"]');
+      const btnInput = document.getElementById('primary_btn_color');
+      const linkInput = document.getElementById('link_color');
+
+      if (bgColorInput) bgColorInput.value = theme.bg;
+      if (textColorInput) textColorInput.value = theme.text;
+      if (btnInput) {
+        btnInput.value = theme.btn;
+        btnInput.dispatchEvent(new Event('input'));
+      }
+      if (linkInput) {
+        linkInput.value = theme.link;
+        linkInput.dispatchEvent(new Event('input'));
+      }
+    }
+
+    document.querySelectorAll('.theme-preset-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        applyThemePreset({
+          bg: this.dataset.themeBg,
+          text: this.dataset.themeText,
+          btn: this.dataset.themeBtn,
+          link: this.dataset.themeLink
+        });
+      });
+    });
 
     document.querySelectorAll('.live-update').forEach(input => {
       input.addEventListener('input', function() {

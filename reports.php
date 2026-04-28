@@ -181,7 +181,6 @@ $tenantId = getCurrentTenantId();
       <div class="tenant-header-bar">
         <div class="tenant-header-title">📊 Reports & Analytics</div>
         <?php renderDateClock(); ?>
-        <span id="liveClock" style="font-size:13px; font-weight:600; color:#64748b;"></span>
       </div>
 
       <!-- Tabs -->
@@ -206,7 +205,7 @@ $tenantId = getCurrentTenantId();
               <option value="Created">Created</option>
               <option value="Updated">Updated</option>
               <option value="Deleted">Deleted</option>
-            </select>
+          </select>
 
           </div>
 
@@ -395,23 +394,7 @@ $tenantId = getCurrentTenantId();
   </div><!-- end tenant-layout -->
 
   <script>
-    // Live clock - self-contained, does not depend on date_clock.php output
-    (function startClock() {
-      function updateClock() {
-        var now = new Date();
-        var h = now.getHours();
-        var m = now.getMinutes();
-        var s = now.getSeconds();
-        var ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-        var timeStr = [h, pad(m), pad(s)].join(':') + ' ' + ampm;
-        var el = document.getElementById('liveClock');
-        if (el) el.textContent = timeStr;
-      }
-      function pad(n) { return n < 10 ? '0' + n : n; }
-      updateClock();
-      setInterval(updateClock, 1000);
-    })();
+    <?php printDateClockScript(); ?>
 
     document.addEventListener('DOMContentLoaded', function() {
       const params = new URLSearchParams(window.location.search);

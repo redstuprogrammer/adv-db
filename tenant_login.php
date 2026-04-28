@@ -267,15 +267,6 @@ $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
 $base = getAppBasePath();
 $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
 
-// Check if login settings have been customized from defaults
-$hasCustomization = !empty($loginSettings['brand_bg_image_path']) || 
-                   $loginSettings['brand_bg_color'] !== '#001f3f' ||
-                   $loginSettings['brand_text_color'] !== '#ffffff' ||
-                   $loginSettings['primary_btn_color'] !== '#22c55e' ||
-                   $loginSettings['link_color'] !== '#2563eb' ||
-                   $loginSettings['login_title'] !== 'Clinic Login' ||
-                   $loginSettings['login_description'] !== 'Please sign in to access your clinic portal.' ||
-                   $loginSettings['brand_subtitle'] !== 'Powered by OralSync';
 ?>
 <!doctype html>
 <html lang="en">
@@ -288,25 +279,53 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
         body {
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
+            background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat fixed" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
             color: #0f172a;
+            min-height: 100vh;
         }
 
-        <?php if ($hasCustomization): ?>
-        .t-brandPanel {
-            display: none;
+        .t-wrap {
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .t-pageLogo {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            backdrop-filter: blur(6px);
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .t-pageLogo img {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .t-pageLogoText {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .t-shell {
-            grid-template-columns: 1fr;
-            justify-items: center;
+            padding-top: 88px;
         }
-
-        .t-card {
-            width: 100%;
-            max-width: 420px;
-        }
-        <?php endif; ?>
 
         .t-brandPanel {
             color: <?php echo h($loginSettings['brand_text_color']); ?>;
@@ -330,10 +349,38 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
         .t-card a[href*="forgot_password"] {
             color: <?php echo h($loginSettings['link_color']); ?> !important;
         }
+
+        @media (max-width: 768px) {
+            .t-pageLogo {
+                top: 12px;
+                left: 12px;
+                padding: 8px 10px;
+            }
+
+            .t-pageLogo img {
+                width: 36px;
+                height: 36px;
+            }
+
+            .t-pageLogoText {
+                font-size: 12px;
+                max-width: 180px;
+            }
+
+            .t-shell {
+                padding-top: 76px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="t-wrap">
+        <?php if (!empty($loginSettings['brand_logo_path'])): ?>
+            <div class="t-pageLogo" aria-label="Clinic branding">
+                <img src="<?php echo h($loginSettings['brand_logo_path']); ?>" alt="Clinic logo">
+                <div class="t-pageLogoText"><?php echo h($clinicName); ?></div>
+            </div>
+        <?php endif; ?>
         <div class="t-shell">
             <section class="t-brandPanel">
                 <div class="t-brandTop">

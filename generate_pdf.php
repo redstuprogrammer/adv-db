@@ -29,7 +29,11 @@ require_once __DIR__ . '/pdf_generator.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = json_decode(file_get_contents('php://input'), true);
 
-    if (!$data || !isset($data['data'])) {
+    $type = $data['type'] ?? 'standard';
+
+    // Sales/professional reports fetch their own data from the DB,
+    // but all other types still require a "data" payload.
+    if (!$data || (!isset($data['data']) && $type !== 'sales' && $type !== 'professional')) {
         ob_end_clean();
         http_response_code(400);
         echo 'Invalid data';

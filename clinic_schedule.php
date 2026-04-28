@@ -74,20 +74,9 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
             --text-sub: #6b7280;
         }
 
-        /* Layout overrides to match Services Management */
-        .tenant-header-bar {
-            background: white;
-            height: 70px;
-            padding: 0 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-        }
-
+        /* Layout matching appointments.php */
         .schedule-page-container {
-            max-width: 1000px;
+            max-width: 960px;
             margin: 24px auto;
             padding: 0 24px;
         }
@@ -183,10 +172,10 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
     </style>
 </head>
 <body>
-    <div class="t-wrap">
+    <div class="tenant-layout">
         <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
-        <main class="t-main">
+        <main class="tenant-main-content">
             <div class="tenant-header-bar">
                 <h1 style="margin:0; font-size: 20px; font-weight: 700; color: var(--text-main);">Clinic Schedule</h1>
                 <?php renderDateClock(); ?>
@@ -248,8 +237,7 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
                     </div>
                 </form>
             </div>
-        </main>
-    </div>
+
 
     <?php printDateClockScript(); ?>
 
@@ -290,5 +278,7 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
             });
         }
     </script>
+        </main>
+    </div>
 </body>
 </html>

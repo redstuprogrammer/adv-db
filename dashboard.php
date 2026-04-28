@@ -473,7 +473,6 @@ if ($stmt) {
             </span>
         </div>
         <?php renderDateClock(); ?>
-        <span id="liveClock" style="font-size:13px; font-weight:600; color:#64748b;"></span>
       </div>
 
       <!-- Dashboard Content -->
@@ -594,25 +593,7 @@ if ($stmt) {
     console.log("Tenant Logic Active - ENHANCED DASHBOARD LOADED");
     console.log("Features: Patient Directory, Appointment Management, Billing Audit");
 
-    // Live Clock - Inline since date_clock.php script was misplaced
-    (function() {
-        const updateClock = () => {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString("en-US", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true
-            });
-            const element = document.getElementById("liveClock");
-            if (element) {
-                element.textContent = timeString;
-            }
-        };
-        updateClock();
-        setInterval(updateClock, 1000);
-        console.log("Live clock started");
-    })();
+    <?php printDateClockScript(); ?>
     
     let currentDate = new Date(); // Use live current date
 
