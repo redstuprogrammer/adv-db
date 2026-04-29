@@ -275,4 +275,3 @@ function requireMobileAccess(int $tenantId, $conn): void {
     // No restriction check needed
     return;
 }
-?>
