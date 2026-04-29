@@ -2,7 +2,7 @@
 /**
  * Mobile Dashboard Stats API
  * Returns summary statistics for the mobile app dashboard
- * Gated by subscription tier (Mobile Dashboard feature)
+ * Available for all subscription plans
  */
 
 require_once __DIR__ . '/../includes/session_config.php';

@@ -26,7 +26,6 @@ const SUBSCRIPTION_TIERS = [
             'email_reminders' => true,
             'daily_email_limit' => 10,
             'basic_reporting' => false,
-            'mobile_dashboard' => true,
             'multiple_payment_methods' => false,
         ],
         'restrictions' => [
@@ -60,7 +59,6 @@ const SUBSCRIPTION_TIERS = [
             'invoice_generation' => true,
             'email_reminders' => true,
             'basic_reporting' => true,
-            'mobile_dashboard' => true,
             'multiple_payment_methods' => false,
         ],
         'restrictions' => [
@@ -87,7 +85,6 @@ const SUBSCRIPTION_TIERS = [
             'email_reminders' => true,
             'basic_reporting' => true,
             'advanced_reporting' => true,
-            'mobile_dashboard' => true,
             'multiple_payment_methods' => true,
         ],
         'restrictions' => [

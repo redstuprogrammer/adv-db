@@ -264,7 +264,6 @@ function isTenantWithinStorageLimit(int $tenantId, int $newFileSizeBytes, $conn)
     
     return ($currentUsage + $newFileSizeBytes) <= $limitBytes;
 }
-
 /**
  * Check if a tenant has mobile access and exit if not
  * Used for API gating for mobile-specific requests
@@ -272,15 +271,8 @@ function isTenantWithinStorageLimit(int $tenantId, int $newFileSizeBytes, $conn)
  * @param mysqli $conn Database connection
  */
 function requireMobileAccess(int $tenantId, $conn): void {
-    if (!tenantHasTierFeature($tenantId, 'mobile_dashboard', $conn)) {
-        header('Content-Type: application/json');
-        http_response_code(403);
-        echo json_encode([
-            'success' => false,
-            'error' => 'feature_restricted',
-            'message' => 'Mobile Dashboard access is not included in your current subscription plan. Please upgrade to access this feature.'
-        ]);
-        exit();
-    }
+    // Mobile Dashboard is now available for all subscription plans
+    // No restriction check needed
+    return;
 }
 ?>
