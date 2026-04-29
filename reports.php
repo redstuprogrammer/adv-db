@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -31,6 +32,13 @@ requireTenantLogin($tenantSlug);
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$hasBasicReporting = tenantHasTierFeature((int)$tenantId, 'basic_reporting', $conn);
+$hasAdvancedReporting = tenantHasTierFeature((int)$tenantId, 'advanced_reporting', $conn);
+
+if (!$hasBasicReporting) {
+    http_response_code(403);
+    die('Reports are not available on your current subscription plan.');
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -186,7 +194,9 @@ $tenantId = getCurrentTenantId();
       <!-- Tabs -->
       <div class="tabs">
         <button class="tab active" data-tab="activity">Activity Audit Trail</button>
-        <button class="tab" data-tab="revenue">Revenue Performance</button>
+        <?php if ($hasAdvancedReporting): ?>
+          <button class="tab" data-tab="revenue">Revenue Performance</button>
+        <?php endif; ?>
       </div>
 
       <!-- Activity Audit Trail Tab -->
@@ -278,6 +288,7 @@ $tenantId = getCurrentTenantId();
       </div><!-- end #activity tab-content -->
 
       <!-- Revenue Performance Tab -->
+      <?php if ($hasAdvancedReporting): ?>
       <div class="tab-content" id="revenue">
         <div class="module-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -389,6 +400,7 @@ $tenantId = getCurrentTenantId();
           </script>
         </div><!-- end .module-card -->
       </div><!-- end #revenue tab-content -->
+      <?php endif; ?>
 
     </div><!-- end tenant-main-content -->
   </div><!-- end tenant-layout -->

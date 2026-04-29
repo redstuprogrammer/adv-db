@@ -479,6 +479,11 @@ HTML;
         border-color: #94a3b8;
       }
 
+      .theme-preset-btn.is-active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(13, 59, 102, 0.14);
+      }
+
       .theme-preview-dots {
         display: flex;
         gap: 6px;
@@ -562,7 +567,32 @@ HTML;
 
       /* Top-left logo that appears on the full page (not inside the card) */
       .preview-topleft-logo {
-        display: none; /* hidden in this layout since logo is inside the card */
+        display: none;
+        align-items: center;
+        gap: 10px;
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        z-index: 5;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        backdrop-filter: blur(6px);
+        color: #fff;
+      }
+
+      .preview-page-chrome.has-custom-bg {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-card-wrap {
+        display: none;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-topleft-logo {
+        display: inline-flex;
       }
 
       /* The two-panel card wrapper */
@@ -842,10 +872,6 @@ HTML;
         <form method="POST" enctype="multipart/form-data" id="loginSettingsForm" onsubmit="return validateForm()">
           <input type="hidden" name="save_login_settings" value="1">
           
-          <!-- Hidden fields to preserve brand_bg_color and brand_text_color values without showing pickers -->
-          <input type="hidden" name="brand_bg_color" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
-          <input type="hidden" name="brand_text_color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
-
           <div class="customizer-grid">
             <div class="form-group" style="grid-column: 1 / -1;">
               <label>Color Theme Presets</label>
@@ -883,7 +909,29 @@ HTML;
                   </div>
                 </button>
               </div>
-              <div class="hint-text">Pick a preset, then fine-tune button/link colors if needed.</div>
+              <div class="hint-text">Pick a preset or fully customize every color below.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="brand_bg_color">Brand Panel Background Color</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="brand_bg_color">
+                  <span class="swatch-box" id="swatch-brand-bg-color" style="background: <?php echo h($tenantSettings['brand_bg_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-brand-bg-color"><?php echo h($tenantSettings['brand_bg_color']); ?></span>
+                </button>
+                <input type="color" id="brand_bg_color" name="brand_bg_color" class="live-update color-input" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="brand_text_color">Brand Text Color</label>
+              <div class="color-swatch-wrap">
+                <button type="button" class="color-swatch" data-input="brand_text_color">
+                  <span class="swatch-box" id="swatch-brand-text-color" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-brand-text-color"><?php echo h($tenantSettings['brand_text_color']); ?></span>
+                </button>
+                <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-content" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
+              </div>
             </div>
 
             <div class="form-group">
@@ -938,7 +986,7 @@ HTML;
         <div class="login-preview-container">
           <div class="preview-label">📱 Live Preview — How Your Login Page Will Look</div>
           <!-- Outer chrome simulating browser/full page -->
-          <div class="preview-page-chrome" id="preview-page-chrome">
+          <div class="preview-page-chrome <?php echo !empty($tenantSettings['brand_bg_image_path']) ? 'has-custom-bg' : ''; ?>" id="preview-page-chrome">
             <!-- Top-left corner logo overlay (outside the card) -->
             <div class="preview-topleft-logo" id="preview-topleft-logo">
               <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
@@ -949,12 +997,12 @@ HTML;
             </div>
 
             <!-- Centered two-panel card (matches actual tenant_login.php layout) -->
-            <div class="preview-card-wrap">
+            <div class="preview-card-wrap" id="preview-card-wrap">
               <div class="preview-split-layout">
                 <!-- Left dark panel -->
                 <div class="preview-left-panel" id="preview-left-panel" style="background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
                   <div class="preview-left-overlay"></div>
-                  <div class="preview-left-content">
+                  <div class="preview-left-content" id="preview-left-content">
                     <div class="preview-left-brand">
                       <div class="preview-left-logo-box" id="preview-clinic-logo">
                         <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
@@ -1047,8 +1095,14 @@ HTML;
       const btnInput = document.getElementById('primary_btn_color');
       const linkInput = document.getElementById('link_color');
 
-      if (bgColorInput) bgColorInput.value = theme.bg;
-      if (textColorInput) textColorInput.value = theme.text;
+      if (bgColorInput) {
+        bgColorInput.value = theme.bg;
+        bgColorInput.dispatchEvent(new Event('input'));
+      }
+      if (textColorInput) {
+        textColorInput.value = theme.text;
+        textColorInput.dispatchEvent(new Event('input'));
+      }
       if (btnInput) {
         btnInput.value = theme.btn;
         btnInput.dispatchEvent(new Event('input'));
@@ -1061,6 +1115,8 @@ HTML;
 
     document.querySelectorAll('.theme-preset-btn').forEach(button => {
       button.addEventListener('click', function () {
+        document.querySelectorAll('.theme-preset-btn').forEach(btn => btn.classList.remove('is-active'));
+        this.classList.add('is-active');
         applyThemePreset({
           bg: this.dataset.themeBg,
           text: this.dataset.themeText,
@@ -1069,6 +1125,12 @@ HTML;
         });
       });
     });
+
+    function syncPreviewLayoutBasedOnBackground(hasCustomBackground) {
+      const pageChrome = document.getElementById('preview-page-chrome');
+      if (!pageChrome) return;
+      pageChrome.classList.toggle('has-custom-bg', !!hasCustomBackground);
+    }
 
     document.querySelectorAll('.live-update').forEach(input => {
       input.addEventListener('input', function() {
@@ -1123,11 +1185,21 @@ HTML;
               leftPanel.style.backgroundRepeat = 'no-repeat';
               leftPanel.style.imageRendering = 'high-quality';
             }
+            syncPreviewLayoutBasedOnBackground(true);
           } else if (input.id === 'brand_logo_image') {
             // Update logo inside the left panel card brand area
             const logoBox = document.getElementById('preview-clinic-logo');
             if (logoBox) {
               logoBox.innerHTML = `<img src="${dataUrl}" alt="Logo" style="max-height:38px;max-width:60px;object-fit:contain;image-rendering:high-quality;">`;
+            }
+            const topLeftLogoImage = document.getElementById('preview-logo-img');
+            if (topLeftLogoImage) {
+              topLeftLogoImage.src = dataUrl;
+            } else {
+              const topLeftLogo = document.getElementById('preview-topleft-logo');
+              if (topLeftLogo) {
+                topLeftLogo.innerHTML = `<img id="preview-logo-img" src="${dataUrl}" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">`;
+              }
             }
           }
         };
@@ -1157,9 +1229,15 @@ HTML;
 
       // Reset hidden brand colors
       const bgColorInput = document.querySelector('input[name="brand_bg_color"]');
-      if (bgColorInput) bgColorInput.value = '#001f3f';
+      if (bgColorInput) {
+        bgColorInput.value = '#001f3f';
+        bgColorInput.dispatchEvent(new Event('input'));
+      }
       const textColorInput = document.querySelector('input[name="brand_text_color"]');
-      if (textColorInput) textColorInput.value = '#ffffff';
+      if (textColorInput) {
+        textColorInput.value = '#ffffff';
+        textColorInput.dispatchEvent(new Event('input'));
+      }
 
       // Reset file inputs
       const bgFileInput = document.getElementById('brand_bg_image');
@@ -1172,11 +1250,16 @@ HTML;
       if (leftPanel) {
         leftPanel.style.backgroundImage = 'none';
       }
+      syncPreviewLayoutBasedOnBackground(false);
 
       // Reset logo inside the card brand area
       const logoBox = document.getElementById('preview-clinic-logo');
       if (logoBox) {
         logoBox.innerHTML = '<span style="font-weight:800;font-size:13px;color:#fff;">OS</span>';
+      }
+      const topLeftLogo = document.getElementById('preview-topleft-logo');
+      if (topLeftLogo) {
+        topLeftLogo.innerHTML = '<span id="preview-logo-initials" style="font-weight:800;font-size:15px;color:#fff;letter-spacing:0.5px;">OS</span>';
       }
 
       // Reset sign-in button and forgot link colors in preview
@@ -1226,6 +1309,8 @@ HTML;
     function validateForm() {
       return true;
     }
+
+    syncPreviewLayoutBasedOnBackground(<?php echo !empty($tenantSettings['brand_bg_image_path']) ? 'true' : 'false'; ?>);
   </script>
 
   <!-- Reset Confirmation Modal -->

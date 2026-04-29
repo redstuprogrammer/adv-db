@@ -3,6 +3,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Allow both superadmin and logged in tenant to query reports appropriately
 if (empty($_SESSION['superadmin_authed']) && empty($_SESSION['tenant_id'])) {
@@ -20,6 +21,17 @@ $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 $tenant_id = $_GET['tenant_id'] ?? '';
 $activity_type = $_GET['activity_type'] ?? '';
+
+if (!$isSuperAdmin && $tenantSessionId > 0) {
+    if (!tenantHasTierFeature($tenantSessionId, 'basic_reporting', $conn)) {
+        echo json_encode(['success' => false, 'error' => 'Reporting is not available on your current plan.']);
+        exit;
+    }
+    if ($type === 'revenue' && !tenantHasTierFeature($tenantSessionId, 'advanced_reporting', $conn)) {
+        echo json_encode(['success' => false, 'error' => 'Advanced revenue reporting is only available on Professional plan.']);
+        exit;
+    }
+}
 
 if ($date_from && $date_to && $date_to < $date_from) {
     echo json_encode(['success' => false, 'error' => 'Date To cannot be earlier than Date From.']);

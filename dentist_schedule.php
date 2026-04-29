@@ -166,10 +166,6 @@ mysqli_stmt_close($stmt);
                     <div class="message <?php echo $messageType; ?>"><?php echo h($message); ?></div>
                 <?php endif; ?>
 
-                <div class="batch-bar">
-                    <button type="button" class="btn-ghost" onclick="copyMonday()">📋 Copy Monday to Weekdays</button>
-                </div>
-
                 <form method="POST" class="management-card">
                     <input type="hidden" name="save_all_schedule" value="1">
                     <table class="compact-table">
@@ -241,20 +237,6 @@ mysqli_stmt_close($stmt);
             }
         }
 
-        function copyMonday() {
-            const start = document.querySelector('input[name="start_Monday"]').value;
-            const end = document.querySelector('input[name="end_Monday"]').value;
-            const avail = document.querySelector('input[name="available_Monday"]').checked;
-            const weekdays = ['Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-            weekdays.forEach(day => {
-                const cb = document.querySelector(`input[name="available_${day}"]`);
-                document.querySelector(`input[name="start_${day}"]`).value = start;
-                document.querySelector(`input[name="end_${day}"]`).value = end;
-                cb.checked = avail;
-                updateRowState(day, cb);
-            });
-        }
     </script>
 </body>
 </html>

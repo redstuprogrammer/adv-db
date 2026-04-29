@@ -8,6 +8,34 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function tableHasColumns(mysqli $conn, string $table, array $columns): bool {
+    $tableSafe = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+    if ($tableSafe === '') {
+        return false;
+    }
+
+    $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$tableSafe}`");
+    if (!$result) {
+        return false;
+    }
+
+    $present = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $field = $row['Field'] ?? '';
+        if ($field !== '') {
+            $present[$field] = true;
+        }
+    }
+    mysqli_free_result($result);
+
+    foreach ($columns as $column) {
+        if (!isset($present[$column])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $message = '';
 $isError = false;
@@ -70,21 +98,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tokenHash = password_hash($token, PASSWORD_DEFAULT);
             $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
             
-            // Store token in correct table
+            // Store token in correct table (with schema fallback)
             $success = false;
-            if ($accountType === 'tenant') {
-                $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
-                mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $accountId);
-                $success = mysqli_stmt_execute($updateStmt);
-                mysqli_stmt_close($updateStmt);
-            } else {
-                // Ensure columns exist or handle gracefully
-                $updateStmt = mysqli_prepare($conn, "UPDATE users SET password_reset_token = ?, password_reset_expires = ? WHERE user_id = ?");
+            if (
+                ($accountType === 'tenant' && tableHasColumns($conn, 'tenants', ['password_reset_token', 'password_reset_expires'])) ||
+                ($accountType === 'user' && tableHasColumns($conn, 'users', ['password_reset_token', 'password_reset_expires']))
+            ) {
+                $targetTable = $accountType === 'tenant' ? 'tenants' : 'users';
+                $idColumn = $accountType === 'tenant' ? 'tenant_id' : 'user_id';
+                $sql = "UPDATE {$targetTable} SET password_reset_token = ?, password_reset_expires = ? WHERE {$idColumn} = ?";
+                $updateStmt = mysqli_prepare($conn, $sql);
                 if ($updateStmt) {
                     mysqli_stmt_bind_param($updateStmt, "ssi", $tokenHash, $expiresAt, $accountId);
                     $success = mysqli_stmt_execute($updateStmt);
                     mysqli_stmt_close($updateStmt);
                 }
+            } elseif (tableHasColumns($conn, 'password_resets', ['email', 'token', 'expires_at'])) {
+                $insertSql = "INSERT INTO password_resets (email, token, expires_at, created_at)
+                              VALUES (?, ?, ?, NOW())
+                              ON DUPLICATE KEY UPDATE token = VALUES(token), expires_at = VALUES(expires_at)";
+                $insertStmt = mysqli_prepare($conn, $insertSql);
+                if ($insertStmt) {
+                    mysqli_stmt_bind_param($insertStmt, "sss", $accountEmail, $tokenHash, $expiresAt);
+                    $success = mysqli_stmt_execute($insertStmt);
+                    mysqli_stmt_close($insertStmt);
+                }
+            } else {
+                error_log('Forgot password storage unavailable: missing reset columns and password_resets table.');
             }
             
             if ($success) {
@@ -110,6 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Email could not be sent. Please try again later or contact support.';
                     $isError = true;
                 }
+            } else {
+                $message = 'Unable to create password reset request right now. Please contact support.';
+                $isError = true;
             }
         } else {
             // Security: Don't reveal if email exists

@@ -1555,8 +1555,8 @@ try {
                     detailsHTML += '<li>Max Receptionists: ' + features['max_receptionists'] + '</li>';
                     detailsHTML += '<li>Max Patients: ' + features['max_patients'] + '</li>';
                     detailsHTML += '<li>Storage: ' + features['max_storage_gb'] + ' GB</li>';
-                    detailsHTML += '<li>Dental Chart: ' + (features['dental_chart_tracking'] ? '✓ Yes' : '✗ No') + '</li>';
-                    detailsHTML += '<li>SMS Notifications: ' + (features['sms_notifications'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '<li>Payment Tracking: ' + (features['payment_tracking'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '<li>Basic Reporting: ' + (features['basic_reporting'] ? '✓ Yes' : '✗ No') + '</li>';
                     detailsHTML += '</ul>';
                     
                     tierDetails.innerHTML = detailsHTML;

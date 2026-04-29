@@ -41,6 +41,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
+require_once __DIR__ . '/../includes/subscription_tiers.php';
 
 // Guard: DB connection
 if (!isset($conn) || !$conn || $conn->connect_error) {
@@ -73,6 +74,20 @@ if (!$patient_id || !$tenant_id || !$dentist_id || !$appointment_date || !$appoi
         'message' => 'patient_id, tenant_id, dentist_id, appointment_date, and appointment_time are all required'
     ]);
     exit;
+}
+
+// Feature gate: appointment scheduling must be enabled for this tenant tier.
+$tierStmt = $conn->prepare("SELECT subscription_tier FROM tenants WHERE tenant_id = ? LIMIT 1");
+if ($tierStmt) {
+    $tierStmt->bind_param("i", $tenant_id);
+    $tierStmt->execute();
+    $tierRow = $tierStmt->get_result()->fetch_assoc();
+    $tierStmt->close();
+    $tierKey = (string)($tierRow['subscription_tier'] ?? '');
+    if ($tierKey === '' || !tierHasFeature($tierKey, 'appointment_scheduling')) {
+        echo json_encode(['success' => false, 'message' => 'Appointment scheduling is not available for this subscription plan.']);
+        exit;
+    }
 }
 
 // Validate date format

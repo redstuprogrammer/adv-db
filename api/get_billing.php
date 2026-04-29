@@ -14,6 +14,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
+require_once __DIR__ . '/../includes/subscription_tiers.php';
 
 // ─────────────────────────────────────────────
 //  GET  →  fetch billings for a patient
@@ -84,6 +85,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     if (!$tenant_id || !$appointment_id || $amount === null || !$reference_number) {
         echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
+        exit;
+    }
+
+    $tierStmt = $conn->prepare("SELECT subscription_tier FROM tenants WHERE tenant_id = ? LIMIT 1");
+    $tierKey = '';
+    if ($tierStmt) {
+        $tierStmt->bind_param("i", $tenant_id);
+        $tierStmt->execute();
+        $tierRow = $tierStmt->get_result()->fetch_assoc();
+        $tierStmt->close();
+        $tierKey = (string)($tierRow['subscription_tier'] ?? '');
+    }
+    if ($tierKey === '' || !tierHasFeature($tierKey, 'payment_tracking')) {
+        echo json_encode(['success' => false, 'message' => 'Payments are not available for this subscription plan.']);
+        exit;
+    }
+    if (!tierHasFeature($tierKey, 'multiple_payment_methods') && strtolower((string)$mode) !== 'cash') {
+        echo json_encode(['success' => false, 'message' => 'Only Cash payment mode is allowed on this subscription plan.']);
         exit;
     }
 

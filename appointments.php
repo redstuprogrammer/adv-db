@@ -17,6 +17,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -46,7 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $appointmentDate = isset($_POST['appointment_date']) ? trim($_POST['appointment_date']) : '';
     $status = 'pending'; // Default status; user should not set this manually
 
-    if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '') {
+    if (!tenantHasTierFeature((int)$tenantId, 'appointment_scheduling', $conn)) {
+        $errorMsg = 'Appointment scheduling is not available on your current plan.';
+    } elseif ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '') {
         $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, status) VALUES (?, ?, ?, ?, ?)');
         $stmt->bind_param('iiiss', $tenantId, $patientId, $dentistId, $appointmentDate, $status);        if ($stmt->execute()) {
             $successMsg = 'Appointment scheduled successfully!';

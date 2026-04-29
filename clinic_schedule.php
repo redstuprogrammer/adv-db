@@ -189,11 +189,6 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
                 <?php endif; ?>
 
                 <form method="POST">
-                    <div class="batch-actions">
-                        <button type="button" class="btn-ghost" onclick="copyMonday(false)">Copy Monday to Weekdays</button>
-                        <button type="button" class="btn-ghost" onclick="copyMonday(true)">Copy Monday to All Days</button>
-                    </div>
-
                     <table class="compact-table">
                         <thead>
                             <tr>
@@ -238,10 +233,9 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
                 </form>
             </div>
 
-
-    <?php printDateClockScript(); ?>
-
     <script>
+        <?php printDateClockScript(); ?>
+
         function toggleRow(day, checkbox) {
             const row = document.getElementById(`row-${day}`);
             const pill = document.getElementById(`pill-${day}`);
@@ -260,23 +254,6 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
             }
         }
 
-        function copyMonday(allDays) {
-            const openTime = document.querySelector('input[name="monday_open_time"]').value;
-            const closeTime = document.querySelector('input[name="monday_close_time"]').value;
-            const isOpen = document.querySelector('input[name="monday_open"]').checked;
-
-            const targets = allDays 
-                ? ['tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-                : ['tuesday', 'wednesday', 'thursday', 'friday'];
-
-            targets.forEach(day => {
-                const cb = document.querySelector(`input[name="${day}_open"]`);
-                document.querySelector(`input[name="${day}_open_time"]`).value = openTime;
-                document.querySelector(`input[name="${day}_close_time"]`).value = closeTime;
-                cb.checked = isOpen;
-                toggleRow(day, cb);
-            });
-        }
     </script>
         </main>
     </div>

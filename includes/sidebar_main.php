@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/tenant_utils.php';
+require_once __DIR__ . '/tenant_tier_helper.php';
 $tenantName = $tenantName ?? $_SESSION['tenant_name'] ?? 'OralSync Clinic';
 $tenantSlug = $tenantSlug ?? trim((string)($_GET['tenant'] ?? ''));
 
@@ -26,6 +27,9 @@ function sidebarActive($currentPage, $pageNames) {
 
 $basePath = getAppBasePath();
 $baseTenantQuery = '?tenant=' . rawurlencode($tenantSlug);
+$tenantIdForMenu = getCurrentTenantId();
+$canUseBilling = $tenantIdForMenu ? tenantHasTierFeature((int)$tenantIdForMenu, 'payment_tracking', $conn ?? null) : true;
+$canUseReports = $tenantIdForMenu ? tenantHasTierFeature((int)$tenantIdForMenu, 'basic_reporting', $conn ?? null) : true;
 
 $menu = [];
 
@@ -39,6 +43,7 @@ switch ($role) {
                 ['href' => $basePath . '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
                 ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
                 ['href' => $basePath . '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
+                ['href' => $basePath . '/dentist_account_settings.php' . $baseTenantQuery, 'icon' => '🔐', 'label' => 'Account Settings', 'active' => 'dentist_account_settings.php'],
             ]],
         ];
         $logoutLink = $basePath . '/dentist_logout.php' . $baseTenantQuery;
@@ -51,7 +56,8 @@ switch ($role) {
             ['section' => 'Core Features', 'items' => [
                 ['href' => $basePath . '/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
                 ['href' => $basePath . '/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
-                ['href' => $basePath . '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php'],
+                ...($canUseBilling ? [['href' => $basePath . '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php']] : []),
+                ['href' => $basePath . '/receptionist_account_settings.php' . $baseTenantQuery, 'icon' => '🔐', 'label' => 'Account Settings', 'active' => 'receptionist_account_settings.php'],
             ]],
         ];
         $logoutLink = $basePath . '/receptionist_logout.php' . $baseTenantQuery;
@@ -64,14 +70,14 @@ switch ($role) {
             ['section' => 'Core Features', 'items' => [
                 ['href' => $basePath . '/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
                 ['href' => $basePath . '/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
-                ['href' => $basePath . '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php'],
+                ...($canUseBilling ? [['href' => $basePath . '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php']] : []),
             ]],
             ['section' => 'Management', 'items' => [
                 ['href' => $basePath . '/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
                 ['href' => $basePath . '/staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
                 ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
                 ['href' => $basePath . '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
-                ['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php'],
+                ...($canUseReports ? [['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php']] : []),
                 ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];

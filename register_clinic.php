@@ -4,6 +4,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/includes/connect.php'; 
 require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/tenant_tier_helper.php';
 
 $response = [
     'success' => false, 
@@ -285,6 +286,12 @@ try {
                         // Basic security: allowed extensions
                         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
                         if (in_array($ext, $allowed)) {
+                            // Check storage limit
+                            if (!isTenantWithinStorageLimit($new_id, $file_size, $conn)) {
+                                error_log("Storage limit reached for tenant $new_id while uploading $original_name");
+                                continue; // Skip this file
+                            }
+                            
                             $safe_name = uniqid('doc_' . $new_id . '_') . '.' . $ext;
                             $dest_path = $upload_dir . $safe_name;
                             

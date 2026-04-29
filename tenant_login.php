@@ -266,6 +266,8 @@ $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';
 $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
 $base = getAppBasePath();
 $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+$hasCustomBgImage = !empty($loginSettings['brand_bg_image_path']);
+$hasCustomLogo = !empty($loginSettings['brand_logo_path']);
 
 ?>
 <!doctype html>
@@ -276,6 +278,13 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
+        :root {
+            --tenant-custom-bg: <?php echo h($loginSettings['brand_bg_color']); ?>;
+            --tenant-custom-text: <?php echo h($loginSettings['brand_text_color']); ?>;
+            --tenant-custom-primary: <?php echo h($loginSettings['primary_btn_color']); ?>;
+            --tenant-custom-link: <?php echo h($loginSettings['link_color']); ?>;
+        }
+
         body {
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -346,8 +355,35 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
         .t-btnPrimary {
             background: <?php echo h($loginSettings['primary_btn_color']); ?> !important;
         }
+        .t-cardTitle {
+            color: var(--tenant-custom-bg);
+        }
+        .t-field label {
+            color: var(--tenant-custom-bg);
+        }
+        .t-field input:focus {
+            border-color: color-mix(in srgb, var(--tenant-custom-primary) 60%, white 40%);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--tenant-custom-primary) 18%, transparent);
+        }
         .t-card a[href*="forgot_password"] {
             color: <?php echo h($loginSettings['link_color']); ?> !important;
+        }
+        .t-pageLogo {
+            border-color: color-mix(in srgb, var(--tenant-custom-primary) 55%, white 45%);
+            background: color-mix(in srgb, var(--tenant-custom-bg) 60%, rgba(15, 23, 42, 0.55) 40%);
+        }
+        .t-foot {
+            border-top: 1px solid color-mix(in srgb, var(--tenant-custom-primary) 30%, #e2e8f0 70%);
+            padding-top: 10px;
+        }
+
+        .t-shell.t-shell-custom-bg {
+            max-width: 460px;
+            grid-template-columns: 1fr;
+        }
+
+        .t-shell.t-shell-custom-bg .t-brandPanel {
+            display: none;
         }
 
         @media (max-width: 768px) {
@@ -375,13 +411,13 @@ $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawur
 </head>
 <body>
     <div class="t-wrap">
-        <?php if (!empty($loginSettings['brand_logo_path'])): ?>
+        <?php if ($hasCustomLogo): ?>
             <div class="t-pageLogo" aria-label="Clinic branding">
                 <img src="<?php echo h($loginSettings['brand_logo_path']); ?>" alt="Clinic logo">
                 <div class="t-pageLogoText"><?php echo h($clinicName); ?></div>
             </div>
         <?php endif; ?>
-        <div class="t-shell">
+        <div class="t-shell <?php echo $hasCustomBgImage ? 't-shell-custom-bg' : ''; ?>">
             <section class="t-brandPanel">
                 <div class="t-brandTop">
                     <div class="t-logo">

@@ -14,6 +14,7 @@ $sessionManager->requireTenantUser('receptionist');
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -38,6 +39,13 @@ $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 $receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
+$hasPaymentTracking = tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn);
+$hasInvoiceGeneration = tenantHasTierFeature((int)$tenantId, 'invoice_generation', $conn);
+
+if (!$hasPaymentTracking) {
+    http_response_code(403);
+    die('Billing and payment tracking are not available on your current subscription plan.');
+}
 
 /* =========================================
    2. DATA FETCHING (Billing List)
@@ -260,7 +268,11 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
-                                    <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
+                                    <?php if ($hasInvoiceGeneration): ?>
+                                        <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
+                                    <?php else: ?>
+                                        <span style="color:#64748b;font-size:12px;">Invoice print unavailable</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endwhile; ?>

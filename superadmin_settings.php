@@ -345,8 +345,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <th>Max Receptionists</th>
                                 <th>Max Patients</th>
                                 <th>Storage (GB)</th>
-                                <th>Dental Chart</th>
-                                <th>SMS Reminders</th>
+                                <th>Payment Tracking</th>
+                                <th>Basic Reporting</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -363,8 +363,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <td>" . ($tier['features']['max_receptionists'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_patients'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_storage_gb'] ?? 0) . "</td>
-                                    <td>" . (($tier['features']['dental_chart_tracking'] ?? false) ? '✓' : '✗') . "</td>
-                                    <td>" . (($tier['features']['sms_reminders'] ?? false) ? '✓' : '✗') . "</td>
+                                    <td>" . (($tier['features']['payment_tracking'] ?? false) ? '✓' : '✗') . "</td>
+                                    <td>" . (($tier['features']['basic_reporting'] ?? false) ? '✓' : '✗') . "</td>
                                 </tr>";
                             }
                             ?>

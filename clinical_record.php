@@ -18,6 +18,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
+require_once __DIR__ . '/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -90,6 +91,61 @@ if ($historyStmt) {
         $clinicalHistory[] = $row;
     }
     $historyStmt->close();
+}
+
+// Handle file uploads
+$errorMsg = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
+    $upload_dir = __DIR__ . '/uploads/patient_docs/';
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+    
+    foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
+        if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
+            $original_name = mysqli_real_escape_string($conn, $_FILES['patient_docs']['name'][$key]);
+            $file_type = $_FILES['patient_docs']['type'][$key];
+            $file_size = $_FILES['patient_docs']['size'][$key];
+            $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+            
+            // Check storage limit
+            if (!isTenantWithinStorageLimit($tenantId, (int)$file_size, $conn)) {
+                $errorMsg = "❌ Storage limit reached. Cannot upload $original_name.";
+                continue;
+            }
+            
+            $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+            if (in_array($ext, $allowed)) {
+                $safe_name = uniqid('pat_' . $patient_id . '_') . '.' . $ext;
+                $dest_path = $upload_dir . $safe_name;
+                
+                if (move_uploaded_file($tmp_name, $dest_path)) {
+                    $db_path = 'uploads/patient_docs/' . $safe_name;
+                    $doc_sql = "INSERT INTO patient_documents (tenant_id, patient_id, document_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?, ?)";
+                    $doc_stmt = mysqli_prepare($conn, $doc_sql);
+                    if ($doc_stmt) {
+                        mysqli_stmt_bind_param($doc_stmt, "iisssi", $tenantId, $patient_id, $original_name, $db_path, $file_type, $file_size);
+                        mysqli_stmt_execute($doc_stmt);
+                        mysqli_stmt_close($doc_stmt);
+                        $successMsg = '✓ Document(s) uploaded successfully.';
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Fetch patient documents
+$patientDocs = [];
+$docsStmt = $conn->prepare("SELECT * FROM patient_documents WHERE tenant_id = ? AND patient_id = ? ORDER BY doc_id DESC");
+if ($docsStmt) {
+    $docsStmt->bind_param('ii', $tenantId, $patient_id);
+    $docsStmt->execute();
+    $docsResult = $docsStmt->get_result();
+    while ($row = $docsResult->fetch_assoc()) {
+        $patientDocs[] = $row;
+    }
+    $docsStmt->close();
 }
 ?>
 
@@ -348,6 +404,9 @@ if ($historyStmt) {
     <?php if ($successMsg): ?>
         <div class="success-message"><?php echo $successMsg; ?></div>
     <?php endif; ?>
+    <?php if ($errorMsg): ?>
+        <div class="success-message" style="background: #fee2e2; color: #b91c1c; border-color: #fecaca;"><?php echo $errorMsg; ?></div>
+    <?php endif; ?>
 
     <div class="patient-summary">
         <h2 style="margin: 0; color: var(--primary); font-size: 22px;">
@@ -379,7 +438,7 @@ if ($historyStmt) {
 
     <div class="entry-form">
         <h3>📝 Add Clinical Note</h3>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label>Diagnosis</label>
                 <textarea name="diagnosis" placeholder="Enter patient diagnosis..."></textarea>
@@ -395,8 +454,14 @@ if ($historyStmt) {
                 <textarea name="clinical_notes" placeholder="Additional observations and notes..." required></textarea>
             </div>
 
+            <div class="form-group">
+                <label>Attachments (X-Rays, Lab results, etc.)</label>
+                <input type="file" name="patient_docs[]" multiple style="width: 100%; padding: 10px; border: 1px dashed var(--border); border-radius: 8px;">
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">Allowed: PDF, JPG, PNG, DOCX (Max total size per plan applies)</p>
+            </div>
+
             <div class="form-actions">
-                <button type="submit" name="save_clinical_note" class="btn-save">Save Note</button>
+                <button type="submit" name="save_clinical_note" class="btn-save">Save Note & Upload</button>
                 <button type="reset" class="btn-clear">Clear</button>
             </div>
         </form>
@@ -418,6 +483,26 @@ if ($historyStmt) {
         <div class="history-section">
             <div class="empty-state">
                 <p>No clinical notes on file for this patient yet.</p>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <?php if (!empty($patientDocs)): ?>
+        <div class="history-section" style="margin-top: 30px;">
+            <h3>📎 Patient Documents</h3>
+            <div style="display: grid; gap: 10px;">
+                <?php foreach ($patientDocs as $doc): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">📄</span>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--primary);"><?php echo h($doc['document_name']); ?></div>
+                                <div style="font-size: 11px; color: var(--text-muted);"><?php echo strtoupper(h($doc['file_type'])); ?> • <?php echo round($doc['file_size'] / 1024, 2); ?> KB</div>
+                            </div>
+                        </div>
+                        <a href="<?php echo h($doc['file_path']); ?>" target="_blank" style="font-size: 13px; color: var(--primary); font-weight: 700; text-decoration: none;">View</a>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
     <?php endif; ?>

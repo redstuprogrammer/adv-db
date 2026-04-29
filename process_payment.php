@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
@@ -65,6 +66,15 @@ $errors = [];
 if ($patient_id <= 0) $errors[] = "Invalid patient selected";
 if ($appointment_id <= 0) $errors[] = "Invalid appointment selected";
 if (empty($procedures_json)) $errors[] = "No procedures selected";
+
+if (!tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn)) {
+    $errors[] = "Payment tracking is not available on your current plan.";
+}
+
+$allowMultiplePaymentMethods = tenantHasTierFeature((int)$tenantId, 'multiple_payment_methods', $conn);
+if (!$allowMultiplePaymentMethods) {
+    $mode = 'Cash';
+}
 
 $procedures = parse_procedures_json($procedures_json);
 if (empty($procedures)) {

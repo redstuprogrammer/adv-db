@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Role Check Implementation - Ensure user is logged in
 if (!isset($_SESSION['role'])) {
@@ -42,16 +43,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
     if ($username === '' || $email === '' || $rawPassword === '' || $role === '') {
         $formError = 'All fields are required to add a new user.';
+    } elseif (!in_array($role, ['Admin', 'Receptionist', 'Dentist'], true)) {
+        $formError = 'Invalid role selected.';
     } else {
-        $checkStmt = $conn->prepare('SELECT user_id FROM users WHERE tenant_id = ? AND username = ? LIMIT 1');
-        if ($checkStmt) {
-            $checkStmt->bind_param('is', $tenantId, $username);
-            $checkStmt->execute();
-            $resultCheck = $checkStmt->get_result();
-            if ($resultCheck && $resultCheck->num_rows > 0) {
-                $formError = 'That username is already taken. Please choose another username for this clinic.';
+        if (strcasecmp($role, 'Dentist') === 0) {
+            $maxDentists = getTenantTierLimit((int)$tenantId, 'max_dentists', $conn);
+            if ($maxDentists !== null) {
+                $countStmt = $conn->prepare("SELECT COUNT(*) AS c FROM users WHERE tenant_id = ? AND role = 'Dentist'");
+                if ($countStmt) {
+                    $countStmt->bind_param('i', $tenantId);
+                    $countStmt->execute();
+                    $countRow = $countStmt->get_result()->fetch_assoc();
+                    $countStmt->close();
+                    if ((int)($countRow['c'] ?? 0) >= $maxDentists) {
+                        $formError = 'Your current plan allows up to ' . $maxDentists . ' dentist account(s). Upgrade to add more.';
+                    }
+                }
             }
-            $checkStmt->close();
+        } elseif (strcasecmp($role, 'Receptionist') === 0) {
+            $maxReceptionists = getTenantTierLimit((int)$tenantId, 'max_receptionists', $conn);
+            if ($maxReceptionists !== null) {
+                $countStmt = $conn->prepare("SELECT COUNT(*) AS c FROM users WHERE tenant_id = ? AND role = 'Receptionist'");
+                if ($countStmt) {
+                    $countStmt->bind_param('i', $tenantId);
+                    $countStmt->execute();
+                    $countRow = $countStmt->get_result()->fetch_assoc();
+                    $countStmt->close();
+                    if ((int)($countRow['c'] ?? 0) >= $maxReceptionists) {
+                        $formError = 'Your current plan allows up to ' . $maxReceptionists . ' receptionist account(s). Upgrade to add more.';
+                    }
+                }
+            }
+        }
+
+        if ($formError === '') {
+            $checkStmt = $conn->prepare('SELECT user_id FROM users WHERE tenant_id = ? AND username = ? LIMIT 1');
+            if ($checkStmt) {
+                $checkStmt->bind_param('is', $tenantId, $username);
+                $checkStmt->execute();
+                $resultCheck = $checkStmt->get_result();
+                if ($resultCheck && $resultCheck->num_rows > 0) {
+                    $formError = 'That username is already taken. Please choose another username for this clinic.';
+                }
+                $checkStmt->close();
+            }
         }
 
         if ($formError === '') {

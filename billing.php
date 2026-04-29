@@ -17,6 +17,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -38,6 +39,13 @@ if ($_SESSION['role'] !== 'Admin') {
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$hasPaymentTracking = tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn);
+$hasInvoiceGeneration = tenantHasTierFeature((int)$tenantId, 'invoice_generation', $conn);
+
+if (!$hasPaymentTracking) {
+    http_response_code(403);
+    die('Billing and payment tracking are not available on your current subscription plan.');
+}
 $tenantConfig = getTenantConfig($tenantId);
 $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 
@@ -343,7 +351,11 @@ foreach ($payments as $payment) {
                   <td><?php echo h(ucfirst($payment['mode'] ?: 'N/A')); ?></td>
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
                   <td style="text-align: right;">
-                    <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
+                    <?php if ($hasInvoiceGeneration): ?>
+                      <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
+                    <?php else: ?>
+                      <span style="color:#64748b;font-size:12px;">Invoice PDF unavailable on current plan</span>
+                    <?php endif; ?>
                   </td>
                 </tr>
               <?php endforeach; ?>

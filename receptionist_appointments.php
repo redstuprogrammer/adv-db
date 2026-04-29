@@ -14,6 +14,7 @@ $sessionManager->requireTenantUser('receptionist');
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -46,7 +47,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $appointmentTime = trim($_POST['appointment_time'] ?? '');
     $status = 'Pending'; // Automatically set to Pending on creation
 
-    if ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
+    if (!tenantHasTierFeature((int)$tenantId, 'appointment_scheduling', $conn)) {
+        $errorMessage = 'Appointment scheduling is not available on your current plan.';
+    } elseif ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
         $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
         if ($stmtAdd) {
             mysqli_stmt_bind_param($stmtAdd, 'iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);

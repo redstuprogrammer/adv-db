@@ -55,7 +55,7 @@ if ($role === 'admin') {
 } else {
     // For dentist/receptionist, get data from users table
     try {
-        $stmt = mysqli_prepare($conn, "SELECT first_name, last_name, email, phone FROM users WHERE user_id = ? AND tenant_id = ?");
+        $stmt = mysqli_prepare($conn, "SELECT first_name, last_name, username, email, phone, password FROM users WHERE user_id = ? AND tenant_id = ?");
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, "ii", $userId, $tenantId);
             mysqli_stmt_execute($stmt);
@@ -74,6 +74,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $lastName = trim((string)($_POST['last_name'] ?? ''));
     $email = trim((string)($_POST['email'] ?? ''));
     $phone = trim((string)($_POST['phone'] ?? ''));
+    $username = trim((string)($_POST['username'] ?? ''));
+    $currentPassword = (string)($_POST['current_password'] ?? '');
+    $newPassword = (string)($_POST['new_password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
     if ($role === 'admin') {
         // Update tenant owner info
@@ -98,21 +102,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'error';
         }
     } else {
-        // Update user info
+        // Update user info + credentials for dentist/receptionist
         try {
-            $stmt = mysqli_prepare($conn, "UPDATE users SET first_name = ?, last_name = ?, email = ?, phone = ? WHERE user_id = ? AND tenant_id = ?");
-            if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "ssssii", $firstName, $lastName, $email, $phone, $userId, $tenantId);
-                if (mysqli_stmt_execute($stmt)) {
+            if ($username === '') {
+                $message = 'Username is required.';
+                $messageType = 'error';
+            } elseif (strlen($username) < 3) {
+                $message = 'Username must be at least 3 characters.';
+                $messageType = 'error';
+            } else {
+                $dupStmt = mysqli_prepare($conn, "SELECT user_id FROM users WHERE tenant_id = ? AND username = ? AND user_id <> ? LIMIT 1");
+                if ($dupStmt) {
+                    mysqli_stmt_bind_param($dupStmt, "isi", $tenantId, $username, $userId);
+                    mysqli_stmt_execute($dupStmt);
+                    $dupRes = mysqli_stmt_get_result($dupStmt);
+                    if ($dupRes && mysqli_num_rows($dupRes) > 0) {
+                        $message = 'That username is already in use in this clinic.';
+                        $messageType = 'error';
+                    }
+                    mysqli_stmt_close($dupStmt);
+                }
+            }
+
+            $changePassword = ($currentPassword !== '' || $newPassword !== '' || $confirmPassword !== '');
+            if ($message === '' && $changePassword) {
+                if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+                    $message = 'Fill in all password fields to change your password.';
+                    $messageType = 'error';
+                } elseif (!password_verify($currentPassword, (string)($userData['password'] ?? ''))) {
+                    $message = 'Current password is incorrect.';
+                    $messageType = 'error';
+                } elseif (strlen($newPassword) < 8) {
+                    $message = 'New password must be at least 8 characters.';
+                    $messageType = 'error';
+                } elseif ($newPassword !== $confirmPassword) {
+                    $message = 'New password and confirmation do not match.';
+                    $messageType = 'error';
+                }
+            }
+
+            if ($message === '') {
+                if ($changePassword) {
+                    $newPasswordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+                    $stmt = mysqli_prepare($conn, "UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ?, phone = ?, password = ? WHERE user_id = ? AND tenant_id = ?");
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, "ssssssii", $firstName, $lastName, $username, $email, $phone, $newPasswordHash, $userId, $tenantId);
+                    }
+                } else {
+                    $stmt = mysqli_prepare($conn, "UPDATE users SET first_name = ?, last_name = ?, username = ?, email = ?, phone = ? WHERE user_id = ? AND tenant_id = ?");
+                    if ($stmt) {
+                        mysqli_stmt_bind_param($stmt, "sssssii", $firstName, $lastName, $username, $email, $phone, $userId, $tenantId);
+                    }
+                }
+
+                if (isset($stmt) && $stmt && mysqli_stmt_execute($stmt)) {
                     $message = 'Profile updated successfully!';
                     $messageType = 'success';
                     // Update session data
-                    $sessionManager->loginTenantUser($tenantSlug, array_merge($tenantData, ['username' => $firstName . ' ' . $lastName, 'email' => $email]));
+                    $sessionManager->loginTenantUser($tenantSlug, array_merge($tenantData, ['username' => $username, 'email' => $email]));
+
+                    // Refresh data for the form after update
+                    $refreshStmt = mysqli_prepare($conn, "SELECT first_name, last_name, username, email, phone, password FROM users WHERE user_id = ? AND tenant_id = ?");
+                    if ($refreshStmt) {
+                        mysqli_stmt_bind_param($refreshStmt, "ii", $userId, $tenantId);
+                        mysqli_stmt_execute($refreshStmt);
+                        $refreshRes = mysqli_stmt_get_result($refreshStmt);
+                        $userData = $refreshRes ? mysqli_fetch_assoc($refreshRes) : $userData;
+                        mysqli_stmt_close($refreshStmt);
+                    }
                 } else {
                     $message = 'Failed to update profile.';
                     $messageType = 'error';
                 }
-                mysqli_stmt_close($stmt);
+                if (isset($stmt) && $stmt) {
+                    mysqli_stmt_close($stmt);
+                }
             }
         } catch (Exception $e) {
             $message = 'Error updating profile: ' . $e->getMessage();
@@ -177,9 +241,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <?php if ($role !== 'admin'): ?>
                         <div class="form-group">
+                            <label for="username">Username</label>
+                            <input type="text" id="username" name="username" required
+                                   value="<?php echo h($userData['username'] ?? ''); ?>">
+                        </div>
+                        <div class="form-group">
                             <label for="phone">Phone Number</label>
                             <input type="tel" id="phone" name="phone"
                                    value="<?php echo h($userData['phone'] ?? ''); ?>">
+                        </div>
+                        <hr style="margin: 1.25rem 0; border: 0; border-top: 1px solid #e5e7eb;">
+                        <p style="margin: 0 0 0.9rem; color: #374151; font-weight: 600;">Change Password (Optional)</p>
+                        <div class="form-group">
+                            <label for="current_password">Current Password</label>
+                            <input type="password" id="current_password" name="current_password" autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="new_password">New Password</label>
+                            <input type="password" id="new_password" name="new_password" autocomplete="new-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password</label>
+                            <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
                         </div>
                     <?php endif; ?>
 

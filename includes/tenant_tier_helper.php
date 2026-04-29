@@ -48,6 +48,25 @@ function tenantHasTierFeature(int $tenantId, string $feature, $conn): bool {
 }
 
 /**
+ * Get a tenant feature flag with a safe fallback value.
+ * @param int $tenantId The tenant ID
+ * @param string $feature Feature key in subscription_tiers.php
+ * @param mysqli $conn Database connection
+ * @param bool $default Fallback value when tier cannot be resolved
+ * @return bool
+ */
+function getTenantFeatureFlag(int $tenantId, string $feature, $conn, bool $default = false): bool {
+    if ($tenantId <= 0 || !$conn) {
+        return $default;
+    }
+    $tier = getTenantTier($tenantId, $conn);
+    if (!$tier) {
+        return $default;
+    }
+    return tierHasFeature($tier, $feature);
+}
+
+/**
  * Get the limit value for a tenant's tier
  * @param int $tenantId The tenant ID
  * @param string $limitKey The limit key (e.g., 'max_patients', 'max_dentists')

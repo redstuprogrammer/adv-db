@@ -14,6 +14,7 @@ require_once __DIR__ . '/includes/session_utils.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 $sessionManager = SessionManager::getInstance();
 $sessionManager->requireTenantUser('receptionist');
@@ -43,19 +44,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     $address = trim($_POST['address'] ?? '');
     $usernameInput = trim($_POST['patient_username'] ?? '');
 
-    if ($firstName === '' || $lastName === '' || $contactNumber === '' || $usernameInput === '') {
+    if (!tenantHasTierFeature((int)$tenantId, 'patient_records', $conn)) {
+        $errorMessage = 'Patient records are not available on your current plan.';
+    } elseif ($firstName === '' || $lastName === '' || $contactNumber === '' || $usernameInput === '') {
         $errorMessage = 'First name, last name, contact number, and username are required.';
     } else {
-        // Check duplicate username (globally unique in patient table)
-        $checkUserStmt = $conn->prepare('SELECT patient_id FROM patient WHERE username = ? LIMIT 1');
-        if ($checkUserStmt) {
-            $checkUserStmt->bind_param('s', $usernameInput);
-            $checkUserStmt->execute();
-            $checkUserResult = $checkUserStmt->get_result();
-            if ($checkUserResult && $checkUserResult->num_rows > 0) {
-                $errorMessage = 'That username is already taken. Please choose a different username for this patient.';
+        $patientLimit = getTenantTierLimit((int)$tenantId, 'max_patients', $conn);
+        if ($patientLimit !== null) {
+            $countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM patient WHERE tenant_id = ?');
+            if ($countStmt) {
+                $countStmt->bind_param('i', $tenantId);
+                $countStmt->execute();
+                $countRow = $countStmt->get_result()->fetch_assoc();
+                $countStmt->close();
+                if ((int)($countRow['c'] ?? 0) >= $patientLimit) {
+                    $errorMessage = 'Patient limit reached for your plan (' . $patientLimit . '). Upgrade to add more patients.';
+                }
             }
-            $checkUserStmt->close();
+        }
+
+        // Check duplicate username (globally unique in patient table)
+        if ($errorMessage === '') {
+            $checkUserStmt = $conn->prepare('SELECT patient_id FROM patient WHERE username = ? LIMIT 1');
+            if ($checkUserStmt) {
+                $checkUserStmt->bind_param('s', $usernameInput);
+                $checkUserStmt->execute();
+                $checkUserResult = $checkUserStmt->get_result();
+                if ($checkUserResult && $checkUserResult->num_rows > 0) {
+                    $errorMessage = 'That username is already taken. Please choose a different username for this patient.';
+                }
+                $checkUserStmt->close();
+            }
         }
 
         // Check duplicate email within this tenant (only if email provided)
