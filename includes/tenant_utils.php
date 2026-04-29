@@ -213,6 +213,5 @@ function getSuperAdminAnalytics($conn): array {
         'daily_tenant_activities' => [5,8,6,12,10,7,15],
         'monthly_tenant_growth' => [0,0,0,0,0,0,0,0,0,0,0,1]
     ];
-}
-?>
+}\n?>
 

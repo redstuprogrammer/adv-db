@@ -1,6 +1,4 @@
-<?php
-define('ROOT_PATH', __DIR__ . '/');
-if (session_status() === PHP_SESSION_NONE) {
+<?php\nif (!ob_get_level()) ob_start();\ndefine('ROOT_PATH', __DIR__ . '/');\nif (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
     ini_set('session.use_only_cookies', 1);
     session_start();
