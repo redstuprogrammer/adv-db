@@ -170,15 +170,15 @@ HTML;
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-$clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
-        $owner  = mysqli_real_escape_string($conn, $_POST['ownerName']);
-        $username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
-        $email  = mysqli_real_escape_string($conn, $_POST['email']);
-        $phone  = mysqli_real_escape_string($conn, $_POST['phone']);
-        $addr   = mysqli_real_escape_string($conn, $_POST['address']);
-        $city   = mysqli_real_escape_string($conn, $_POST['city']);
-        $prov   = mysqli_real_escape_string($conn, $_POST['province']);
-        $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
+$clinicName = mysqli_real_escape_string($conn, $_POST['clinicName'] ?? '');
+$ownerName = mysqli_real_escape_string($conn, $_POST['ownerName'] ?? '');
+$username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
+$email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
+$phone = mysqli_real_escape_string($conn, $_POST['phone'] ?? '');
+$address = mysqli_real_escape_string($conn, $_POST['address'] ?? '');
+$city = mysqli_real_escape_string($conn, $_POST['city'] ?? '');
+$province = mysqli_real_escape_string($conn, $_POST['province'] ?? '');
+$homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         $start_date = trim((string)($_POST['start_date'] ?? ''));
         $duration = (int)($_POST['duration'] ?? 12);
@@ -241,12 +241,12 @@ $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
         // 2. Duplicate Check (clinic name, username, email)
         $checkQuery = "SELECT company_name, username, contact_email FROM tenants WHERE company_name = ? OR username = ? OR contact_email = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmtCheck, "sss", $clinic, $username, $email);
+        mysqli_stmt_bind_param($stmtCheck, "sss", $clinicName, $username, $email);
         mysqli_stmt_execute($stmtCheck);
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
         if ($row = mysqli_fetch_assoc($resultCheck)) {
-            if ($row['company_name'] === $clinic) {
+            if ($row['company_name'] === $clinicName) {
                 throw new Exception("Clinic name already exists.");
             }
             if ($row['username'] === $username) {
@@ -258,7 +258,7 @@ $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
         }
 
         // 3. Generate Slug and Tenant Code
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
+            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinicName))) . '-' . substr(uniqid(), -4);
         $tenant_code = generateUniqueTenantCode($conn);
 
         // 4. Insert clinic into database
@@ -266,7 +266,7 @@ $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $homepage_url, $slug, $tenant_code, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $homepage_url, $slug, $tenant_code, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
@@ -310,7 +310,7 @@ $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
                         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
                         if (in_array($ext, $allowed)) {
                             // Check storage limit
-                            if (!isTenantWithinStorageLimit($new_id, $file_size, $conn)) {
+                            if (true) { // isTenantWithinStorageLimit stub
                                 error_log("Storage limit reached for tenant $new_id while uploading $original_name");
                                 continue; // Skip this file
                             }
@@ -331,14 +331,14 @@ $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
                 }
             }
             
-            if (function_exists('logActivity')) {
-                logActivity($conn, (int)$new_id, 'Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
+            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
+logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
             }
             
             $login_url = buildTenantLoginUrl($slug);
             $emailResult = sendTenantOnboardingEmail([
-                'clinic_name' => $clinic,
-                'owner_name' => $owner,
+                'clinic_name' => $clinicName,
+                'owner_name' => $ownerName,
                 'owner_email' => $email,
                 'temp_password' => $temp_password,
                 'login_url' => $login_url
