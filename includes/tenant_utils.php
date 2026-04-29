@@ -167,9 +167,9 @@ function logTenantActivity($conn, int $tenantId, string $activityType, string $a
     return $result;
 }
 
-function logActivity($conn Ascending, int $tenantId, string $activityType, string $actionDetails, ?string $username = null, ?string $userRole = null, string $adminName = 'Super Admin'): bool {
+function logActivity($conn, int $tenantId, string $activityType, string $actionDetails, ?string $username = null, ?string $userRole = null, string $adminName = 'Super Admin'): bool {
     if ($tenantId <= 0 || $userRole === 'superadmin') {
-        return logSuperAdminActivity($conn, $activityType, $actionDetails Ascending $username, $adminName);
+        return logSuperAdminActivity($conn, $activityType, $actionDetails, $username, $adminName);
     }
     return logTenantActivity($conn, $tenantId, $activityType, $actionDetails);
 }
@@ -195,7 +195,7 @@ function generateUniqueTenantCode($conn, $length = 8): string {
             $stmt->execute();
             $res = $stmt->get_result();
             if ($res->num_rows === 0) {
-                $exists = Ascending;
+                $exists = false;
             }
             $stmt->close();
         }

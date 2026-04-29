@@ -66,7 +66,6 @@ function sendTenantOnboardingEmail(array $params): array {
 
     $clinicName = (string)($params['clinic_name'] ?? '');
     $ownerName = (string)($params['owner_name'] ?? '');
-    $clinicUsername = (string)($params['clinic_username'] ?? '');
     $ownerEmail = (string)($params['owner_email'] ?? '');
     $tempPassword = (string)($params['temp_password'] ?? '');
     $loginUrl = (string)($params['login_url'] ?? '');
@@ -79,7 +78,6 @@ function sendTenantOnboardingEmail(array $params): array {
     $safeOwner = htmlspecialchars($ownerName ?: 'Clinic Owner', ENT_QUOTES, 'UTF-8');
     $safeLoginUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
     $safeTempPass = htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8');
-    $safeUsername = htmlspecialchars($clinicUsername, ENT_QUOTES, 'UTF-8');
 
     $subject = "Your OralSync login for {$clinicName}";
 
@@ -126,16 +124,16 @@ function sendTenantOnboardingEmail(array $params): array {
             <ul style="margin:0;padding-left:18px;">
               <li>Open the link above and log in using this email address: <strong>{$ownerEmail}</strong></li>
               <li>Use the temporary password, then change it immediately after you sign in.</li>
-              <li>Bookmark your clinic’s login link for quick access.</li>
+              <li>Bookmark your clinic's login link for quick access.</li>
             </ul>
             <div style="margin-top:10px;color:#64748b;font-size:12px;">
-              If the button doesn’t work, copy & paste the URL into your browser.
+              If the button doesn't work, copy & paste the URL into your browser.
             </div>
           </div>
         </div>
 
         <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">
-          This is an automated message from OralSync. If you didn’t expect this email, you can ignore it.
+          This is an automated message from OralSync. If you didn't expect this email, you can ignore it.
         </div>
       </div>
     </div>
@@ -159,7 +157,7 @@ HTML;
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body = $html;
-        $mail->AltBody = "OralSync login for {$clinicName}\n\nLogin URL: {$loginUrl}\nUsername: {$clinicUsername}\nTemporary password: {$tempPassword}\n\nNext steps:\n- Log in using your username\n- Change your password after signing in\n- Bookmark your clinic link\n";
+        $mail->AltBody = "OralSync login for {$clinicName}\n\nLogin URL: {$loginUrl}\nTemporary password: {$tempPassword}\n\nNext steps:\n- Log in using your email\n- Change your password after signing in\n- Bookmark your clinic link\n";
 
         $mail->send();
         return ['sent' => true];
@@ -170,15 +168,15 @@ HTML;
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-$clinicName = mysqli_real_escape_string($conn, $_POST['clinicName'] ?? '');
-$ownerName = mysqli_real_escape_string($conn, $_POST['ownerName'] ?? '');
-$username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
-$email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
-$phone = mysqli_real_escape_string($conn, $_POST['phone'] ?? '');
-$address = mysqli_real_escape_string($conn, $_POST['address'] ?? '');
-$city = mysqli_real_escape_string($conn, $_POST['city'] ?? '');
-$province = mysqli_real_escape_string($conn, $_POST['province'] ?? '');
-$homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
+        $clinicName = mysqli_real_escape_string($conn, $_POST['clinicName'] ?? '');
+        $ownerName = mysqli_real_escape_string($conn, $_POST['ownerName'] ?? '');
+        $username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
+        $email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
+        $phone = mysqli_real_escape_string($conn, $_POST['phone'] ?? '');
+        $address = mysqli_real_escape_string($conn, $_POST['address'] ?? '');
+        $city = mysqli_real_escape_string($conn, $_POST['city'] ?? '');
+        $province = mysqli_real_escape_string($conn, $_POST['province'] ?? '');
+        $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         $start_date = trim((string)($_POST['start_date'] ?? ''));
         $duration = (int)($_POST['duration'] ?? 12);
@@ -258,7 +256,7 @@ $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         }
 
         // 3. Generate Slug and Tenant Code
-            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinicName))) . '-' . substr(uniqid(), -4);
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinicName))) . '-' . substr(uniqid(), -4);
         $tenant_code = generateUniqueTenantCode($conn);
 
         // 4. Insert clinic into database
@@ -270,6 +268,9 @@ $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
+            
+            // Log activity (single instance)
+            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
             
             // Record initial subscription payment for the tenant
             $tier_prices = [
@@ -309,12 +310,6 @@ $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
                         // Basic security: allowed extensions
                         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
                         if (in_array($ext, $allowed)) {
-                            // Check storage limit
-                            if (true) { // isTenantWithinStorageLimit stub
-                                error_log("Storage limit reached for tenant $new_id while uploading $original_name");
-                                continue; // Skip this file
-                            }
-                            
                             $safe_name = uniqid('doc_' . $new_id . '_') . '.' . $ext;
                             $dest_path = $upload_dir . $safe_name;
                             
@@ -330,39 +325,35 @@ $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
                     }
                 }
             }
-            
-            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
-logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
-            }
-            
-            $login_url = buildTenantLoginUrl($slug);
-            $emailResult = sendTenantOnboardingEmail([
-                'clinic_name' => $clinicName,
-                'owner_name' => $ownerName,
-                'owner_email' => $email,
-                'temp_password' => $temp_password,
-                'login_url' => $login_url
-            ]);
-
-            $response = [
-                'success' => true, 
-                'message' => 'Clinic registered successfully!',
-                'temp_password' => $temp_password, 
-                'slug' => $slug,
-                'tenant_code' => $tenant_code,
-                'login_url' => $login_url,
-                'email_sent' => (bool)($emailResult['sent'] ?? false)
-            ];
-
-            // TEMPORARY FIX: Add note if email was skipped due to missing SMTP
-            if (!empty($emailResult['error']) && strpos($emailResult['error'], 'skipped for now') !== false) {
-                $response['message'] .= ' (Email sending temporarily disabled - check SMTP settings)';
-                $response['email_skipped'] = true;
-            } elseif (!($emailResult['sent'] ?? false) && !empty($emailResult['error'])) {
-                $response['email_error'] = $emailResult['error'];
-            }
         } else {
             throw new Exception("Database error: " . mysqli_error($conn));
+        }
+
+        $login_url = buildTenantLoginUrl($slug);
+        $emailResult = sendTenantOnboardingEmail([
+            'clinic_name' => $clinicName,
+            'owner_name' => $ownerName,
+            'owner_email' => $email,
+            'temp_password' => $temp_password,
+            'login_url' => $login_url
+        ]);
+
+        $response = [
+            'success' => true, 
+            'message' => 'Clinic registered successfully!',
+            'temp_password' => $temp_password, 
+            'slug' => $slug,
+            'tenant_code' => $tenant_code,
+            'login_url' => $login_url,
+            'email_sent' => (bool)($emailResult['sent'] ?? false)
+        ];
+
+        // TEMPORARY FIX: Add note if email was skipped due to missing SMTP
+        if (!empty($emailResult['error']) && strpos($emailResult['error'], 'skipped for now') !== false) {
+            $response['message'] .= ' (Email sending temporarily disabled - check SMTP settings)';
+            $response['email_skipped'] = true;
+        } elseif (!($emailResult['sent'] ?? false) && !empty($emailResult['error'])) {
+            $response['email_error'] = $emailResult['error'];
         }
     }
 } catch (Exception $e) {
@@ -372,3 +363,5 @@ logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $ti
 ob_end_clean();
 echo json_encode($response);
 exit;
+?>
+
