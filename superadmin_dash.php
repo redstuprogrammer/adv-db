@@ -964,6 +964,14 @@ try {
                         <span class="sa-note">No documents uploaded.</span>
                     </div>
                 </div>
+                <div class="detail-item" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <strong>Upload New Documents:</strong>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="new-tenant-docs" multiple accept=".pdf,.doc,.docx,.jpg,.png" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; flex: 1;">
+                        <button id="upload-docs-btn" class="sa-btn sa-btn-success" style="font-size: 0.8rem; padding: 10px 20px;">Upload</button>
+                    </div>
+                    <p class="sa-note" style="margin-top: 5px;">PDF, Word, or Images (Max 5MB each)</p>
+                </div>
             </div>
             <hr>
             <div class="sa-note">Registration Date: <span id="dt-date"></span></div>
@@ -1409,6 +1417,7 @@ try {
 
             const tenantId = row.getAttribute('data-id');
             if (!tenantId) return;
+            window.activeTenantId = tenantId;
 
             fetch(`/get_tenant_details.php?id=${tenantId}`)
                 .then(res => res.json())
@@ -1462,6 +1471,50 @@ try {
                     showToast('Error loading clinic details.');
                 });
         });
+
+        // Handle upload button in details modal
+        document.getElementById('upload-docs-btn')?.addEventListener('click', function() {
+            const fileInput = document.getElementById('new-tenant-docs');
+            const files = fileInput.files;
+            if (files.length === 0) {
+                showToast('Please select documents to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('tenant_id', window.activeTenantId);
+            for (let i = 0; i < files.length; i++) {
+                formData.append('documents[]', files[i]);
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+
+            fetch('upload_tenant_documents.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Upload';
+                if (data.success) {
+                    showToast(data.message);
+                    fileInput.value = '';
+                    // Refresh details modal
+                    viewTenantProfile(window.activeTenantId);
+                } else {
+                    showToast('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.textContent = 'Upload';
+                console.error(err);
+                showToast('Upload failed due to a network error.');
+            });
+        });
     });
 
     function closeDetailsModal() {
@@ -1469,6 +1522,7 @@ try {
     }
 
     function viewTenantProfile(tenantId) {
+        window.activeTenantId = tenantId;
         fetch(`/get_tenant_details.php?id=${tenantId}`)
             .then(res => res.json())
             .then(tenant => {
