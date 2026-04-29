@@ -848,6 +848,12 @@ HTML;
         </form>
       </div>
 
+      <div class="module-card" style="margin-bottom: 32px;">
+        <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
+        <a href="Landing Page/edit_tenant_homepage.php" class="btn-primary" style="display: inline-block;">Edit Landing Page Content</a>
+      </div>
+
       <div class="login-customizer">
         <h3>Login Page Customization</h3>
         <p style="color: #64748b; margin-bottom: 20px;">Customize your clinic's login page appearance. Changes will be visible to all users logging into your clinic.</p>
