@@ -260,11 +260,11 @@ try {
         $tenant_code = generateUniqueTenantCode($conn);
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, homepage_url, subdomain_slug, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $homepage_url, $slug, $tenant_code, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $slug, $tenant_code, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
