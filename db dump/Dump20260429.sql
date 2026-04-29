@@ -184,6 +184,36 @@ LOCK TABLES `clinic_schedules` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `clinic_settings`
+--
+
+DROP TABLE IF EXISTS `clinic_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `clinic_settings` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `hero_title` varchar(255) DEFAULT NULL,
+  `hero_description` text,
+  `about_title` varchar(255) DEFAULT NULL,
+  `about_description` text,
+  `contact_address` text,
+  `contact_phone` varchar(50) DEFAULT NULL,
+  `contact_email` varchar(100) DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `clinic_settings`
+--
+
+LOCK TABLES `clinic_settings` WRITE;
+/*!40000 ALTER TABLE `clinic_settings` DISABLE KEYS */;
+/*!40000 ALTER TABLE `clinic_settings` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `clinical_notes`
 --
 
@@ -194,6 +224,8 @@ CREATE TABLE `clinical_notes` (
   `note_id` int NOT NULL AUTO_INCREMENT,
   `tenant_id` int NOT NULL,
   `patient_id` int NOT NULL,
+  `dentist_id` int DEFAULT NULL,
+  `service_rendered` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `treatment_notes` text COLLATE utf8mb4_general_ci,
   PRIMARY KEY (`note_id`),
   KEY `fk_notes_tenant` (`tenant_id`),
@@ -257,7 +289,7 @@ CREATE TABLE `dentist` (
   UNIQUE KEY `username` (`username`),
   KEY `fk_dentist_tenant` (`tenant_id`),
   CONSTRAINT `fk_dentist_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -266,7 +298,7 @@ CREATE TABLE `dentist` (
 
 LOCK TABLES `dentist` WRITE;
 /*!40000 ALTER TABLE `dentist` DISABLE KEYS */;
-INSERT INTO `dentist` VALUES (1,1,'Michael','Gordon','toothfairy2','azure126@deltajohnsons.com','$2y$12$.YRlGrIr7W1xKe3UiJVhdO5GB9VzlSwNoqT1fKTIDfthN05fOpt7u');
+INSERT INTO `dentist` VALUES (2,1,'Michael','Gordon','toothfairy3','toothfairy@sample.com','$2y$12$E2emMTbQ02Coc9OXBPhC8u81ZYfdb5bLUyX5dLNfxoBoxkFCgXf4G');
 /*!40000 ALTER TABLE `dentist` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -290,7 +322,7 @@ CREATE TABLE `dentist_schedule` (
   KEY `tenant_id` (`tenant_id`),
   CONSTRAINT `dentist_schedule_ibfk_1` FOREIGN KEY (`dentist_id`) REFERENCES `dentist` (`dentist_id`) ON DELETE CASCADE,
   CONSTRAINT `dentist_schedule_ibfk_2` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -299,6 +331,7 @@ CREATE TABLE `dentist_schedule` (
 
 LOCK TABLES `dentist_schedule` WRITE;
 /*!40000 ALTER TABLE `dentist_schedule` DISABLE KEYS */;
+INSERT INTO `dentist_schedule` VALUES (1,2,1,'Monday','09:00:00','17:00:00',1),(2,2,1,'Tuesday','09:00:00','17:00:00',0),(3,2,1,'Wednesday','09:00:00','17:00:00',1),(4,2,1,'Thursday','09:00:00','17:00:00',0),(5,2,1,'Friday','09:00:00','17:00:00',1),(6,2,1,'Saturday','09:00:00','17:00:00',0),(7,2,1,'Sunday','09:00:00','17:00:00',0);
 /*!40000 ALTER TABLE `dentist_schedule` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -341,45 +374,71 @@ CREATE TABLE `patient` (
 
 LOCK TABLES `patient` WRITE;
 /*!40000 ALTER TABLE `patient` DISABLE KEYS */;
-INSERT INTO `patient` VALUES (1,1,'Pamela','Jordan','09457230292','tfpatient@sample.com','$2y$12$kxusKelnUh2DBeEN5XbX.uWSsDNZoR8A3X3hCIuvlyvBJ1ECWSbkS','tfpatient','From there','2005-02-28','Female',NULL,NULL,NULL,NULL,1);
+INSERT INTO `patient` VALUES (1,1,'Jethro','Silva','09577299828','tfpatient@sample.com','$2y$12$BGNL8v.gavmwJJHcCpR93u2vreWhhZD0OqUKGv/XI8V9UsF8SGB6y','tfpatient','Somewhere, San Miguel, Bulacan','2005-03-09','Male',NULL,NULL,NULL,NULL,1);
 /*!40000 ALTER TABLE `patient` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
--- Table structure for table `payment`
+-- Table structure for table `patient_documents`
 --
 
-DROP TABLE IF EXISTS `payment`;
+DROP TABLE IF EXISTS `patient_documents`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `payment` (
-  `payment_id` int NOT NULL AUTO_INCREMENT,
+CREATE TABLE `patient_documents` (
+  `doc_id` int NOT NULL AUTO_INCREMENT,
   `tenant_id` int NOT NULL,
-  `appointment_id` int NOT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `mode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'Cash',
-  `status` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `procedures_json` text COLLATE utf8mb4_general_ci,
-  `source` enum('web','mobile') COLLATE utf8mb4_general_ci DEFAULT 'web',
-  `reference_number` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `payment_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `payment_type` enum('deposit','full') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'full' COMMENT 'deposit = booking fee, full = final bill payment',
-  PRIMARY KEY (`payment_id`),
-  KEY `fk_payment_tenant` (`tenant_id`),
-  KEY `idx_payment_date` (`payment_date`),
-  KEY `idx_payment_tenant_date` (`tenant_id`,`payment_date`),
-  KEY `idx_payment_source` (`source`),
-  CONSTRAINT `fk_payment_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `patient_id` int NOT NULL,
+  `document_name` varchar(255) NOT NULL,
+  `file_path` varchar(511) NOT NULL,
+  `file_type` varchar(100) DEFAULT NULL,
+  `file_size` int NOT NULL,
+  `uploaded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`doc_id`),
+  KEY `fk_pat_doc_tenant` (`tenant_id`),
+  KEY `fk_pat_doc_patient` (`patient_id`),
+  CONSTRAINT `fk_pat_doc_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `payment`
+-- Dumping data for table `patient_documents`
 --
 
-LOCK TABLES `payment` WRITE;
-/*!40000 ALTER TABLE `payment` DISABLE KEYS */;
-/*!40000 ALTER TABLE `payment` ENABLE KEYS */;
+LOCK TABLES `patient_documents` WRITE;
+/*!40000 ALTER TABLE `patient_documents` DISABLE KEYS */;
+/*!40000 ALTER TABLE `patient_documents` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `patient_payment`
+--
+
+DROP TABLE IF EXISTS `patient_payment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `patient_payment` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tenant_id` int NOT NULL,
+  `patient_id` int NOT NULL,
+  `appointment_id` int NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `payment_mode` varchar(50) DEFAULT NULL,
+  `status` enum('pending','succeeded','failed','refunded') DEFAULT 'pending',
+  `paymongo_session_id` varchar(255) DEFAULT NULL,
+  `paid_at` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `patient_payment`
+--
+
+LOCK TABLES `patient_payment` WRITE;
+/*!40000 ALTER TABLE `patient_payment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `patient_payment` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -399,7 +458,7 @@ CREATE TABLE `service` (
   PRIMARY KEY (`service_id`),
   KEY `fk_service_tenant` (`tenant_id`),
   CONSTRAINT `fk_service_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -408,7 +467,6 @@ CREATE TABLE `service` (
 
 LOCK TABLES `service` WRITE;
 /*!40000 ALTER TABLE `service` DISABLE KEYS */;
-INSERT INTO `service` VALUES (1,1,'Dental Cleaning','',800.00,'Preventive');
 /*!40000 ALTER TABLE `service` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -476,6 +534,46 @@ LOCK TABLES `staff_details` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `subscription_payment`
+--
+
+DROP TABLE IF EXISTS `subscription_payment`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `subscription_payment` (
+  `payment_id` int NOT NULL AUTO_INCREMENT,
+  `tenant_id` int NOT NULL,
+  `appointment_id` int NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `mode` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'Cash',
+  `status` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `procedures_json` text COLLATE utf8mb4_general_ci,
+  `source` enum('web','mobile') COLLATE utf8mb4_general_ci DEFAULT 'web',
+  `reference_number` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `payment_date` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `payment_type` enum('deposit','full') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'full' COMMENT 'deposit = booking fee, full = final bill payment',
+  `paymongo_link_id` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `paymongo_payment_id` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  PRIMARY KEY (`payment_id`),
+  KEY `fk_payment_tenant` (`tenant_id`),
+  KEY `idx_payment_date` (`payment_date`),
+  KEY `idx_payment_tenant_date` (`tenant_id`,`payment_date`),
+  KEY `idx_payment_source` (`source`),
+  CONSTRAINT `fk_payment_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `subscription_payment`
+--
+
+LOCK TABLES `subscription_payment` WRITE;
+/*!40000 ALTER TABLE `subscription_payment` DISABLE KEYS */;
+INSERT INTO `subscription_payment` VALUES (1,1,1,100.00,'online','pending',NULL,'web',NULL,'2026-04-28 15:06:08','full','cs_575f581b0a0e9dc8575552a0',NULL),(2,1,99,100.00,'online','pending',NULL,'web',NULL,'2026-04-28 15:08:51','full','cs_c17cb71f2fe4db42d3a2a9f7',NULL),(3,1,99,100.00,'online','pending',NULL,'web',NULL,'2026-04-28 15:33:14','full','cs_c45aed70f9c5cf2663227694',NULL);
+/*!40000 ALTER TABLE `subscription_payment` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `super_admins`
 --
 
@@ -495,7 +593,7 @@ CREATE TABLE `super_admins` (
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`),
   KEY `idx_superadmin_reset_token` (`password_reset_token`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -504,7 +602,7 @@ CREATE TABLE `super_admins` (
 
 LOCK TABLES `super_admins` WRITE;
 /*!40000 ALTER TABLE `super_admins` DISABLE KEYS */;
-INSERT INTO `super_admins` VALUES (1,'admin','$2y$12$7DhqKXDX.l5zy1WxkLkZr.efA7TD115DGaRV/e30gVPuachTd.uZC','$2y$12$lngaoLXmeSqwZztQVu7Va.WsxbdsZ.IcsTbpnCKEMmC3PSfAKpxJ.','2026-04-19 11:21:38','2026-04-19 10:22:57','2026-04-18 05:14:38','darkagedbat@gmail.com'),(2,'admin1','$2y$12$R9h/lSAbV9S.6r898tA/CO38iWz9r2.yK/lE.vKylpXpW8.R.UfHu',NULL,NULL,NULL,'2026-04-19 09:55:15','amielcarlsantos.basc@gmail.com');
+INSERT INTO `super_admins` VALUES (1,'admin','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',NULL,NULL,'2026-04-29 05:24:23','2026-04-28 12:04:27','darkagedbat@gmail.com');
 /*!40000 ALTER TABLE `super_admins` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -526,7 +624,7 @@ CREATE TABLE `superadmin_logs` (
   `log_time` time DEFAULT NULL,
   PRIMARY KEY (`log_id`),
   KEY `idx_log_date` (`log_date`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -535,8 +633,35 @@ CREATE TABLE `superadmin_logs` (
 
 LOCK TABLES `superadmin_logs` WRITE;
 /*!40000 ALTER TABLE `superadmin_logs` DISABLE KEYS */;
-INSERT INTO `superadmin_logs` VALUES (1,'Superadmin Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-18','05:14:44'),(2,'Superadmin Logout','Superadmin logged out','admin','superadmin','Super Admin','2026-04-18','05:32:09'),(3,'Superadmin Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-18','05:40:12'),(4,'Tenant Registration','Registered: ToothFairy (Tier: professional)','3067lime@deltajohnsons.com','superadmin','Super Admin','2026-04-18','06:52:00'),(5,'Superadmin Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-19','10:19:18'),(6,'Superadmin Logout','Superadmin logged out','admin','superadmin','Super Admin','2026-04-19','10:21:26'),(7,'Superadmin Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-19','10:22:57');
+INSERT INTO `superadmin_logs` VALUES (1,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','12:11:50'),(2,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','12:12:13'),(3,'Logout','Superadmin logged out','admin','superadmin','Super Admin','2026-04-28','12:38:14'),(4,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','12:52:22'),(5,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','12:58:40'),(6,'Logout','Superadmin logged out','admin','superadmin','Super Admin','2026-04-28','12:58:51'),(7,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','12:59:08'),(8,'Registration','Registered: ToothFairy (Tier: professional)','sound762@deltajohnsons.com','superadmin','Super Admin','2026-04-28','12:59:43'),(9,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','13:00:31'),(10,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','14:45:59'),(11,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-28','14:56:42'),(12,'Login','Superadmin logged in','admin','superadmin','Super Admin','2026-04-29','05:24:23'),(13,'Logout','Superadmin logged out','admin','superadmin','Super Admin','2026-04-29','05:56:32');
 /*!40000 ALTER TABLE `superadmin_logs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `team_members`
+--
+
+DROP TABLE IF EXISTS `team_members`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `team_members` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) DEFAULT NULL,
+  `role` varchar(100) DEFAULT NULL,
+  `bio` text,
+  `image_url` varchar(255) DEFAULT NULL,
+  `specialties` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `team_members`
+--
+
+LOCK TABLES `team_members` WRITE;
+/*!40000 ALTER TABLE `team_members` DISABLE KEYS */;
+/*!40000 ALTER TABLE `team_members` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -558,7 +683,7 @@ CREATE TABLE `tenant_activity_logs` (
   KEY `fk_tenant_activity` (`tenant_id`),
   KEY `idx_activity_date` (`log_date`),
   CONSTRAINT `fk_tenant_activity` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -567,7 +692,7 @@ CREATE TABLE `tenant_activity_logs` (
 
 LOCK TABLES `tenant_activity_logs` WRITE;
 /*!40000 ALTER TABLE `tenant_activity_logs` DISABLE KEYS */;
-INSERT INTO `tenant_activity_logs` VALUES (1,1,'Admin Login','Admin logged in',1,'2026-04-18','06:56:51'),(2,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:06:20'),(3,1,'Dentist Login','Dentist logged in',1,'2026-04-18','07:06:39'),(4,1,'Dentist Logout','Dentist logged out',1,'2026-04-18','07:12:29'),(5,1,'Admin Login','Admin logged in',1,'2026-04-18','07:12:52'),(6,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:16:24'),(7,1,'Dentist Login','Dentist logged in',1,'2026-04-18','07:16:33'),(8,1,'Dentist Logout','Dentist logged out',1,'2026-04-18','07:18:41'),(9,1,'Admin Login','Admin logged in',1,'2026-04-18','07:18:59'),(10,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:28:32'),(11,1,'Admin Login','Admin logged in',1,'2026-04-18','07:34:49'),(12,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:39:59'),(13,1,'Admin Login','Admin logged in',1,'2026-04-18','07:40:22'),(14,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:40:29'),(15,1,'Admin Login','Admin logged in',1,'2026-04-18','07:40:42'),(16,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:40:49'),(17,1,'Admin Login','Admin logged in',1,'2026-04-18','07:44:55'),(18,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:46:26'),(19,1,'Admin Login','Admin logged in',1,'2026-04-18','07:48:49'),(20,1,'Tenant Logout','Tenant logged out',1,'2026-04-18','07:50:39'),(21,1,'Dentist Login','Dentist logged in',1,'2026-04-18','07:51:02'),(22,1,'Dentist Logout','Dentist logged out',1,'2026-04-18','07:51:17'),(23,1,'Receptionist Login','Receptionist logged in',1,'2026-04-18','07:51:28'),(24,1,'Receptionist Logout','Receptionist logged out',1,'2026-04-18','07:56:28'),(25,1,'Dentist Login','Dentist logged in',1,'2026-04-18','07:56:41'),(26,1,'Dentist Logout','Dentist logged out',1,'2026-04-18','07:58:26'),(27,1,'Receptionist Login','Receptionist logged in',1,'2026-04-18','07:58:34'),(28,1,'Admin Login','Admin logged in',1,'2026-04-19','10:52:54'),(29,1,'Tenant Logout','Tenant logged out',1,'2026-04-19','11:02:02'),(30,1,'Dentist Login','Dentist logged in',1,'2026-04-19','11:15:59'),(31,1,'Dentist Logout','Dentist logged out',1,'2026-04-19','11:16:20'),(32,1,'Receptionist Login','Receptionist logged in',1,'2026-04-19','11:16:47');
+INSERT INTO `tenant_activity_logs` VALUES (1,1,'Login','Admin logged in',1,'2026-04-28','13:00:51'),(2,1,'Logout','Tenant logged out',1,'2026-04-28','13:01:55'),(3,1,'Login','Receptionist logged in',1,'2026-04-28','13:01:59'),(4,1,'Logout','Receptionist logged out',1,'2026-04-28','13:02:01'),(5,1,'Login','Receptionist logged in',1,'2026-04-28','13:03:38'),(6,1,'Logout','Receptionist logged out',1,'2026-04-28','13:10:30'),(7,1,'Login','Admin logged in',1,'2026-04-28','13:10:45'),(8,1,'Logout','Tenant logged out',1,'2026-04-28','13:11:34'),(9,1,'Login','Dentist logged in',1,'2026-04-28','13:11:43'),(10,1,'Schedule','Dentist updated full weekly schedule',1,'2026-04-28','13:11:57'),(11,1,'Login','Admin logged in',1,'2026-04-28','14:34:58'),(12,1,'Logout','Tenant logged out',1,'2026-04-28','14:35:42'),(13,1,'Login','Dentist logged in',1,'2026-04-28','14:35:52'),(14,1,'Logout','Dentist logged out',1,'2026-04-28','14:36:01'),(15,1,'Login','Admin logged in',1,'2026-04-28','14:39:07'),(16,1,'Login','Admin logged in',1,'2026-04-28','14:46:18'),(17,1,'Logout','Tenant logged out',1,'2026-04-28','14:46:22'),(18,1,'Login','Admin logged in',1,'2026-04-28','14:46:33'),(19,1,'Logout','Tenant logged out',1,'2026-04-28','14:49:14'),(20,1,'Login','Admin logged in',1,'2026-04-28','14:54:56'),(21,1,'Logout','Tenant logged out',1,'2026-04-28','14:55:40'),(22,1,'Login','Admin logged in',1,'2026-04-28','14:55:56'),(23,1,'Login','Receptionist logged in',1,'2026-04-28','15:01:35');
 /*!40000 ALTER TABLE `tenant_activity_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -596,7 +721,7 @@ CREATE TABLE `tenant_configs` (
   PRIMARY KEY (`config_id`),
   UNIQUE KEY `unique_tenant_config` (`tenant_id`),
   CONSTRAINT `fk_config_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -605,8 +730,38 @@ CREATE TABLE `tenant_configs` (
 
 LOCK TABLES `tenant_configs` WRITE;
 /*!40000 ALTER TABLE `tenant_configs` DISABLE KEYS */;
-INSERT INTO `tenant_configs` VALUES (1,1,NULL,'#001f3f','Powered by OralSync','Clinic Login','#22c55e','#2563eb',NULL,'2026-04-18 07:01:13','2026-04-18 07:40:47','#ffffff','Please sign in to access your clinic portal.',200.00);
+INSERT INTO `tenant_configs` VALUES (1,1,'','#001f3f','Powered by OralSync','Clinic Login','#22c55e','#2563eb','','2026-04-28 14:55:38','2026-04-28 14:56:04','#ffffff',NULL,NULL);
 /*!40000 ALTER TABLE `tenant_configs` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `tenant_documents`
+--
+
+DROP TABLE IF EXISTS `tenant_documents`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tenant_documents` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tenant_id` int NOT NULL,
+  `document_name` varchar(255) NOT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `file_type` varchar(100) DEFAULT NULL,
+  `file_size` int DEFAULT NULL,
+  `uploaded_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `tenant_id` (`tenant_id`),
+  CONSTRAINT `tenant_documents_ibfk_1` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `tenant_documents`
+--
+
+LOCK TABLES `tenant_documents` WRITE;
+/*!40000 ALTER TABLE `tenant_documents` DISABLE KEYS */;
+/*!40000 ALTER TABLE `tenant_documents` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -630,7 +785,7 @@ CREATE TABLE `tenant_subscription_revenue` (
   KEY `fk_revenue_tenant` (`tenant_id`),
   KEY `idx_revenue_date` (`payment_date`),
   CONSTRAINT `fk_revenue_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -639,7 +794,7 @@ CREATE TABLE `tenant_subscription_revenue` (
 
 LOCK TABLES `tenant_subscription_revenue` WRITE;
 /*!40000 ALTER TABLE `tenant_subscription_revenue` DISABLE KEYS */;
-INSERT INTO `tenant_subscription_revenue` VALUES (1,1,'professional',249.00,'2025-04-01 00:00:00','2025-04-30 00:00:00','paid','2025-04-30 00:00:00','2026-04-18 06:52:00'),(2,1,'professional',249.00,'2025-05-01 00:00:00','2025-05-31 00:00:00','paid','2025-05-31 00:00:00','2026-04-18 06:52:00'),(3,1,'professional',249.00,'2025-06-01 00:00:00','2025-06-30 00:00:00','paid','2025-06-30 00:00:00','2026-04-18 06:52:00'),(4,1,'professional',249.00,'2025-07-01 00:00:00','2025-07-31 00:00:00','paid','2025-07-31 00:00:00','2026-04-18 06:52:00'),(5,1,'professional',249.00,'2025-08-01 00:00:00','2025-08-31 00:00:00','paid','2025-08-31 00:00:00','2026-04-18 06:52:00'),(6,1,'professional',249.00,'2025-09-01 00:00:00','2025-09-30 00:00:00','paid','2025-09-30 00:00:00','2026-04-18 06:52:00'),(7,1,'professional',249.00,'2025-10-01 00:00:00','2025-10-31 00:00:00','paid','2025-10-31 00:00:00','2026-04-18 06:52:00'),(8,1,'professional',249.00,'2025-11-01 00:00:00','2025-11-30 00:00:00','paid','2025-11-30 00:00:00','2026-04-18 06:52:00'),(9,1,'professional',249.00,'2025-12-01 00:00:00','2025-12-31 00:00:00','paid','2025-12-31 00:00:00','2026-04-18 06:52:00'),(10,1,'professional',249.00,'2026-01-01 00:00:00','2026-01-31 00:00:00','paid','2026-01-31 00:00:00','2026-04-18 06:52:00'),(11,1,'professional',249.00,'2026-02-01 00:00:00','2026-02-28 00:00:00','paid','2026-02-28 00:00:00','2026-04-18 06:52:00'),(12,1,'professional',249.00,'2026-03-01 00:00:00','2026-03-31 00:00:00','paid','2026-03-31 00:00:00','2026-04-18 06:52:00');
+INSERT INTO `tenant_subscription_revenue` VALUES (1,1,'professional',249.00,'2026-04-29 00:00:00','2027-04-28 23:59:59','paid','2026-04-28 12:59:43','2026-04-28 12:59:43');
 /*!40000 ALTER TABLE `tenant_subscription_revenue` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -663,6 +818,7 @@ CREATE TABLE `tenants` (
   `city` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `province` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `subdomain_slug` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
+  `tenant_code` varchar(10) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `username` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `status` enum('active','inactive','suspended') COLLATE utf8mb4_general_ci DEFAULT 'active',
   `subscription_tier` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'startup',
@@ -675,6 +831,7 @@ CREATE TABLE `tenants` (
   PRIMARY KEY (`tenant_id`),
   UNIQUE KEY `subdomain_slug` (`subdomain_slug`),
   UNIQUE KEY `username` (`username`),
+  UNIQUE KEY `idx_tenant_code` (`tenant_code`),
   KEY `idx_trial_end_date` (`trial_end_date`),
   KEY `idx_tenant_reset_token` (`password_reset_token`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -686,7 +843,7 @@ CREATE TABLE `tenants` (
 
 LOCK TABLES `tenants` WRITE;
 /*!40000 ALTER TABLE `tenants` DISABLE KEYS */;
-INSERT INTO `tenants` VALUES (1,'ToothFairy','Carl Micko T. Tibay','3067lime@deltajohnsons.com','$2y$12$8UweJUaGKxJKe5f3HHiGZ.GVsbK8E4uIiWM.rTFgZnizM1M5mHg6q',NULL,NULL,'09477230297','123, Barangay Mabalas-balas','San Rafael','Bulacan','toothfairy-bb24','toothfairy','active','professional','2026-04-18 06:52:00',12,NULL,NULL,1,'2026-04-18 06:52:00');
+INSERT INTO `tenants` VALUES (1,'ToothFairy','Carl Micko T. Tibay','sound762@deltajohnsons.com','$2y$12$wIGzlzWMFJRKfgQlOnYJJub9nY3ig2mbulCXuuqBSfZQv08yqAfNK',NULL,NULL,'09477230297','Mabalas-balas','San Rafael','Bulacan','toothfairy-73d1','A2GNMEVT','toothfairy','active','professional','2026-04-29 00:00:00',12,NULL,NULL,1,'2026-04-28 12:59:43');
 /*!40000 ALTER TABLE `tenants` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -712,7 +869,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `unique_user_per_tenant` (`username`,`tenant_id`),
   KEY `fk_users_tenant` (`tenant_id`),
   CONSTRAINT `fk_users_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`tenant_id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -721,7 +878,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,1,'toothfairy2','azure126@deltajohnsons.com','$2y$12$.YRlGrIr7W1xKe3UiJVhdO5GB9VzlSwNoqT1fKTIDfthN05fOpt7u','Dentist','Michael','Gordon',NULL,NULL),(2,1,'toothfairy3','toothfairy3@sample.com','$2y$12$RMxl2k468.MHmbwM5xbxSeCcnOaPBifhJb9l9uscb8wrhfiFN1vlS','Receptionist','Peter','Parker',NULL,NULL);
+INSERT INTO `users` VALUES (1,1,'toothfairy2','54belita@deltajohnsons.com','$2y$12$wUEuagbtX73Z.f8CNpoueOyOD3BU6LjY0Xret4Ow2JeXkDFQ/dh3q','Receptionist','Lord','Farquad','2026-04-28 13:01:53',NULL),(2,1,'toothfairy3','toothfairy@sample.com','$2y$12$E2emMTbQ02Coc9OXBPhC8u81ZYfdb5bLUyX5dLNfxoBoxkFCgXf4G','Dentist','Michael','Gordon','2026-04-28 13:11:32',NULL),(3,1,'tfadmin2','7missie@deltajohnsons.com','$2y$12$N69d1jezAIkRr3Jx7fWJquCflHPDN130eG4Lv6i16Wz6V.nKP1TTe','Admin','George','Harrison','2026-04-28 14:49:10',NULL);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -734,4 +891,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-19 19:18:53
+-- Dump completed on 2026-04-29 16:05:23

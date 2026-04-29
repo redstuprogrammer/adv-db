@@ -10,14 +10,15 @@ $message = '';
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_clinic'])) {
     $sql = "UPDATE clinic_settings 
-            SET hero_title = ?, hero_description = ?, about_description = ?, contact_phone = ? 
+            SET name = ?, hero_title = ?, hero_description = ?, about_description = ?, contact_phone = ? 
             WHERE id = 1";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
+        $_POST['clinic_name'],
         $_POST['hero_title'],
-        $_POST['hero_subtitle'],
-        $_POST['about_text'],
-        $_POST['phone']
+        $_POST['hero_description'],
+        $_POST['about_description'],
+        $_POST['contact_phone']
     ]);
     $message = 'Clinic information updated successfully.';
 }
@@ -42,7 +43,7 @@ $clinic_name = $clinic['hero_title'] ?? 'Your Clinic';
         <header class="flex justify-between items-center mb-12">
             <div>
                 <h1 class="text-3xl font-extrabold font-['Manrope'] text-sky-900">Editor Terminal</h1>
-                <p class="text-slate-500">Connected to: oralsync-db.mysql.database.azure.com</p>
+                <p class="text-slate-500">Clinic Information Editor</p>
             </div>
             <a href="index.php" class="bg-white border border-slate-200 px-6 py-2 rounded-full font-bold hover:bg-slate-50 transition">View Live Site</a>
         </header>
@@ -56,18 +57,23 @@ $clinic_name = $clinic['hero_title'] ?? 'Your Clinic';
         <form method="POST" class="space-y-8">
             <section class="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
                 <h2 class="text-xl font-bold mb-6 text-sky-900 flex items-center gap-2">
-                    <span class="w-2 h-6 bg-sky-500 rounded-full"></span> Hero Section
+                    <span class="w-2 h-6 bg-sky-500 rounded-full"></span> Clinic Identity
                 </h2>
                 <div class="grid gap-6">
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Main Headline</label>
-                        <input type="text" name="hero_title" value="<?= htmlspecialchars($clinic['hero_title']) ?>" 
+                        <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Clinic Name</label>
+                        <input type="text" name="clinic_name" value="<?= htmlspecialchars($clinic['name'] ?? '') ?>" 
+                               class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Hero Headline</label>
+                        <input type="text" name="hero_title" value="<?= htmlspecialchars($clinic['hero_title'] ?? '') ?>" 
                                class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Hero Description</label>
-                        <textarea name="hero_subtitle" rows="3" 
-                                  class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500"><?= htmlspecialchars($clinic['hero_subtitle']) ?></textarea>
+                        <textarea name="hero_description" rows="3" 
+                                  class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500"><?= htmlspecialchars($clinic['hero_description'] ?? '') ?></textarea>
                     </div>
                 </div>
             </section>
@@ -79,13 +85,13 @@ $clinic_name = $clinic['hero_title'] ?? 'Your Clinic';
                 <div class="grid md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Clinic Phone</label>
-                        <input type="text" name="phone" value="<?= htmlspecialchars($clinic['phone']) ?>" 
+                        <input type="text" name="contact_phone" value="<?= htmlspecialchars($clinic['contact_phone'] ?? '') ?>" 
                                class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">About Section Text</label>
-                        <textarea name="about_text" rows="3" 
-                                  class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500"><?= htmlspecialchars($clinic['about_text']) ?></textarea>
+                        <textarea name="about_description" rows="3" 
+                                  class="w-full bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-sky-500"><?= htmlspecialchars($clinic['about_description'] ?? '') ?></textarea>
                     </div>
                 </div>
             </section>

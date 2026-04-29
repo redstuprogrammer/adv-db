@@ -848,6 +848,11 @@ try {
                             </select>
                         </div>
                         <div class="sa-form-group">
+                            <label for="homepage_url">Clinic Homepage URL (Optional)</label>
+                            <input type="url" id="homepage_url" name="homepage_url" placeholder="https://clinicname.com">
+                            <p class="sa-note">Optional clinic website URL - shown in tenant details modal</p>
+                        </div>
+                        <div class="sa-form-group">
                             <label for="clinic-tier">Subscription Tier <span class="sa-badge-required">*</span></label>
                             <select id="clinic-tier" required>
                                 <option value="">Select a tier</option>
@@ -952,12 +957,14 @@ try {
                 <div class="detail-item"><strong>Phone:</strong> <span id="dt-phone"></span></div>
                 <div class="detail-item"><strong>Status:</strong> <span id="dt-status"></span></div>
                 <div class="detail-item"><strong>Tier:</strong> <span id="dt-tier"></span></div>
+                <div class="detail-item"><strong>Homepage:</strong> <span id="dt-homepage"></span></div>
                 <div class="detail-item" style="grid-column: 1 / -1;">
                     <strong>Address:</strong> <span id="dt-address"></span>
                 </div>
                 <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
-                    <strong>Documents:</strong>
-                    <div id="dt-documents" style="margin-top: 5px;">
+                    <strong>Clinic Documents:</strong>
+                    <button id="toggle-docs-btn" class="sa-btn sa-btn-outline" style="margin-left: 10px; font-size: 0.8rem; padding: 4px 12px;">📁 Show Documents</button>
+                    <div id="dt-documents" style="margin-top: 10px; display: none;">
                         <span class="sa-note">No documents uploaded.</span>
                     </div>
                 </div>
@@ -1416,17 +1423,37 @@ try {
                     document.getElementById('dt-phone').textContent = tenant.phone;
                     document.getElementById('dt-status').textContent = tenant.status;
                     document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
+                    const homepageEl = document.getElementById('dt-homepage');
+                    if (tenant.homepage_url && tenant.homepage_url.trim()) {
+                        homepageEl.innerHTML = `<a href="${tenant.homepage_url}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; font-weight: 500;">${tenant.homepage_url}</a>`;
+                    } else {
+                        homepageEl.textContent = 'Not set';
+                    }
                     document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                     const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                     document.getElementById('dt-date').textContent = date;
 
-                    // Display documents
+// Documents toggle functionality
+                    const toggleBtn = document.getElementById('toggle-docs-btn');
                     const docsContainer = document.getElementById('dt-documents');
-                    if (docsContainer) {
+                    if (toggleBtn && docsContainer) {
+                        toggleBtn.onclick = () => {
+                            const isVisible = docsContainer.style.display !== 'none';
+                            docsContainer.style.display = isVisible ? 'none' : 'block';
+                            toggleBtn.textContent = isVisible ? '📁 Show Documents' : '🙈 Hide Documents';
+                            toggleBtn.classList.toggle('sa-btn-success', !isVisible);
+                        };
+                        
+                        // Initialize documents content
                         if (tenant.documents && tenant.documents.length > 0) {
-                            docsContainer.innerHTML = '<ul style="margin: 0; padding-left: 20px;">' + 
-                                tenant.documents.map(doc => `<li><a href="${doc.file_path}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; text-decoration: underline;">${doc.document_name}</a></li>`).join('') + 
-                                '</ul>';
+                            docsContainer.innerHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 8px;">' + 
+                                tenant.documents.map(doc => `
+                                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+                                        <div style="font-weight: 600; color: #0d3b66; margin-bottom: 6px; word-break: break-all;">${doc.document_name}</div>
+                                        <div style="font-size: 0.8rem; color: var(--sa-muted); margin-bottom: 8px;">${(doc.file_size / 1024 / 1024).toFixed(1)} MB</div>
+                                        <a href="${doc.file_path}" target="_blank" class="sa-btn sa-btn-success" style="width: 100%; justify-content: center; font-size: 0.8rem;">View</a>
+                                    </div>
+                                `).join('') + '</div>';
                         } else {
                             docsContainer.innerHTML = '<span class="sa-note">No documents uploaded.</span>';
                         }
@@ -1455,6 +1482,12 @@ try {
                 document.getElementById('dt-phone').textContent = tenant.phone;
                 document.getElementById('dt-status').textContent = tenant.status;
                 document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
+                const homepageEl = document.getElementById('dt-homepage');
+                if (tenant.homepage_url && tenant.homepage_url.trim()) {
+                    homepageEl.innerHTML = `<a href="${tenant.homepage_url}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; font-weight: 500;">${tenant.homepage_url}</a>`;
+                } else {
+                    homepageEl.textContent = 'Not set';
+                }
                 document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                 const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                 document.getElementById('dt-date').textContent = date;
@@ -1608,6 +1641,15 @@ try {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
 
+            // NEW: Require at least one document
+            const docInput = document.getElementById('clinic-documents');
+            const validDocsCount = docInput && docInput.files ? Array.from(docInput.files).filter(f => f.size > 0).length : 0;
+            if (validDocsCount === 0) {
+                showToast('Please upload at least one clinic document before registering the tenant.');
+                docInput?.focus();
+                return;
+            }
+
             // Block submission if there are visible field errors
             const emailErr = document.getElementById('owner-email-error');
             const usernameErr = document.getElementById('clinic-username-error');
@@ -1620,6 +1662,7 @@ try {
             const tierValue = document.getElementById('clinic-tier').value;
             const tierName = tierValue && tierDefinitions[tierValue] ? tierDefinitions[tierValue]['display_name'] : 'Not selected';
             
+            const docNames = Array.from(docInput.files).map(f => f.name).join(', ');
             const reviewData = {
                 'Clinic Name': document.getElementById('clinic-name').value,
                 'Clinic Username': document.getElementById('clinic-username').value,
@@ -1630,8 +1673,7 @@ try {
                 'Subscription Tier': tierName,
                 'Start Date': document.getElementById('clinic-start-date').value,
                 'Duration': document.getElementById('clinic-duration').value + ' months',
-                'Documents': document.getElementById('clinic-documents').files.length > 0 ? 
-                             Array.from(document.getElementById('clinic-documents').files).map(f => f.name).join(', ') : 'None'
+                'Documents': docNames ? docNames : '<span style="color:#b91c1c;font-weight:bold;">NONE - REQUIRED!</span>'
             };
 
             // Build the review list inside the modal
@@ -1663,6 +1705,7 @@ try {
             formData.append('address', document.getElementById('clinic-address').value.trim());
             formData.append('city', document.getElementById('clinic-city').value.trim());
             formData.append('province', document.getElementById('clinic-province').value);
+            formData.append('homepage_url', document.getElementById('homepage_url').value.trim());
             formData.append('tier', document.getElementById('clinic-tier').value);
             formData.append('start_date', document.getElementById('clinic-start-date').value);
             formData.append('duration', document.getElementById('clinic-duration').value);

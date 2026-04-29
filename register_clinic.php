@@ -170,7 +170,7 @@ HTML;
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
+$clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
         $owner  = mysqli_real_escape_string($conn, $_POST['ownerName']);
         $username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
         $email  = mysqli_real_escape_string($conn, $_POST['email']);
@@ -178,6 +178,7 @@ try {
         $addr   = mysqli_real_escape_string($conn, $_POST['address']);
         $city   = mysqli_real_escape_string($conn, $_POST['city']);
         $prov   = mysqli_real_escape_string($conn, $_POST['province']);
+        $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         $start_date = trim((string)($_POST['start_date'] ?? ''));
         $duration = (int)($_POST['duration'] ?? 12);
@@ -210,6 +211,28 @@ try {
         if ($duration < 1 || $duration > 120) {
             throw new Exception("Duration must be between 1 and 120 months.");
         }
+
+        // REQUIRED: Validate at least one clinic document uploaded
+        $validDocsCount = 0;
+        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+        $maxSizeMB = 5;
+        $maxSizeBytes = $maxSizeMB * 1024 * 1024;
+
+        if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
+            foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
+                if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK &&
+                    $_FILES['documents']['size'][$key] <= $maxSizeBytes) {
+                    $ext = strtolower(pathinfo($_FILES['documents']['name'][$key], PATHINFO_EXTENSION));
+                    if (in_array($ext, $allowed)) {
+                        $validDocsCount++;
+                    }
+                }
+            }
+        }
+
+        if ($validDocsCount === 0) {
+            throw new Exception("Please upload at least one valid clinic document (PDF, DOC, DOCX, JPG, PNG; max " . $maxSizeMB . "MB each) before registering the tenant.");
+        }
         
         // 1. Generate Auto-Password
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
@@ -239,11 +262,11 @@ try {
         $tenant_code = generateUniqueTenantCode($conn);
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, homepage_url, subdomain_slug, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tenant_code, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $homepage_url, $slug, $tenant_code, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);

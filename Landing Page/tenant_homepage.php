@@ -100,6 +100,7 @@ $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
 <header class="fixed top-0 w-full z-50 bg-[#f8fafb]/80 backdrop-blur-md shadow-[0_8px_24px_rgba(25,28,29,0.06)] font-['Manrope'] tracking-tight">
 <nav class="flex justify-between items-center w-full px-8 py-4 max-w-7xl mx-auto">
 <div class="text-2xl font-bold text-sky-900"><?= htmlspecialchars($clinic['name'] ?? 'Your Clinic') ?></div>
+
 <div class="hidden md:flex items-center space-x-8">
 <a class="text-sky-900 font-bold border-b-2 border-sky-900 pb-1 hover:text-sky-700 transition-colors duration-300" href="#">Home</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#about">About</a>
@@ -125,10 +126,10 @@ $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
 <span class="text-xs font-bold uppercase tracking-widest">Clinical Serenity</span>
 </div>
 <h1 class="text-5xl md:text-7xl font-extrabold text-on-surface leading-[1.1] tracking-tight">
-                        Exhale the <span class="text-primary">Ordinary.</span>
+                        <?= htmlspecialchars($clinic['hero_title'] ?? 'Exhale the <span class="text-primary">Ordinary.</span>') ?>
 </h1>
 <p class="text-xl text-on-surface-variant max-w-lg leading-relaxed font-light">
-                        Experience a new standard of dental care where precision engineering meets a curated, calming environment. Your comfort is our primary clinical protocol.
+                        <?= htmlspecialchars($clinic['hero_description'] ?? 'Experience a new standard of dental care where precision engineering meets a curated, calming environment. Your comfort is our primary clinical protocol.') ?>
                     </p>
 <div class="flex flex-wrap gap-4">
 <button class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
@@ -162,7 +163,7 @@ $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
 <div class="md:col-span-5">
 <h2 class="text-4xl font-extrabold text-on-surface mb-6 leading-tight">Professionalism<br/>Refined through Art.</h2>
 <p class="text-on-surface-variant leading-relaxed text-lg mb-8">
-                            At The Curated Breath, we believe that world-class dentistry should never feel clinical. We’ve removed the harsh lights and sterile sounds, replacing them with a bespoke experience designed to reduce cortisol levels while achieving optimal oral health.
+                            <?= htmlspecialchars($clinic['about_description'] ?? 'At The Curated Breath, we believe that world-class dentistry should never feel clinical.') ?>
                         </p>
 <div class="space-y-4">
 <div class="flex items-center gap-4">
@@ -347,7 +348,7 @@ $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
 </div>
 <div>
 <h4 class="font-bold text-lg mb-1">Contact Concierge</h4>
-<p class="text-on-surface-variant">+1 (555) 890-2344<br/>concierge@thecuratedbreath.com</p>
+<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_phone'] ?? '+1 (555) 890-2344') ?><br/>concierge@thecuratedbreath.com</p>
 </div>
 </div>
 <div class="flex gap-6">
