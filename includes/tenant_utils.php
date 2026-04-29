@@ -244,17 +244,136 @@ if (!function_exists('formatDateTimeReadable')) {
  * Dashboard Metric Helpers
  */
 
+/**
+ * Logging Utilities
+ */
+
+if (!function_exists('logSuperAdminActivity')) {
+    function logSuperAdminActivity($conn, string $activityType, string $actionDetails, ?string $username = null, string $adminName = 'Super Admin'): bool {
+        if (!$conn || trim($activityType) === '') return false;
+        $activityType = trim($activityType);
+        $actionDetails = trim($actionDetails);
+        $logDate = date('Y-m-d');
+        $logTime = date('H:i:s');
+        $stmt = $conn->prepare('INSERT INTO superadmin_logs (activity_type, action_details, username, admin_name, log_date, log_time) VALUES (?, ?, ?, ?, ?, ?)');
+        if ($stmt) {
+            $stmt->bind_param('ssssss', $activityType, $actionDetails, $username, $adminName, $logDate, $logTime);
+            $result = $stmt->execute();
+            $stmt->close();
+            return $result;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('logTenantActivity')) {
+    function logTenantActivity($conn, int $tenantId, string $activityType, string $activityDescription): bool {
+        if (!$conn || trim($activityType) === '' || $tenantId <= 0) return false;
+        $activityType = trim($activityType);
+        $activityDescription = trim($activityDescription);
+        $logDate = date('Y-m-d');
+        $logTime = date('H:i:s');
+        $stmt = $conn->prepare('INSERT INTO tenant_activity_logs (tenant_id, activity_type, activity_description, activity_count, log_date, log_time) VALUES (?, ?, ?, 1, ?, ?)');
+        if ($stmt) {
+            $stmt->bind_param('issss', $tenantId, $activityType, $activityDescription, $logDate, $logTime);
+            $result = $stmt->execute();
+            $stmt->close();
+            return $result;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('logActivity')) {
+    function logActivity($conn, int $tenantId, string $activityType, string $actionDetails, ?string $username = null, ?string $userRole = null, string $adminName = 'Super Admin'): bool {
+        if ($tenantId <= 0 || $userRole === 'superadmin') {
+            return logSuperAdminActivity($conn, $activityType, $actionDetails, $username, $adminName);
+        }
+        return logTenantActivity($conn, $tenantId, $activityType, $actionDetails);
+    }
+}
+
+if (!function_exists('tenantWhereClause')) {
+    function tenantWhereClause(): string {
+        return 'tenant_id = ?';
+    }
+}
+
+if (!function_exists('getTenantQueryBindings')) {
+    function getTenantQueryBindings(): array {
+        return [getCurrentTenantId()];
+    }
+}
+
+/**
+ * Additional Metric Helpers
+ */
+
+if (!function_exists('getTenantUpcomingAppointmentCount')) {
+    function getTenantUpcomingAppointmentCount(?int $tenantId): ?int {
+        if (!$tenantId) return null;
+        global $conn;
+        $stmt = $conn->prepare('SELECT COUNT(*) as count FROM appointment WHERE tenant_id = ? AND appointment_date >= DATE(NOW())');
+        if ($stmt) {
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return $row['count'] ?? 0;
+        }
+        return 0;
+    }
+}
+
+if (!function_exists('getTenantOutstandingInvoiceCount')) {
+    function getTenantOutstandingInvoiceCount(?int $tenantId): ?int {
+        if (!$tenantId) return null;
+        global $conn;
+        $stmt = $conn->prepare('SELECT COUNT(*) as count FROM payment WHERE tenant_id = ? AND status != "paid"');
+        if ($stmt) {
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return $row['count'] ?? 0;
+        }
+        return 0;
+    }
+}
+
+if (!function_exists('getTenantTodayRevenue')) {
+    function getTenantTodayRevenue(?int $tenantId): ?float {
+        if (!$tenantId) return null;
+        global $conn;
+        $stmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payment WHERE tenant_id = ? AND DATE(payment_date) = DATE(NOW()) AND status = "paid"');
+        if ($stmt) {
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return (float)($row['total'] ?? 0);
+        }
+        return 0.00;
+    }
+}
+
 if (!function_exists('getTenantPatientCount')) {
     function getTenantPatientCount(?int $tenantId): ?int {
         if (!$tenantId) return null;
         global $conn;
         $stmt = $conn->prepare('SELECT COUNT(*) as count FROM patient WHERE tenant_id = ?');
-        $stmt->bind_param('i', $tenantId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $row = $result->fetch_assoc();
-        $stmt->close();
-        return $row['count'] ?? 0;
+        if ($stmt) {
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            $stmt->close();
+            return $row['count'] ?? 0;
+        }
+        return 0;
     }
 }
 
