@@ -1,6 +1,34 @@
 <?php 
 require_once '../includes/connect.php';
-$clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
+
+$slug = $_GET['tenant'] ?? '';
+$tenant = null;
+
+if ($slug) {
+    $stmt = $conn->prepare("SELECT * FROM tenants WHERE subdomain_slug = ?");
+    $stmt->bind_param("s", $slug);
+    $stmt->execute();
+    $tenant = $stmt->get_result()->fetch_assoc();
+}
+
+// Fallback to clinic_settings if tenant not found (for backward compatibility)
+if ($tenant) {
+    // We'll use tenant data, and possibly join with clinic_settings if we make it multi-tenant later
+    // For now, let's map tenant fields to the $clinic array used in the template
+    $clinic = [
+        'name' => $tenant['company_name'],
+        'hero_title' => $tenant['company_name'], // Default hero title
+        'hero_description' => "Welcome to " . $tenant['company_name'] . ". Professional care for your dental health.",
+        'about_description' => "Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . ".",
+        'contact_phone' => $tenant['phone'],
+        'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province']
+    ];
+    
+    // Check if there are specific settings in clinic_settings for this tenant_id
+    // (Assuming we might add tenant_id to clinic_settings soon)
+} else {
+    $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
+}
 ?>
 <!DOCTYPE html>
 
