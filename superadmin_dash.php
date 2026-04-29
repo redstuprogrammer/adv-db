@@ -847,11 +847,7 @@ try {
                                 <option>Abra</option>
                             </select>
                         </div>
-                        <div class="sa-form-group">
-                            <label for="homepage_url">Clinic Homepage URL (Optional)</label>
-                            <input type="url" id="homepage_url" name="homepage_url" placeholder="https://clinicname.com">
-                            <p class="sa-note">Optional clinic website URL - shown in tenant details modal</p>
-                        </div>
+
                         <div class="sa-form-group">
                             <label for="clinic-tier">Subscription Tier <span class="sa-badge-required">*</span></label>
                             <select id="clinic-tier" required>
@@ -1705,7 +1701,6 @@ try {
             formData.append('address', document.getElementById('clinic-address').value.trim());
             formData.append('city', document.getElementById('clinic-city').value.trim());
             formData.append('province', document.getElementById('clinic-province').value);
-            formData.append('homepage_url', document.getElementById('homepage_url').value.trim());
             formData.append('tier', document.getElementById('clinic-tier').value);
             formData.append('start_date', document.getElementById('clinic-start-date').value);
             formData.append('duration', document.getElementById('clinic-duration').value);
