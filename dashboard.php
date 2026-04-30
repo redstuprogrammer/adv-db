@@ -31,7 +31,7 @@ function baseUrl(): string {
     return $scheme . '://' . $host;
 }
 
-$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+$tenantSlug = trim((string)($_GET['tenant'] ?? $sessionManager->getCurrentTenantSlug() ?? ''));
 error_log("tenant_dashboard.php accessed with tenant: " . $tenantSlug);
 
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
@@ -471,7 +471,7 @@ if ($stmt) {
             <span style="margin-left: 10px; font-size: 14px; background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;">
                 Code: <?php echo h($sessionManager->getTenantData()['tenant_code'] ?? 'N/A'); ?>
             </span>
-            <a href="Landing Page/tenant_homepage.php" target="_blank" style="margin-left: 15px; font-size: 13px; color: #2563eb; font-weight: 600; text-decoration: none; border-bottom: 1px solid transparent; transition: border 0.2s;" onmouseover="this.style.borderBottom='1px solid #2563eb'" onmouseout="this.style.borderBottom='1px solid transparent'">View Public Homepage →</a>
+            <a href="Landing Page/tenant_homepage.php?tenant=<?php echo urlencode($tenantSlug); ?>" target="_blank" style="margin-left: 15px; font-size: 13px; color: #2563eb; font-weight: 600; text-decoration: none; border-bottom: 1px solid transparent; transition: border 0.2s;" onmouseover="this.style.borderBottom='1px solid #2563eb'" onmouseout="this.style.borderBottom='1px solid transparent'">View Public Homepage →</a>
         </div>
         <?php renderDateClock(); ?>
       </div>

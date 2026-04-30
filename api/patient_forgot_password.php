@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once '../config/db.php';
-require_once '../config/mailer.php';
+require_once '../config/config_mailer.php';
 
 use PHPMailer\PHPMailer\Exception;
 
