@@ -85,7 +85,7 @@ try {
             'email'                => $patient['email'],
             'username'             => $patient['username'],
             'contact_number'       => $patient['contact_number'],
-            'clinic_name'          => $tenant['company_name'] ?? '',
+            'company_name'          => $tenant['company_name'] ?? '',
             'must_change_password' => (int) $patient['must_change_password'],
         ]
     ]);
