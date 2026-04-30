@@ -52,22 +52,22 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
 // Fetch payment records with patient and appointment info
 $payments = [];
 $query = "SELECT 
-            py.payment_id, 
-            p.patient_id,
-            p.first_name, 
-            p.last_name, 
-            COALESCE(s.service_name, 'General Service') AS service_name, 
-            py.amount, 
-            py.status,
-            py.mode,
-            a.appointment_id,
-            a.appointment_date
-          FROM payment py
-          LEFT JOIN appointment a ON py.appointment_id = a.appointment_id AND a.tenant_id = py.tenant_id
-          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = py.tenant_id
-          LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
-          WHERE py.tenant_id = ?
-          ORDER BY py.payment_id DESC";
+            payment.payment_id, 
+            patient.patient_id,
+            patient.first_name, 
+            patient.last_name, 
+            COALESCE(service.service_name, 'General Service') AS service_name, 
+            payment.amount, 
+            payment.status, 
+            payment.mode,
+            appointment.appointment_id,
+            appointment.appointment_date
+          FROM payment
+          LEFT JOIN appointment ON payment.appointment_id = appointment.appointment_id
+          LEFT JOIN patient ON appointment.patient_id = patient.patient_id
+          LEFT JOIN service ON appointment.service_id = service.service_id
+          WHERE payment.tenant_id = ?
+          ORDER BY payment.payment_id DESC";
 
 $stmt = $conn->prepare($query);
 if ($stmt) {
