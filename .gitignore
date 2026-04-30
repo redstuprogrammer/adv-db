@@ -1,6 +1,9 @@
 # Dependencies
 vendor/
 
+# PayMongo Config (Custom)
+config/paymongo.php
+
 # Environment files
 .env
 .env.local
