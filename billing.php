@@ -49,35 +49,37 @@ if (!$hasPaymentTracking) {
 $tenantConfig = getTenantConfig($tenantId);
 $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 
-// Fetch payment records with patient and appointment info
-$payments = [];
-$query = "SELECT 
-            payment.payment_id, 
-            patient.patient_id,
-            patient.first_name, 
-            patient.last_name, 
-            COALESCE(service.service_name, 'General Service') AS service_name, 
-            payment.amount, 
-            payment.status, 
-            payment.mode,
-            appointment.appointment_id,
-            appointment.appointment_date
-          FROM payment
-          LEFT JOIN appointment ON payment.appointment_id = appointment.appointment_id
-          LEFT JOIN patient ON appointment.patient_id = patient.patient_id
-          LEFT JOIN service ON appointment.service_id = service.service_id
-          WHERE payment.tenant_id = ?
-          ORDER BY payment.payment_id DESC";
+// Ensure appointment_id exists (critical migration fix for Azure)
+$conn->query("ALTER TABLE payment ADD COLUMN IF NOT EXISTS appointment_id INT AFTER tenant_id");
 
-$stmt = $conn->prepare($query);
+$query = "SELECT 
+            py.payment_id, 
+            p.patient_id,
+            p.first_name, 
+            p.last_name, 
+            COALESCE(s.service_name, 'General Service') AS service_name, 
+            py.amount, 
+            py.status, 
+            py.mode,
+            a.appointment_id,
+            a.appointment_date
+          FROM payment py
+          LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN service s ON a.service_id = s.service_id
+          WHERE py.tenant_id = ?
+          ORDER BY py.payment_id DESC";
+
+$payments = [];
+$stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
-    $stmt->bind_param('i', $tenantId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
+    mysqli_stmt_bind_param($stmt, 'i', $tenantId);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    while ($row = mysqli_fetch_assoc($result)) {
         $payments[] = $row;
     }
-    $stmt->close();
+    mysqli_stmt_close($stmt);
 }
 
 // Calculate summary statistics
