@@ -50,7 +50,10 @@ $tenantConfig = getTenantConfig($tenantId);
 $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 
 // Ensure appointment_id exists (critical migration fix for Azure)
-$conn->query("ALTER TABLE payment ADD COLUMN IF NOT EXISTS appointment_id INT AFTER tenant_id");
+$checkColumn = $conn->query("SHOW COLUMNS FROM payment LIKE 'appointment_id'");
+if ($checkColumn && $checkColumn->num_rows == 0) {
+    $conn->query("ALTER TABLE payment ADD COLUMN appointment_id INT AFTER tenant_id");
+}
 
 $query = "SELECT 
             py.payment_id, 

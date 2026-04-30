@@ -45,13 +45,26 @@ $procedures_meta = json_encode([
     "tier_key" => $tier_key
 ]);
 
-// 2. Create Checkout Session with Redirects
+// 2. Fetch tenant slug for dynamic redirect
+$tenant_slug = '';
+$stmt_slug = $conn->prepare("SELECT tenant_slug FROM tenants WHERE tenant_id = ? LIMIT 1");
+if ($stmt_slug) {
+    $stmt_slug->bind_param("i", $tenant_id);
+    $stmt_slug->execute();
+    $res_slug = $stmt_slug->get_result();
+    if ($row_slug = $res_slug->fetch_assoc()) {
+        $tenant_slug = $row_slug['tenant_slug'];
+    }
+    $stmt_slug->close();
+}
+
+// 3. Create Checkout Session with Redirects
 $payload = [
     "data" => [
         "attributes" => [
             "payment_method_types" => ["gcash", "card", "paymaya", "qris"],
-            "success_url" => $azure_url . "/dashboard.php?payment=success",
-            "cancel_url" => $azure_url . "/subscription_checkout.php",
+            "success_url" => $azure_url . "/payment_success.php?session_id={CHECKOUT_SESSION_ID}",
+            "cancel_url" => $azure_url . "/billing.php?tenant=" . urlencode($tenant_slug),
             "description" => "OralSync Subscription Renewal - " . $tier['name'],
             "line_items" => [[
                 "currency" => "PHP",
@@ -95,7 +108,7 @@ if (isset($data_resp['errors'])) {
 $paymongo_id = $data_resp['data']['id'];
 $checkout_url = $data_resp['data']['attributes']['checkout_url'];
 
-// 3. Database Entry
+// 4. Database Entry
 try {
     // Note: Using 'payment' table as per system requirements
     $sql = "INSERT INTO payment (
