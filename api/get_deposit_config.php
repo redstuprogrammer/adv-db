@@ -30,19 +30,10 @@ if (empty($tenant_id) || !is_numeric($tenant_id)) {
     exit;
 }
 
-$stmt = $conn->prepare("
-    SELECT booking_deposit_amount
-    FROM tenant_configs
-    WHERE tenant_id = ?
-    LIMIT 1
-");
-$stmt->bind_param("i", $tenant_id);
-$stmt->execute();
-$row = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-$conn->close();
+require_once __DIR__ . '/../includes/tenant_utils.php';
 
-$amount = $row ? $row['booking_deposit_amount'] : null;
+$amount = getTenantConfigValue((int)$tenant_id, 'booking_deposit_amount');
+
 
 echo json_encode([
     'success'         => true,

@@ -126,21 +126,13 @@ if ($tenantSlug !== '') {
 if ($tenant && isset($tenant['tenant_id'])) {
     $tenant_id = (int)$tenant['tenant_id'];
     try {
-        $stmt = $conn->prepare("SELECT brand_bg_color, brand_text_color, primary_btn_color, link_color, login_title, login_description, brand_subtitle, brand_logo_path, brand_bg_image_path FROM tenant_configs WHERE tenant_id = ? LIMIT 1");
-        if ($stmt) {
-            $stmt->bind_param('i', $tenant_id);
-            if ($stmt->execute()) {
-                $result = $stmt->get_result();
-                $config = $result ? $result->fetch_assoc() : null;
-                if ($config) {
-                    foreach ($config as $key => $value) {
-                        if ($value !== null && $value !== '') {
-                            $loginSettings[$key] = $value;
-                        }
-                    }
+        $config = getTenantConfig($tenant_id);
+        if ($config) {
+            foreach ($config as $key => $value) {
+                if ($value !== null && $value !== '' && array_key_exists($key, $loginSettings)) {
+                    $loginSettings[$key] = $value;
                 }
             }
-            $stmt->close();
         }
     } catch (Exception $e) {
         error_log("Error loading tenant config: " . $e->getMessage());
