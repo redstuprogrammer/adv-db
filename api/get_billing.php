@@ -3,8 +3,13 @@
 // FILE TYPE: API ENDPOINT — deploy to server
 // PATH on server: /api/get_billing.php
 // ============================================================
-// GET  → fetch all payments for a patient (deposits + full bills)
-// POST → submit / record a payment (full bill)
+// GET  ?patient_id=X  → fetch all billing records for a patient
+// POST               → record a direct CASH payment against a bill
+//
+// Works with the NEW `billing` table schema:
+//   billing_id, tenant_id, appointment_id, patient_id,
+//   service_id, total_amount, amount_paid, payment_status,
+//   billing_date, paymongo_session_id, reference_number, mode
 // ============================================================
 
 header('Content-Type: application/json');
@@ -14,11 +19,10 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
-require_once __DIR__ . '/../includes/subscription_tiers.php';
 
-// ─────────────────────────────────────────────
-//  GET  →  fetch billings for a patient
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  GET  →  fetch billing records for a patient
+// ─────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $patient_id = $_GET['patient_id'] ?? '';
@@ -28,27 +32,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // Join payments → appointment so we can filter by patient and return appointment_date.
-    // Returns ALL payment rows (deposits + full bills) — mobile sorts them by type.
     $stmt = $conn->prepare("
         SELECT
-            p.payment_id,
-            p.tenant_id,
-            p.appointment_id,
-            p.amount,
-            p.mode,
-            p.status,
-            p.procedures_json,
-            p.source,
-            p.reference_number,
-            p.payment_date,
-            p.payment_type,
+            b.billing_id,
+            b.tenant_id,
+            b.appointment_id,
+            b.patient_id,
+            b.service_id,
+            b.total_amount,
+            b.amount_paid,
+            b.payment_status,
+            b.billing_date,
+            b.paymongo_session_id,
+            b.reference_number,
+            b.mode,
             a.appointment_date,
-            a.procedure_name
-        FROM payment p
-        JOIN appointment a ON p.appointment_id = a.appointment_id
-        WHERE a.patient_id = ?
-        ORDER BY p.payment_date DESC
+            a.procedure_name,
+            s.service_name
+        FROM billing b
+        JOIN appointment a ON b.appointment_id = a.appointment_id
+        LEFT JOIN service s ON b.service_id = s.service_id
+        WHERE b.patient_id = ?
+        ORDER BY b.billing_date DESC
     ");
 
     $stmt->bind_param("i", $patient_id);
@@ -60,112 +65,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $billings[] = $row;
     }
 
+    $stmt->close();
+    $conn->close();
+
     echo json_encode([
         'success'  => true,
         'message'  => 'Billings fetched successfully.',
         'billings' => $billings,
     ]);
 
-    $stmt->close();
-
-// ─────────────────────────────────────────────
-//  POST  →  submit / record a full payment
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  POST  →  record a direct CASH payment
+// ─────────────────────────────────────────────────────────────
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $input = json_decode(file_get_contents('php://input'), true);
 
-    $tenant_id        = $input['tenant_id']        ?? null;
-    $appointment_id   = $input['appointment_id']   ?? null;
-    $amount           = $input['amount']           ?? null;
-    $mode             = $input['mode']             ?? 'Cash';
-    $status           = $input['status']           ?? 'Paid';
-    $procedures_json  = $input['procedures_json']  ?? '[]';
+    $billing_id       = $input['billing_id']       ?? null;
+    $amount_paid      = $input['amount_paid']      ?? null;
+    $mode             = ucfirst(strtolower($input['mode'] ?? 'Cash'));
     $reference_number = $input['reference_number'] ?? null;
 
-    if (!$tenant_id || !$appointment_id || $amount === null || !$reference_number) {
-        echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
+    if (!$billing_id || $amount_paid === null || !$reference_number) {
+        echo json_encode(['success' => false, 'message' => 'billing_id, amount_paid, and reference_number are required.']);
         exit;
     }
 
-    $tierStmt = $conn->prepare("SELECT subscription_tier FROM tenants WHERE tenant_id = ? LIMIT 1");
-    $tierKey = '';
-    if ($tierStmt) {
-        $tierStmt->bind_param("i", $tenant_id);
-        $tierStmt->execute();
-        $tierRow = $tierStmt->get_result()->fetch_assoc();
-        $tierStmt->close();
-        $tierKey = (string)($tierRow['subscription_tier'] ?? '');
-    }
-    if ($tierKey === '' || !tierHasFeature($tierKey, 'payment_tracking')) {
-        echo json_encode(['success' => false, 'message' => 'Payments are not available for this subscription plan.']);
-        exit;
-    }
-    if (!tierHasFeature($tierKey, 'multiple_payment_methods') && strtolower((string)$mode) !== 'cash') {
-        echo json_encode(['success' => false, 'message' => 'Only Cash payment mode is allowed on this subscription plan.']);
-        exit;
+    // Fetch current billing row
+    $chk = $conn->prepare("SELECT total_amount, amount_paid FROM billing WHERE billing_id = ? LIMIT 1");
+    $chk->bind_param("i", $billing_id);
+    $chk->execute();
+    $bill = $chk->get_result()->fetch_assoc();
+    $chk->close();
+
+    if (!$bill) {
+        echo json_encode(['success' => false, 'message' => 'Billing record not found.']);
+        $conn->close(); exit;
     }
 
-    // Check if a FULL payment already exists for this appointment
-    $check = $conn->prepare("
-        SELECT payment_id FROM payment
-        WHERE appointment_id = ?
-          AND payment_type = 'full'
-        LIMIT 1
-    ");
-    $check->bind_param("i", $appointment_id);
-    $check->execute();
-    $check->store_result();
+    // Compute new paid total and derive status
+    $new_amount_paid = (float) $bill['amount_paid'] + (float) $amount_paid;
+    $total           = (float) $bill['total_amount'];
 
-    if ($check->num_rows > 0) {
-        // UPDATE the existing full payment row
-        $check->bind_result($existing_payment_id);
-        $check->fetch();
-        $check->close();
-
-        $upd = $conn->prepare("
-            UPDATE payment
-            SET amount = ?, mode = ?, status = ?, procedures_json = ?,
-                reference_number = ?, source = 'mobile', payment_date = CURRENT_TIMESTAMP
-            WHERE payment_id = ?
-        ");
-        $upd->bind_param("dssssi", $amount, $mode, $status, $procedures_json, $reference_number, $existing_payment_id);
-        $upd->execute();
-        $upd->close();
-
-        echo json_encode([
-            'success'          => true,
-            'message'          => 'Payment updated successfully.',
-            'payment_id'       => $existing_payment_id,
-            'reference_number' => $reference_number,
-        ]);
-
+    if ($new_amount_paid >= $total) {
+        $new_status      = 'paid';
+        $new_amount_paid = $total;
+    } elseif ($new_amount_paid > 0) {
+        $new_status = 'partial';
     } else {
-        $check->close();
-
-        // INSERT new full payment row (payment_type = 'full' is the default)
-        $ins = $conn->prepare("
-            INSERT INTO payment
-                (tenant_id, appointment_id, amount, mode, status, procedures_json, source, reference_number, payment_type)
-            VALUES (?, ?, ?, ?, ?, ?, 'mobile', ?, 'full')
-        ");
-        $ins->bind_param("iidssss", $tenant_id, $appointment_id, $amount, $mode, $status, $procedures_json, $reference_number);
-        $ins->execute();
-
-        $new_id = $conn->insert_id;
-        $ins->close();
-
-        echo json_encode([
-            'success'          => true,
-            'message'          => 'Payment recorded successfully.',
-            'payment_id'       => $new_id,
-            'reference_number' => $reference_number,
-        ]);
+        $new_status = 'unpaid';
     }
+
+    $upd = $conn->prepare("
+        UPDATE billing
+        SET amount_paid = ?, payment_status = ?, mode = ?, reference_number = ?
+        WHERE billing_id = ?
+    ");
+    $upd->bind_param("dsssi", $new_amount_paid, $new_status, $mode, $reference_number, $billing_id);
+
+    if (!$upd->execute()) {
+        echo json_encode(['success' => false, 'message' => 'Failed to update billing: ' . $upd->error]);
+        $upd->close(); $conn->close(); exit;
+    }
+    $upd->close();
+    $conn->close();
+
+    echo json_encode([
+        'success'          => true,
+        'message'          => 'Cash payment recorded successfully.',
+        'billing_id'       => $billing_id,
+        'new_amount_paid'  => $new_amount_paid,
+        'payment_status'   => $new_status,
+        'reference_number' => $reference_number,
+    ]);
 
 } else {
     echo json_encode(['success' => false, 'message' => 'Only GET and POST requests are allowed.']);
 }
-
-$conn->close();
 ?>
