@@ -31,14 +31,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all_schedule']))
     $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     $successCount = 0;
 
+    // Start transaction or just clear existing for this dentist to avoid duplicates
+    mysqli_query($conn, "DELETE FROM dentist_schedule WHERE tenant_id = $tenantId AND dentist_id = $dentistId");
+
     foreach ($daysOfWeek as $day) {
         $isAvailable = isset($_POST["available_$day"]) ? 1 : 0;
         $startTime = $_POST["start_$day"] ?? '09:00';
         $endTime = $_POST["end_$day"] ?? '17:00';
 
         $query = "INSERT INTO dentist_schedule (tenant_id, dentist_id, day_of_week, is_available, start_time, end_time) 
-                  VALUES (?, ?, ?, ?, ?, ?) 
-                  ON DUPLICATE KEY UPDATE is_available = VALUES(is_available), start_time = VALUES(start_time), end_time = VALUES(end_time)";
+                  VALUES (?, ?, ?, ?, ?, ?)";
         
         if ($stmt = mysqli_prepare($conn, $query)) {
             mysqli_stmt_bind_param($stmt, "iisiss", $tenantId, $dentistId, $day, $isAvailable, $startTime, $endTime);
@@ -163,7 +165,9 @@ mysqli_stmt_close($stmt);
 
             <div class="schedule-container">
                 <?php if ($message): ?>
-                    <div class="message <?php echo $messageType; ?>"><?php echo h($message); ?></div>
+                    <div style="padding:12px; background:#dcfce7; color:#166534; border-radius:6px; margin-bottom:16px; font-size:14px; border: 1px solid #bbf7d0;">
+                        <?php echo h($message); ?>
+                    </div>
                 <?php endif; ?>
 
                 <form method="POST" class="management-card">

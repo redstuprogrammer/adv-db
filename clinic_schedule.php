@@ -27,17 +27,19 @@ $messageType = 'info';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     foreach ($days as $day) {
-        $isOpen = isset($_POST[$day . '_open']) ? 1 : 0;
-        $openTime = $_POST[$day . '_open_time'] ?? '09:00';
-        $closeTime = $_POST[$day . '_close_time'] ?? '17:00';
+        $dayLower = strtolower($day);
+        $isOpen = isset($_POST[$dayLower . '_open']) ? 1 : 0;
+        $openTime = $_POST[$dayLower . '_open_time'] ?? '09:00';
+        $closeTime = $_POST[$dayLower . '_close_time'] ?? '17:00';
 
         $stmt = $conn->prepare("INSERT INTO clinic_schedules (tenant_id, day_of_week, is_closed, opening_time, closing_time) 
                                 VALUES (?, ?, ?, ?, ?) 
                                 ON DUPLICATE KEY UPDATE is_closed = VALUES(is_closed), opening_time = VALUES(opening_time), closing_time = VALUES(closing_time)");
         $isClosed = 1 - $isOpen;
-        $stmt->bind_param('iisss', $tenantId, $day, $isClosed, $openTime, $closeTime);
+        // Corrected types: i (tenantId), s (day), i (isClosed), s (openTime), s (closeTime)
+        $stmt->bind_param('isiss', $tenantId, $day, $isClosed, $openTime, $closeTime);
         $stmt->execute();
         $stmt->close();
     }
@@ -56,7 +58,7 @@ while ($row = $result->fetch_assoc()) {
 }
 $stmt->close();
 
-$daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+$daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -201,24 +203,25 @@ $daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
                             <?php foreach ($daysOrder as $day): 
                                 $data = $schedule[$day] ?? ['is_open' => 1, 'open_time' => '09:00', 'close_time' => '17:00'];
                                 $isClosed = !$data['is_open'];
+                                $dayLower = strtolower($day);
                             ?>
-                            <tr id="row-<?= $day ?>" class="<?= $isClosed ? 'row-closed' : '' ?>">
-                                <td style="font-weight: 600; width: 150px;"><?= ucfirst($day) ?></td>
+                            <tr id="row-<?= $dayLower ?>" class="<?= $isClosed ? 'row-closed' : '' ?>">
+                                <td style="font-weight: 600; width: 150px;"><?= $day ?></td>
                                 <td style="text-align:center; width: 120px;">
                                     <label style="cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px;">
-                                        <input type="checkbox" name="<?= $day ?>_open" <?= $data['is_open'] ? 'checked' : '' ?> 
-                                               onchange="toggleRow('<?= $day ?>', this)" style="accent-color: var(--accent)">
-                                        <span class="status-pill <?= $isClosed ? 'pill-closed' : 'pill-open' ?>" id="pill-<?= $day ?>">
+                                        <input type="checkbox" name="<?= $dayLower ?>_open" <?= $data['is_open'] ? 'checked' : '' ?> 
+                                               onchange="toggleRow('<?= $dayLower ?>', this)" style="accent-color: var(--accent)">
+                                        <span class="status-pill <?= $isClosed ? 'pill-closed' : 'pill-open' ?>" id="pill-<?= $dayLower ?>">
                                             <?= $isClosed ? 'Closed' : 'Open' ?>
                                         </span>
                                     </label>
                                 </td>
                                 <td>
                                     <div style="display:flex; align-items:center; gap:8px;">
-                                        <input type="time" name="<?= $day ?>_open_time" value="<?= h(substr($data['open_time'], 0, 5)) ?>" 
+                                        <input type="time" name="<?= $dayLower ?>_open_time" value="<?= h(substr($data['open_time'] ?? '09:00', 0, 5)) ?>" 
                                                class="time-input" <?= $isClosed ? 'disabled' : '' ?>>
                                         <span style="color: var(--text-sub); font-size: 12px;">to</span>
-                                        <input type="time" name="<?= $day ?>_close_time" value="<?= h(substr($data['close_time'], 0, 5)) ?>" 
+                                        <input type="time" name="<?= $dayLower ?>_close_time" value="<?= h(substr($data['close_time'] ?? '17:00', 0, 5)) ?>" 
                                                class="time-input" <?= $isClosed ? 'disabled' : '' ?>>
                                     </div>
                                 </td>
