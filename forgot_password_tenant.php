@@ -14,8 +14,12 @@ function tableHasColumns(mysqli $conn, string $table, array $columns): bool {
         return false;
     }
 
-    $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$tableSafe}`");
-    if (!$result) {
+    try {
+        $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$tableSafe}`");
+        if (!$result) {
+            return false;
+        }
+    } catch (mysqli_sql_exception $e) {
         return false;
     }
 

@@ -349,7 +349,7 @@ if (!$staff) {
 
             <div class="button-group">
                 <button type="submit" class="btn btn-primary">Save Professional Details</button>
-                <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff_id; ?>" class="btn btn-secondary">Cancel</a>
+                <a href="view_staff_profile.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff_id; ?>&uid=<?php echo $user_id; ?>" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
       </div>

@@ -112,8 +112,8 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
 
         /* Buttons */
         .btn-action { text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
-        .btn-print { background: #f8fafc; color: #0d3b66; border-color: #0d3b66; }
-        .btn-print:hover { background: #0d3b66; color: #fff; }
+        .btn-print { background: #0d3b66; color: white; border-color: #0d3b66; }
+        .btn-print:hover { background: #0a2d4f; color: #fff; }
         .btn-edit { background: #ecfdf5; color: #059669; border-color: #059669; margin-left: 5px; }
         .btn-edit:hover { background: #059669; color: #fff; }
         .add-btn-main { background: #0d3b66; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
@@ -261,13 +261,13 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                             <?php if($result && $result->num_rows > 0): ?>
                             <?php while($row = $result->fetch_assoc()): ?>
                             <tr>
-                                <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
+                                <td><strong>#<?= str_pad($row['billing_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
                                 <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
                                     <?php if ($hasInvoiceGeneration): ?>
-                                        <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
+                                        <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['billing_id'] ?>" class="btn-action btn-print" target="_blank">Print</a>
                                     <?php else: ?>
                                         <span style="color:#64748b;font-size:12px;">Invoice print unavailable</span>
                                     <?php endif; ?>

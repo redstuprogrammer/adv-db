@@ -272,7 +272,7 @@ if (!$staff) {
         <div class="card">
           <div class="section-title">
             <span>Professional Credentials</span>
-            <a href="edit_staff_details.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['staff_id']; ?>" class="btn-action btn-edit">Update Details</a>
+            <a href="edit_staff_details.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $staff['staff_id'] ?? 0; ?>&uid=<?php echo $staff['user_id']; ?>" class="btn-action btn-edit">Update Details</a>
           </div>
 
           <div class="grid-2">

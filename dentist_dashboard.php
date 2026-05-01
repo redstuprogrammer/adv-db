@@ -66,7 +66,7 @@ if ($stmt) {
 }
 
 $todayAppt = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ?");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND status != 'Cancelled'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "iis", $tenantId, $dentistId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -75,7 +75,7 @@ if ($stmt) {
 }
 
 $weekAppt = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND YEARWEEK(appointment_date, 1) = YEARWEEK(CURDATE(), 1)");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND YEARWEEK(appointment_date, 1) = YEARWEEK(CURDATE(), 1) AND status != 'Cancelled'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
     mysqli_stmt_execute($stmt);
@@ -84,7 +84,7 @@ if ($stmt) {
 }
 
 $monthAppt = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND MONTH(appointment_date) = MONTH(CURRENT_DATE()) AND YEAR(appointment_date) = YEAR(CURRENT_DATE())");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND MONTH(appointment_date) = MONTH(CURRENT_DATE()) AND YEAR(appointment_date) = YEAR(CURRENT_DATE()) AND status != 'Cancelled'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
     mysqli_stmt_execute($stmt);
@@ -133,7 +133,7 @@ $stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, p.fi
                   FROM appointment a
                   JOIN patient p ON a.patient_id = p.patient_id
                   LEFT JOIN service s ON a.service_id = s.service_id
-                  WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.dentist_id = ?
+                  WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.dentist_id = ? AND a.status != 'Cancelled'
                   ORDER BY a.appointment_date ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "isi", $tenantId, $todayDate, $dentistId);
@@ -157,7 +157,7 @@ $nextMonth = ($month == 12) ? 1 : $month + 1;
 $nextYear = ($month == 12) ? $year + 1 : $year;
 
 $calendarAppts = [];
-$stmt = mysqli_prepare($conn, "SELECT DISTINCT appointment_date FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND MONTH(appointment_date) = ? AND YEAR(appointment_date) = ?");
+$stmt = mysqli_prepare($conn, "SELECT DISTINCT appointment_date FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND MONTH(appointment_date) = ? AND YEAR(appointment_date) = ? AND status != 'Cancelled'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "iiii", $tenantId, $dentistId, $month, $year);
     mysqli_stmt_execute($stmt);

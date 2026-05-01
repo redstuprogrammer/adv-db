@@ -44,87 +44,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $newPassword = (string)($_POST['new_password'] ?? '');
     $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-    if ($newUsername === '') {
-        $message = 'Username is required.';
-        $messageType = 'error';
-    } elseif (strlen($newUsername) < 3) {
-        $message = 'Username must be at least 3 characters.';
-        $messageType = 'error';
+    $usernameChanged = ($newUsername !== '' && $newUsername !== $currentUser['username']);
+    $passwordChanged = ($currentPassword !== '' || $newPassword !== '' || $confirmPassword !== '');
+
+    if (!$usernameChanged && !$passwordChanged) {
+        $message = 'No changes were made.';
+        $messageType = 'info';
     } else {
-        $duplicateStmt = mysqli_prepare($conn, "SELECT user_id FROM users WHERE tenant_id = ? AND username = ? AND user_id <> ? LIMIT 1");
-        if ($duplicateStmt) {
-            mysqli_stmt_bind_param($duplicateStmt, "isi", $tenantId, $newUsername, $userId);
-            mysqli_stmt_execute($duplicateStmt);
-            $dupResult = mysqli_stmt_get_result($duplicateStmt);
-            if ($dupResult && mysqli_num_rows($dupResult) > 0) {
-                $message = 'That username is already in use in this clinic.';
+        // Validate Username if changed
+        if ($usernameChanged) {
+            if (strlen($newUsername) < 3) {
+                $message = 'Username must be at least 3 characters.';
+                $messageType = 'error';
+            } else {
+                $duplicateStmt = mysqli_prepare($conn, "SELECT user_id FROM users WHERE tenant_id = ? AND username = ? AND user_id <> ? LIMIT 1");
+                if ($duplicateStmt) {
+                    mysqli_stmt_bind_param($duplicateStmt, "isi", $tenantId, $newUsername, $userId);
+                    mysqli_stmt_execute($duplicateStmt);
+                    $dupResult = mysqli_stmt_get_result($duplicateStmt);
+                    if ($dupResult && mysqli_num_rows($dupResult) > 0) {
+                        $message = 'That username is already in use in this clinic.';
+                        $messageType = 'error';
+                    }
+                    mysqli_stmt_close($duplicateStmt);
+                }
+            }
+        }
+
+        // Validate Password if changed
+        if ($message === '' && $passwordChanged) {
+            if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
+                $message = 'To change password, provide current, new, and confirmation passwords.';
+                $messageType = 'error';
+            } elseif (!password_verify($currentPassword, (string)$currentUser['password'])) {
+                $message = 'Current password is incorrect.';
+                $messageType = 'error';
+            } elseif (strlen($newPassword) < 8) {
+                $message = 'New password must be at least 8 characters.';
+                $messageType = 'error';
+            } elseif ($newPassword !== $confirmPassword) {
+                $message = 'New password and confirmation do not match.';
                 $messageType = 'error';
             }
-            mysqli_stmt_close($duplicateStmt);
-        }
-    }
-
-    $changePassword = ($currentPassword !== '' || $newPassword !== '' || $confirmPassword !== '');
-    if ($message === '' && $changePassword) {
-        if ($currentPassword === '' || $newPassword === '' || $confirmPassword === '') {
-            $message = 'Fill in all password fields to change your password.';
-            $messageType = 'error';
-        } elseif (!password_verify($currentPassword, (string)$currentUser['password'])) {
-            $message = 'Current password is incorrect.';
-            $messageType = 'error';
-        } elseif (strlen($newPassword) < 8) {
-            $message = 'New password must be at least 8 characters.';
-            $messageType = 'error';
-        } elseif ($newPassword !== $confirmPassword) {
-            $message = 'New password and confirmation do not match.';
-            $messageType = 'error';
-        }
-    }
-
-    if ($message === '') {
-        if ($changePassword) {
-            $newPasswordHash = password_hash($newPassword, PASSWORD_BCRYPT);
-            $updateStmt = mysqli_prepare($conn, "UPDATE users SET username = ?, password = ? WHERE user_id = ? AND tenant_id = ?");
-            if ($updateStmt) {
-                mysqli_stmt_bind_param($updateStmt, "ssii", $newUsername, $newPasswordHash, $userId, $tenantId);
-            }
-        } else {
-            $updateStmt = mysqli_prepare($conn, "UPDATE users SET username = ? WHERE user_id = ? AND tenant_id = ?");
-            if ($updateStmt) {
-                mysqli_stmt_bind_param($updateStmt, "sii", $newUsername, $userId, $tenantId);
-            }
         }
 
-        if (isset($updateStmt) && $updateStmt && mysqli_stmt_execute($updateStmt)) {
-            mysqli_stmt_close($updateStmt);
-            $message = 'Account credentials updated successfully.';
-            $messageType = 'success';
+        if ($message === '') {
+            $updateQueries = [];
+            $params = [];
+            $types = "";
 
-            $refreshStmt = mysqli_prepare($conn, "SELECT username, email, password, role FROM users WHERE user_id = ? AND tenant_id = ? LIMIT 1");
-            if ($refreshStmt) {
-                mysqli_stmt_bind_param($refreshStmt, "ii", $userId, $tenantId);
-                mysqli_stmt_execute($refreshStmt);
-                $refreshResult = mysqli_stmt_get_result($refreshStmt);
-                $currentUser = $refreshResult ? mysqli_fetch_assoc($refreshResult) : $currentUser;
-                mysqli_stmt_close($refreshStmt);
+            if ($usernameChanged) {
+                $updateQueries[] = "username = ?";
+                $params[] = $newUsername;
+                $types .= "s";
+            }
+            if ($passwordChanged) {
+                $updateQueries[] = "password = ?";
+                $params[] = password_hash($newPassword, PASSWORD_BCRYPT);
+                $types .= "s";
             }
 
-            $sessionPayload = [
-                'tenant_id' => (int)$tenantData['tenant_id'],
-                'tenant_name' => (string)($tenantData['tenant_name'] ?? ''),
-                'tenant_code' => (string)($tenantData['tenant_code'] ?? ''),
-                'role' => 'Dentist',
-                'user_id' => (int)$userId,
-                'username' => (string)$currentUser['username'],
-                'email' => (string)$currentUser['email'],
-            ];
-            $sessionManager->loginTenantUser($tenantSlug, $sessionPayload);
-        } else {
-            if (isset($updateStmt) && $updateStmt) {
-                mysqli_stmt_close($updateStmt);
+            if (!empty($updateQueries)) {
+                $sql = "UPDATE users SET " . implode(", ", $updateQueries) . " WHERE user_id = ? AND tenant_id = ?";
+                $params[] = $userId;
+                $params[] = $tenantId;
+                $types .= "ii";
+
+                $updateStmt = mysqli_prepare($conn, $sql);
+                if ($updateStmt) {
+                    mysqli_stmt_bind_param($updateStmt, $types, ...$params);
+                    if (mysqli_stmt_execute($updateStmt)) {
+                        $message = 'Account updated successfully.';
+                        $messageType = 'success';
+                        
+                        // Log activity
+                        $logMsg = $usernameChanged ? "Updated username" : "";
+                        if ($passwordChanged) $logMsg .= ($logMsg ? " and " : "") . "Updated password";
+                        logTenantActivity($conn, $tenantId, 'Account Settings', $logMsg);
+
+                        // Refresh current user data
+                        $refreshStmt = mysqli_prepare($conn, "SELECT username, email, password, role FROM users WHERE user_id = ? AND tenant_id = ? LIMIT 1");
+                        if ($refreshStmt) {
+                            mysqli_stmt_bind_param($refreshStmt, "ii", $userId, $tenantId);
+                            mysqli_stmt_execute($refreshStmt);
+                            $refreshResult = mysqli_stmt_get_result($refreshStmt);
+                            $currentUser = $refreshResult ? mysqli_fetch_assoc($refreshResult) : $currentUser;
+                            mysqli_stmt_close($refreshStmt);
+                        }
+
+                        // Update session
+                        $sessionPayload = [
+                            'tenant_id' => (int)$tenantData['tenant_id'],
+                            'tenant_name' => (string)($tenantData['tenant_name'] ?? ''),
+                            'tenant_code' => (string)($tenantData['tenant_code'] ?? ''),
+                            'role' => 'Dentist',
+                            'user_id' => (int)$userId,
+                            'username' => (string)$currentUser['username'],
+                            'email' => (string)$currentUser['email'],
+                        ];
+                        $sessionManager->loginTenantUser($tenantSlug, $sessionPayload);
+                    } else {
+                        $message = 'Database update failed.';
+                        $messageType = 'error';
+                    }
+                    mysqli_stmt_close($updateStmt);
+                }
             }
-            $message = 'Failed to update account credentials.';
-            $messageType = 'error';
         }
     }
 }
@@ -137,67 +162,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title><?php echo h($tenantName); ?> | Dentist Account Settings</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
-        .settings-form { max-width: 520px; margin: 0 auto; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.45rem; font-weight: 600; color: #1f2937; }
-        .form-group input { width: 100%; padding: 0.7rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.95rem; }
-        .form-group input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14); }
-        .helper { font-size: 0.82rem; color: #6b7280; margin-top: 0.3rem; }
-        .section-title { margin: 1.5rem 0 0.6rem; font-weight: 700; color: #0f172a; }
+        :root {
+            --dashboard-accent: #0d3b66;
+            --dashboard-border: #e2e8f0;
+            --dashboard-bg: #f8fafc;
+        }
+        .settings-container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--dashboard-border);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 700; color: #334155; font-size: 13px; text-transform: uppercase; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid var(--dashboard-border); border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        .form-group input:focus { outline: none; border-color: var(--dashboard-accent); box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1); }
+        .helper { font-size: 12px; color: #64748b; margin-top: 5px; }
+        .section-title { margin: 2rem 0 1rem; font-weight: 800; color: var(--dashboard-accent); font-size: 16px; border-bottom: 2px solid var(--dashboard-bg); padding-bottom: 8px; }
+        .save-btn {
+            background: var(--dashboard-accent);
+            color: white;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            font-size: 15px;
+            transition: background 0.2s;
+        }
+        .save-btn:hover { background: #0a2d4f; }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .alert-success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .alert-info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     </style>
 </head>
 <body>
-    <div class="t-wrap">
-        <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
+  <div class="tenant-layout">
+    <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
 
-        <main class="t-main">
-            <div class="t-header" style="display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                    <h1 class="t-title">Account Settings</h1>
-                    <p class="t-subtitle">Change your dentist username and password.</p>
-                </div>
-                <?php renderDateClock(); ?>
+    <!-- Main Content -->
+    <div class="tenant-main-content">
+      <!-- Header Bar -->
+      <div class="tenant-header-bar">
+        <div class="tenant-header-title">
+            <?php echo h($tenantName); ?> Account Settings
+            <span style="margin-left: 10px; font-size: 14px; background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;">
+                Code: <?php echo h($sessionManager->getTenantData()['tenant_code'] ?? 'N/A'); ?>
+            </span>
+        </div>
+        <?php renderDateClock(); ?>
+      </div>
+
+      <div class="settings-container">
+        <?php if ($message !== ''): ?>
+            <div class="alert alert-<?php echo h($messageType); ?>">
+                <?php echo h($message); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST" autocomplete="off">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" value="<?php echo h((string)($currentUser['username'] ?? '')); ?>">
+                <div class="helper">Your unique login name within this clinic.</div>
             </div>
 
-            <div class="t-content">
-                <?php if ($message !== ''): ?>
-                    <div class="t-alert t-alert-<?php echo h($messageType); ?>" style="margin-bottom: 1.4rem;">
-                        <?php echo h($message); ?>
-                    </div>
-                <?php endif; ?>
+            <div class="section-title">Security Update</div>
 
-                <form method="POST" class="settings-form" autocomplete="off">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input id="username" name="username" type="text" required value="<?php echo h((string)($currentUser['username'] ?? '')); ?>">
-                        <div class="helper">Unique per clinic, minimum 3 characters.</div>
-                    </div>
-
-                    <div class="section-title">Change Password (Optional)</div>
-
-                    <div class="form-group">
-                        <label for="current_password">Current Password</label>
-                        <input id="current_password" name="current_password" type="password" autocomplete="current-password">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="new_password">New Password</label>
-                        <input id="new_password" name="new_password" type="password" autocomplete="new-password">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="confirm_password">Confirm New Password</label>
-                        <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password">
-                        <div class="helper">At least 8 characters.</div>
-                    </div>
-
-                    <div style="margin-top: 1.25rem; text-align:center;">
-                        <button type="submit" class="t-btn t-btnPrimary">Save Account Changes</button>
-                    </div>
-                </form>
+            <div class="form-group">
+                <label for="current_password">Current Password</label>
+                <input id="current_password" name="current_password" type="password" placeholder="Required only if changing password">
             </div>
-        </main>
+
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input id="new_password" name="new_password" type="password" placeholder="At least 8 characters">
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm New Password</label>
+                <input id="confirm_password" name="confirm_password" type="password">
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <button type="submit" class="save-btn">Save Account Changes</button>
+            </div>
+        </form>
+      </div>
     </div>
+  </div>
     <script>
         <?php printDateClockScript(); ?>
     </script>

@@ -25,6 +25,86 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+/**
+ * Sends a welcome email with a temporary password to a new user.
+ */
+function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $tenantName, $tenantSlug) {
+    // Check for SMTP settings using environment detection
+    $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? $_SERVER['SMTP_HOST'] ?? null;
+    $smtpPort = getenv('SMTP_PORT') ?: $_ENV['SMTP_PORT'] ?? $_SERVER['SMTP_PORT'] ?? null;
+    $smtpUser = getenv('SMTP_USERNAME') ?: $_ENV['SMTP_USERNAME'] ?? $_SERVER['SMTP_USERNAME'] ?? null;
+    $smtpPass = getenv('SMTP_PASSWORD') ?: $_ENV['SMTP_PASSWORD'] ?? $_SERVER['SMTP_PASSWORD'] ?? null;
+    $fromEmail = getenv('SMTP_FROM_EMAIL') ?: $_ENV['SMTP_FROM_EMAIL'] ?? $smtpUser;
+    $fromName = 'OralSync';
+
+    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass) {
+        error_log("SMTP settings missing. Could not send welcome email to $email");
+        return false;
+    }
+
+    require_once __DIR__ . '/vendor/autoload.php';
+
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = (int)$smtpPort;
+
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($email, trim($firstName . ' ' . $lastName));
+
+        $mail->isHTML(true);
+        $mail->Subject = "Welcome to " . $tenantName . " | Your Account Details";
+        
+        $safeName = htmlspecialchars($firstName ?: 'there', ENT_QUOTES, 'UTF-8');
+        $safeClinic = htmlspecialchars($tenantName, ENT_QUOTES, 'UTF-8');
+        $safePass = htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8');
+        
+        // Build login URL
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $loginUrl = $scheme . '://' . $host . '/tenant_login.php?tenant=' . urlencode($tenantSlug);
+
+        $mail->Body = <<<HTML
+<div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+    <div style="background: #0d3b66; color: white; padding: 24px; text-align: center;">
+        <h1 style="margin: 0; font-size: 24px;">Welcome to OralSync</h1>
+        <p style="margin: 8px 0 0; opacity: 0.8;">Your clinic account has been created</p>
+    </div>
+    <div style="padding: 24px; color: #334155; line-height: 1.6;">
+        <p>Hello <strong>{$safeName}</strong>,</p>
+        <p>You have been added as a staff member at <strong>{$safeClinic}</strong>. You can now access the clinic portal using the details below:</p>
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0 0 8px;"><strong>Login URL:</strong> <a href="{$loginUrl}" style="color: #0d3b66;">{$loginUrl}</a></p>
+            <p style="margin: 0 0 8px;"><strong>Email:</strong> {$email}</p>
+            <p style="margin: 0;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{$safePass}</code></p>
+        </div>
+        
+        <p style="font-size: 14px; color: #64748b;">For security, please change your password immediately after your first login.</p>
+        
+        <div style="text-align: center; margin-top: 32px;">
+            <a href="{$loginUrl}" style="background: #0d3b66; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Login to Clinic Portal</a>
+        </div>
+    </div>
+    <div style="background: #f1f5f9; color: #94a3b8; padding: 16px; text-align: center; font-size: 12px;">
+        &copy; OralSync - Advanced Dental Management System
+    </div>
+</div>
+HTML;
+
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log("PHPMailer error: " . $e->getMessage());
+        return false;
+    }
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
@@ -34,15 +114,16 @@ $formError = '';
 
 // Handle Add User
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
-    $username = isset($_POST['username']) ? trim($_POST['username']) : '';
     $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+    $username = $email; // Use email as username
     $firstName = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
     $lastName = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
+    $phone = isset($_POST['phone_number']) ? trim($_POST['phone_number']) : '';
     $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
     $role = isset($_POST['role']) ? trim($_POST['role']) : '';
 
-    if ($username === '' || $email === '' || $rawPassword === '' || $role === '') {
-        $formError = 'All fields are required to add a new user.';
+    if ($email === '' || $rawPassword === '' || $role === '') {
+        $formError = 'Email, password, and role are required.';
     } elseif (!in_array($role, ['Admin', 'Receptionist', 'Dentist'], true)) {
         $formError = 'Invalid role selected.';
     } else {
@@ -76,18 +157,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
             }
         }
 
-        if ($formError === '') {
-            $checkStmt = $conn->prepare('SELECT user_id FROM users WHERE tenant_id = ? AND username = ? LIMIT 1');
-            if ($checkStmt) {
-                $checkStmt->bind_param('is', $tenantId, $username);
-                $checkStmt->execute();
-                $resultCheck = $checkStmt->get_result();
-                if ($resultCheck && $resultCheck->num_rows > 0) {
-                    $formError = 'That username is already taken. Please choose another username for this clinic.';
-                }
-                $checkStmt->close();
-            }
-        }
 
         if ($formError === '') {
             // Check duplicate email within this tenant
@@ -105,13 +174,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 
         if ($formError === '') {
             $password = password_hash($rawPassword, PASSWORD_BCRYPT);
-            $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, password, role, first_name, last_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())');
+            $stmt = $conn->prepare('INSERT INTO users (tenant_id, username, email, phone, password, role, first_name, last_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())');
             if ($stmt) {
-                $stmt->bind_param('issssss', $tenantId, $username, $email, $password, $role, $firstName, $lastName);
+                $stmt->bind_param('isssssss', $tenantId, $username, $email, $phone, $password, $role, $firstName, $lastName);
                 if ($stmt->execute()) {
                     if (strcasecmp($role, 'Dentist') === 0) {
                         syncDentistRecordFromUser($conn, $stmt->insert_id);
                     }
+                    
+                    // Send welcome email with temporary password
+                    sendUserWelcomeEmail($email, $firstName, $lastName, $rawPassword, $tenantName, $tenantSlug);
+                    
                     header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
                     exit;
                 } else {
@@ -129,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
 // Fetch users for display
 $users = [];
 try {
-    $stmt = $conn->prepare('SELECT user_id, username, email, role, first_name, last_name, created_at FROM users WHERE tenant_id = ? ORDER BY username');
+    $stmt = $conn->prepare('SELECT user_id, email, phone, role, first_name, last_name, created_at FROM users WHERE tenant_id = ? ORDER BY email');
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -267,7 +340,6 @@ try {
         <table class="module-table">
           <thead>
             <tr>
-              <th>Username</th>
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
@@ -291,7 +363,6 @@ try {
                 if (empty($userFullName)) $userFullName = '(not provided)';
               ?>
               <tr>
-                <td><?php echo h($user['username']); ?></td>
                 <td><?php echo h($userFullName); ?></td>
                 <td><?php echo h($user['email']); ?></td>
                 <td><span class="badge <?php echo $badgeClass; ?>"><?php echo h($role); ?></span></td>
@@ -351,16 +422,16 @@ try {
       </div>
       <form method="POST">
         <div style="margin-bottom: 10px;">
-          <label style="display: block; margin-bottom: 4px;">Username</label>
-          <input type="text" name="username" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-        </div>
-        <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">First Name</label>
           <input type="text" name="first_name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">Last Name</label>
           <input type="text" name="last_name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="display: block; margin-bottom: 4px;">Phone Number</label>
+          <input type="text" name="phone_number" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
         </div>
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">Email</label>

@@ -60,6 +60,18 @@ if (!$patient) {
     exit();
 }
 
+// Calculate age
+$age = 'N/A';
+if (!empty($patient['birthdate'])) {
+    try {
+        $birthDate = new DateTime($patient['birthdate']);
+        $today = new DateTime('today');
+        $age = $birthDate->diff($today)->y;
+    } catch (Exception $e) {
+        $age = 'N/A';
+    }
+}
+
 // Handle treatment note submission
 $successMsg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note'])) {
@@ -71,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note'])
         $noteStmt = $conn->prepare("INSERT INTO clinical_notes (tenant_id, patient_id, dentist_id, treatment_notes) VALUES (?, ?, ?, ?)");
         if ($noteStmt) {
             $combined_notes = "Diagnosis: $diagnosis\nTreatment: $treatment\nNotes: $notes";
-            $noteStmt->bind_param('iis', $tenantId, $patient_id, $dentistId, $combined_notes);
+            $noteStmt->bind_param('iiis', $tenantId, $patient_id, $dentistId, $combined_notes);
             if ($noteStmt->execute()) {
                 $successMsg = '✓ Clinical note saved successfully.';
             }
@@ -419,7 +431,7 @@ if ($docsStmt) {
         <div class="patient-grid">
             <div class="patient-field">
                 <label>Date of Birth</label>
-                <p><?php echo h($patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'); ?></p>
+                <p><?php echo h($patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'); ?> <?php if($age !== 'N/A') echo " (Age: " . h($age) . ")"; ?></p>
             </div>
             <div class="patient-field">
                 <label>Gender</label>

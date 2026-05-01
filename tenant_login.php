@@ -68,6 +68,7 @@ $loginSettings = [
     'brand_text_color' => '#ffffff',
     'primary_btn_color' => '#22c55e',
     'link_color' => '#2563eb',
+    'card_bg_color' => '#ffffff',
     'login_title' => 'Clinic Login',
     'login_description' => 'Please sign in to access your clinic portal.',
     'brand_subtitle' => 'Powered by OralSync',
@@ -275,6 +276,7 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
             --tenant-custom-text: <?php echo h($loginSettings['brand_text_color']); ?>;
             --tenant-custom-primary: <?php echo h($loginSettings['primary_btn_color']); ?>;
             --tenant-custom-link: <?php echo h($loginSettings['link_color']); ?>;
+            --tenant-custom-card-bg: <?php echo h($loginSettings['card_bg_color']); ?>;
         }
 
         body {
@@ -300,9 +302,9 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
             gap: 10px;
             padding: 10px 14px;
             border-radius: 12px;
-            background: rgba(15, 23, 42, 0.55);
-            border: 1px solid rgba(255, 255, 255, 0.28);
-            backdrop-filter: blur(6px);
+            background: transparent;
+            border: none;
+            backdrop-filter: none;
             color: #fff;
             text-decoration: none;
         }
@@ -336,7 +338,7 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
             background-position: center;
         }
         .t-brandPanel, .t-brandPanel * {
-            color: <?php echo h($loginSettings['brand_text_color']); ?> !important;
+            color: <?php echo h($loginSettings['brand_text_color'] ?? '#ffffff'); ?> !important;
         }
         .t-logo img {
             display: block;
@@ -361,8 +363,8 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
             color: <?php echo h($loginSettings['link_color']); ?> !important;
         }
         .t-pageLogo {
-            border-color: color-mix(in srgb, var(--tenant-custom-primary) 55%, white 45%);
-            background: color-mix(in srgb, var(--tenant-custom-bg) 60%, rgba(15, 23, 42, 0.55) 40%);
+            background: transparent;
+            border: none;
         }
         .t-foot {
             border-top: 1px solid color-mix(in srgb, var(--tenant-custom-primary) 30%, #e2e8f0 70%);
@@ -409,7 +411,7 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
                 <div class="t-pageLogoText"><?php echo h($clinicName); ?></div>
             </div>
         <?php endif; ?>
-        <div class="t-shell <?php echo $hasCustomBgImage ? 't-shell-custom-bg' : ''; ?>">
+        <div class="t-shell <?php echo ($hasCustomBgImage || $hasCustomLogo) ? 't-shell-custom-bg' : ''; ?>">
             <section class="t-brandPanel">
                 <div class="t-brandTop">
                     <div class="t-logo">
@@ -433,12 +435,10 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
                     <strong>Customization spots (coming soon)</strong><br>
                     - Clinic logo upload<br>
                     - Accent color / theme<br>
-                    - Welcome message / announcements<br>
-                    - Support contact details
                 </div>
             </section>
 
-            <section class="t-card">
+            <section class="t-card" style="background-color: var(--tenant-custom-card-bg);">
                 <h1 class="t-cardTitle"><?php echo h($loginSettings['login_title']); ?></h1>
                 <div class="t-cardSub">
                     <?php echo h($loginSettings['login_description']); ?>

@@ -48,7 +48,7 @@ $todayDate = date('Y-m-d');
    RECEPTIONIST METRICS
 ========================= */
 
-// 1. Pending Appointments (Patients yet to arrive/be seen)
+// 1. Waiting/Pending (Appointments for today with pending status)
 $pendingCount = 0;
 $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Pending'");
 if ($stmt) {
@@ -58,7 +58,7 @@ if ($stmt) {
     $pendingCount = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
 
-// 2. Completed Today (Patients who finished their session)
+// 2. Completed Today (Patients who finished their session today)
 $completedCount = 0;
 $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Completed'");
 if ($stmt) {
@@ -79,15 +79,16 @@ if ($stmt) {
 }
 
 /* =========================
-   ARRIVAL LIST (QUEUE)
-========================= */
+   ARRIVAL LIST (QUEUE) - Upcoming
+   ========================= */
 $queueResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_name, d.last_name AS d_last, a.status, a.appointment_date 
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_name, d.last_name AS d_last, a.status, a.appointment_date, a.appointment_time 
                FROM appointment a 
                JOIN patient p ON a.patient_id = p.patient_id 
-               JOIN dentist d ON a.dentist_id = d.dentist_id
-               WHERE a.tenant_id = ? AND a.appointment_date = ? 
-               ORDER BY a.appointment_id ASC");
+               JOIN users d ON a.dentist_id = d.user_id
+               WHERE a.tenant_id = ? AND a.appointment_date >= ? AND a.status NOT IN ('Completed', 'Cancelled', 'Disapproved')
+               ORDER BY a.appointment_date ASC, a.appointment_time ASC, a.appointment_id ASC
+               LIMIT 8");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -343,6 +344,7 @@ if ($stmt) {
           <thead>
             <tr>
               <th>Patient</th>
+              <th>Time</th>
               <th>Dentist</th>
               <th>Status</th>
               <th>Action</th>
@@ -353,6 +355,7 @@ if ($stmt) {
               <?php while($row = $queueResult->fetch_assoc()): ?>
                 <tr>
                   <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
+                  <td><span class="time-badge"><?php echo date('h:i A', strtotime($row['appointment_time'])); ?></span></td>
                   <td>Dr. <?php echo h($row['d_last']); ?></td>
                   <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
                   <td><a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>

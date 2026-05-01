@@ -21,7 +21,7 @@ if ($tenant) {
         'hero_description' => "Welcome to " . $tenant['company_name'] . ". Professional care for your dental health.",
         'about_description' => "Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . ".",
         'contact_phone' => $tenant['phone'],
-        'contact_email' => $tenant['email'] ?? '',
+        'contact_email' => $tenant['contact_email'] ?? '',
         'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province']
     ];
 
@@ -204,7 +204,7 @@ if ($tenant) {
 <div class="md:col-span-5">
 <h2 class="text-4xl font-extrabold text-on-surface mb-6 leading-tight">Professionalism<br/>Refined through Art.</h2>
 <p class="text-on-surface-variant leading-relaxed text-lg mb-8">
-                            <?= htmlspecialchars($clinic['about_description'] ?? 'At The Curated Breath, we believe that world-class dentistry should never feel clinical.') ?>
+                            <?= htmlspecialchars($clinic['about_description'] ?? 'At ' . ($clinic['name'] ?? 'our clinic') . ', we believe that world-class dentistry should never feel clinical.') ?>
                         </p>
 <div class="space-y-4">
 <div class="flex items-center gap-4">
@@ -306,7 +306,7 @@ if ($tenant) {
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
 <?php 
-$daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+$daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 foreach ($daysOrder as $day):
     $dayData = $schedule[$day] ?? null;
     $dayName = ucfirst($day);
@@ -394,7 +394,7 @@ foreach ($daysOrder as $day):
 <div class="absolute inset-0 bg-primary/10 pointer-events-none"></div>
 <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface/80 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/20 text-center">
 <span class="material-symbols-outlined text-primary text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">location_on</span>
-<p class="font-bold text-on-surface">The Curated Breath</p>
+<p class="font-bold text-on-surface"><?= htmlspecialchars($clinic['name']) ?></p>
 <p class="text-xs text-secondary mt-1">Now Arriving</p>
 </div>
 </div>
@@ -404,7 +404,7 @@ foreach ($daysOrder as $day):
 </main>
 <footer class="w-full py-16 px-8 bg-[#f2f4f5] dark:bg-slate-950 font-['Inter'] text-xs uppercase tracking-widest mt-12">
 <div class="flex flex-col items-center text-center space-y-6 w-full max-w-7xl mx-auto">
-<div class="text-xl font-bold text-sky-900 mb-4">The Curated Breath</div>
+<div class="text-xl font-bold text-sky-900 mb-4"><?= htmlspecialchars($clinic['name']) ?></div>
 <div class="flex flex-wrap justify-center gap-x-8 gap-y-4">
 <a class="text-slate-500 hover:text-sky-600 transition-colors" href="#">Privacy Policy</a>
 <a class="text-slate-500 hover:text-sky-600 transition-colors" href="#">Terms of Service</a>
@@ -412,7 +412,7 @@ foreach ($daysOrder as $day):
 <a class="text-slate-500 hover:text-sky-600 transition-colors" href="#">Accessibility</a>
 </div>
 <div class="pt-8 text-slate-400 border-t border-outline-variant/20 w-full">
-                © 2024 The Curated Breath. Professional Dental Serenity.
+                © 2024 <?= htmlspecialchars($clinic['name']) ?>. Professional Dental Serenity.
             </div>
 </div>
 </footer>

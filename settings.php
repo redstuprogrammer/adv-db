@@ -179,61 +179,90 @@ HTML;
     $message = '';
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (isset($_POST['change_password'])) {
+        if (isset($_POST['change_account_settings'])) {
+            $newUsername = trim($_POST['username'] ?? '');
             $currentPassword = $_POST['current_password'] ?? '';
             $newPassword = $_POST['new_password'] ?? '';
             $confirmPassword = $_POST['confirm_password'] ?? '';
 
-            if ($newPassword !== $confirmPassword) {
-                $message = 'New passwords do not match.';
-            } elseif (strlen($newPassword) < 8) {
-                $message = 'Password must be at least 8 characters long.';
+            // Fetch current tenant data
+            $stmt = $conn->prepare("SELECT password, contact_email, company_name, username FROM tenants WHERE tenant_id = ?");
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $tenant = $result->fetch_assoc();
+            $stmt->close();
+
+            if (!$tenant) {
+                $message = 'Error fetching account details.';
             } else {
-                // Verify current password and send a verification email before applying the change
-                $stmt = $conn->prepare("SELECT password, contact_email, company_name FROM tenants WHERE tenant_id = ?");
-                $stmt->bind_param('i', $tenantId);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $tenant = $result->fetch_assoc();
+                $updatesMade = false;
+                $passwordChangeRequested = !empty($newPassword);
 
-                if ($tenant && password_verify($currentPassword, $tenant['password'])) {
-                    $token = bin2hex(random_bytes(32));
-                    $tokenHash = password_hash($token, PASSWORD_DEFAULT);
-                    $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
-
-                    $updateTokenStmt = $conn->prepare("UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
-                    if ($updateTokenStmt) {
-                        $updateTokenStmt->bind_param('ssi', $tokenHash, $expiresAt, $tenantId);
-                        if ($updateTokenStmt->execute()) {
-                            $resetUrl = getAbsoluteBaseUrl() . '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
-                            $emailResult = sendTenantPasswordVerificationEmail(
-                                $tenant['contact_email'],
-                                $tenant['company_name'],
-                                $resetUrl
-                            );
-
-                            if ($emailResult['sent'] ?? false) {
-                                $message = 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
-                            } else {
-                                $message = 'Unable to send verification email. Please try again later.';
-                                $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
-                                if ($clearStmt) {
-                                    $clearStmt->bind_param('i', $tenantId);
-                                    $clearStmt->execute();
-                                    $clearStmt->close();
-                                }
-                            }
-                        } else {
-                            $message = 'Unable to initialize password verification. Please try again later.';
-                        }
-                        $updateTokenStmt->close();
+                // Handle Username Update
+                if ($newUsername !== $tenant['username']) {
+                    if (empty($newUsername)) {
+                        $message = 'Username cannot be empty.';
                     } else {
-                        $message = 'Unable to initialize password verification. Please try again later.';
+                        $updateUsernameStmt = $conn->prepare("UPDATE tenants SET username = ? WHERE tenant_id = ?");
+                        $updateUsernameStmt->bind_param('si', $newUsername, $tenantId);
+                        if ($updateUsernameStmt->execute()) {
+                            $updatesMade = true;
+                            $message = 'Username updated successfully. ';
+                        } else {
+                            $message = 'Error updating username. ';
+                        }
+                        $updateUsernameStmt->close();
                     }
-                } else {
-                    $message = 'Current password is incorrect.';
                 }
-                $stmt->close();
+
+                // Handle Password Update
+                if ($passwordChangeRequested) {
+                    if ($newPassword !== $confirmPassword) {
+                        $message .= 'New passwords do not match.';
+                    } elseif (strlen($newPassword) < 8) {
+                        $message .= 'Password must be at least 8 characters long.';
+                    } elseif (!password_verify($currentPassword, $tenant['password'])) {
+                        $message .= 'Current password is incorrect.';
+                    } else {
+                        // Verify current password and send a verification email
+                        $token = bin2hex(random_bytes(32));
+                        $tokenHash = password_hash($token, PASSWORD_DEFAULT);
+                        $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+                        $updateTokenStmt = $conn->prepare("UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
+                        if ($updateTokenStmt) {
+                            $updateTokenStmt->bind_param('ssi', $tokenHash, $expiresAt, $tenantId);
+                            if ($updateTokenStmt->execute()) {
+                                $resetUrl = getAbsoluteBaseUrl() . '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
+                                $emailResult = sendTenantPasswordVerificationEmail(
+                                    $tenant['contact_email'],
+                                    $tenant['company_name'],
+                                    $resetUrl
+                                );
+
+                                if ($emailResult['sent'] ?? false) {
+                                    $message .= 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
+                                } else {
+                                    $message .= 'Unable to send verification email. Please try again later.';
+                                    $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+                                    if ($clearStmt) {
+                                        $clearStmt->bind_param('i', $tenantId);
+                                        $clearStmt->execute();
+                                        $clearStmt->close();
+                                    }
+                                }
+                            } else {
+                                $message .= 'Unable to initialize password verification. Please try again later.';
+                            }
+                            $updateTokenStmt->close();
+                        }
+                    }
+                } elseif ($updatesMade && empty($message)) {
+                    $message = 'Account settings updated successfully.';
+                } elseif (!$updatesMade && !$passwordChangeRequested) {
+                    $message = 'No changes were made.';
+                }
             }
         } elseif (isset($_POST['save_login_settings'])) {
             // Check if this is a full reset to defaults
@@ -243,6 +272,7 @@ HTML;
                     'brand_text_color'    => '#ffffff',
                     'primary_btn_color'   => '#22c55e',
                     'link_color'          => '#2563eb',
+                    'card_bg_color'       => '#ffffff',
                     'brand_logo_path'     => '',
                     'brand_bg_image_path' => '',
                 ];
@@ -253,10 +283,9 @@ HTML;
                 }
             } else {
                 // Save login customization settings into tenant_configs
-                $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
-                $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
                 $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
                 $linkColor = trim($_POST['link_color'] ?? '#2563eb');
+                $cardBgColor = trim($_POST['card_bg_color'] ?? '#ffffff');
 
                 // Validate uploaded images
                 $errors = [];
@@ -287,10 +316,9 @@ HTML;
                     $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
                     $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
                     $configValues = [
-                        'brand_bg_color' => $brandBgColor,
-                        'brand_text_color' => $brandTextColor,
                         'primary_btn_color' => $primaryBtnColor,
                         'link_color' => $linkColor,
+                        'card_bg_color' => $cardBgColor,
                     ];
 
                     if ($brandLogoPath !== null) {
@@ -583,12 +611,16 @@ HTML;
       }
 
       .preview-page-chrome.has-custom-bg {
-        align-items: flex-start;
-        justify-content: flex-start;
+        align-items: center;
+        justify-content: center;
       }
 
       .preview-page-chrome.has-custom-bg .preview-card-wrap {
-        display: none;
+        max-width: 400px;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-split-layout {
+        grid-template-columns: 1fr;
       }
 
       .preview-page-chrome.has-custom-bg .preview-topleft-logo {
@@ -828,23 +860,44 @@ HTML;
           </div>
         <?php endif; ?>
 
+        <?php
+        // Fetch current username for pre-filling
+        $stmt = $conn->prepare("SELECT username FROM tenants WHERE tenant_id = ?");
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $usernameResult = $stmt->get_result();
+        $currentUsername = $usernameResult->fetch_assoc()['username'] ?? '';
+        $stmt->close();
+        ?>
+
         <form method="POST">
+          <input type="hidden" name="change_account_settings" value="1">
+          
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" value="<?php echo h($currentUsername); ?>" required>
+          </div>
+
+          <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid var(--accent);">
+            <p style="margin: 0; font-size: 13px; color: #475569;">To change your password, fill out the fields below. Leave them empty if you only want to change your username.</p>
+          </div>
+
           <div class="form-group">
             <label for="current_password">Current Password</label>
-            <input type="password" id="current_password" name="current_password" required>
+            <input type="password" id="current_password" name="current_password">
           </div>
 
           <div class="form-group">
             <label for="new_password">New Password</label>
-            <input type="password" id="new_password" name="new_password" required>
+            <input type="password" id="new_password" name="new_password">
           </div>
 
           <div class="form-group">
             <label for="confirm_password">Confirm New Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
+            <input type="password" id="confirm_password" name="confirm_password">
           </div>
 
-          <button type="submit" class="btn-primary">Change Password</button>
+          <button type="submit" class="btn-primary">Save Account Settings</button>
         </form>
       </div>
 
@@ -861,10 +914,9 @@ HTML;
         <?php
         // Load current login customization settings from tenant_configs
         $tenantSettings = array_merge([
-            'brand_bg_color' => '#001f3f',
-            'brand_text_color' => '#ffffff',
             'primary_btn_color' => '#22c55e',
             'link_color' => '#2563eb',
+            'card_bg_color' => '#ffffff',
             'login_title' => 'Clinic Login',
             'login_description' => 'Please sign in to access your clinic portal.',
             'username_placeholder' => 'Username or Email',
@@ -882,7 +934,7 @@ HTML;
             <div class="form-group" style="grid-column: 1 / -1;">
               <label>Color Theme Presets</label>
               <div class="theme-preset-grid">
-                <button type="button" class="theme-preset-btn" data-theme-bg="#001f3f" data-theme-text="#ffffff" data-theme-btn="#22c55e" data-theme-link="#2563eb">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#22c55e" data-theme-link="#2563eb" data-theme-card="#ffffff">
                   Classic OralSync
                   <div class="theme-preview-dots">
                     <span class="theme-dot" style="background:#001f3f;"></span>
@@ -890,7 +942,7 @@ HTML;
                     <span class="theme-dot" style="background:#2563eb;"></span>
                   </div>
                 </button>
-                <button type="button" class="theme-preset-btn" data-theme-bg="#0f172a" data-theme-text="#f8fafc" data-theme-btn="#3b82f6" data-theme-link="#38bdf8">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#3b82f6" data-theme-link="#38bdf8" data-theme-card="#ffffff">
                   Midnight Blue
                   <div class="theme-preview-dots">
                     <span class="theme-dot" style="background:#0f172a;"></span>
@@ -898,7 +950,7 @@ HTML;
                     <span class="theme-dot" style="background:#38bdf8;"></span>
                   </div>
                 </button>
-                <button type="button" class="theme-preset-btn" data-theme-bg="#14532d" data-theme-text="#ecfdf5" data-theme-btn="#22c55e" data-theme-link="#16a34a">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#22c55e" data-theme-link="#16a34a" data-theme-card="#ffffff">
                   Fresh Green
                   <div class="theme-preview-dots">
                     <span class="theme-dot" style="background:#14532d;"></span>
@@ -906,7 +958,7 @@ HTML;
                     <span class="theme-dot" style="background:#16a34a;"></span>
                   </div>
                 </button>
-                <button type="button" class="theme-preset-btn" data-theme-bg="#4c1d95" data-theme-text="#f5f3ff" data-theme-btn="#8b5cf6" data-theme-link="#a78bfa">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#8b5cf6" data-theme-link="#a78bfa" data-theme-card="#ffffff">
                   Purple Care
                   <div class="theme-preview-dots">
                     <span class="theme-dot" style="background:#4c1d95;"></span>
@@ -919,24 +971,13 @@ HTML;
             </div>
 
             <div class="form-group">
-              <label for="brand_bg_color">Brand Panel Background Color</label>
+              <label for="card_bg_color">Login Card Background Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_bg_color">
-                  <span class="swatch-box" id="swatch-brand-bg-color" style="background: <?php echo h($tenantSettings['brand_bg_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-bg-color"><?php echo h($tenantSettings['brand_bg_color']); ?></span>
+                <button type="button" class="color-swatch" data-input="card_bg_color">
+                  <span class="swatch-box" id="swatch-card-bg-color" style="background: <?php echo h($tenantSettings['card_bg_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-card-bg-color"><?php echo h($tenantSettings['card_bg_color']); ?></span>
                 </button>
-                <input type="color" id="brand_bg_color" name="brand_bg_color" class="live-update color-input" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="brand_text_color">Brand Text Color</label>
-              <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_text_color">
-                  <span class="swatch-box" id="swatch-brand-text-color" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-text-color"><?php echo h($tenantSettings['brand_text_color']); ?></span>
-                </button>
-                <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-content" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
+                <input type="color" id="card_bg_color" name="card_bg_color" class="live-update color-input" data-target="preview-right-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['card_bg_color']); ?>">
               </div>
             </div>
 
@@ -992,11 +1033,12 @@ HTML;
         <div class="login-preview-container">
           <div class="preview-label">📱 Live Preview — How Your Login Page Will Look</div>
           <!-- Outer chrome simulating browser/full page -->
-          <div class="preview-page-chrome <?php echo !empty($tenantSettings['brand_bg_image_path']) ? 'has-custom-bg' : ''; ?>" id="preview-page-chrome">
+          <div class="preview-page-chrome <?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'has-custom-bg' : ''; ?>" id="preview-page-chrome" style="background-image: <?php echo !empty($tenantSettings['brand_bg_image_path']) ? "linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>; background-size: cover; background-position: center;">
             <!-- Top-left corner logo overlay (outside the card) -->
-            <div class="preview-topleft-logo" id="preview-topleft-logo">
+            <div class="preview-topleft-logo" id="preview-topleft-logo" style="display: <?php echo !empty($tenantSettings['brand_logo_path']) ? 'inline-flex' : 'none'; ?>; background: transparent; border: none; backdrop-filter: none;">
               <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
                 <img id="preview-logo-img" src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">
+                <div class="preview-clinic-name" id="preview-top-name" style="color: #fff; margin-left: 10px;"><?php echo h($tenantName); ?></div>
               <?php else: ?>
                 <span id="preview-logo-initials" style="font-weight:800;font-size:15px;color:#fff;letter-spacing:0.5px;">OS</span>
               <?php endif; ?>
@@ -1006,7 +1048,7 @@ HTML;
             <div class="preview-card-wrap" id="preview-card-wrap">
               <div class="preview-split-layout">
                 <!-- Left dark panel -->
-                <div class="preview-left-panel" id="preview-left-panel" style="background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
+                <div class="preview-left-panel" id="preview-left-panel" style="display: <?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'none' : 'flex'; ?>;">
                   <div class="preview-left-overlay"></div>
                   <div class="preview-left-content" id="preview-left-content">
                     <div class="preview-left-brand">
@@ -1033,7 +1075,7 @@ HTML;
                 </div>
 
                 <!-- Right white panel (login form) -->
-                <div class="preview-right-panel">
+                <div class="preview-right-panel" id="preview-right-panel" style="background-color: <?php echo h($tenantSettings['card_bg_color']); ?>;">
                   <div class="preview-login-title">Clinic Login</div>
                   <div class="preview-description">Please sign in to access your clinic portal.</div>
                   <div class="preview-field-group">
@@ -1100,6 +1142,7 @@ HTML;
       const textColorInput = document.querySelector('input[name="brand_text_color"]');
       const btnInput = document.getElementById('primary_btn_color');
       const linkInput = document.getElementById('link_color');
+      const cardInput = document.getElementById('card_bg_color');
 
       if (bgColorInput) {
         bgColorInput.value = theme.bg;
@@ -1117,6 +1160,10 @@ HTML;
         linkInput.value = theme.link;
         linkInput.dispatchEvent(new Event('input'));
       }
+      if (cardInput) {
+        cardInput.value = theme.card || '#ffffff';
+        cardInput.dispatchEvent(new Event('input'));
+      }
     }
 
     document.querySelectorAll('.theme-preset-btn').forEach(button => {
@@ -1124,18 +1171,27 @@ HTML;
         document.querySelectorAll('.theme-preset-btn').forEach(btn => btn.classList.remove('is-active'));
         this.classList.add('is-active');
         applyThemePreset({
-          bg: this.dataset.themeBg,
-          text: this.dataset.themeText,
           btn: this.dataset.themeBtn,
-          link: this.dataset.themeLink
+          link: this.dataset.themeLink,
+          card: this.dataset.themeCard
         });
       });
     });
 
-    function syncPreviewLayoutBasedOnBackground(hasCustomBackground) {
+    function syncPreviewLayoutBasedOnBackground(hasCustom) {
       const pageChrome = document.getElementById('preview-page-chrome');
       if (!pageChrome) return;
-      pageChrome.classList.toggle('has-custom-bg', !!hasCustomBackground);
+      pageChrome.classList.toggle('has-custom-bg', !!hasCustom);
+      
+      const leftPanel = document.getElementById('preview-left-panel');
+      if (leftPanel) {
+        leftPanel.style.display = hasCustom ? 'none' : 'flex';
+      }
+
+      const topLeftLogo = document.getElementById('preview-topleft-logo');
+      if (topLeftLogo) {
+        topLeftLogo.style.display = hasCustom ? 'inline-flex' : 'none';
+      }
     }
 
     document.querySelectorAll('.live-update').forEach(input => {
@@ -1182,14 +1238,12 @@ HTML;
           const dataUrl = event.target.result;
 
           if (input.id === 'brand_bg_image') {
-            // Update background of left panel — high quality
-            const leftPanel = document.getElementById('preview-left-panel');
-            if (leftPanel) {
-              leftPanel.style.backgroundImage = `url('${dataUrl}')`;
-              leftPanel.style.backgroundSize = 'cover';
-              leftPanel.style.backgroundPosition = 'center';
-              leftPanel.style.backgroundRepeat = 'no-repeat';
-              leftPanel.style.imageRendering = 'high-quality';
+            // Update background of full chrome
+            const pageChrome = document.getElementById('preview-page-chrome');
+            if (pageChrome) {
+              pageChrome.style.backgroundImage = `linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('${dataUrl}')`;
+              pageChrome.style.backgroundSize = 'cover';
+              pageChrome.style.backgroundPosition = 'center';
             }
             syncPreviewLayoutBasedOnBackground(true);
           } else if (input.id === 'brand_logo_image') {
@@ -1204,9 +1258,14 @@ HTML;
             } else {
               const topLeftLogo = document.getElementById('preview-topleft-logo');
               if (topLeftLogo) {
-                topLeftLogo.innerHTML = `<img id="preview-logo-img" src="${dataUrl}" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">`;
+                const clinicName = document.querySelector('.preview-clinic-name')?.textContent || '';
+                topLeftLogo.innerHTML = `
+                  <img id="preview-logo-img" src="${dataUrl}" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">
+                  <div class="preview-clinic-name" id="preview-top-name" style="color: #fff; margin-left: 10px;">${clinicName}</div>
+                `;
               }
             }
+            syncPreviewLayoutBasedOnBackground(true);
           }
         };
         reader.readAsDataURL(file);
@@ -1233,16 +1292,10 @@ HTML;
         }
       });
 
-      // Reset hidden brand colors
-      const bgColorInput = document.querySelector('input[name="brand_bg_color"]');
-      if (bgColorInput) {
-        bgColorInput.value = '#001f3f';
-        bgColorInput.dispatchEvent(new Event('input'));
-      }
-      const textColorInput = document.querySelector('input[name="brand_text_color"]');
-      if (textColorInput) {
-        textColorInput.value = '#ffffff';
-        textColorInput.dispatchEvent(new Event('input'));
+      const cardBgInput = document.getElementById('card_bg_color');
+      if (cardBgInput) {
+        cardBgInput.value = '#ffffff';
+        cardBgInput.dispatchEvent(new Event('input'));
       }
 
       // Reset file inputs
@@ -1251,10 +1304,10 @@ HTML;
       const logoFileInput = document.getElementById('brand_logo_image');
       if (logoFileInput) logoFileInput.value = '';
 
-      // Reset preview left panel background image
-      const leftPanel = document.getElementById('preview-left-panel');
-      if (leftPanel) {
-        leftPanel.style.backgroundImage = 'none';
+      // Reset preview background
+      const pageChrome = document.getElementById('preview-page-chrome');
+      if (pageChrome) {
+        pageChrome.style.backgroundImage = 'none';
       }
       syncPreviewLayoutBasedOnBackground(false);
 
@@ -1316,7 +1369,7 @@ HTML;
       return true;
     }
 
-    syncPreviewLayoutBasedOnBackground(<?php echo !empty($tenantSettings['brand_bg_image_path']) ? 'true' : 'false'; ?>);
+    syncPreviewLayoutBasedOnBackground(<?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'true' : 'false'; ?>);
   </script>
 
   <!-- Reset Confirmation Modal -->

@@ -40,16 +40,17 @@ $today = date('Y-m-d');
 
 // Query Logic
 $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name, 
-                 'General Consultation' AS service_name, 
-                 a.appointment_date, a.status 
+                 COALESCE(s.service_name, 'No Service Specified') AS service_name, 
+                 a.appointment_date, a.appointment_time, a.status 
           FROM appointment a
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
+          LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = a.tenant_id
           WHERE a.tenant_id = ? AND a.dentist_id = ? AND a.status <> 'Disapproved'";
 
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";
 elseif ($filter == 'upcoming') $query .= " AND a.appointment_date > ?";
 
-$query .= " ORDER BY a.appointment_date ASC";
+$query .= " ORDER BY a.appointment_date ASC, a.appointment_time ASC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
@@ -269,13 +270,20 @@ if ($stmt) {
               <div class="appt-card" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
 
                 <div class="time-badge">
-                  <h4><?php echo $dateFormatted; ?></h4>
-                  <p><?php echo $dayFormatted . ' ' . $yearFormatted; ?></p>
+                  <h4 style="font-size: 14px;"><?php echo $dateFormatted; ?></h4>
+                  <p style="font-size: 11px;"><?php echo $dayFormatted; ?></p>
+                  <?php if (!empty($row['appointment_time'])): ?>
+                    <div style="margin-top: 5px; font-weight: bold; color: var(--dashboard-accent); font-size: 13px;">
+                        <?php echo date('g:i A', strtotime($row['appointment_time'])); ?>
+                    </div>
+                  <?php endif; ?>
                 </div>
 
                 <div class="patient-details">
                   <h3><?php echo h(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?></h3>
-                  <span class="service-tag"><?php echo h($row['service_name'] ?? 'General Consultation'); ?></span>
+                  <?php if (!empty($row['service_name']) && $row['service_name'] !== 'No Service Specified'): ?>
+                    <span class="service-tag"><?php echo h($row['service_name']); ?></span>
+                  <?php endif; ?>
                   <span class="status-indicator status-<?php echo $statusClass; ?>">
                     ● <?php echo h(ucfirst($statusClass)); ?>
                   </span>

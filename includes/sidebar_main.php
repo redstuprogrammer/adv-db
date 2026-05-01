@@ -78,6 +78,7 @@ switch ($role) {
                 ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
                 ['href' => $basePath . '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
                 ...($canUseReports ? [['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php']] : []),
+                ['href' => $basePath . '/subscription_checkout.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Subscription', 'active' => 'subscription_checkout.php'],
                 ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];

@@ -221,7 +221,6 @@ if ($stmt) {
       <div class="dashboard-card" style="padding: 24px; background: white; border: 1px solid var(--border); border-radius: 16px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="margin: 0; font-size: 18px; color: var(--accent);">Professional Staff List</h2>
-            <a href="users.php<?php echo $baseTenantQuery; ?>" class="btn-view" style="width: auto; margin-top: 0; padding: 8px 16px;">Manage System Users</a>
         </div>
 
         <div class="staff-grid">
