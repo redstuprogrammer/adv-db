@@ -50,18 +50,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     if (!tenantHasTierFeature((int)$tenantId, 'appointment_scheduling', $conn)) {
         $errorMessage = 'Appointment scheduling is not available on your current plan.';
     } elseif ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
-        $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
-        if ($stmtAdd) {
-            mysqli_stmt_bind_param($stmtAdd, 'iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
-            if (mysqli_stmt_execute($stmtAdd)) {
-                $successMessage = 'Appointment scheduled successfully.';
-            } else {
-                $errorMessage = 'Unable to schedule appointment. DB Error: ' . $conn->error;
-                error_log("Appt add failed for tenant $tenantId: " . $conn->error);
-            }
-            mysqli_stmt_close($stmtAdd);
+        // Check if a booking already exists for this dentist at the same date and time
+        $stmtCheck = mysqli_prepare($conn, 'SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved")');
+        mysqli_stmt_bind_param($stmtCheck, 'iiss', $tenantId, $dentistId, $appointmentDate, $appointmentTime);
+        mysqli_stmt_execute($stmtCheck);
+        mysqli_stmt_store_result($stmtCheck);
+        
+        if (mysqli_stmt_num_rows($stmtCheck) > 0) {
+            $errorMessage = 'Booking already exists for this dentist at the selected date and time.';
+            mysqli_stmt_close($stmtCheck);
         } else {
-            $errorMessage = 'Unable to prepare appointment statement.';
+            mysqli_stmt_close($stmtCheck);
+            $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
+            if ($stmtAdd) {
+                mysqli_stmt_bind_param($stmtAdd, 'iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
+                if (mysqli_stmt_execute($stmtAdd)) {
+                    $successMessage = 'Appointment scheduled successfully.';
+                } else {
+                    $errorMessage = 'Unable to schedule appointment. DB Error: ' . $conn->error;
+                    error_log("Appt add failed for tenant $tenantId: " . $conn->error);
+                }
+                mysqli_stmt_close($stmtAdd);
+            } else {
+                $errorMessage = 'Unable to prepare appointment statement.';
+            }
         }
     } else {
         $errorMessage = 'Please select a patient, dentist, date, and time for the appointment.';
@@ -99,17 +111,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) 
     $procedureName = trim($_POST['edit_procedure_name'] ?? '');
 
     if ($appointmentId > 0 && $appointmentDate !== '' && $dentistId > 0 && $status !== '' && $appointmentTime !== '') {
-        $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ?, procedure_name = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
-        if ($stmtEdit) {
-            mysqli_stmt_bind_param($stmtEdit, 'ssissii', $appointmentDate, $appointmentTime, $dentistId, $procedureName, $status, $appointmentId, $tenantId);
-            if (mysqli_stmt_execute($stmtEdit)) {
-                $successMessage = 'Appointment updated successfully.';
-            } else {
-                $errorMessage = 'Unable to update appointment details.';
-            }
-            mysqli_stmt_close($stmtEdit);
+        // Check for duplicate booking, excluding the current appointment record
+        $stmtCheck = mysqli_prepare($conn, 'SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved") AND appointment_id <> ?');
+        mysqli_stmt_bind_param($stmtCheck, 'iissi', $tenantId, $dentistId, $appointmentDate, $appointmentTime, $appointmentId);
+        mysqli_stmt_execute($stmtCheck);
+        mysqli_stmt_store_result($stmtCheck);
+
+        if (mysqli_stmt_num_rows($stmtCheck) > 0) {
+            $errorMessage = 'Booking already exists for this dentist at the selected date and time.';
+            mysqli_stmt_close($stmtCheck);
         } else {
-            $errorMessage = 'Unable to prepare appointment update statement.';
+            mysqli_stmt_close($stmtCheck);
+            $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ?, procedure_name = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
+            if ($stmtEdit) {
+                mysqli_stmt_bind_param($stmtEdit, 'ssissii', $appointmentDate, $appointmentTime, $dentistId, $procedureName, $status, $appointmentId, $tenantId);
+                if (mysqli_stmt_execute($stmtEdit)) {
+                    $successMessage = 'Appointment updated successfully.';
+                } else {
+                    $errorMessage = 'Unable to update appointment details.';
+                }
+                mysqli_stmt_close($stmtEdit);
+            } else {
+                $errorMessage = 'Unable to prepare appointment update statement.';
+            }
         }
     } else {
         $errorMessage = 'Please provide appointment date, dentist, time, and status.';
@@ -121,26 +145,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_P
     $requestAction = trim($_POST['request_action'] ?? '');
 
     if ($requestId > 0 && in_array($requestAction, ['approve', 'disapprove'], true)) {
+        $canProceed = true;
+        $newStatus = 'Pending';
+        $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
+
         if ($requestAction === 'approve') {
-            // Approve: Set status to 'Pending' and mark as processed (not a request anymore)
-            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
+            // Before approving, check if the slot is still available
+            $stmtDetails = mysqli_prepare($conn, 'SELECT dentist_id, appointment_date, appointment_time FROM appointment WHERE appointment_id = ? AND tenant_id = ?');
+            mysqli_stmt_bind_param($stmtDetails, 'ii', $requestId, $tenantId);
+            mysqli_stmt_execute($stmtDetails);
+            $resDetails = mysqli_stmt_get_result($stmtDetails);
+            if ($details = mysqli_fetch_assoc($resDetails)) {
+                $dId = $details['dentist_id'];
+                $aDate = $details['appointment_date'];
+                $aTime = $details['appointment_time'];
+
+                $stmtCheck = mysqli_prepare($conn, 'SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved") AND appointment_id <> ?');
+                mysqli_stmt_bind_param($stmtCheck, 'iissi', $tenantId, $dId, $aDate, $aTime, $requestId);
+                mysqli_stmt_execute($stmtCheck);
+                mysqli_stmt_store_result($stmtCheck);
+
+                if (mysqli_stmt_num_rows($stmtCheck) > 0) {
+                    $canProceed = false;
+                    $errorMessage = 'Cannot approve. Booking already exists for this dentist at the requested date and time.';
+                }
+                mysqli_stmt_close($stmtCheck);
+            }
+            mysqli_stmt_close($stmtDetails);
             $newStatus = 'Pending';
         } else {
-            // Disapprove: keep the appointment record but mark it Disapproved and processed
-            $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
+            // Disapprove action
             $newStatus = 'Disapproved';
         }
-        $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
-        if ($stmtReqUpdate) {
-            mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
-            if (mysqli_stmt_execute($stmtReqUpdate)) {
-                $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
+
+        if ($canProceed) {
+            $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
+            if ($stmtReqUpdate) {
+                mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
+                if (mysqli_stmt_execute($stmtReqUpdate)) {
+                    $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
+                } else {
+                    $errorMessage = 'Unable to update appointment request status.';
+                }
+                mysqli_stmt_close($stmtReqUpdate);
             } else {
-                $errorMessage = 'Unable to update appointment request status.';
+                $errorMessage = 'Unable to prepare appointment request update statement.';
             }
-            mysqli_stmt_close($stmtReqUpdate);
-        } else {
-            $errorMessage = 'Unable to prepare appointment request update statement.';
         }
     } else {
         $errorMessage = 'Invalid appointment request action.';

@@ -17,12 +17,25 @@ if ($tenant) {
     // For now, let's map tenant fields to the $clinic array used in the template
     $clinic = [
         'name' => $tenant['company_name'],
-        'hero_title' => $tenant['company_name'], // Default hero title
+        'hero_title' => $tenant['company_name'], 
         'hero_description' => "Welcome to " . $tenant['company_name'] . ". Professional care for your dental health.",
         'about_description' => "Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . ".",
         'contact_phone' => $tenant['phone'],
+        'contact_email' => $tenant['email'] ?? '',
         'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province']
     ];
+
+    // Fetch clinic schedule for this tenant
+    $schedule = [];
+    $tenantId = $tenant['tenant_id'];
+    $stmtSched = $conn->prepare("SELECT day_of_week, is_closed, opening_time, closing_time FROM clinic_schedules WHERE tenant_id = ?");
+    $stmtSched->bind_param("i", $tenantId);
+    $stmtSched->execute();
+    $resultSched = $stmtSched->get_result();
+    while ($row = $resultSched->fetch_assoc()) {
+        $schedule[$row['day_of_week']] = $row;
+    }
+    $stmtSched->close();
     
     // Check if there are specific settings in clinic_settings for this tenant_id
     // (Assuming we might add tenant_id to clinic_settings soon)
@@ -292,34 +305,28 @@ if ($tenant) {
 <span class="material-symbols-outlined text-primary text-3xl">calendar_month</span>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+<?php 
+$daysOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+foreach ($daysOrder as $day):
+    $dayData = $schedule[$day] ?? null;
+    $dayName = ucfirst($day);
+    $timeStr = '';
+    $isSpecial = false;
+
+    if (!$dayData || $dayData['is_closed']) {
+        $timeStr = 'Closed';
+        $isSpecial = true;
+    } else {
+        $open = date('g:i A', strtotime($dayData['opening_time']));
+        $close = date('g:i A', strtotime($dayData['closing_time']));
+        $timeStr = "$open — $close";
+    }
+?>
 <div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Monday</span>
-<span class="text-secondary font-medium">08:00 — 19:00</span>
+    <span class="font-semibold"><?= $dayName ?></span>
+    <span class="<?= $isSpecial ? 'text-outline italic' : 'text-secondary font-medium' ?>"><?= $timeStr ?></span>
 </div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Tuesday</span>
-<span class="text-secondary font-medium">08:00 — 19:00</span>
-</div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Wednesday</span>
-<span class="text-secondary font-medium">08:00 — 19:00</span>
-</div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Thursday</span>
-<span class="text-secondary font-medium">08:00 — 21:00</span>
-</div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Friday</span>
-<span class="text-secondary font-medium">08:00 — 17:00</span>
-</div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Saturday</span>
-<span class="text-primary font-bold">10:00 — 15:00</span>
-</div>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-<span class="font-semibold">Sunday</span>
-<span class="text-outline italic">Emergency Only</span>
-</div>
+<?php endforeach; ?>
 <div class="flex justify-between items-center py-3">
 <span class="font-bold text-primary">Public Holidays</span>
 <span class="text-outline">Closed</span>
@@ -367,7 +374,7 @@ if ($tenant) {
 </div>
 <div>
 <h4 class="font-bold text-lg mb-1">Our Studio</h4>
-<p class="text-on-surface-variant">1422 Serenity Blvd, Suite 400<br/>Medical District, Metropolis 90210</p>
+<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_address'] ?? 'Address not set') ?></p>
 </div>
 </div>
 <div class="flex gap-6">
@@ -376,16 +383,7 @@ if ($tenant) {
 </div>
 <div>
 <h4 class="font-bold text-lg mb-1">Contact Concierge</h4>
-<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_phone'] ?? '+1 (555) 890-2344') ?><br/>concierge@thecuratedbreath.com</p>
-</div>
-</div>
-<div class="flex gap-6">
-<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary">directions_car</span>
-</div>
-<div>
-<h4 class="font-bold text-lg mb-1">Valet Parking</h4>
-<p class="text-on-surface-variant">Complimentary valet is provided for all patients at the main entrance.</p>
+<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_phone'] ?? 'Phone not set') ?><br/><?= htmlspecialchars($clinic['contact_email'] ?? 'support@oralsync.com') ?></p>
 </div>
 </div>
 </div>

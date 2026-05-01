@@ -252,7 +252,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                     <tr>
                         <th>Inv #</th>
                         <th>Patient Name</th>
-                        <th>Service</th>
                         <th>Amount</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -264,7 +263,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                             <tr>
                                 <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
                                 <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
-                                <td><?= h(getServiceNamesFromJson($row['procedures_json'] ?? '')) ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
@@ -277,7 +275,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
                         <?php endif; ?>
                 </tbody>
             </table>

@@ -295,6 +295,13 @@ if (!$hasBasicReporting) {
             <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Sales Performance</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
               <div style="color: #64748b; font-size: 13px;">Sales trends and payment status are tracked here.</div>
+              <select id="revenueReportPeriod" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit;">
+                  <option value="all">All Time</option>
+                  <option value="daily">Today's Sales</option>
+                  <option value="weekly">This Week's Sales</option>
+                  <option value="monthly">This Month's Sales</option>
+                  <option value="yearly">This Year's Sales</option>
+              </select>
               <button class="btn-primary" onclick="exportRevenuePDF()" style="padding: 6px 12px; font-size: 12px;">Generate Report</button>
             </div>
           </div>
@@ -563,6 +570,7 @@ function loadRevenueReport() {
 
     function exportRevenuePDF() {
       const btn = event.target;
+      const period = document.getElementById('revenueReportPeriod').value;
       const originalText = btn.textContent;
       btn.textContent = 'Generating...';
       btn.disabled = true;
@@ -572,24 +580,28 @@ function loadRevenueReport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           type: 'sales', 
-          title: 'Clinic Sales Report' 
+          title: 'Clinic Sales Report',
+          period: period
         })
       })
       .then(response => {
-        if (!response.ok) throw new Error('PDF generation failed');
+        if (!response.ok) {
+            if (response.status === 404) throw new Error('No data found for the selected period');
+            throw new Error('PDF generation failed');
+        }
         return response.blob();
       })
       .then(blob => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Clinic_Sales_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
+        a.download = `Clinic_Sales_Report_${period}_${new Date().toISOString().split('T')[0]}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
       })
       .catch(error => {
         console.error(error);
-        alert('Failed to generate report');
+        alert(error.message || 'Failed to generate report');
       })
       .finally(() => {
         btn.textContent = originalText;

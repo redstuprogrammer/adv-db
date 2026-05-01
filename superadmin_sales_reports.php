@@ -357,7 +357,14 @@ try {
                     <div class="sa-card-subtitle">Generate professional reports with charts and data</div>
                 </div>
             </div>
-            <div style="padding: 20px;">
+            <div style="padding: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="reportPeriod" class="sa-form-group" style="padding: 8px 12px; border: 1px solid var(--sa-border); border-radius: 6px; font-size: 0.875rem;">
+                    <option value="all">All Time</option>
+                    <option value="daily">Today's Sales</option>
+                    <option value="weekly">This Week's Sales</option>
+                    <option value="monthly">This Month's Sales</option>
+                    <option value="yearly">This Year's Sales</option>
+                </select>
                 <button class="sa-btn" onclick="exportSalesPDF()">Export PDF Report</button>
             </div>
         </div>
@@ -586,6 +593,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
 
     window.exportSalesPDF = function() {
         const btn = event.target;
+        const period = document.getElementById('reportPeriod').value;
         const originalText = btn.textContent;
         btn.textContent = 'Generating...';
         btn.disabled = true;
@@ -595,21 +603,25 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 type: 'professional', 
-                title: 'OralSync Professional Sales Report' 
+                title: 'OralSync Professional Sales Report',
+                period: period
             })
         }).then(response => {
-            if (!response.ok) throw new Error('PDF generation failed');
+            if (!response.ok) {
+                if (response.status === 404) throw new Error('No data found for the selected period');
+                throw new Error('PDF generation failed');
+            }
             return response.blob();
         }).then(blob => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'oralsync_professional_sales_report.pdf';
+            a.download = `oralsync_sales_report_${period}_${new Date().toISOString().split('T')[0]}.pdf`;
             a.click();
             URL.revokeObjectURL(url);
         }).catch(error => {
             console.error(error);
-            alert('Failed to export PDF');
+            alert(error.message || 'Failed to export PDF');
         }).finally(() => {
             btn.textContent = originalText;
             btn.disabled = false;

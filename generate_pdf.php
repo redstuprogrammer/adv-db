@@ -52,33 +52,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $generator = new OralSyncPDFGenerator();
         $reportData = [];
         $context = '';
+        $period = $data['period'] ?? 'all';
+        
+        $dateFilter = "";
+        $periodTitle = "All Time";
+        
+        switch ($period) {
+            case 'daily':
+                $dateFilter = " AND DATE(%s) = CURDATE()";
+                $periodTitle = "Daily (" . date('M d, Y') . ")";
+                break;
+            case 'weekly':
+                $dateFilter = " AND YEARWEEK(%s, 1) = YEARWEEK(CURDATE(), 1)";
+                $periodTitle = "Weekly (Week " . date('W') . ", " . date('Y') . ")";
+                break;
+            case 'monthly':
+                $dateFilter = " AND YEAR(%s) = YEAR(CURDATE()) AND MONTH(%s) = MONTH(CURDATE())";
+                $periodTitle = "Monthly (" . date('F Y') . ")";
+                break;
+            case 'yearly':
+                $dateFilter = " AND YEAR(%s) = YEAR(CURDATE())";
+                $periodTitle = "Yearly (" . date('Y') . ")";
+                break;
+        }
 
         if ($isSuperAdmin) {
             $context = 'superadmin';
+            $sqlDateCol = "r.payment_date";
+            $filter = $dateFilter ? sprintf($dateFilter, $sqlDateCol, $sqlDateCol) : "";
+            
             // Fetch aggregated revenue from all Tenant Subscriptions
             $query = "SELECT r.*, t.company_name as tenant_name, r.subscription_tier as plan 
                       FROM payment r
                       JOIN tenants t ON r.tenant_id = t.tenant_id
-                      WHERE r.status = 'paid'
+                      WHERE r.status = 'paid' $filter
                       ORDER BY r.payment_date DESC";
             $result = $conn->query($query);
             while ($row = $result->fetch_assoc()) {
                 $reportData[] = $row;
             }
-            $title = 'Super Admin Sales Report';
+            $title = "Super Admin Sales Report - $periodTitle";
         } elseif ($isTenantAdmin) {
             $context = 'tenant';
             $tenantId = $sessionManager->getTenantId();
+            $sqlDateCol = "py.billing_date"; // Use billing_date for sales reports
+            $filter = $dateFilter ? sprintf($dateFilter, $sqlDateCol, $sqlDateCol) : "";
+            
             // Fetch clinic-specific revenue
             $query = "SELECT py.*, py.billing_id as payment_id, py.amount_paid as amount, p.first_name, p.last_name, 
                              COALESCE(s.service_name, 'General Service') AS service, 
-                             a.appointment_date
+                             py.billing_date
                       FROM billing py
                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                       LEFT JOIN patient p ON a.patient_id = p.patient_id
                       LEFT JOIN service s ON a.service_id = s.service_id
-                      WHERE py.tenant_id = ? AND py.payment_status = 'Paid'
-                      ORDER BY a.appointment_date DESC";
+                      WHERE py.tenant_id = ? AND py.payment_status = 'Paid' $filter
+                      ORDER BY py.billing_date DESC";
             $stmt = $conn->prepare($query);
             $stmt->bind_param('i', $tenantId);
             $stmt->execute();
@@ -86,13 +115,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             while ($row = $result->fetch_assoc()) {
                 $reportData[] = $row;
             }
-            $title = 'Clinic Sales Report';
+            $title = "Clinic Sales Report - $periodTitle";
         }
 
         if (empty($reportData)) {
             ob_end_clean();
             http_response_code(404);
-            echo 'No data found for the selected report.';
+            echo "No data found for the selected $period report.";
             exit;
         }
 
@@ -148,6 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 
     $query = "SELECT 
                 py.billing_id as payment_id, py.amount_paid as amount, py.payment_status as status, py.mode, py.billing_date as payment_date,
+                py.procedures_json,
                 p.first_name, p.last_name,
                 COALESCE(s.service_name, 'General Service') AS service_name,
                 a.appointment_date,
@@ -171,6 +201,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         exit;
     }
 
+    // Parse services from procedures_json if available
+    $servicesList = $payment['service_name'];
+    $procedures = json_decode($payment['procedures_json'] ?? '[]', true);
+    if (is_array($procedures) && !empty($procedures)) {
+        $names = array_column($procedures, 'name');
+        if (!empty($names)) {
+            $servicesList = implode(', ', $names);
+        }
+    }
+
     // Generate invoice PDF
     $invoiceData = [
         ['OralSync Invoice'],
@@ -179,15 +219,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
         [''],
         ['Clinic: ' . $payment['company_name']],
         ['Patient: ' . $payment['first_name'] . ' ' . $payment['last_name']],
-        ['Service: ' . $payment['service_name']],
+        ['Service: ' . $servicesList],
         ['Appointment Date: ' . ($payment['appointment_date'] ? date('M d, Y', strtotime($payment['appointment_date'])) : 'N/A')],
         ['Payment Mode: ' . ucfirst($payment['mode'])],
         ['Amount: ₱' . number_format($payment['amount'], 2)],
         ['Status: ' . ucfirst($payment['status'])],
     ];
 
+    $title = 'Invoice #' . str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT);
+    $pdfContent = generatePDF($invoiceData, $title, 'invoice_' . $payment['payment_id'] . '.pdf', 'professional');
+
+    if (empty($pdfContent)) {
+        ob_end_clean();
+        http_response_code(500);
+        echo 'PDF generation failed — generator returned empty content.';
+        exit;
+    }
+
     ob_end_clean();
-    generatePDF($invoiceData, 'Invoice #' . str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT), 'invoice_' . $payment['payment_id'] . '.pdf', 'invoice');
+    $safeFilename = 'invoice_' . $payment['payment_id'] . '.pdf';
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="' . $safeFilename . '"');
+    header('Content-Length: ' . strlen($pdfContent));
+    echo $pdfContent;
     exit;
 }
 

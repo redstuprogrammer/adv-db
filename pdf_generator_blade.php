@@ -237,7 +237,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
             $amount = (float)($row['amount'] ?? 0);
             $totalRevenue += $amount;
             
-            $date = $row['date'] ?? $row['appointment_date'] ?? '';
+            $date = $row['date'] ?? $row['appointment_date'] ?? $row['payment_date'] ?? $row['billing_date'] ?? '';
             if ($date && date('Y-m', strtotime($date)) === $currentMonth) {
                 $recentRevenue += $amount;
             }
@@ -327,7 +327,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
     private function aggregateByDate($data) {
         $aggregated = [];
         foreach ($data as $row) {
-            $date = $row['date'] ?? $row['appointment_date'] ?? '';
+            $date = $row['date'] ?? $row['appointment_date'] ?? $row['payment_date'] ?? $row['billing_date'] ?? '';
             if ($date) {
                 $key = date('M d', strtotime($date));
                 $aggregated[$key] = ($aggregated[$key] ?? 0) + (float)($row['amount'] ?? 0);

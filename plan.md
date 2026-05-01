@@ -13,12 +13,6 @@ TENANT HOMEPAGE
     - should display the tenant's corresponding weekly schedule set in 'clinic_schedule.php'.
     - make time slots display in 12-hour format too.
 
-2. <button class="mt-12 group flex items-center gap-2 font-bold hover:gap-4 transition-all">
-                            View All Updates
-                            <span class="material-symbols-outlined">arrow_right_alt</span>
-    </button>
-    - i think this button is supposed to proceed to a page where announcements are displayed.
-
-3. <section class="py-24" id="location">
+2. <section class="py-24" id="location">
     - remove display for "Valet Parking"
     - location and contacts should match the tenant's details.
