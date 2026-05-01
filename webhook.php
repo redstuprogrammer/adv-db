@@ -51,12 +51,17 @@ if ($event_type === 'checkout_session.payment.paid') {
                 $stmt_tenant->execute();
 
                 // C. Log Revenue (Match with payment table)
+                $procedures_json = json_encode([
+                    'item' => 'Subscription Renewal',
+                    'tier' => $tier_key,
+                    'billing_period_start' => date('Y-m-d H:i:s')
+                ]);
+                
                 $sql_rev = "INSERT INTO payment (
-                                tenant_id, subscription_tier, amount, 
-                                billing_period_start, status, payment_date
-                            ) VALUES (?, ?, ?, NOW(), 'paid', NOW())";
+                                tenant_id, amount, status, payment_date, procedures_json
+                            ) VALUES (?, ?, 'paid', NOW(), ?)";
                 $stmt_rev = $conn->prepare($sql_rev);
-                $stmt_rev->bind_param("isd", $tenant_id, $tier_key, $amount_paid);
+                $stmt_rev->bind_param("ids", $tenant_id, $amount_paid, $procedures_json);
                 $stmt_rev->execute();
             }
 

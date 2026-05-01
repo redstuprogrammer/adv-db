@@ -39,12 +39,12 @@ function getRevenueTrendData($conn, $months = 12) {
         $year  = date('Y', strtotime("-{$i} months"));
         $month = date('m', strtotime("-{$i} months"));
         
-        // Use billing_period_start to match the correct month
+        // Use payment_date to match the correct month
         $sql = "SELECT COALESCE(SUM(amount), 0) as total 
         FROM payment 
         WHERE status = 'paid'
-        AND YEAR(billing_period_start) = $year 
-        AND MONTH(billing_period_start) = $month";
+        AND YEAR(payment_date) = $year 
+        AND MONTH(payment_date) = $month";
         
         $result = mysqli_query($conn, $sql);
         $row = mysqli_fetch_assoc($result);

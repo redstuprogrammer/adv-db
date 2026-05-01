@@ -82,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $filter = $dateFilter ? sprintf($dateFilter, $sqlDateCol, $sqlDateCol) : "";
             
             // Fetch aggregated revenue from all Tenant Subscriptions
-            $query = "SELECT r.*, t.company_name as tenant_name, r.subscription_tier as plan 
+            $query = "SELECT r.*, t.company_name as tenant_name, t.subscription_tier as plan 
                       FROM payment r
                       JOIN tenants t ON r.tenant_id = t.tenant_id
                       WHERE r.status = 'paid' $filter

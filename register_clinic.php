@@ -285,11 +285,18 @@ try {
             $billing_period_end = date('Y-m-d 23:59:59', strtotime('+' . max(1, $duration) . ' months -1 day', strtotime($start_date)));
             $payment_date = date('Y-m-d H:i:s');
             
-            $revenue_sql = "INSERT INTO payment (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date) 
-                           VALUES (?, ?, ?, ?, ?, 'paid', ?)";
+            $procedures_json = json_encode([
+                'item' => 'Initial Subscription',
+                'tier' => $tier,
+                'billing_period_start' => $billing_period_start,
+                'billing_period_end' => $billing_period_end
+            ]);
+
+            $revenue_sql = "INSERT INTO payment (tenant_id, amount, status, payment_date, procedures_json) 
+                           VALUES (?, ?, 'paid', ?, ?)";
             $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
             if ($revenue_stmt) {
-                mysqli_stmt_bind_param($revenue_stmt, "isdsss", $new_id, $tier, $amount, $billing_period_start, $billing_period_end, $payment_date);
+                mysqli_stmt_bind_param($revenue_stmt, "idss", $new_id, $amount, $payment_date, $procedures_json);
                 mysqli_stmt_execute($revenue_stmt);
                 mysqli_stmt_close($revenue_stmt);
             }

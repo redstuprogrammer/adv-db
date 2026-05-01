@@ -564,7 +564,12 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     $tiers = getAllTiers();
                     try {
                         foreach ($tiers as $tierKey => $tier) {
-                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payment WHERE status = 'paid' AND subscription_tier = ?");
+                            $stmt = $pdo->prepare("
+                                SELECT COALESCE(SUM(p.amount), 0) as total 
+                                FROM payment p
+                                JOIN tenants t ON p.tenant_id = t.tenant_id
+                                WHERE p.status = 'paid' AND t.subscription_tier = ?
+                            ");
                             $stmt->execute([$tierKey]);
                             $row = $stmt->fetch();
                             $total = $row['total'] ?? 0;

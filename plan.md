@@ -16,3 +16,6 @@ TENANT HOMEPAGE
 2. <section class="py-24" id="location">
     - remove display for "Valet Parking"
     - location and contacts should match the tenant's details.
+
+
+    
