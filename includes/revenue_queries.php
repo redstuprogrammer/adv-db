@@ -19,7 +19,7 @@ function getMonthlyRevenue($conn, $target_month_ym = null) {
 function getTotalRevenue($conn) {
     $stmt = mysqli_prepare($conn, "
         SELECT COALESCE(SUM(amount), 0) as total 
-        FROM tenant_subscription_revenue 
+        FROM payment 
         WHERE status = 'paid'
     ");
     mysqli_stmt_execute($stmt);
@@ -41,10 +41,10 @@ function getRevenueTrendData($conn, $months = 12) {
         
         // Use billing_period_start to match the correct month
         $sql = "SELECT COALESCE(SUM(amount), 0) as total 
-                FROM tenant_subscription_revenue 
-                WHERE status = 'paid'
-                AND YEAR(billing_period_start) = $year 
-                AND MONTH(billing_period_start) = $month";
+        FROM payment 
+        WHERE status = 'paid'
+        AND YEAR(billing_period_start) = $year 
+        AND MONTH(billing_period_start) = $month";
         
         $result = mysqli_query($conn, $sql);
         $row = mysqli_fetch_assoc($result);

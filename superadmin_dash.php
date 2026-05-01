@@ -641,8 +641,8 @@ try {
             <div class="sa-card" style="margin-bottom: 20px;">
                 <div class="sa-card-header">
                     <div>
-                        <div class="sa-card-title">Revenue Trends</div>
-                        <div class="sa-card-subtitle">Monthly subscription revenue</div>
+                        <div class="sa-card-title">Sales Trends</div>
+                        <div class="sa-card-subtitle">Monthly subscription sales</div>
                     </div>
                 </div>
                 <div style="position: relative; height: 250px;">
@@ -1892,7 +1892,7 @@ try {
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: 'Monthly Revenue',
+                            label: 'Monthly Sales',
                             data: revenueData,
                             borderColor: '#0d3b66',
                             backgroundColor: 'rgba(13, 59, 102, 0.1)',

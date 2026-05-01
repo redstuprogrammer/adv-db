@@ -56,22 +56,22 @@ if ($checkColumn && $checkColumn->num_rows == 0) {
 }
 
 $query = "SELECT 
-            py.payment_id, 
+            py.billing_id as payment_id, 
             p.patient_id,
             p.first_name, 
             p.last_name, 
             COALESCE(s.service_name, 'General Service') AS service_name, 
-            py.amount, 
-            py.status, 
+            py.amount_paid as amount, 
+            py.payment_status as status, 
             py.mode,
             a.appointment_id,
             a.appointment_date
-          FROM payment py
+          FROM billing py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           LEFT JOIN service s ON a.service_id = s.service_id
           WHERE py.tenant_id = ?
-          ORDER BY py.payment_id DESC";
+          ORDER BY py.billing_id DESC";
 
 $payments = [];
 $stmt = mysqli_prepare($conn, $query);
@@ -331,7 +331,6 @@ foreach ($payments as $payment) {
             <tr>
               <th>Invoice</th>
               <th>Patient Name</th>
-              <th>Treatment</th>
               <th>Amount</th>
               <th>Mode</th>
               <th>Status</th>
@@ -348,10 +347,6 @@ foreach ($payments as $payment) {
                 <tr>
                   <td style="font-family: monospace; font-weight: bold; color: var(--accent);">#<?php echo str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT); ?></td>
                   <td><strong><?php echo h($payment['first_name'] . " " . $payment['last_name']); ?></strong></td>
-                  <td>
-                    <div style="font-weight: 500;"><?php echo h($payment['service_name']); ?></div>
-                    <div style="font-size: 11px; color: #94a3b8;"><?php echo $payment['appointment_date'] ? date('M d, Y', strtotime($payment['appointment_date'])) : 'N/A'; ?></div>
-                  </td>
                   <td style="font-weight:700; color: var(--accent);">₱<?php echo number_format($payment['amount'], 2); ?></td>
                   <td><?php echo h(ucfirst($payment['mode'] ?: 'N/A')); ?></td>
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>

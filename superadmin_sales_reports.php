@@ -367,7 +367,7 @@ try {
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
-                    <div class="sa-card-title">Revenue Overview</div>
+                    <div class="sa-card-title">Sales Overview</div>
                     <div class="sa-card-subtitle">Total sales and active subscriptions</div>
                 </div>
             </div>
@@ -387,11 +387,11 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                 ?>
                 <div class="sa-metric">
                     <div class="sa-metric-value currency">₱<?php echo number_format($total_revenue, 2); ?></div>
-                    <div class="sa-metric-label">Total Revenue (All Time)</div>
+                    <div class="sa-metric-label">Total Sales (All Time)</div>
                 </div>
                 <div class="sa-metric">
                     <div class="sa-metric-value currency">₱<?php echo number_format($month_revenue, 2); ?></div>
-                    <div class="sa-metric-label">This Month Revenue</div>
+                    <div class="sa-metric-label">This Month Sales</div>
                 </div>
                 <div class="sa-metric">
                     <div class="sa-metric-value"><?php echo $active_subscriptions; ?></div>
@@ -399,7 +399,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                 </div>
                 <div class="sa-metric">
                     <div class="sa-metric-value currency">₱<?php echo number_format($avg_revenue, 2); ?></div>
-                    <div class="sa-metric-label">Average Revenue per Tenant</div>
+                    <div class="sa-metric-label">Average Sales per Tenant</div>
                 </div>
             </div>
         </div>
@@ -408,8 +408,8 @@ require_once __DIR__ . '/includes/revenue_queries.php';
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
-                    <div class="sa-card-title">Revenue Trends</div>
-                    <div class="sa-card-subtitle">Monthly revenue over time</div>
+                    <div class="sa-card-title">Sales Trends</div>
+                    <div class="sa-card-subtitle">Monthly sales over time</div>
                 </div>
             </div>
             <div class="chart-container">
@@ -422,7 +422,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             <div class="sa-card-header">
                 <div>
                     <div class="sa-card-title">Sales by Subscription Tier</div>
-                    <div class="sa-card-subtitle">Revenue breakdown by tier</div>
+                    <div class="sa-card-subtitle">Sales breakdown by tier</div>
                 </div>
             </div>
             <div class="chart-container">
@@ -496,7 +496,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                 ?>
             ],
             datasets: [{
-                label: 'Monthly Revenue',
+                label: 'Monthly Sales',
                 data: <?php echo json_encode(getRevenueTrendData($conn, 12)); ?>,
                 borderColor: '#0d3b66',
                 backgroundColor: 'rgba(13, 59, 102, 0.1)',
@@ -557,7 +557,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     $tiers = getAllTiers();
                     try {
                         foreach ($tiers as $tierKey => $tier) {
-                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = ?");
+                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payment WHERE status = 'paid' AND subscription_tier = ?");
                             $stmt->execute([$tierKey]);
                             $row = $stmt->fetch();
                             $total = $row['total'] ?? 0;
@@ -623,10 +623,10 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             [''],
             ['Key Metrics'],
             ['Metric', 'Value'],
-            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
-            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
+            ['Total Sales (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
+            ['Sales This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
             ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>']
+            ['Average Sales per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>']
         ];
 
         const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');

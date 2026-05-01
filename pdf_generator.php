@@ -8,7 +8,10 @@ class OralSyncPDF extends TCPDF {
 
     public function Header() {
         // Logo
-        $this->Image(__DIR__ . '/logo.png', 10, 10, 30, 0, 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
+        $logoPath = __DIR__ . '/oral logo.png';
+        if (file_exists($logoPath)) {
+            $this->Image($logoPath, 10, 10, 30, 0, 'PNG', '', 'T', false, 300, '', false, false, 0, false, false, false);
+        }
 
         // Title
 $this->SetFont('dejavusans', 'B', 16);

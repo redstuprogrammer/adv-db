@@ -195,7 +195,7 @@ if (!$hasBasicReporting) {
       <div class="tabs">
         <button class="tab active" data-tab="activity">Activity Audit Trail</button>
         <?php if ($hasAdvancedReporting): ?>
-          <button class="tab" data-tab="revenue">Revenue Performance</button>
+          <button class="tab" data-tab="revenue">Sales Performance</button>
         <?php endif; ?>
       </div>
 
@@ -292,9 +292,9 @@ if (!$hasBasicReporting) {
       <div class="tab-content" id="revenue">
         <div class="module-card">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Revenue Performance</h2>
+            <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Sales Performance</h2>
             <div style="display: flex; gap: 10px; align-items: center;">
-              <div style="color: #64748b; font-size: 13px;">Revenue trends and payment status are tracked here.</div>
+              <div style="color: #64748b; font-size: 13px;">Sales trends and payment status are tracked here.</div>
               <button class="btn-primary" onclick="exportRevenuePDF()" style="padding: 6px 12px; font-size: 12px;">Generate Report</button>
             </div>
           </div>
@@ -305,7 +305,7 @@ if (!$hasBasicReporting) {
           </div>
 
           <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold;">
-            Total Revenue: ₱0
+            Total Sales: ₱0
           </div>
 
           <canvas id="revenueChart" width="400" height="200" style="margin-bottom: 20px;"></canvas>
@@ -322,12 +322,12 @@ if (!$hasBasicReporting) {
             <tbody id="revenue-tbody">
               <?php
               // Load initial data
-              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount, py.status, a.appointment_date as appointment_date 
-                                      FROM payment py 
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount_paid as amount, py.payment_status as status, a.appointment_date as appointment_date 
+                                      FROM billing py 
                                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id 
                                       LEFT JOIN patient p ON a.patient_id = p.patient_id 
                                       LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
-                                      WHERE py.tenant_id = ? AND py.status = 'Paid' 
+                                      WHERE py.tenant_id = ? AND py.payment_status = 'paid' 
                                       ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
               $stmt->execute();
@@ -347,20 +347,20 @@ if (!$hasBasicReporting) {
               $stmt->close();
               
               if ($revenueRowCount === 0) {
-                echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No subscription revenue records are available yet.</td></tr>";
+                echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No sales records are available yet.</td></tr>";
               }
               ?>
             </tbody>
           </table>
           <?php
-          echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱" . number_format($total, 2) . "';</script>";
+          echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱" . number_format($total, 2) . "';</script>";
           // Revenue chart data - last 12 months
           $chartLabels = [];
           $chartData = [];
           for ($i = 11; $i >= 0; $i--) {
             $month = date('Y-m', strtotime("-$i months"));
             $chartLabels[] = date('M Y', strtotime($month . '-01'));
-            $stmt = $conn->prepare("SELECT SUM(p.amount) as monthly_total FROM payment p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
+            $stmt = $conn->prepare("SELECT SUM(p.amount_paid) as monthly_total FROM billing p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
             $stmt->bind_param("is", $tenantId, $month);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -376,7 +376,7 @@ if (!$hasBasicReporting) {
               data: {
                 labels: <?php echo json_encode($chartLabels); ?>,
                 datasets: [{
-                  label: 'Monthly Revenue (₱)',
+                  label: 'Monthly Sales (₱)',
                   data: <?php echo json_encode($chartData); ?>,
                   borderColor: 'rgba(75, 192, 192, 1)',
                   backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -558,7 +558,7 @@ function loadRevenueReport() {
           <td>₱${parseFloat(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         </tr>`;
       });
-      document.getElementById('revenue-summary').innerHTML = 'Total Revenue: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
     function exportRevenuePDF() {
@@ -572,7 +572,7 @@ function loadRevenueReport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           type: 'sales', 
-          title: 'Clinic Revenue Report' 
+          title: 'Clinic Sales Report' 
         })
       })
       .then(response => {
@@ -583,7 +583,7 @@ function loadRevenueReport() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Clinic_Revenue_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
+        a.download = 'Clinic_Sales_Report_' + new Date().toISOString().split('T')[0] + '.pdf';
         a.click();
         URL.revokeObjectURL(url);
       })

@@ -215,7 +215,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
             'charts' => $charts,
             'tableHeaders' => $tableHeaders,
             'tableData' => $tableData,
-            'tableTitle' => $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Revenue',
+            'tableTitle' => $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Sales',
             'context' => $context,
             'generatedAt' => date('F j, Y H:i'),
             'generatedBy' => $context === 'superadmin' ? 'System Administrator' : 'Clinic Administrator'
@@ -249,14 +249,14 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
                 if (isset($row['tenant_name'])) $tenants[$row['tenant_name']] = true;
             }
             return [
-                'Metric 1' => ['label' => 'Total Revenue', 'value' => '₱' . number_format($totalRevenue, 2)],
+                'Metric 1' => ['label' => 'Total Sales', 'value' => '₱' . number_format($totalRevenue, 2)],
                 'Metric 2' => ['label' => 'Active Tenants', 'value' => count($tenants)],
                 'Metric 3' => ['label' => 'Monthly Growth', 'value' => '+12.5%'], // Placeholder for growth
                 'totalRevenue' => $totalRevenue // for internal use
             ];
         } else {
             return [
-                'Metric 1' => ['label' => 'Total Revenue', 'value' => '₱' . number_format($totalRevenue, 2)],
+                'Metric 1' => ['label' => 'Total Sales', 'value' => '₱' . number_format($totalRevenue, 2)],
                 'Metric 2' => ['label' => 'Patient Visits', 'value' => count($data)],
                 'Metric 3' => ['label' => 'Avg per Patient', 'value' => '₱' . number_format(count($data) > 0 ? $totalRevenue / count($data) : 0, 2)],
                 'totalRevenue' => $totalRevenue
@@ -276,7 +276,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
                     'type' => 'line',
                     'data' => [
                         'labels' => array_keys($trendData),
-                        'datasets' => [['label' => 'Revenue', 'data' => array_values($trendData)]]
+                        'datasets' => [['label' => 'Sales', 'data' => array_values($trendData)]]
                     ]
                 ])
             ];
@@ -284,12 +284,12 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
             // Revenue by Plan (Bar)
             $planData = $this->aggregateByField($data, 'plan');
             $charts['chart2'] = [
-                'title' => 'Revenue by Plan',
+                'title' => 'Sales by Plan',
                 'image' => $this->generateChartImage([
                     'type' => 'bar',
                     'data' => [
                         'labels' => array_keys($planData),
-                        'datasets' => [['label' => 'Revenue', 'data' => array_values($planData)]]
+                        'datasets' => [['label' => 'Sales', 'data' => array_values($planData)]]
                     ]
                 ])
             ];
@@ -302,7 +302,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
                     'type' => 'line',
                     'data' => [
                         'labels' => array_keys($trendData),
-                        'datasets' => [['label' => 'Revenue', 'data' => array_values($trendData)]]
+                        'datasets' => [['label' => 'Sales', 'data' => array_values($trendData)]]
                     ]
                 ])
             ];
@@ -315,7 +315,7 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
                     'type' => 'pie',
                     'data' => [
                         'labels' => array_keys($serviceData),
-                        'datasets' => [['label' => 'Service Revenue', 'data' => array_values($serviceData)]]
+                        'datasets' => [['label' => 'Service Sales', 'data' => array_values($serviceData)]]
                     ]
                 ])
             ];

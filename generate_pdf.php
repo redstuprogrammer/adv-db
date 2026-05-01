@@ -57,10 +57,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $context = 'superadmin';
             // Fetch aggregated revenue from all Tenant Subscriptions
             $query = "SELECT r.*, t.company_name as tenant_name, r.subscription_tier as plan 
-                      FROM tenant_subscription_revenue r
+                      FROM payment r
                       JOIN tenants t ON r.tenant_id = t.tenant_id
                       WHERE r.status = 'paid'
-                      ORDER BY r.date DESC";
+                      ORDER BY r.payment_date DESC";
             $result = $conn->query($query);
             while ($row = $result->fetch_assoc()) {
                 $reportData[] = $row;
@@ -70,14 +70,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $context = 'tenant';
             $tenantId = $sessionManager->getTenantId();
             // Fetch clinic-specific revenue
-            $query = "SELECT py.*, p.first_name, p.last_name, 
+            $query = "SELECT py.*, py.billing_id as payment_id, py.amount_paid as amount, p.first_name, p.last_name, 
                              COALESCE(s.service_name, 'General Service') AS service, 
                              a.appointment_date
-                      FROM payment py
+                      FROM billing py
                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                       LEFT JOIN patient p ON a.patient_id = p.patient_id
                       LEFT JOIN service s ON a.service_id = s.service_id
-                      WHERE py.tenant_id = ? AND py.status = 'Paid'
+                      WHERE py.tenant_id = ? AND py.payment_status = 'Paid'
                       ORDER BY a.appointment_date DESC";
             $stmt = $conn->prepare($query);
             $stmt->bind_param('i', $tenantId);
@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             while ($row = $result->fetch_assoc()) {
                 $reportData[] = $row;
             }
-            $title = 'Clinic Revenue Report';
+            $title = 'Clinic Sales Report';
         }
 
         if (empty($reportData)) {
@@ -147,17 +147,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     }
 
     $query = "SELECT 
-                py.payment_id, py.amount, py.status, py.mode, py.payment_date,
+                py.billing_id as payment_id, py.amount_paid as amount, py.payment_status as status, py.mode, py.billing_date as payment_date,
                 p.first_name, p.last_name,
                 COALESCE(s.service_name, 'General Service') AS service_name,
                 a.appointment_date,
                 t.company_name
-              FROM payment py
+              FROM billing py
               LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
               LEFT JOIN patient p ON a.patient_id = p.patient_id
               LEFT JOIN service s ON a.service_id = s.service_id
               LEFT JOIN tenants t ON py.tenant_id = t.tenant_id
-              WHERE py.payment_id = ? AND py.tenant_id = ?";
+              WHERE py.billing_id = ? AND py.tenant_id = ?";
 
     $stmt = $conn->prepare($query);
     $stmt->bind_param('ii', $paymentId, $tenantId);

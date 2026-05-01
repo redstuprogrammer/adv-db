@@ -43,7 +43,7 @@ $appointmentCount = getTenantUpcomingAppointmentCount($tenantId) ?? 0;
 
 // Calculate total revenue from all payments
 $totalRevenue = 0.00;
-$stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ?");
+$stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ?");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
@@ -77,7 +77,7 @@ for ($i = 5; $i >= 0; $i--) {
     $monthLabel = date('M', strtotime("-$i months"));
     $monthTotal = 0.00;
     
-    $stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ? AND payment_date BETWEEN ? AND ?");
+    $stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ? AND billing_date BETWEEN ? AND ?");
     if ($stmt) {
         mysqli_stmt_bind_param($stmt, "iss", $tenantId, $monthStart, $monthEnd);
         mysqli_stmt_execute($stmt);
@@ -500,7 +500,7 @@ if ($stmt) {
 
         <div class="stat-card">
           <div class="stat-icon icon-red">💵</div>
-          <div class="stat-label">Total Revenue</div>
+          <div class="stat-label">Total Sales</div>
           <div class="stat-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
         </div>
       </div>

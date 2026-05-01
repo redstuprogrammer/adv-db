@@ -57,14 +57,15 @@ $checkout_url = $result['data']['attributes']['checkout_url'];
 // 7. Insert into Database
 try {
     $stmt = $pdo->prepare("
-        INSERT INTO payment 
-        (tenant_id, appointment_id, amount, status, mode, source, payment_type, paymongo_link_id)
-        VALUES (?, ?, ?, 'pending', 'online', 'web', 'full', ?)
+        INSERT INTO billing 
+        (tenant_id, appointment_id, amount_paid, total_amount, payment_status, mode, source, payment_type, paymongo_link_id)
+        VALUES (?, ?, ?, ?, 'pending', 'online', 'web', 'full', ?)
     ");
 
     $stmt->execute([
         $tenant_id,
         $appointment_id,
+        $amount,
         $amount,
         $session_id // Storing Session ID for reconciliation
     ]);

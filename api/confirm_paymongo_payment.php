@@ -4,7 +4,8 @@
 // PATH on server: /api/confirm_paymongo_payment.php
 // ============================================================
 // Called by mobile AFTER PayMongo redirects to success URL.
-// Verifies payment status with PayMongo, then updates billing.
+// Verifies payment status with PayMongo, updates billing,
+// AND flips appointment status pending_payment → pending.
 //
 // POST JSON body:
 //   session_id       (string, required) — from create_paymongo_link
@@ -15,7 +16,7 @@
 //   mode             (string, optional) — 'Card' | 'Gcash' | 'Paymaya'
 //
 // Returns:
-//   { success, message, billing_id, payment_status, reference_number }
+//   { success, message, billing_id, payment_status, reference_number, appointment_id }
 // ============================================================
 
 header('Content-Type: application/json');
@@ -45,17 +46,13 @@ if (!$session_id || !$billing_id || !$tenant_id || !$patient_id || $amount_paid 
     exit;
 }
 
-// ─── PayMongo secret key (from env or config) ────────────
-$secret = getenv('PAYMONGO_SECRET_KEY');
-if (!$secret && file_exists(__DIR__ . '/../config/paymongo.php')) {
-    $paymongo_config = require __DIR__ . '/../config/paymongo.php';
-    $secret = $paymongo_config['secret_key'] ?? '';
+// ─── PayMongo secret key (Ensure this is set in your environment variables) ───
+$secret = getenv('PAYMONGO_SECRET_KEY') ?: ''; 
+if (empty($secret)) {
+    // For local development only — DO NOT COMMIT REAL KEYS
+    // $secret = 'your_test_key_here';
 }
-if (!$secret) {
-    echo json_encode(['success' => false, 'message' => 'PayMongo secret key not configured']);
-    exit;
-}
-$auth = base64_encode($secret . ':');
+$auth   = base64_encode($secret . ':');
 
 // ─── Verify checkout session status with PayMongo ─────────
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions/' . urlencode($session_id));
@@ -66,7 +63,6 @@ curl_setopt_array($ch, [
         'Authorization: Basic ' . $auth,
     ],
 ]);
-
 $pm_response = curl_exec($ch);
 $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curl_error  = curl_error($ch);
@@ -80,7 +76,6 @@ if ($curl_error || !$pm_response) {
 $pm_data   = json_decode($pm_response, true);
 $pm_status = $pm_data['data']['attributes']['payment_status'] ?? 'unpaid';
 
-// PayMongo checkout_sessions uses 'paid' when complete
 if ($pm_status !== 'paid') {
     echo json_encode([
         'success' => false,
@@ -89,9 +84,9 @@ if ($pm_status !== 'paid') {
     exit;
 }
 
-// ─── Fetch current billing row ────────────────────────────
+// ─── Fetch current billing row (includes appointment_id) ──
 $chk = $conn->prepare("
-    SELECT total_amount, amount_paid, payment_status, reference_number
+    SELECT total_amount, amount_paid, payment_status, reference_number, appointment_id
     FROM billing
     WHERE billing_id = ? AND tenant_id = ?
     LIMIT 1
@@ -106,6 +101,8 @@ if (!$bill) {
     $conn->close(); exit;
 }
 
+$appointment_id = $bill['appointment_id'];
+
 // Guard: already fully paid
 if ($bill['payment_status'] === 'paid') {
     $conn->close();
@@ -115,13 +112,14 @@ if ($bill['payment_status'] === 'paid') {
         'billing_id'       => $billing_id,
         'payment_status'   => 'paid',
         'reference_number' => $bill['reference_number'],
+        'appointment_id'   => $appointment_id,
     ]);
     exit;
 }
 
 // ─── Calculate new totals and status ─────────────────────
-$new_amount_paid = (float) $bill['amount_paid'] + (float) $amount_paid;
-$total           = (float) $bill['total_amount'];
+$new_amount_paid = (float)$bill['amount_paid'] + (float)$amount_paid;
+$total           = (float)$bill['total_amount'];
 
 if ($new_amount_paid >= $total) {
     $new_status      = 'paid';
@@ -132,27 +130,49 @@ if ($new_amount_paid >= $total) {
 
 $reference_number = $bill['reference_number'] ?? ('MOB-' . $patient_id . '-' . time());
 
-// ─── Update billing row ───────────────────────────────────
-$upd = $conn->prepare("
-    UPDATE billing
-    SET amount_paid = ?, payment_status = ?, mode = ?, reference_number = ?
-    WHERE billing_id = ? AND tenant_id = ?
-");
-$upd->bind_param("dsssii", $new_amount_paid, $new_status, $mode, $reference_number, $billing_id, $tenant_id);
+// ─── Update billing + flip appointment atomically ─────────
+$conn->begin_transaction();
 
-if (!$upd->execute()) {
-    echo json_encode(['success' => false, 'message' => 'DB update failed: ' . $upd->error]);
-    $upd->close(); $conn->close(); exit;
+try {
+    // 1. Update billing row
+    $upd = $conn->prepare("
+        UPDATE billing
+        SET amount_paid = ?, payment_status = ?, mode = ?, reference_number = ?
+        WHERE billing_id = ? AND tenant_id = ?
+    ");
+    $upd->bind_param("dsssii", $new_amount_paid, $new_status, $mode, $reference_number, $billing_id, $tenant_id);
+    if (!$upd->execute()) throw new Exception('Billing update failed: ' . $upd->error);
+    $upd->close();
+
+    // 2. Flip appointment from pending_payment → pending
+    // (Only updates if still in pending_payment — idempotent if already flipped)
+    $flip = $conn->prepare("
+        UPDATE appointment
+        SET status = 'pending'
+        WHERE appointment_id = ? AND tenant_id = ? AND status = 'pending_payment'
+    ");
+    $flip->bind_param("ii", $appointment_id, $tenant_id);
+    if (!$flip->execute()) throw new Exception('Appointment status update failed: ' . $flip->error);
+    $flip->close();
+
+    $conn->commit();
+
+} catch (Exception $ex) {
+    $conn->rollback();
+    $conn->close();
+    echo json_encode(['success' => false, 'message' => $ex->getMessage()]);
+    exit;
 }
-$upd->close();
+
 $conn->close();
 
 echo json_encode([
     'success'          => true,
-    'message'          => 'Payment confirmed and recorded successfully.',
+    'message'          => 'Payment confirmed and appointment is now pending clinic review.',
     'billing_id'       => $billing_id,
     'payment_status'   => $new_status,
     'new_amount_paid'  => $new_amount_paid,
     'reference_number' => $reference_number,
+    'appointment_id'   => $appointment_id,
 ]);
 ?>

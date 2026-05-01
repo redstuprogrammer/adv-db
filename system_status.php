@@ -27,7 +27,7 @@ try {
 
 // Check table counts
 $tables = [
-    'tenant_subscription_revenue' => 'Sales Data',
+    'payment' => 'Sales Data',
     'tenant_activity_logs' => 'Audit Logs',
     'superadmin_logs' => 'Admin Logs',
     'tenants' => 'Registered Clinics'

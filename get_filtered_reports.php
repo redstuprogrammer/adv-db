@@ -157,12 +157,12 @@ try {
             ];
         }
     } elseif ($type === 'revenue') {
-        $query = "SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount, a.appointment_date
-                  FROM payment py
+        $query = "SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount_paid as amount, a.appointment_date
+                  FROM billing py
                   LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                   LEFT JOIN patient p ON a.patient_id = p.patient_id
                   LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
-                  WHERE py.status = 'Paid'";
+                  WHERE py.payment_status = 'paid'";
 
         $params = [];
 

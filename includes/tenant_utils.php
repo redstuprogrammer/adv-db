@@ -330,7 +330,7 @@ if (!function_exists('getTenantOutstandingInvoiceCount')) {
     function getTenantOutstandingInvoiceCount(?int $tenantId): ?int {
         if (!$tenantId) return null;
         global $conn;
-        $stmt = $conn->prepare('SELECT COUNT(*) as count FROM payment WHERE tenant_id = ? AND status != "paid"');
+        $stmt = $conn->prepare('SELECT COUNT(*) as count FROM billing WHERE tenant_id = ? AND payment_status != "paid"');
         if ($stmt) {
             $stmt->bind_param('i', $tenantId);
             $stmt->execute();
@@ -347,7 +347,7 @@ if (!function_exists('getTenantTodayRevenue')) {
     function getTenantTodayRevenue(?int $tenantId): ?float {
         if (!$tenantId) return null;
         global $conn;
-        $stmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payment WHERE tenant_id = ? AND DATE(payment_date) = DATE(NOW()) AND status = "paid"');
+        $stmt = $conn->prepare('SELECT COALESCE(SUM(amount_paid), 0) as total FROM billing WHERE tenant_id = ? AND DATE(billing_date) = DATE(NOW()) AND payment_status = "paid"');
         if ($stmt) {
             $stmt->bind_param('i', $tenantId);
             $stmt->execute();

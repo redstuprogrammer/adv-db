@@ -52,21 +52,21 @@ if (!$hasPaymentTracking) {
 ========================================= */
 
 $query = "SELECT 
-            py.payment_id, 
+            py.billing_id, 
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            py.amount, 
+            py.amount_paid as amount, 
             py.mode, 
-            py.status,
+            py.payment_status as status,
             a.appointment_id,
             a.appointment_date,
             py.procedures_json
-          FROM payment py
+          FROM billing py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           WHERE py.tenant_id = ?
-          ORDER BY py.payment_id DESC";
+          ORDER BY py.billing_id DESC";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);

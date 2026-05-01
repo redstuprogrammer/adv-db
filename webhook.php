@@ -50,8 +50,8 @@ if ($event_type === 'checkout_session.payment.paid') {
                 $stmt_tenant->bind_param("si", $tier_key, $tenant_id);
                 $stmt_tenant->execute();
 
-                // C. Log Revenue (Match with tenant_subscription_revenue table)
-                $sql_rev = "INSERT INTO tenant_subscription_revenue (
+                // C. Log Revenue (Match with payment table)
+                $sql_rev = "INSERT INTO payment (
                                 tenant_id, subscription_tier, amount, 
                                 billing_period_start, status, payment_date
                             ) VALUES (?, ?, ?, NOW(), 'paid', NOW())";

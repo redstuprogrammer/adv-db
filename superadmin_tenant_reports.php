@@ -642,7 +642,7 @@ try {
                 'tenant_activity': 'Tenant Activity Report',
                 'user_registration': 'User Registration Report',
                 'usage_statistics': 'Usage Statistics Report',
-                'revenue': 'Sales Revenue Report'
+                'revenue': 'Sales Report'
             };
             return titles[type] || 'OralSync System Report';
         }
