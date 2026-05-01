@@ -19,6 +19,12 @@ header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
+// ── Timezone fix ──────────────────────────────────────────────
+// Must match the clinic's local time so $is_today and slot
+// comparisons are correct regardless of where the server is hosted.
+date_default_timezone_set('Asia/Manila');
+
 require_once __DIR__ . '/../connect.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
