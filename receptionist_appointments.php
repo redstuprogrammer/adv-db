@@ -30,6 +30,18 @@ function formatTenantPatientId($tenant_patient_id) {
     return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
 }
 
+function formatTime12Hour($time) {
+    if (empty($time)) return 'TBD';
+    $parts = explode(':', $time);
+    if (count($parts) < 2) return $time;
+    $hour = (int)$parts[0];
+    $minute = $parts[1];
+    $ampm = $hour >= 12 ? 'PM' : 'AM';
+    if ($hour > 12) $hour -= 12;
+    if ($hour === 0) $hour = 12;
+    return $hour . ':' . $minute . ' ' . $ampm;
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 // requireTenantLogin is now handled by session manager above
 
@@ -551,7 +563,7 @@ if ($stmtReq) {
                     <td><?php echo date('M d, Y', strtotime($request['appointment_date'])); ?></td>
                     <td><strong><?php echo h(($request['first_name'] ?? '') . " " . ($request['last_name'] ?? '')); ?></strong></td>
                     <td>Dr. <?php echo h($request['d_last'] ?? ''); ?></td>
-                    <td><?php echo h($request['appointment_time'] ?: 'TBD'); ?></td>
+<td><?php echo h(formatTime12Hour($request['appointment_time'])); ?></td>
                     <td class="actions-cell">
                       <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($request['d_last'] ?? '')); ?>, <?php echo json_encode($request['appointment_date']); ?>, <?php echo json_encode($request['appointment_time'] ?? ''); ?>)">View</a>
                       <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'approve')">Approve</a>
