@@ -147,7 +147,7 @@ for ($i = 1; $i <= $num_months; $i++) {
 // ─── 6. Mark original bill as covered by installment plan ─
 $upd = $conn->prepare("
     UPDATE billing
-    SET payment_status = 'installment_active', installment_plan_id = ?
+    SET payment_status = 'paid', installment_plan_id = ?
     WHERE billing_id = ? AND tenant_id = ?
 ");
 $upd->bind_param("iii", $plan_id, $billing_id, $tenant_id);
