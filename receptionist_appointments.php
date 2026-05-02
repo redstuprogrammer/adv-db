@@ -43,6 +43,7 @@ function formatTime12Hour($time) {
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+$activeTab = $_GET['tab'] ?? 'appointments';
 // requireTenantLogin is now handled by session manager above
 
 $tenantData = $sessionManager->getTenantData();
@@ -507,14 +508,14 @@ if ($stmtReq) {
           <div>
             <h2 class="content-title">Front Desk Appointments</h2>
             <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="tab-button active" type="button" onclick="showAppointmentsTab()">Appointments</button>
-              <button class="tab-button" type="button" onclick="showRequestsTab()">Appointment Requests</button>
+              <button class="tab-button <?php echo $activeTab === 'appointments' ? 'active' : ''; ?>" type="button" onclick="showAppointmentsTab()">Appointments</button>
+              <button class="tab-button <?php echo $activeTab === 'requests' ? 'active' : ''; ?>" type="button" onclick="showRequestsTab()">Appointment Requests</button>
             </div>
           </div>
           <button class="add-btn" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
-
-        <div id="appointmentsSection">
+ 
+        <div id="appointmentsSection" style="<?php echo $activeTab === 'requests' ? 'display: none;' : ''; ?>">
           <table class="queue-table">
             <thead>
               <tr>
@@ -545,8 +546,8 @@ if ($stmtReq) {
             </tbody>
           </table>
         </div>
-
-        <div id="requestsSection" style="display: none;">
+ 
+        <div id="requestsSection" style="<?php echo $activeTab === 'requests' ? 'display: block;' : ''; ?> <?php echo $activeTab === 'appointments' ? 'display: none;' : ''; ?>">
           <table class="queue-table">
             <thead>
               <tr>
@@ -566,7 +567,7 @@ if ($stmtReq) {
                     <td>Dr. <?php echo h($request['d_last'] ?? ''); ?></td>
 <td><?php echo h(formatTime12Hour($request['appointment_time'])); ?></td>
                     <td class="actions-cell">
-                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($request['d_last'] ?? '')); ?>, <?php echo json_encode($request['appointment_date']); ?>, <?php echo json_encode($request['appointment_time'] ?? ''); ?>)">View</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($request['d_last'] ?? '')); ?>, <?php echo json_encode(date('M d, Y', strtotime($request['appointment_date']))); ?>, <?php echo json_encode(formatTime12Hour($request['appointment_time'])); ?>)">View</a>
                       <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'approve')">Approve</a>
                       <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'disapprove')">Disapprove</a>
                     </td>
@@ -582,6 +583,7 @@ if ($stmtReq) {
         <form id="requestActionForm" method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" style="display:none;">
           <input type="hidden" name="request_id" id="request_id" value="">
           <input type="hidden" name="request_action" id="request_action" value="">
+          <input type="hidden" name="tab_persist" value="requests">
         </form>
       </div>
     </div>
@@ -767,16 +769,28 @@ if ($stmtReq) {
       if (formId && formAction) {
           formId.value = id;
           formAction.value = action;
+          
+          // Add tab to the form action URL to persist it
+          const currentUrl = new URL(document.getElementById('requestActionForm').action);
+          currentUrl.searchParams.set('tab', 'requests');
+          document.getElementById('requestActionForm').action = currentUrl.toString();
+          
           document.getElementById('requestActionForm').submit();
       }
     }
 
     function openRequestViewModal(id, patientName, dentistName, date, time) {
+      console.log('Opening View Modal for:', id, patientName);
+      const modal = document.getElementById('requestViewModal');
+      if (!modal) {
+          console.error('Modal requestViewModal not found!');
+          return;
+      }
       document.getElementById('requestPatientName').value = patientName;
       document.getElementById('requestDentistName').value = dentistName;
       document.getElementById('requestDate').value = date;
       document.getElementById('requestTime').value = time || 'TBD';
-      document.getElementById('requestViewModal').classList.add('active');
+      modal.classList.add('active');
     }
 
     function closeRequestViewModal() {

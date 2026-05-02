@@ -111,3 +111,7 @@ RECEPTIONIST
 
 4. receptionist_patients.php
     - after creating an account for patient, send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
+
+5. receptionist_appointments.php
+    - in Appointment Requests, when I approve or disapprove an appointment, i shouldnt be brought back to appointments, instead just let me stay there.
+    - view button doesnt work. why?
