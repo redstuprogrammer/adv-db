@@ -30,7 +30,10 @@ TENANT LOGIN
 
 SUPERADMIN
 
-superadmin_create_superadmin.php
+1. register_clinic.php
+- when an account gets registered it displays a copypaste for the email and temporary password. this is not necessary, as they already receive an email about the credentials.
+
+2. superadmin_create_superadmin.php
 - remove username field
 - send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
 - below, add a feature where users can change their username and password (current password, password, confirm password)

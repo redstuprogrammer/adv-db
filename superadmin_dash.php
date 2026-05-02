@@ -893,25 +893,10 @@ try {
         Clinic Registered Successfully!
     </div>
     <div id="success-message-body" style="margin-top: 12px; font-size: 0.9rem; color: var(--sa-text-muted);">
-        The clinic has been added to the database. Provide the credentials below to the owner.
+        The clinic has been successfully registered. An onboarding email containing the login credentials and portal URL has been sent to the owner's email address.
     </div>
 
-    <div class="sa-credential-box">
-        <div class="sa-credential-item">
-            <span class="sa-label">Temporary Password:</span>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <code id="display-temp-password" class="sa-temp-pass">Generating...</code>
-                <button type="button" class="sa-copy-btn" onclick="copyTemporaryPassword()" aria-label="Copy temporary password">📋</button>
-            </div>
-        </div>
-        <div class="sa-credential-item">
-            <span class="sa-label">Login URL:</span>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <a id="display-login-url" class="sa-link-sample" target="_blank" rel="noopener noreferrer" href="#">Loading...</a>
-                <button type="button" class="sa-copy-btn" onclick="copyLoginUrl()" aria-label="Copy login URL">📋</button>
-            </div>
-        </div>
-    </div>
+
 
     <div class="sa-success-actions">
         <button id="btn-resend-email" class="sa-btn sa-btn-outline">Resend Email</button>
@@ -1775,18 +1760,6 @@ try {
                 if (data.success) {
                     refreshTenantList();
 
-                    if (sampleLinkEl) {
-                        const loginUrl = data.login_url || `${window.location.origin}/tenant/${encodeURIComponent(data.slug)}/login`;
-                        sampleLinkEl.innerHTML = `
-                            <a id="display-login-url" class="sa-link-sample" href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a>
-                        `;
-                    }
-
-                    const passField = document.getElementById('display-temp-password');
-                    if (passField) {
-                        passField.textContent = data.temp_password;
-                    }
-
                     if (successPanel) {
                         successPanel.style.display = 'block';
                         if (resendNote) resendNote.style.display = 'none';
@@ -1845,22 +1818,7 @@ try {
         }
     }
 
-    function copyTemporaryPassword() {
-        const passwordElement = document.getElementById('display-temp-password');
-        if (!passwordElement) return;
-        copyToClipboard(passwordElement.textContent.trim(), 'Temporary password copied.');
-    }
 
-    function copyLoginUrl() {
-        const linkElement = document.getElementById('display-login-url');
-        if (!linkElement) return;
-        const url = linkElement.getAttribute('href') || linkElement.textContent.trim();
-        if (!url || url === '#') {
-            showToast?.('No login URL available yet.');
-            return;
-        }
-        copyToClipboard(url, 'Login URL copied.');
-    }
 
     // Initialize Sales Trends Chart
     (function() {

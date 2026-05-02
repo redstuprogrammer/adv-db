@@ -349,10 +349,8 @@ try {
         $response = [
             'success' => true, 
             'message' => 'Clinic registered successfully!',
-            'temp_password' => $temp_password, 
             'slug' => $slug,
             'tenant_code' => $tenant_code,
-            'login_url' => $login_url,
             'email_sent' => (bool)($emailResult['sent'] ?? false)
         ];
 
