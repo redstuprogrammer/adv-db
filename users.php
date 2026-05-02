@@ -70,29 +70,45 @@ function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $ten
         $loginUrl = $scheme . '://' . $host . '/tenant_login.php?tenant=' . urlencode($tenantSlug);
 
         $mail->Body = <<<HTML
-<div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-    <div style="background: #0d3b66; color: white; padding: 24px; text-align: center;">
-        <h1 style="margin: 0; font-size: 24px;">Welcome to OralSync</h1>
-        <p style="margin: 8px 0 0; opacity: 0.8;">Your clinic account has been created</p>
+<div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08);">
+    <div style="background: linear-gradient(135deg, #0d3b66, #0f172a); color: white; padding: 32px; text-align: center;">
+        <div style="font-weight: 800; letter-spacing: 0.5px; font-size: 24px; margin-bottom: 8px;">OralSync</div>
+        <p style="margin: 0; opacity: 0.9; font-size: 16px;">Welcome to the Team</p>
     </div>
-    <div style="padding: 24px; color: #334155; line-height: 1.6;">
-        <p>Hello <strong>{$safeName}</strong>,</p>
-        <p>You have been added as a staff member at <strong>{$safeClinic}</strong>. You can now access the clinic portal using the details below:</p>
+    <div style="padding: 32px; color: #1e293b; line-height: 1.6;">
+        <p style="font-size: 18px; margin-bottom: 16px;">Hello <strong>{$safeName}</strong>,</p>
+        <p>You have been registered as a <strong>{$role}</strong> at <strong>{$safeClinic}</strong>. You can now access the clinic management portal using the credentials below:</p>
         
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
-            <p style="margin: 0 0 8px;"><strong>Login URL:</strong> <a href="{$loginUrl}" style="color: #0d3b66;">{$loginUrl}</a></p>
-            <p style="margin: 0 0 8px;"><strong>Email:</strong> {$email}</p>
-            <p style="margin: 0;"><strong>Temporary Password:</strong> <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 4px;">{$safePass}</code></p>
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Login URL</div>
+                <div style="font-family: monospace; font-size: 14px; color: #0d3b66; word-break: break-all;">{$loginUrl}</div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Email / Username</div>
+                <div style="font-size: 16px; font-weight: 600;">{$email}</div>
+            </div>
+            <div>
+                <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">Temporary Password</div>
+                <div style="font-family: monospace; font-size: 18px; color: #0d3b66; font-weight: 800;">{$safePass}</div>
+            </div>
         </div>
         
-        <p style="font-size: 14px; color: #64748b;">For security, please change your password immediately after your first login.</p>
+        <div style="margin-top: 24px;">
+            <div style="font-weight: 800; color: #0d3b66; margin-bottom: 12px; font-size: 14px; text-transform: uppercase;">Next Steps</div>
+            <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                <li style="margin-bottom: 8px;">Click the button below to open your clinic's login page.</li>
+                <li style="margin-bottom: 8px;">Log in using your email and the temporary password provided.</li>
+                <li style="margin-bottom: 8px;">For security, you will be asked to change your password immediately.</li>
+            </ul>
+        </div>
         
-        <div style="text-align: center; margin-top: 32px;">
-            <a href="{$loginUrl}" style="background: #0d3b66; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Login to Clinic Portal</a>
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="{$loginUrl}" style="background: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 999px; font-weight: 800; display: inline-block; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);">Access OralSync Portal</a>
         </div>
     </div>
-    <div style="background: #f1f5f9; color: #94a3b8; padding: 16px; text-align: center; font-size: 12px;">
-        &copy; OralSync - Advanced Dental Management System
+    <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; color: #94a3b8; padding: 20px; text-align: center; font-size: 12px;">
+        &copy; <?php echo date('Y'); ?> OralSync - Advanced Dental Management System. All rights reserved.
     </div>
 </div>
 HTML;
@@ -333,7 +349,7 @@ try {
       <?php endif; ?>
 
       <div class="module-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 20px;">
           <a href="#" class="btn-primary" onclick="openAddUserModal()">+ Add User</a>
         </div>
         

@@ -46,7 +46,7 @@ if ($patient) {
     $stmt = mysqli_prepare($conn,
         'SELECT a.appointment_id, a.appointment_date, a.status,
                 CONCAT(d.first_name, " ", d.last_name) AS dentist_name,
-                COALESCE(s.service_name, "General Consultation") AS service_name
+                COALESCE(s.service_name, "") AS service_name
          FROM appointment a
          LEFT JOIN dentist d ON a.dentist_id = d.dentist_id
          LEFT JOIN services s ON a.service_id = s.service_id

@@ -916,7 +916,7 @@ HTML;
       <div class="module-card" style="margin-bottom: 32px;">
         <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
         <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
-        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;">Edit Landing Page Content</a>
+        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
       </div>
 
       <div class="login-customizer">

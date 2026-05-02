@@ -68,11 +68,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mysqli_stmt_bind_param($stmt, 'issssssssi', $tenantId, $firstName, $lastName, $email, $phone, $role, $specialties, $publicBio, $status, $isPublicVisible);
         if (mysqli_stmt_execute($stmt)) {
             $success = true;
-            $message = 'Staff professional details saved successfully.';
             // If it was an insert, get the new ID
             if ($staff_id === 0) {
                 $staff_id = mysqli_insert_id($conn);
             }
+            header("Location: view_staff_profile.php?tenant=" . rawurlencode($tenantSlug) . "&id=" . $staff_id . "&uid=" . $user_id . "&success=1");
+            exit();
         } else {
             $message = 'Error saving details: ' . mysqli_error($conn);
         }

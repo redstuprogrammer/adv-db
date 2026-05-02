@@ -80,16 +80,28 @@ $stmt->bind_param("i", $tenant_id);
 $stmt->execute();
 $clinic = $stmt->get_result()->fetch_assoc() ?: [];
 
+// ── Fetch tenant details from 'tenants' table for real defaults ─────────────
+$stmtT = $conn->prepare("SELECT * FROM tenants WHERE tenant_id = ?");
+$stmtT->bind_param("i", $tenant_id);
+$stmtT->execute();
+$tenantData = $stmtT->get_result()->fetch_assoc() ?: [];
+$stmtT->close();
+
+$realClinicName = $tenantData['company_name'] ?? 'Your Clinic';
+$realAddress = ($tenantData['address'] ?? '') . ", " . ($tenantData['city'] ?? '') . ", " . ($tenantData['province'] ?? '');
+$realPhone = $tenantData['phone'] ?? '+1 (555) 890-2344';
+$realEmail = $tenantData['contact_email'] ?? $tenantData['email'] ?? 'concierge@yourclinic.com';
+
 // Fallback defaults
 $c = [
-    'clinic_name'      => $clinic['clinic_name']      ?? 'Your Clinic',
-    'hero_title'       => $clinic['hero_title']        ?? 'Exhale the Ordinary.',
-    'hero_description' => $clinic['hero_description']  ?? 'Experience a new standard of dental care where precision engineering meets a curated, calming environment.',
-    'about_description'=> $clinic['about_description'] ?? 'At The Curated Breath, we believe that world-class dentistry should never feel clinical.',
-    'contact_phone'    => $clinic['contact_phone']     ?? '+1 (555) 890-2344',
-    'contact_email'    => $clinic['contact_email']     ?? 'concierge@yourclinic.com',
-    'contact_address'  => $clinic['contact_address']   ?? '1422 Serenity Blvd, Suite 400, Medical District',
-    'footer_copyright' => $clinic['footer_copyright']  ?? '© 2024 Your Clinic. Professional Dental Serenity.',
+    'clinic_name'      => $clinic['clinic_name']      ?? $realClinicName,
+    'hero_title'       => $clinic['hero_title']        ?? $realClinicName,
+    'hero_description' => $clinic['hero_description']  ?? ("Welcome to " . $realClinicName . ". Experience a new standard of dental care where precision meets serenity."),
+    'about_description'=> $clinic['about_description'] ?? ("Serving the community in " . ($tenantData['city'] ?? 'your city') . ". We believe world-class dentistry should never feel clinical."),
+    'contact_phone'    => $clinic['contact_phone']     ?? $realPhone,
+    'contact_email'    => $clinic['contact_email']     ?? $realEmail,
+    'contact_address'  => $clinic['contact_address']   ?? $realAddress,
+    'footer_copyright' => $clinic['footer_copyright']  ?? ("© " . date('Y') . " " . $realClinicName . ". Professional Dental Serenity."),
     'badge_visible'    => $clinic['badge_visible']     ?? '1',
     'badge_text'       => $clinic['badge_text']        ?? 'Clinical Serenity',
     'stat_number'      => $clinic['stat_number']       ?? '98%',
@@ -431,6 +443,7 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
             </div>
             <div class="topbar-right">
                 <span id="unsaved-badge">● Unsaved changes</span>
+                <button class="preview-action-btn" onclick="window.close()">Back to Settings</button>
                 <button class="preview-action-btn" id="undo-btn">Undo</button>
                 <button class="preview-action-btn primary" onclick="window.open('tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>', '_blank')">
                     View Live ↗
@@ -668,6 +681,10 @@ function openField(key, tab = 'content') {
 
     // wire inputs
     rpBody.querySelectorAll('[data-key]').forEach(el => {
+        el.addEventListener('focus', () => {
+            // Push history before starting to edit this field
+            pushToHistory();
+        });
         el.addEventListener('input', () => {
             const k = el.dataset.key;
             state[k] = el.value;
@@ -883,6 +900,21 @@ document.querySelectorAll('.sidebar-tab').forEach(tab => {
 });
 
 // ════════════════════════════════════════════════════════════════════════
+//  HISTORY HELPERS
+// ════════════════════════════════════════════════════════════════════════
+function pushToHistory() {
+    // Only push if the state has actually changed from the last history entry
+    const last = history[historyIdx];
+    const hasChanged = Object.keys(state).some(k => state[k] !== last[k]);
+    
+    if (hasChanged) {
+        history = history.slice(0, historyIdx + 1);
+        history.push({ ...state });
+        historyIdx = history.length - 1;
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════
 //  VIEW TABS (desktop / mobile)
 // ════════════════════════════════════════════════════════════════════════
 document.querySelectorAll('.view-tab').forEach(tab => {
@@ -901,10 +933,7 @@ document.querySelectorAll('.view-tab').forEach(tab => {
 //  APPLY BUTTON
 // ════════════════════════════════════════════════════════════════════════
 applyBtn.addEventListener('click', () => {
-    // snapshot for undo
-    history = history.slice(0, historyIdx + 1);
-    history.push({ ...state });
-    historyIdx = history.length - 1;
+    pushToHistory();
     refreshAllPreview();
     showToast('Changes applied to preview.');
 });

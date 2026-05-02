@@ -78,7 +78,6 @@ switch ($role) {
                 ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
                 ['href' => $basePath . '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
                 ...($canUseReports ? [['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php']] : []),
-                ['href' => $basePath . '/subscription_checkout.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Subscription', 'active' => 'subscription_checkout.php'],
                 ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
             ]],
         ];
@@ -93,6 +92,9 @@ switch ($role) {
             <div>
                 <div class="sidebar-logo-text">OralSync</div>
                 <div class="sidebar-clinic-name"><?php echo htmlspecialchars($tenantName, ENT_QUOTES, 'UTF-8'); ?></div>
+                <div style="font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px;">
+                    👤 <?php echo htmlspecialchars(SessionManager::getInstance()->getUsername() ?? 'User', ENT_QUOTES, 'UTF-8'); ?>
+                </div>
             </div>
         </div>
     </div>

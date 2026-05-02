@@ -625,6 +625,7 @@ $stmt->close();
       document.getElementById('detailsModal').style.display = 'none';
     }
 
+
     // Edit Modal Functions
     function openEditModal(id, name, status) {
       document.getElementById("edit_id").value = id;

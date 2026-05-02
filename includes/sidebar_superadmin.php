@@ -41,6 +41,7 @@ if (function_exists('getAllSettings')) {
             <div>
                 <div class="sidebar-logo-text" style="margin: 0; font-size: 18px; font-weight: 700;"><?php echo htmlspecialchars($systemName, ENT_QUOTES, 'UTF-8'); ?></div>
                 <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7);">Super Admin</div>
+                <div style="font-size: 11px; color: rgba(255, 255, 255, 0.5); font-weight: 500; margin-top: 2px;">@<?php echo htmlspecialchars($_SESSION['superadmin_username'] ?? 'admin', ENT_QUOTES, 'UTF-8'); ?></div>
             </div>
         </div>
         <nav class="menu">

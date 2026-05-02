@@ -178,6 +178,13 @@ if (!$hasBasicReporting) {
       .badge-created { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
       .badge-updated { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
       .badge-deleted { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+
+      .chart-container {
+        max-width: 900px;
+        margin: 0 auto 30px;
+        height: 320px;
+        position: relative;
+      }
     </style>
 </head>
 <body>
@@ -311,56 +318,60 @@ if (!$hasBasicReporting) {
             <input type="date" id="revenue_date_to" />
           </div>
 
-          <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold;">
-            Total Sales: ₱0
+          <div id="revenue-summary" style="margin-bottom: 20px; font-weight: bold; font-size: 18px; color: var(--accent);">
+            Total Sales: ₱0.00
           </div>
 
-          <canvas id="revenueChart" width="400" height="200" style="margin-bottom: 20px;"></canvas>
+          <div class="chart-container">
+            <canvas id="revenueChart"></canvas>
+          </div>
 
           <table class="module-table" id="revenue-table">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Patient Name</th>
-                <th>Service Rendered</th>
                 <th>Amount Paid</th>
               </tr>
             </thead>
             <tbody id="revenue-tbody">
               <?php
-              // Load initial data
-              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, COALESCE(s.service_name, 'General Service') AS service, py.amount_paid as amount, py.payment_status as status, a.appointment_date as appointment_date 
+              // Load initial data - Get all-time total first to match dashboard
+              $totalQuery = $conn->prepare("SELECT SUM(amount_paid) as total FROM billing WHERE tenant_id = ? AND payment_status = 'paid'");
+              $totalQuery->bind_param('i', $tenantId);
+              $totalQuery->execute();
+              $totalResult = $totalQuery->get_result()->fetch_assoc();
+              $allTimeTotal = $totalResult['total'] ?? 0;
+              $totalQuery->close();
+
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.amount_paid as amount, a.appointment_date as appointment_date 
                                       FROM billing py 
                                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id 
                                       LEFT JOIN patient p ON a.patient_id = p.patient_id 
-                                      LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
                                       WHERE py.tenant_id = ? AND py.payment_status = 'paid' 
                                       ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
               $stmt->execute();
               $result = $stmt->get_result();
-              $total = 0;
               $revenueRowCount = 0;
               while ($row = $result->fetch_assoc()) {
                 $revenueRowCount++;
-                $total += $row['amount'];
                 echo "<tr>
                   <td>" . h($row['appointment_date']) . "</td>
                   <td>" . h($row['first_name']) . " " . h($row['last_name']) . "</td>
-                  <td>" . h($row['service']) . "</td>
                   <td>₱" . number_format($row['amount'], 2) . "</td>
                 </tr>";
               }
               $stmt->close();
               
               if ($revenueRowCount === 0) {
-                echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No sales records are available yet.</td></tr>";
+                echo "<tr><td colspan='3' style='text-align:center; color:#64748b;'>No sales records are available yet.</td></tr>";
               }
               ?>
             </tbody>
           </table>
           <?php
-          echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱" . number_format($total, 2) . "';</script>";
+          echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱" . number_format($allTimeTotal, 2) . "';</script>";
           // Revenue chart data - last 12 months
           $chartLabels = [];
           $chartData = [];
@@ -392,6 +403,7 @@ if (!$hasBasicReporting) {
               },
               options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                   y: {
                     beginAtZero: true,
@@ -561,7 +573,6 @@ function loadRevenueReport() {
         tbody.innerHTML += `<tr>
           <td>${row.appointment_date}</td>
           <td>${row.first_name} ${row.last_name}</td>
-          <td>${row.service}</td>
           <td>₱${parseFloat(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         </tr>`;
       });

@@ -622,7 +622,6 @@ if ($stmtReq) {
     </div>
   </div>
 
-
   <!-- View Request Modal -->
   <div id="requestViewModal" class="modal">
     <div class="modal-content">
@@ -651,6 +650,7 @@ if ($stmtReq) {
       </div>
     </div>
   </div>
+
 
   <script>
     const tenantId = <?php echo json_encode($tenantId); ?>;
@@ -690,7 +690,6 @@ if ($stmtReq) {
           document.getElementById('requestActionForm').submit();
       }
     }
-
     function openRequestViewModal(id, patientName, dentistName, date, time) {
       console.log('Opening View Modal for:', id, patientName);
       const modal = document.getElementById('requestViewModal');
@@ -708,6 +707,7 @@ if ($stmtReq) {
     function closeRequestViewModal() {
       document.getElementById('requestViewModal').classList.remove('active');
     }
+
 
     function openScheduleModal() {
       console.log('Schedule modal opened');

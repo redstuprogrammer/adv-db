@@ -422,7 +422,7 @@ if ($stmt) {
               <?php while($row = $scheduleResult->fetch_assoc()): ?>
                 <div class="schedule-item-pop">
                   <small>📅 <?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></small><br>
-                  <strong><?php echo h($row['service_name'] ?? 'General Consultation'); ?></strong><br>
+                  <strong><?php echo h($row['service_name'] ?? ''); ?></strong><br>
                   <span>Patient: <?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></span><br>
                   <span class="status-indicator status-<?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>">
                     ● <?php echo h(ucwords(strtolower($row['status'] ?? 'pending'))); ?>

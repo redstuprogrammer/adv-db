@@ -352,9 +352,9 @@ foreach ($payments as $payment) {
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
                   <td style="text-align: right;">
                     <?php if ($hasInvoiceGeneration): ?>
-                      <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
+                      <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $payment['payment_id']; ?>" class="action-btn" target="_blank">Print</a>
                     <?php else: ?>
-                      <span style="color:#64748b;font-size:12px;">Invoice PDF unavailable on current plan</span>
+                      <span style="color:#64748b;font-size:12px;">Invoice print unavailable on current plan</span>
                     <?php endif; ?>
                   </td>
                 </tr>

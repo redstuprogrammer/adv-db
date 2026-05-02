@@ -43,7 +43,7 @@ $appointmentCount = getTenantUpcomingAppointmentCount($tenantId) ?? 0;
 
 // Calculate total revenue from all payments
 $totalRevenue = 0.00;
-$stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ?");
+$stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ? AND payment_status = 'paid'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
