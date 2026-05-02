@@ -823,7 +823,22 @@ if ($stmtReq) {
     function openManageModal(id, patientName, dentistName, status) {
       document.getElementById('update_id').value = id;
       document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
-      document.getElementById('new_status').value = status;
+      
+      const newStatusSelect = document.getElementById('new_status');
+      newStatusSelect.value = status;
+      
+      // Restriction: If Completed or Cancelled, don't allow "In Progress"
+      const inProgressOption = newStatusSelect.querySelector('option[value="In Progress"]');
+      if (inProgressOption) {
+        if (status === 'Completed' || status === 'Cancelled') {
+          inProgressOption.disabled = true;
+          inProgressOption.style.display = 'none';
+        } else {
+          inProgressOption.disabled = false;
+          inProgressOption.style.display = 'block';
+        }
+      }
+      
       document.getElementById('manageModal').classList.add('active');
     }
 
