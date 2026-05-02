@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.procedure_name,
             a.requested_by
         FROM appointment a
-        WHERE a.patient_id = ? AND a.tenant_id = ?
+        WHERE a.patient_id = ? AND a.tenant_id = ? AND a.status NOT IN ('Cancelled', 'Completed')
         ORDER BY a.appointment_date DESC
     ");
 

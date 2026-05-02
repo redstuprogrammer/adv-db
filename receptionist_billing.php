@@ -203,6 +203,54 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             color: #64748b;
             margin-top: 4px;
         }
+
+        /* Service Selection Redesign */
+        .service-selection-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 5px;
+            background: #fff;
+        }
+        .service-item {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid transparent;
+            background: #f8fafc;
+        }
+        .service-item:hover {
+            background: #f1f5f9;
+        }
+        .service-item.selected {
+            background: #e0f2fe;
+            border-color: #0ea5e9;
+            color: #0369a1;
+            font-weight: 600;
+        }
+        .add-selected-btn {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+        }
+        .add-selected-btn:hover {
+            background: #0284c7;
+        }
     </style>
 </head>
 <body>
@@ -321,16 +369,27 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             </div>
 
             <div class="form-group">
-                <label>Services (multi-select searchable)</label>
+                <label>Services (search & select)</label>
                 <div class="service-multi-input">
-                    <input type="text" id="service_input" list="service-list" class="service-input" placeholder="Type service name, press Enter or , to add..." />
-                    <datalist id="service-list">
+                    <input type="text" id="service_search" class="service-input" placeholder="Search services..." oninput="filterServices(this.value)" />
+                    
+                    <div id="service_list_container" class="service-selection-list">
                         <?php foreach ($services as $service): ?>
-                            <option value="<?php echo h($service['service_name']); ?>" data-id="<?php echo (int)$service['service_id']; ?>" data-price="<?php echo (float)$service['price']; ?>">
+                            <div class="service-item" 
+                                 data-id="<?php echo (int)$service['service_id']; ?>" 
+                                 data-name="<?php echo h($service['service_name']); ?>" 
+                                 data-price="<?php echo (float)$service['price']; ?>"
+                                 onclick="toggleServiceSelection(this)">
+                                <span><?php echo h($service['service_name']); ?></span>
+                                <span style="color: #64748b;">₱<?php echo number_format($service['price'], 2); ?></span>
+                            </div>
                         <?php endforeach; ?>
-                    </datalist>
-                    <div id="service-tags" class="service-tags">
-                        <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
+                    </div>
+
+                    <button type="button" class="add-selected-btn" onclick="addSelectedToCart()">Add Selected Services</button>
+
+                    <div id="service-tags" class="service-tags" style="margin-top: 15px;">
+                        <p id="cart-empty" style="color: #64748b; margin: 0;">No services added to invoice yet.</p>
                     </div>
                 </div>
             </div>
@@ -385,33 +444,44 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     const floorInfo = document.getElementById('floor-info');
     const depositInfo = document.getElementById('deposit_info');
 
-    // Service add multi
-    if (serviceInput) {
-        serviceInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault();
-                const value = serviceInput.value.trim();
-                if (value) {
-                    const option = [...serviceList.options].find(opt => opt.value.toLowerCase() === value.toLowerCase());
-                    if (option) {
-                        if (cart.some(item => item.service_id == option.dataset.id)) {
-                            showToast('Service already in cart');
-                        } else {
-                            cart.push({
-                                service_id: option.dataset.id,
-                                name: option.value,
-                                price: parseFloat(option.dataset.price)
-                            });
-                            renderTags();
-                            updateTotal();
-                        }
-                        serviceInput.value = '';
-                    } else {
-                        showToast('Service not found');
-                    }
-                }
-            }
+    // Service Selection Logic
+    function toggleServiceSelection(el) {
+        el.classList.toggle('selected');
+    }
+
+    function filterServices(query) {
+        const q = query.toLowerCase();
+        const items = document.querySelectorAll('.service-item');
+        items.forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            item.style.display = name.includes(q) ? 'flex' : 'none';
         });
+    }
+
+    function addSelectedToCart() {
+        const selectedItems = document.querySelectorAll('.service-item.selected');
+        if (selectedItems.length === 0) {
+            showToast('Please select at least one service');
+            return;
+        }
+
+        selectedItems.forEach(item => {
+            const id = item.dataset.id;
+            const name = item.dataset.name;
+            const price = parseFloat(item.dataset.price);
+
+            if (!cart.some(c => c.service_id == id)) {
+                cart.push({ service_id: id, name: name, price: price });
+            }
+            // Reset selection after adding
+            item.classList.remove('selected');
+        });
+
+        renderTags();
+        updateTotal();
+        document.getElementById('service_search').value = '';
+        filterServices('');
+        showToast('Services added to invoice');
     }
 
     function renderTags() {
@@ -491,6 +561,8 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         document.getElementById('payment_id').value = "";
         document.getElementById('modalTitle').innerText = "Create New Invoice";
         cart = [];
+        // Reset selections in the list
+        document.querySelectorAll('.service-item').forEach(el => el.classList.remove('selected'));
         renderTags();
         updateTotal();
         document.getElementById("paymentModal").style.display = "flex";

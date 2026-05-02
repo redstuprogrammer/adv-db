@@ -142,16 +142,16 @@ $conn->begin_transaction();
 try {
     // Insert payment record
     $insert_sql = "INSERT INTO billing (
-        tenant_id, appointment_id, amount_paid, total_amount, mode, payment_status,
+        tenant_id, patient_id, appointment_id, amount_paid, total_amount, mode, payment_status,
         procedures_json, source, reference_number, billing_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'web', ?, NOW())";
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'web', ?, NOW())";
 
     $stmt = mysqli_prepare($conn, $insert_sql);
     if (!$stmt) {
         throw new Exception("Failed to prepare payment insert: " . mysqli_error($conn));
     }
 
-    mysqli_stmt_bind_param($stmt, "iiddssss", $tenantId, $appointment_id, $amount, $amount, $mode, $status, $procedures_json, $reference_number);
+    mysqli_stmt_bind_param($stmt, "iiiddssss", $tenantId, $patient_id, $appointment_id, $amount, $amount, $mode, $status, $procedures_json, $reference_number);
 
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception("Failed to insert payment: " . mysqli_stmt_error($stmt));
