@@ -115,43 +115,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_appointment'])) {
-    $appointmentId = isset($_POST['edit_id']) ? (int)$_POST['edit_id'] : 0;
-    $appointmentDate = trim($_POST['edit_date'] ?? '');
-    $appointmentTime = trim($_POST['edit_time'] ?? '');
-    $dentistId = isset($_POST['edit_dentist_id']) ? (int)$_POST['edit_dentist_id'] : 0;
-    $status = trim($_POST['edit_status'] ?? '');
-    $procedureName = trim($_POST['edit_procedure_name'] ?? '');
-
-    if ($appointmentId > 0 && $appointmentDate !== '' && $dentistId > 0 && $status !== '' && $appointmentTime !== '') {
-        // Check for duplicate booking, excluding the current appointment record
-        $stmtCheck = mysqli_prepare($conn, 'SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved") AND appointment_id <> ?');
-        mysqli_stmt_bind_param($stmtCheck, 'iissi', $tenantId, $dentistId, $appointmentDate, $appointmentTime, $appointmentId);
-        mysqli_stmt_execute($stmtCheck);
-        mysqli_stmt_store_result($stmtCheck);
-
-        if (mysqli_stmt_num_rows($stmtCheck) > 0) {
-            $errorMessage = 'Booking already exists for this dentist at the selected date and time.';
-            mysqli_stmt_close($stmtCheck);
-        } else {
-            mysqli_stmt_close($stmtCheck);
-            $stmtEdit = mysqli_prepare($conn, 'UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ?, procedure_name = ?, status = ? WHERE appointment_id = ? AND tenant_id = ?');
-            if ($stmtEdit) {
-                mysqli_stmt_bind_param($stmtEdit, 'ssissii', $appointmentDate, $appointmentTime, $dentistId, $procedureName, $status, $appointmentId, $tenantId);
-                if (mysqli_stmt_execute($stmtEdit)) {
-                    $successMessage = 'Appointment updated successfully.';
-                } else {
-                    $errorMessage = 'Unable to update appointment details.';
-                }
-                mysqli_stmt_close($stmtEdit);
-            } else {
-                $errorMessage = 'Unable to prepare appointment update statement.';
-            }
-        }
-    } else {
-        $errorMessage = 'Please provide appointment date, dentist, time, and status.';
-    }
-}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_POST['request_id'])) {
     $requestId = (int)($_POST['request_id'] ?? 0);
@@ -535,8 +498,7 @@ if ($stmtReq) {
                     <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
                     <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? '')); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
                     <td class="actions-cell">
-                      <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
-                      <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($row['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</a>
                     </td>
                   </tr>
                 <?php endwhile; ?>
@@ -567,7 +529,7 @@ if ($stmtReq) {
                     <td>Dr. <?php echo h($request['d_last'] ?? ''); ?></td>
 <td><?php echo h(formatTime12Hour($request['appointment_time'])); ?></td>
                     <td class="actions-cell">
-                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($request['d_last'] ?? '')); ?>, <?php echo json_encode(date('M d, Y', strtotime($request['appointment_date']))); ?>, <?php echo json_encode(formatTime12Hour($request['appointment_time'])); ?>)">View</a>
+                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($request['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode(date('M d, Y', strtotime($request['appointment_date']))), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode(formatTime12Hour($request['appointment_time'])), ENT_QUOTES, 'UTF-8'); ?>)">View</a>
                       <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'approve')">Approve</a>
                       <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'disapprove')">Disapprove</a>
                     </td>
@@ -660,56 +622,6 @@ if ($stmtReq) {
     </div>
   </div>
 
-  <!-- Edit Appointment Modal -->
-  <div id="editModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Edit Appointment</h3>
-        <button class="modal-close" type="button" onclick="closeEditModal()">&times;</button>
-      </div>
-      <form method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
-        <input type="hidden" id="edit_id" name="edit_id" value="">
-        <div class="form-group">
-          <label>Appointment</label>
-          <input type="text" id="editAppointmentInfo" readonly>
-        </div>
-        <div class="form-group">
-          <label for="edit_date">Appointment Date</label>
-          <input type="date" id="edit_date" name="edit_date" required>
-        </div>
-        <div class="form-group">
-          <label for="edit_time">Appointment Time</label>
-          <input type="time" id="edit_time" name="edit_time" required>
-        </div>
-        <div class="form-group">
-          <label for="edit_dentist_id">Dentist</label>
-          <select id="edit_dentist_id" name="edit_dentist_id" required>
-            <option value="">Select dentist</option>
-            <?php foreach ($dentists as $dentist): ?>
-              <option value="<?php echo (int)$dentist['dentist_id']; ?>"><?php echo h('Dr. ' . $dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit_procedure_name">Procedure</label>
-          <input type="text" id="edit_procedure_name" name="edit_procedure_name" placeholder="Cleaning, Filling, Root Canal" autocomplete="off">
-        </div>
-        <div class="form-group">
-          <label for="edit_status">Status</label>
-          <select id="edit_status" name="edit_status" required>
-            <option value="">Select status</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
-          <button type="submit" class="btn-primary" name="edit_appointment">Save Changes</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- View Request Modal -->
   <div id="requestViewModal" class="modal">
@@ -919,32 +831,13 @@ if ($stmtReq) {
       document.getElementById('manageModal').classList.remove('active');
     }
 
-    function openEditModal(id, patientName, dentistName, appointmentDate, appointmentTime, procedureName, status, dentistId) {
-      document.getElementById('edit_id').value = id;
-      document.getElementById('editAppointmentInfo').value = patientName + ' with ' + dentistName;
-      document.getElementById('edit_date').value = appointmentDate;
-      document.getElementById('edit_time').value = appointmentTime;
-      document.getElementById('edit_procedure_name').value = procedureName;
-      document.getElementById('edit_status').value = status;
-      const dentistSelect = document.getElementById('edit_dentist_id');
-      if (dentistSelect) {
-        dentistSelect.value = dentistId;
-      }
-      document.getElementById('editModal').classList.add('active');
-    }
-
-    function closeEditModal() {
-      document.getElementById('editModal').classList.remove('active');
-    }
 
     window.addEventListener('click', function(event) {
       const scheduleModal = document.getElementById('scheduleModal');
       const manageModal = document.getElementById('manageModal');
-      const editModal = document.getElementById('editModal');
       const requestViewModal = document.getElementById('requestViewModal');
       if (event.target === scheduleModal) closeScheduleModal();
       if (event.target === manageModal) closeManageModal();
-      if (event.target === editModal) closeEditModal();
       if (event.target === requestViewModal) closeRequestViewModal();
     });
     
