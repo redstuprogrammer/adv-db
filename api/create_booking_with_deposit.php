@@ -57,6 +57,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
+date_default_timezone_set('Asia/Manila');
 
 if (!isset($conn) || !$conn || $conn->connect_error) {
     http_response_code(500);
@@ -99,9 +100,9 @@ if (strtotime($appointment_date) < strtotime(date('Y-m-d'))) {
 
 if ($appointment_date === date('Y-m-d')) {
     $slot_ts    = strtotime($appointment_date . ' ' . $appointment_time);
-    $min_allowed = time() + (2 * 60 * 60);
+    $min_allowed = time() + (1 * 60 * 60);
     if ($slot_ts < $min_allowed) {
-        echo json_encode(['success' => false, 'message' => 'Same-day bookings must be at least 2 hours from now.']);
+        echo json_encode(['success' => false, 'message' => 'Same-day bookings must be at least 1 hour from now.']);
         exit;
     }
 }

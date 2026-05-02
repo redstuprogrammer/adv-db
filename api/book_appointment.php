@@ -17,6 +17,8 @@
 // service_id is intentionally NULL — assigned by staff on web portal.
 // ============================================================
 
+date_default_timezone_set('Asia/Manila');
+
 // Catch fatal errors (e.g. calling method on false from a failed prepare())
 register_shutdown_function(function () {
     $error = error_get_last();
@@ -41,7 +43,6 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
-require_once __DIR__ . '/../includes/subscription_tiers.php';
 
 // Guard: DB connection
 if (!isset($conn) || !$conn || $conn->connect_error) {
@@ -76,20 +77,6 @@ if (!$patient_id || !$tenant_id || !$dentist_id || !$appointment_date || !$appoi
     exit;
 }
 
-// Feature gate: appointment scheduling must be enabled for this tenant tier.
-$tierStmt = $conn->prepare("SELECT subscription_tier FROM tenants WHERE tenant_id = ? LIMIT 1");
-if ($tierStmt) {
-    $tierStmt->bind_param("i", $tenant_id);
-    $tierStmt->execute();
-    $tierRow = $tierStmt->get_result()->fetch_assoc();
-    $tierStmt->close();
-    $tierKey = (string)($tierRow['subscription_tier'] ?? '');
-    if ($tierKey === '' || !tierHasFeature($tierKey, 'appointment_scheduling')) {
-        echo json_encode(['success' => false, 'message' => 'Appointment scheduling is not available for this subscription plan.']);
-        exit;
-    }
-}
-
 // Validate date format
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $appointment_date)) {
     echo json_encode(['success' => false, 'message' => 'appointment_date must be YYYY-MM-DD']);
@@ -105,11 +92,11 @@ if (strtotime($appointment_date) < strtotime(date('Y-m-d'))) {
 // Validate time is at least 2 hours from now if booking same day
 if ($appointment_date === date('Y-m-d')) {
     $slot_timestamp = strtotime($appointment_date . ' ' . $appointment_time);
-    $min_allowed    = time() + (2 * 60 * 60);
+    $min_allowed    = time() + (1 * 60 * 60);
     if ($slot_timestamp < $min_allowed) {
         echo json_encode([
             'success' => false,
-            'message' => 'Same-day bookings must be at least 2 hours from now.'
+            'message' => 'Same-day bookings must be at least 1 hour from now.'
         ]);
         exit;
     }
