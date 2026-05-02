@@ -4,13 +4,27 @@ require_once __DIR__ . '/vendor/tecnickcom/tcpdf/tcpdf.php';
 
 use Jenssegers\Blade\Blade;
 use HeadlessChromium\BrowserFactory;
+use Illuminate\Container\Container;
 
 class OralSyncPDFGenerator {
     private $blade;
     private $pdf;
 
     public function __construct() {
-        $this->blade = new Blade(__DIR__ . '/views', __DIR__ . '/cache');
+        // Ensure TCPDF constants are defined to avoid errors in some environments
+        if (!defined('PDF_FONT_NAME_MAIN')) define('PDF_FONT_NAME_MAIN', 'helvetica');
+        if (!defined('PDF_FONT_SIZE_MAIN')) define('PDF_FONT_SIZE_MAIN', 10);
+        if (!defined('PDF_FONT_NAME_DATA')) define('PDF_FONT_NAME_DATA', 'helvetica');
+        if (!defined('PDF_FONT_SIZE_DATA')) define('PDF_FONT_SIZE_DATA', 8);
+        if (!defined('PDF_FONT_MONOSPACED')) define('PDF_FONT_MONOSPACED', 'courier');
+
+        // Create a dedicated container for Blade and set it as the global instance
+        // This is required because illuminate/view v11+ uses Container::getInstance() 
+        // internally, which jenssegers/blade v2 doesn't automatically set.
+        $container = new \Jenssegers\Blade\Container;
+        Container::setInstance($container);
+
+        $this->blade = new Blade(__DIR__ . '/views', __DIR__ . '/cache', $container);
         $this->pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $this->setupPDF();
     }

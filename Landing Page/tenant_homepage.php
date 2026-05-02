@@ -54,6 +54,20 @@ if ($tenant) {
         $schedule[$row['day_of_week']] = $row;
     }
     $stmtSched->close();
+
+    // If no schedule set, provide sensible defaults (Mon-Fri 9-5, Sat 9-1, Sun Closed)
+    if (empty($schedule)) {
+        $defaultHours = [
+            'Monday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+            'Tuesday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+            'Wednesday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+            'Thursday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+            'Friday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+            'Saturday' => ['is_closed' => 0, 'opening_time' => '09:00:00', 'closing_time' => '13:00:00'],
+            'Sunday' => ['is_closed' => 1, 'opening_time' => '09:00:00', 'closing_time' => '17:00:00'],
+        ];
+        $schedule = $defaultHours;
+    }
 } else {
     // Fallback if tenant not found
     $clinic = [

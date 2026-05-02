@@ -333,6 +333,26 @@ try {
                     }
                 }
             }
+            
+            // 5. Initialize Default Clinic Schedule
+            $defaultScheds = [
+                ['Monday', '09:00:00', '17:00:00', 0],
+                ['Tuesday', '09:00:00', '17:00:00', 0],
+                ['Wednesday', '09:00:00', '17:00:00', 0],
+                ['Thursday', '09:00:00', '17:00:00', 0],
+                ['Friday', '09:00:00', '17:00:00', 0],
+                ['Saturday', '09:00:00', '13:00:00', 0],
+                ['Sunday', '09:00:00', '17:00:00', 1]
+            ];
+            $schedSql = "INSERT INTO clinic_schedules (tenant_id, day_of_week, opening_time, closing_time, is_closed) VALUES (?, ?, ?, ?, ?)";
+            $schedStmt = mysqli_prepare($conn, $schedSql);
+            if ($schedStmt) {
+                foreach ($defaultScheds as $ds) {
+                    mysqli_stmt_bind_param($schedStmt, "isssi", $new_id, $ds[0], $ds[1], $ds[2], $ds[3]);
+                    mysqli_stmt_execute($schedStmt);
+                }
+                mysqli_stmt_close($schedStmt);
+            }
         } else {
             throw new Exception("Database error: " . mysqli_error($conn));
         }

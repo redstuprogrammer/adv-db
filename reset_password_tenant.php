@@ -46,6 +46,7 @@ $type = trim((string)($_GET['type'] ?? 'tenant')); // 'tenant' or 'user'
 $message = '';
 $isError = false;
 $tokenValid = false;
+$resetSuccess = false;
 
 // Verify token
 if ($token && $id) {
@@ -166,12 +167,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
                     }
                 }
 
-                $message = 'Password reset successfully! You can now log in with your new password.';
+                // Get tenant slug for better redirect
+                $redirectSlug = '';
+                if ($type === 'tenant') {
+                    $slugStmt = mysqli_prepare($conn, "SELECT subdomain_slug FROM tenants WHERE tenant_id = ? LIMIT 1");
+                } else {
+                    $slugStmt = mysqli_prepare($conn, "SELECT t.subdomain_slug FROM tenants t JOIN users u ON t.tenant_id = u.tenant_id WHERE u.user_id = ? LIMIT 1");
+                }
+                
+                if ($slugStmt) {
+                    mysqli_stmt_bind_param($slugStmt, "i", $id);
+                    mysqli_stmt_execute($slugStmt);
+                    $slugRes = mysqli_stmt_get_result($slugStmt);
+                    $slugRow = mysqli_fetch_assoc($slugRes);
+                    $redirectSlug = $slugRow['subdomain_slug'] ?? '';
+                    mysqli_stmt_close($slugStmt);
+                }
+
+                $message = 'Password reset successfully! Redirecting you to the login page...';
                 $isError = false;
                 $tokenValid = false; // Prevent further resets
+                $resetSuccess = true;
                 
                 // Redirect to login
-                $loginUrl = 'tenant_login.php';
+                $loginUrl = 'tenant_login.php' . ($redirectSlug ? '?tenant=' . urlencode($redirectSlug) : '');
                 header("Refresh: 3; url=$loginUrl");
             } else {
                 $message = 'An error occurred. Please try again.';
@@ -197,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
                 <h1 class="t-cardTitle">Reset Password</h1>
                 <div class="t-cardSub">Create a new password for your clinic account.</div>
 
-                <?php if (!$tokenValid): ?>
+                <?php if (!$tokenValid && !$resetSuccess): ?>
                     <div style="padding: 12px; border-radius: 8px; margin-top: 12px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 13px;">
                         This password reset link is invalid or has expired. Please request a new one.
                     </div>
@@ -226,5 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
             </section>
         </div>
     </div>
+    <?php if ($resetSuccess): ?>
+    <script>
+        alert("Password reset successfully! You will be redirected to the login page.");
+        window.location.href = "<?php echo $loginUrl; ?>";
+    </script>
+    <?php endif; ?>
 </body>
 </html>

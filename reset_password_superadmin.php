@@ -37,7 +37,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("UPDATE super_admins SET password_hash = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE id = ?");
                 $stmt->execute([$hashed_password, $admin['id']]);
 
-                $success = 'Password reset successfully! You can now log in with your new password.';
+                $success = 'Password reset successfully! Redirecting you to the login page...';
+                header("Refresh: 3; url=superadmin_login.php");
             }
         } catch (Exception $e) {
             $error = 'Database error occurred. Please try again.';
@@ -190,6 +191,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
     </div>
+    <?php if ($success): ?>
+    <script>
+        alert("Password reset successfully! You will be redirected to the login page.");
+        window.location.href = "superadmin_login.php";
+    </script>
+    <?php endif; ?>
 
     <script>
         // Real-time password match validation
