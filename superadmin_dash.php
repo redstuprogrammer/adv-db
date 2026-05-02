@@ -1137,9 +1137,13 @@ try {
         const totals = data.length;
         const active = data.filter(t => (t.status || '').toLowerCase() === 'active').length;
         const inactive = totals - active;
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const newMonth = data.filter(t => new Date(t.created_at) >= monthAgo).length;
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const newMonth = data.filter(t => {
+            const d = new Date(t.created_at);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
 
         document.getElementById('kpi-total').textContent = totals;
         document.getElementById('kpi-active').textContent = active;

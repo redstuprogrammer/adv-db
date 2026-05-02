@@ -31,16 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
             setSetting('logo_path', '');
-            setSetting('max_tenants', '');
-            setSetting('max_users_per_tenant', '');
-            setSetting('storage_limit', '');
+
+
             $message = "Settings reset to defaults!";
         } else {
             // Save settings
             setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
-            setSetting('max_tenants', $_POST['max_tenants'] ?? '');
-            setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
-            setSetting('storage_limit', $_POST['storage_limit'] ?? '');
+
+
 
             // Handle logo upload
             if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
@@ -372,28 +370,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </table>
                 </div>
                 
-                <!-- Platform-wide Settings -->
-                <div style="border-top: 1px solid var(--sa-border); padding-top: 20px;">
-                    <h4 style="color: #0d3b66; margin-bottom: 15px;">Platform-wide Constraints</h4>
-                    <div class="sa-form-grid">
-                        <div class="sa-form-group">
-                            <label for="max_tenants">Maximum Active Tenants</label>
-                            <input type="number" id="max_tenants" name="max_tenants" value="<?php echo htmlspecialchars($currentSettings['max_tenants'] ?? ''); ?>" placeholder="Leave empty for unlimited">
-                            <div class="sa-note">Limits the total number of active tenant subscriptions on the platform</div>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="max_users_per_tenant">Maximum Users per Tenant (Override)</label>
-                            <input type="number" id="max_users_per_tenant" name="max_users_per_tenant" value="<?php echo htmlspecialchars($currentSettings['max_users_per_tenant'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
-                            <div class="sa-note">If set, overrides tier limits for all tenants</div>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="storage_limit">Storage Limit Override (GB)</label>
-                            <input type="number" id="storage_limit" name="storage_limit" value="<?php echo htmlspecialchars($currentSettings['storage_limit'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
-                            <div class="sa-note">If set, overrides tier-based storage limits</div>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
+
 
             <!-- User Roles and Permissions -->
             <div class="sa-card settings-section">
@@ -591,10 +570,8 @@ function resetSettings() {
                 .then(data => {
                     // Update UI to show defaults
                     document.getElementById('system_name').value = 'OralSync';
-                    document.getElementById('max_tenants').value = '';
-                    document.getElementById('max_users_per_tenant').value = '';
-                    document.getElementById('storage_limit').value = '';
                     document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+
                     // Clear file input
                     document.getElementById('logo').value = '';
                     // Reload to reflect changes

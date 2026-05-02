@@ -94,18 +94,15 @@ HTML;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_sa'])) {
     $email = trim((string)($_POST['email'] ?? ''));
     $username = $email; // Default username to email
-    $password = (string)($_POST['password'] ?? '');
-    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
 
-    if ($email === '' || $password === '' || $confirmPassword === '') {
+    if ($email === '') {
         $error = 'Please fill in all fields.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Please enter a valid email address.';
-    } elseif ($password !== $confirmPassword) {
-        $error = 'Passwords do not match.';
-    } elseif (strlen($password) < 8) {
-        $error = 'Password must be at least 8 characters long.';
     } else {
+        // Generate a random temporary password
+        $password = bin2hex(random_bytes(6)); // 12 character random hex string
+
         // Check if email already exists
         $stmt2 = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE email = ? OR username = ? LIMIT 1");
         mysqli_stmt_bind_param($stmt2, "ss", $email, $username);
@@ -397,15 +394,9 @@ if ($currentAdminId) {
                     <div class="sa-form-group">
                         <label for="email">Email</label>
                         <input id="email" name="email" type="email" required placeholder="Will also be used as username" />
+                        <p style="font-size: 0.75rem; color: var(--sa-muted); margin-top: 4px;">A temporary password will be auto-generated and sent to this email.</p>
                     </div>
-                    <div class="sa-form-group">
-                        <label for="password">Temporary Password</label>
-                        <input id="password" name="password" type="password" required minlength="8" />
-                    </div>
-                    <div class="sa-form-group">
-                        <label for="confirm_password">Confirm Password</label>
-                        <input id="confirm_password" name="confirm_password" type="password" required minlength="8" />
-                    </div>
+
                 </div>
                 <div class="sa-form-actions">
                     <button class="sa-btn" type="submit" name="create_sa">Create Account</button>
