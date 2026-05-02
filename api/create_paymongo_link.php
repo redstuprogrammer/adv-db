@@ -3,9 +3,38 @@
 // FILE TYPE: API ENDPOINT
 // PATH on server: /api/create_paymongo_link.php
 // ============================================================
-// FIX: Added session_id to success_url so mobile app can use
-//      it directly without relying on the stored param.
+// FIXES:
+//   1. Added ob_start() + register_shutdown_function to catch
+//      silent PHP fatal errors that were causing HTTP 500
+//      with empty body (Azure kills the process on timeout,
+//      nothing gets sent back to the mobile app).
+//   2. Added CURLOPT_TIMEOUT + CURLOPT_CONNECTTIMEOUT so a
+//      slow PayMongo response doesn't hang until PHP's
+//      execution limit kills the script.
+//   3. Added set_time_limit(60) for safety on Azure.
+//   4. Added CURLOPT_SSL_VERIFYPEER = true (explicit, safer).
 // ============================================================
+
+ob_start(); // Buffer all output so shutdown handler can clean up
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_clean();
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Internal server error. Please try again.',
+            'debug'   => $error['message'],
+            'file'    => basename($error['file']),
+            'line'    => $error['line'],
+        ]);
+    }
+    ob_end_flush();
+});
+
+set_time_limit(60);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -48,16 +77,13 @@ $amount_centavos  = (int) round($amount * 100);
 
 $base_url = 'https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/api';
 
-// NOTE: session_id is appended AFTER we get it from PayMongo below.
-// Build base URLs first; we'll append session_id after the API call.
-$success_base = $base_url . '/payment_return.php?status=success'
+$success_url_temp = $base_url . '/payment_return.php?status=success'
     . '&ref='     . urlencode($reference_number)
-    . '&bill_id=' . intval($billing_id);
-$failed_url = $base_url . '/payment_return.php?status=failed'
-    . '&ref='     . urlencode($reference_number);
+    . '&bill_id=' . intval($billing_id)
+    . '&session_id=PLACEHOLDER';
 
-// Temporary placeholder — we'll replace PLACEHOLDER after we have the session_id
-$success_url_temp = $success_base . '&session_id=PLACEHOLDER';
+$failed_url = $base_url . '/payment_return.php?status=failed'
+    . '&ref=' . urlencode($reference_number);
 
 $data = json_encode([
     'data' => [
@@ -79,12 +105,17 @@ $data = json_encode([
     ],
 ]);
 
+// ─── cURL with explicit timeouts to prevent Azure silent crash ──
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
 curl_setopt_array($ch, [
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $data,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER     => [
+    CURLOPT_POST            => true,
+    CURLOPT_POSTFIELDS      => $data,
+    CURLOPT_RETURNTRANSFER  => true,
+    CURLOPT_CONNECTTIMEOUT  => 10,   // fail fast if PayMongo unreachable
+    CURLOPT_TIMEOUT         => 30,   // max 30s for the full request
+    CURLOPT_SSL_VERIFYPEER  => true,
+    CURLOPT_SSL_VERIFYHOST  => 2,
+    CURLOPT_HTTPHEADER      => [
         'Authorization: Basic ' . $auth,
         'Content-Type: application/json',
         'Accept: application/json',
@@ -93,18 +124,28 @@ curl_setopt_array($ch, [
 
 $pm_response = curl_exec($ch);
 $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curl_errno  = curl_errno($ch);
 $curl_error  = curl_error($ch);
 curl_close($ch);
 
-if ($curl_error) {
-    echo json_encode(['success' => false, 'message' => 'cURL error: ' . $curl_error]);
+if ($curl_errno || !$pm_response) {
+    error_log("[create_paymongo_link] cURL error #{$curl_errno}: {$curl_error}");
+    // Surface a user-friendly error instead of crashing
+    echo json_encode([
+        'success' => false,
+        'message' => 'Could not reach the payment provider. Please check your internet connection and try again.',
+        'debug'   => "cURL #{$curl_errno}: {$curl_error}",
+    ]);
     exit;
 }
+
+error_log("[create_paymongo_link] PayMongo HTTP={$http_code} body=" . substr($pm_response, 0, 300));
 
 $pm_data = json_decode($pm_response, true);
 
 if ($http_code !== 200 || !isset($pm_data['data'])) {
     $pm_error = $pm_data['errors'][0]['detail'] ?? ('PayMongo returned HTTP ' . $http_code);
+    error_log("[create_paymongo_link] PayMongo error: {$pm_error}");
     echo json_encode(['success' => false, 'message' => $pm_error]);
     exit;
 }
@@ -112,18 +153,14 @@ if ($http_code !== 200 || !isset($pm_data['data'])) {
 $session_id   = $pm_data['data']['id'];
 $checkout_url = $pm_data['data']['attributes']['checkout_url'];
 
-// Now build the real success_url with actual session_id
-// We can't update the PayMongo checkout at this point, but we store it in billing
-// so the mobile can use it from params. The mobile always uses the stored sessionId.
-// This is fine — the PLACEHOLDER in the URL is ignored; mobile uses its own stored sessionId.
-
-// Store session_id + reference on billing row
+// ─── Store session_id + reference on billing row ──────────
 $upd = $conn->prepare("
     UPDATE billing
     SET paymongo_session_id = ?, reference_number = ?
     WHERE billing_id = ? AND tenant_id = ?
 ");
 if (!$upd) {
+    error_log("[create_paymongo_link] DB prepare error: " . $conn->error);
     echo json_encode(['success' => false, 'message' => 'DB prepare error: ' . $conn->error]);
     exit;
 }
@@ -133,9 +170,8 @@ $affected = $upd->affected_rows;
 $upd->close();
 $conn->close();
 
-// Log if billing row wasn't found — helps debugging
 if ($affected === 0) {
-    error_log("[create_paymongo_link] WARNING: No billing row updated. billing_id=$billing_id tenant_id=$tenant_id");
+    error_log("[create_paymongo_link] WARNING: 0 rows updated. billing_id={$billing_id} tenant_id={$tenant_id}");
 }
 
 echo json_encode([
