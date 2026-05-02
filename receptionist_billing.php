@@ -108,6 +108,8 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         /* Status Pills */
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .paid { background: #dcfce7; color: #166534; }
+        .unpaid { background: #fee2e2; color: #991b1b; }
+        .partial { background: #fef9c3; color: #854d0e; }
         .installment { background: #fef9c3; color: #854d0e; }
 
         /* Buttons */
@@ -312,9 +314,16 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             </div>
 
             <div class="form-group">
+                <label>Related Appointment <span style="color: red;">*</span></label>
+                <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
+                    <option value="">-- Choose Patient First --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label>Services (multi-select searchable)</label>
                 <div class="service-multi-input">
-                    <input type="text" id="service_input" class="service-input" placeholder="Type service name, press Enter or , to add..." />
+                    <input type="text" id="service_input" list="service-list" class="service-input" placeholder="Type service name, press Enter or , to add..." />
                     <datalist id="service-list">
                         <?php foreach ($services as $service): ?>
                             <option value="<?php echo h($service['service_name']); ?>" data-id="<?php echo (int)$service['service_id']; ?>" data-price="<?php echo (float)$service['price']; ?>">
@@ -324,13 +333,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                         <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
                     </div>
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label>Related Appointment <span style="color: red;">*</span></label>
-                <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
-                    <option value="">-- Choose Patient First --</option>
-                </select>
             </div>
 
     <input type="hidden" name="procedures_json" id="procedures_json">
@@ -348,7 +350,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                 <div id="floor-info" class="floor-info"></div>
             </div>
 
-            <input type="hidden" name="status" id="status" value="Pending">
+            <input type="hidden" name="status" id="status" value="unpaid">
 
             <button type="submit" class="add-btn-main" style="width:100%; margin-top:10px;">Save Transaction</button>
         </form>

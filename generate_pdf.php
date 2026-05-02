@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                       LEFT JOIN patient p ON a.patient_id = p.patient_id
                       LEFT JOIN service s ON a.service_id = s.service_id
-                      WHERE py.tenant_id = ? AND py.payment_status = 'Paid' $filter
+                      WHERE py.tenant_id = ? AND py.payment_status = 'paid' $filter
                       ORDER BY py.billing_date DESC";
             $stmt = $conn->prepare($query);
             $stmt->bind_param('i', $tenantId);

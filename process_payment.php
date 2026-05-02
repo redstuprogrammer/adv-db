@@ -57,7 +57,7 @@ $patient_id = (int)($_POST['patient_id'] ?? 0);
 $appointment_id = (int)($_POST['appointment_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $mode = trim($_POST['mode'] ?? '');
-$status = trim($_POST['status'] ?? 'Pending');
+$status = trim($_POST['status'] ?? 'unpaid');
 $procedures_json = trim($_POST['procedures_json'] ?? '');
 $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 
@@ -118,7 +118,7 @@ if ($totalProcedureAmount <= 0) {
     if ($depositApplied > 0) {
         $amount = round(max($amount - $depositApplied, 0), 2);
         if ($amount === 0.0 && strtolower($status) !== 'paid') {
-            $status = 'Paid';
+            $status = 'paid';
         }
     }
 }
