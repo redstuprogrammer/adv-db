@@ -11,23 +11,31 @@ if ($slug) {
     $tenant = $stmt->get_result()->fetch_assoc();
 }
 
-// Fallback to clinic_settings if tenant not found (for backward compatibility)
 if ($tenant) {
-    // We'll use tenant data, and possibly join with clinic_settings if we make it multi-tenant later
-    // For now, let's map tenant fields to the $clinic array used in the template
+    $tenantId = $tenant['tenant_id'];
+    
+    // Fetch settings from clinic_settings for this tenant
+    $stmtSet = $conn->prepare("SELECT * FROM clinic_settings WHERE tenant_id = ?");
+    $stmtSet->bind_param("i", $tenantId);
+    $stmtSet->execute();
+    $settings = $stmtSet->get_result()->fetch_assoc() ?: [];
+    $stmtSet->close();
+
+    // Map tenant fields and settings to the $clinic array
+    // Core details (name, phone, email, address) always come from 'tenants' table
     $clinic = [
         'name' => $tenant['company_name'],
-        'hero_title' => $tenant['company_name'], 
-        'hero_description' => "Welcome to " . $tenant['company_name'] . ". Professional care for your dental health.",
-        'about_description' => "Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . ".",
+        'hero_title' => $settings['hero_title'] ?? $tenant['company_name'], 
+        'hero_description' => $settings['hero_description'] ?? ("Welcome to " . $tenant['company_name'] . ". Professional care for your dental health."),
+        'about_description' => $settings['about_description'] ?? ("Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . "."),
         'contact_phone' => $tenant['phone'],
-        'contact_email' => $tenant['contact_email'] ?? '',
-        'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province']
+        'contact_email' => $tenant['contact_email'] ?? $tenant['email'] ?? 'support@oralsync.com',
+        'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province'],
+        'accent_color' => $settings['accent_color'] ?? '#004872'
     ];
 
     // Fetch clinic schedule for this tenant
     $schedule = [];
-    $tenantId = $tenant['tenant_id'];
     $stmtSched = $conn->prepare("SELECT day_of_week, is_closed, opening_time, closing_time FROM clinic_schedules WHERE tenant_id = ?");
     $stmtSched->bind_param("i", $tenantId);
     $stmtSched->execute();
@@ -36,11 +44,18 @@ if ($tenant) {
         $schedule[$row['day_of_week']] = $row;
     }
     $stmtSched->close();
-    
-    // Check if there are specific settings in clinic_settings for this tenant_id
-    // (Assuming we might add tenant_id to clinic_settings soon)
 } else {
-    $clinic = $pdo->query("SELECT * FROM clinic_settings WHERE id = 1")->fetch();
+    // Fallback if tenant not found
+    $clinic = [
+        'name' => 'Professional Dental Care',
+        'hero_title' => 'Exhale the Ordinary.',
+        'hero_description' => 'Experience a new standard of dental care where precision engineering meets a curated, calming environment.',
+        'about_description' => 'At our clinic, we believe that world-class dentistry should never feel clinical.',
+        'contact_phone' => '+1 (555) 000-0000',
+        'contact_email' => 'support@oralsync.com',
+        'contact_address' => '123 Serenity Blvd, Medical District',
+        'accent_color' => '#004872'
+    ];
 }
 ?>
 <!DOCTYPE html>
