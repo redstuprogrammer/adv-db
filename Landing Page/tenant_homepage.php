@@ -31,7 +31,17 @@ if ($tenant) {
         'contact_phone' => $tenant['phone'],
         'contact_email' => $tenant['contact_email'] ?? $tenant['email'] ?? 'support@oralsync.com',
         'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province'],
-        'accent_color' => $settings['accent_color'] ?? '#004872'
+        'accent_color' => $settings['accent_color'] ?? '#004872',
+        'badge_text' => $settings['badge_text'] ?? 'Clinical Serenity',
+        'badge_visible' => ($settings['badge_visible'] ?? '1') === '1',
+        'stat_number' => $settings['stat_number'] ?? '98%',
+        'stat_label' => $settings['stat_label'] ?? 'Patient Comfort Index',
+        'checklist_1' => $settings['checklist_1'] ?? 'Curated Acoustic Environments',
+        'checklist_2' => $settings['checklist_2'] ?? 'Bio-compatible Premium Materials',
+        'checklist_3' => $settings['checklist_3'] ?? 'Post-treatment Serenity Lounges',
+        'cta_primary' => $settings['cta_primary'] ?? 'Book Appointment',
+        'cta_secondary' => $settings['cta_secondary'] ?? 'Explore Services',
+        'footer_copyright' => $settings['footer_copyright'] ?? ("© 2024 " . $tenant['company_name'] . ". Professional Dental Serenity.")
     ];
 
     // Fetch clinic schedule for this tenant
@@ -90,7 +100,7 @@ if ($tenant) {
                     "surface": "#f8fafb",
                     "tertiary": "#304752",
                     "secondary-fixed-dim": "#66d9cc",
-                    "primary": "#004872",
+                    "primary": "<?= $clinic['accent_color'] ?>",
                     "surface-container-low": "#f2f4f5",
                     "surface-container-high": "#e6e8e9",
                     "on-primary": "#ffffff",
@@ -165,7 +175,7 @@ if ($tenant) {
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#location">Location</a>
 </div>
 <button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-6 py-2.5 rounded-full font-semibold shadow-md active:scale-95 transition-all duration-200">
-                Book Appointment
+                <?= htmlspecialchars($clinic['cta_primary']) ?>
             </button>
 </nav>
 </header>
@@ -177,10 +187,12 @@ if ($tenant) {
 </div>
 <div class="grid md:grid-cols-2 gap-12 items-center">
 <div class="space-y-8">
+<?php if ($clinic['badge_visible']): ?>
 <div class="inline-flex items-center space-x-2 bg-secondary-fixed text-on-secondary-fixed px-4 py-1.5 rounded-full">
 <span class="material-symbols-outlined text-sm">spa</span>
-<span class="text-xs font-bold uppercase tracking-widest">Clinical Serenity</span>
+<span class="text-xs font-bold uppercase tracking-widest"><?= htmlspecialchars($clinic['badge_text']) ?></span>
 </div>
+<?php endif; ?>
 <h1 class="text-5xl md:text-7xl font-extrabold text-on-surface leading-[1.1] tracking-tight">
                         <?= htmlspecialchars($clinic['hero_title'] ?? 'Exhale the <span class="text-primary">Ordinary.</span>') ?>
 </h1>
@@ -189,10 +201,10 @@ if ($tenant) {
                     </p>
 <div class="flex flex-wrap gap-4">
 <button class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
-                            Book Appointment
+                            <?= htmlspecialchars($clinic['cta_primary']) ?>
                         </button>
 <button class="border border-outline-variant/40 text-primary px-8 py-4 rounded-full font-bold hover:bg-surface-container-low transition-all">
-                            Explore Services
+                            <?= htmlspecialchars($clinic['cta_secondary']) ?>
                         </button>
 </div>
 </div>
@@ -224,15 +236,15 @@ if ($tenant) {
 <div class="space-y-4">
 <div class="flex items-center gap-4">
 <span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium">Curated Acoustic Environments</span>
+<span class="font-medium"><?= htmlspecialchars($clinic['checklist_1']) ?></span>
 </div>
 <div class="flex items-center gap-4">
 <span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium">Bio-compatible Premium Materials</span>
+<span class="font-medium"><?= htmlspecialchars($clinic['checklist_2']) ?></span>
 </div>
 <div class="flex items-center gap-4">
 <span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium">Post-treatment Serenity Lounges</span>
+<span class="font-medium"><?= htmlspecialchars($clinic['checklist_3']) ?></span>
 </div>
 </div>
 </div>
@@ -242,8 +254,8 @@ if ($tenant) {
 <img class="w-full h-full object-cover" data-alt="Abstract macro shot of clean water droplets on a mint leaf with soft focus white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g"/>
 </div>
 <div class="bg-primary p-8 rounded-2xl text-on-primary">
-<p class="text-4xl font-black mb-2">98%</p>
-<p class="text-sm font-medium uppercase tracking-widest opacity-80">Patient Comfort Index</p>
+<p class="text-4xl font-black mb-2"><?= htmlspecialchars($clinic['stat_number']) ?></p>
+<p class="text-sm font-medium uppercase tracking-widest opacity-80"><?= htmlspecialchars($clinic['stat_label']) ?></p>
 </div>
 </div>
 <div class="rounded-2xl overflow-hidden shadow-lg h-[450px]">
@@ -427,7 +439,7 @@ foreach ($daysOrder as $day):
 <a class="text-slate-500 hover:text-sky-600 transition-colors" href="#">Accessibility</a>
 </div>
 <div class="pt-8 text-slate-400 border-t border-outline-variant/20 w-full">
-                © 2024 <?= htmlspecialchars($clinic['name']) ?>. Professional Dental Serenity.
+                <?= htmlspecialchars($clinic['footer_copyright']) ?>
             </div>
 </div>
 </footer>

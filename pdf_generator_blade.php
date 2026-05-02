@@ -22,7 +22,7 @@ class OralSyncPDFGenerator {
 
 $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
 
-        $this->pdf->setFooterFont(Array(PDF_FONT_DATA, '', PDF_FONT_SIZE_DATA));
+        $this->pdf->setFooterFont(Array(PDF_FONT_NAME_DATA, '', PDF_FONT_SIZE_DATA));
 
         $this->pdf->SetDefaultMonospacedFont(PDF_FONT_MONOSPACED);
         $this->pdf->SetMargins(0, 0, 0);

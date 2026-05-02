@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $reportData = $data['data'];
+    $reportData = $data['data'] ?? [];
     $title      = $data['title'] ?? 'OralSync Report';
     $type       = $data['type'] ?? 'standard';
 
