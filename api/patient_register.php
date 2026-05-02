@@ -16,14 +16,6 @@
  */
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
 require_once '../config/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -73,6 +65,25 @@ if (strlen($password) < 8) {
 $name_parts = explode(' ', $full_name, 2);
 $first_name  = $name_parts[0];
 $last_name   = isset($name_parts[1]) ? $name_parts[1] : '';
+
+// Optional fields sent from the registration form
+$birthdate = isset($input['birthdate']) && trim($input['birthdate']) !== ''
+    ? trim($input['birthdate'])
+    : null;
+
+$gender = isset($input['gender']) && trim($input['gender']) !== ''
+    ? trim($input['gender'])
+    : null;
+
+// Validate birthdate format when provided
+if ($birthdate !== null) {
+    $d = DateTime::createFromFormat('Y-m-d', $birthdate);
+    if (!$d || $d->format('Y-m-d') !== $birthdate || $d > new DateTime()) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Invalid date of birth. Use YYYY-MM-DD and ensure it is in the past.']);
+        exit;
+    }
+}
 
 // ============================================================================
 // 2. TRANSACTION
@@ -138,13 +149,16 @@ try {
         INSERT INTO patient (
             tenant_id, first_name, last_name,
             contact_number, email, password_hash,
-            must_change_password, tenant_patient_id
-        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+            must_change_password, tenant_patient_id,
+            birthdate, gender
+        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
     ');
     $stmt->execute([
         $tenant_id, $first_name, $last_name,
         $contact_number, $email, $hashed,
         $tenant_patient_id,
+        $birthdate,
+        $gender,
     ]);
 
     $patient_id = $pdo->lastInsertId();
@@ -162,6 +176,9 @@ try {
             'email'                => $email,
             'contact_number'       => $contact_number,
             'clinic_name'          => $clinic_name,
+            'company_name'         => $clinic_name,   // ProfileScreen reads company_name
+            'birthdate'            => $birthdate,
+            'gender'               => $gender,
             'must_change_password' => 0,
         ]
     ]);
