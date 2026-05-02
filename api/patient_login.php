@@ -47,6 +47,12 @@ try {
             TRIM(email)          AS email,
             username,
             contact_number,
+            address,
+            birthdate,
+            gender,
+            occupation,
+            allergies,
+            medical_history,
             password_hash,
             must_change_password
         FROM patient
@@ -85,7 +91,13 @@ try {
             'email'                => $patient['email'],
             'username'             => $patient['username'],
             'contact_number'       => $patient['contact_number'],
-            'company_name'          => $tenant['company_name'] ?? '',
+            'address'              => $patient['address'],
+            'birthdate'            => $patient['birthdate'],
+            'gender'               => $patient['gender'],
+            'occupation'           => $patient['occupation'],
+            'allergies'            => $patient['allergies'],
+            'medical_history'      => $patient['medical_history'],
+            'company_name'         => $tenant['company_name'] ?? '',
             'must_change_password' => (int) $patient['must_change_password'],
         ]
     ]);
