@@ -3,19 +3,8 @@
 // FILE TYPE: API ENDPOINT
 // PATH on server: /api/create_paymongo_link.php
 // ============================================================
-// FIXES:
-//   1. Added ob_start() + register_shutdown_function to catch
-//      silent PHP fatal errors that were causing HTTP 500
-//      with empty body (Azure kills the process on timeout,
-//      nothing gets sent back to the mobile app).
-//   2. Added CURLOPT_TIMEOUT + CURLOPT_CONNECTTIMEOUT so a
-//      slow PayMongo response doesn't hang until PHP's
-//      execution limit kills the script.
-//   3. Added set_time_limit(60) for safety on Azure.
-//   4. Added CURLOPT_SSL_VERIFYPEER = true (explicit, safer).
-// ============================================================
 
-ob_start(); // Buffer all output so shutdown handler can clean up
+ob_start();
 
 register_shutdown_function(function () {
     $error = error_get_last();
@@ -42,11 +31,39 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
-require_once __DIR__ . '/../connect.php';
+
+// ─── Robust connect.php loader ─────────────────────────────
+// Azure App Service can resolve __DIR__ differently based on
+// deployment method. Try all known locations.
+$connect_candidates = [
+    __DIR__ . '/../connect.php',                 // standard: /api/../connect.php
+    dirname(__DIR__) . '/connect.php',            // same, explicit
+    __DIR__ . '/connect.php',                     // flat layout: api/connect.php
+    $_SERVER['DOCUMENT_ROOT'] . '/connect.php',  // from web root
+];
+
+$connect_loaded = false;
+foreach ($connect_candidates as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $connect_loaded = true;
+        break;
+    }
+}
+
+if (!$connect_loaded) {
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Server configuration error: connect.php not found.',
+        'debug'   => 'Tried: ' . implode(' | ', $connect_candidates),
+    ]);
+    exit;
+}
 
 if (!isset($conn) || !$conn || $conn->connect_error) {
     http_response_code(503);
-    echo json_encode(['success' => false, 'message' => 'Database connection failed.']);
+    echo json_encode(['success' => false, 'message' => 'Database connection failed: ' . ($conn->connect_error ?? 'null')]);
     exit;
 }
 
@@ -68,9 +85,28 @@ if (!$tenant_id || !$billing_id || !$patient_id || $amount === null) {
     exit;
 }
 
-$pm_config = require_once __DIR__ . '/../config/paymongo.php';
-$secret    = $pm_config['secret_key'] ?? '';
-$auth      = base64_encode($secret . ':');
+// ─── Robust config loader ──────────────────────────────────
+$pm_config = null;
+$config_candidates = [
+    __DIR__ . '/../config/paymongo.php',
+    dirname(__DIR__) . '/config/paymongo.php',
+    $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
+];
+
+foreach ($config_candidates as $path) {
+    if (file_exists($path)) {
+        $pm_config = require $path;
+        break;
+    }
+}
+
+$secret = $pm_config['secret_key'] ?? getenv('PAYMONGO_SECRET_KEY') ?? '';
+$auth   = base64_encode($secret . ':');
+
+if (!$secret) {
+    echo json_encode(['success' => false, 'message' => 'Server configuration error: PayMongo secret not found.']);
+    exit;
+}
 
 $reference_number = 'MOB-' . $patient_id . '-' . time();
 $amount_centavos  = (int) round($amount * 100);
@@ -105,17 +141,16 @@ $data = json_encode([
     ],
 ]);
 
-// ─── cURL with explicit timeouts to prevent Azure silent crash ──
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
 curl_setopt_array($ch, [
-    CURLOPT_POST            => true,
-    CURLOPT_POSTFIELDS      => $data,
-    CURLOPT_RETURNTRANSFER  => true,
-    CURLOPT_CONNECTTIMEOUT  => 10,   // fail fast if PayMongo unreachable
-    CURLOPT_TIMEOUT         => 30,   // max 30s for the full request
-    CURLOPT_SSL_VERIFYPEER  => true,
-    CURLOPT_SSL_VERIFYHOST  => 2,
-    CURLOPT_HTTPHEADER      => [
+    CURLOPT_POST           => true,
+    CURLOPT_POSTFIELDS     => $data,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 10,
+    CURLOPT_TIMEOUT        => 30,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
+    CURLOPT_HTTPHEADER     => [
         'Authorization: Basic ' . $auth,
         'Content-Type: application/json',
         'Accept: application/json',
@@ -130,10 +165,9 @@ curl_close($ch);
 
 if ($curl_errno || !$pm_response) {
     error_log("[create_paymongo_link] cURL error #{$curl_errno}: {$curl_error}");
-    // Surface a user-friendly error instead of crashing
     echo json_encode([
         'success' => false,
-        'message' => 'Could not reach the payment provider. Please check your internet connection and try again.',
+        'message' => 'Could not reach the payment provider. Please try again.',
         'debug'   => "cURL #{$curl_errno}: {$curl_error}",
     ]);
     exit;
@@ -153,7 +187,6 @@ if ($http_code !== 200 || !isset($pm_data['data'])) {
 $session_id   = $pm_data['data']['id'];
 $checkout_url = $pm_data['data']['attributes']['checkout_url'];
 
-// ─── Store session_id + reference on billing row ──────────
 $upd = $conn->prepare("
     UPDATE billing
     SET paymongo_session_id = ?, reference_number = ?
