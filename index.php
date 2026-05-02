@@ -1,4 +1,6 @@
 <?php
+echo date_default_timezone_get();
+
 if (!ob_get_level()) ob_start();
 define('ROOT_PATH', __DIR__ . '/');
 if (session_status() === PHP_SESSION_NONE) {
