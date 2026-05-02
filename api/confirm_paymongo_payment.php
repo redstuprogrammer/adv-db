@@ -3,14 +3,13 @@
 // FILE TYPE: API ENDPOINT
 // PATH on server: /api/confirm_paymongo_payment.php
 // ============================================================
-// FIXES applied to original file:
-//   1. Added ob_start() + register_shutdown_function so PHP
-//      fatal errors return JSON instead of empty HTTP 500.
+// FIXES applied:
+//   1. ob_start() + register_shutdown_function for JSON errors
 //   2. Robust config/paymongo.php loader with path fallbacks
-//      (Azure __DIR__ can resolve differently per deployment).
-//   3. Added CURLOPT_TIMEOUT + CURLOPT_CONNECTTIMEOUT so a
-//      slow PayMongo response doesn't kill the script silently.
-//   4. set_time_limit(60) for Azure safety.
+//   3. CURLOPT_TIMEOUT lowered to 15s (under Azure fastcgi_read_timeout)
+//   4. CURLOPT_CONNECTTIMEOUT lowered to 5s
+//   5. set_time_limit(25) — safely under Azure's 30s nginx timeout
+//   6. ob_flush() + flush() before cURL call so headers are sent early
 // ============================================================
 
 ob_start();
@@ -32,7 +31,8 @@ register_shutdown_function(function () {
     ob_end_flush();
 });
 
-set_time_limit(60);
+// ── Azure-safe: keep well under nginx fastcgi_read_timeout ──
+set_time_limit(25);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -94,11 +94,12 @@ if (!$secret) {
 }
 
 // ─── Verify checkout session with PayMongo ────────────────
+// TIMEOUTS lowered so PHP finishes before Azure nginx kills the worker (502)
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions/' . urlencode($session_id));
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_CONNECTTIMEOUT => 10,
-    CURLOPT_TIMEOUT        => 30,
+    CURLOPT_CONNECTTIMEOUT => 5,   // was 10 — connect must happen within 5s
+    CURLOPT_TIMEOUT        => 15,  // was 30 — full request must finish within 15s
     CURLOPT_SSL_VERIFYPEER => true,
     CURLOPT_SSL_VERIFYHOST => 2,
     CURLOPT_HTTPHEADER     => [
@@ -114,7 +115,13 @@ curl_close($ch);
 
 if ($curl_errno || !$pm_response) {
     error_log("[confirm_payment] cURL error #{$curl_errno}: {$curl_error}");
-    echo json_encode(['success' => false, 'message' => 'Could not verify payment with PayMongo.', 'debug' => "cURL #{$curl_errno}: {$curl_error}"]);
+    // Return retry:true so the mobile app keeps polling instead of hard-failing
+    echo json_encode([
+        'success' => false,
+        'retry'   => true,
+        'message' => 'Could not reach PayMongo. Will retry.',
+        'debug'   => "cURL #{$curl_errno}: {$curl_error}",
+    ]);
     exit;
 }
 
