@@ -20,6 +20,8 @@ $session_id = $data['data']['attributes']['data']['id'];
 
 // 2. Process only the 'paid' event
 if ($event_type === 'checkout_session.payment.paid') {
+    require_once __DIR__ . '/includes/onboarding_utils.php';
+    
     try {
         $payment_id_final = $session_obj['payments'][0]['id'] ?? 'LIVE_PAYMENT';
         
@@ -27,6 +29,8 @@ if ($event_type === 'checkout_session.payment.paid') {
         $metadata = $session_obj['metadata'] ?? [];
         $tenant_id = $metadata['tenant_id'] ?? null;
         $tier_key = $metadata['tier_key'] ?? null;
+        $type = $metadata['type'] ?? 'renewal';
+        $duration = (int)($metadata['duration'] ?? 12);
         $amount_paid = $session_obj['line_items'][0]['amount'] / 100;
 
         if ($tenant_id) {
@@ -39,8 +43,44 @@ if ($event_type === 'checkout_session.payment.paid') {
             $stmt_pay->bind_param("ss", $payment_id_final, $session_id);
             $stmt_pay->execute();
 
-            // B. Update Tenant Subscription
-            if ($tier_key) {
+            // B. Handle Initial Registration vs Renewal
+            if ($type === 'initial_registration') {
+                // Generate a new temporary password for onboarding
+                $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
+                $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
+
+                // Update Tenant Status and Password
+                $sql_tenant = "UPDATE tenants 
+                               SET subscription_tier = ?, 
+                                   subscription_start_date = NOW(),
+                                   password = ?,
+                                   status = 'active'
+                               WHERE tenant_id = ?";
+                $stmt_tenant = $conn->prepare($sql_tenant);
+                $stmt_tenant->bind_param("ssi", $tier_key, $hashed_password, $tenant_id);
+                $stmt_tenant->execute();
+
+                // Fetch tenant info for email
+                $sql_info = "SELECT company_name, owner_name, contact_email, subdomain_slug FROM tenants WHERE tenant_id = ?";
+                $stmt_info = $conn->prepare($sql_info);
+                $stmt_info->bind_param("i", $tenant_id);
+                $stmt_info->execute();
+                $tenant = $stmt_info->get_result()->fetch_assoc();
+
+                if ($tenant) {
+                    $login_url = buildTenantLoginUrl($tenant['subdomain_slug']);
+                    sendTenantOnboardingEmail([
+                        'clinic_name' => $tenant['company_name'],
+                        'owner_name' => $tenant['owner_name'],
+                        'owner_email' => $tenant['contact_email'],
+                        'temp_password' => $temp_password,
+                        'login_url' => $login_url
+                    ]);
+                }
+                error_log("Registration Success: Tenant $tenant_id activated via Webhook");
+
+            } else {
+                // RENEWAL logic
                 $sql_tenant = "UPDATE tenants 
                                SET subscription_tier = ?, 
                                    subscription_start_date = NOW(),
@@ -50,7 +90,7 @@ if ($event_type === 'checkout_session.payment.paid') {
                 $stmt_tenant->bind_param("si", $tier_key, $tenant_id);
                 $stmt_tenant->execute();
 
-                // C. Log Revenue (Match with payment table)
+                // Log Revenue for Renewal
                 $procedures_json = json_encode([
                     'item' => 'Subscription Renewal',
                     'tier' => $tier_key,
@@ -65,7 +105,7 @@ if ($event_type === 'checkout_session.payment.paid') {
                 $stmt_rev->execute();
             }
 
-            error_log("Subscription Success: Tenant $tenant_id, Session $session_id");
+            error_log("Payment Processed: Tenant $tenant_id, Session $session_id, Type $type");
         }
 
     } catch (Exception $e) {

@@ -159,21 +159,16 @@ try {
 
     mysqli_stmt_close($stmt);
 
-    // If payment status is 'Paid', update appointment status to 'Completed'
-    if (strtolower($status) === 'paid') {
-        $update_status_sql = "UPDATE appointment SET status = 'Completed' WHERE appointment_id = ? AND tenant_id = ?";
+    // If manual status update is requested
+    $target_appt_status = trim($_POST['update_appt_status'] ?? '');
+    if ($target_appt_status !== '' && $appointment_id > 0) {
+        $update_status_sql = "UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?";
         $stmt3 = mysqli_prepare($conn, $update_status_sql);
-        if (!$stmt3) {
-            throw new Exception("Failed to prepare status update: " . mysqli_error($conn));
+        if ($stmt3) {
+            mysqli_stmt_bind_param($stmt3, "sii", $target_appt_status, $appointment_id, $tenantId);
+            mysqli_stmt_execute($stmt3);
+            mysqli_stmt_close($stmt3);
         }
-
-        mysqli_stmt_bind_param($stmt3, "ii", $appointment_id, $tenantId);
-
-        if (!mysqli_stmt_execute($stmt3)) {
-            throw new Exception("Failed to update appointment status: " . mysqli_stmt_error($stmt3));
-        }
-
-        mysqli_stmt_close($stmt3);
     }
 
     // Commit transaction

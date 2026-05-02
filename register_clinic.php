@@ -11,160 +11,8 @@ $response = [
     'message' => 'An unexpected error occurred.'
 ];
 
-function envOrNull(string $key): ?string {
-    $val = getenv($key);
-    if ($val === false || $val === null || $val === '') {
-        if (isset($_ENV[$key])) $val = (string)$_ENV[$key];
-        else if (isset($_SERVER[$key])) $val = (string)$_SERVER[$key];
-        else $val = null;
-    }
-    if ($val === null) return null;
-    $val = trim((string)$val);
-    return $val === '' ? null : $val;
-}
+require_once __DIR__ . '/includes/onboarding_utils.php';
 
-function buildTenantLoginUrl(string $slug): string {
-    $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
-    $scheme = (strtolower($forwardedProto) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    
-    // Get base path
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $scriptName = str_replace('\\', '/', $scriptName);
-    $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
-    $base = ($dir === '' || $dir === '.') ? '' : $dir;
-    
-    // Build full URL
-    $url = $scheme . '://' . $host;
-    if ($base !== '') {
-        $url .= $base;
-    }
-    $url .= '/tenant_login.php?tenant=' . rawurlencode($slug);
-    
-    return $url;
-}
-
-function sendTenantOnboardingEmail(array $params): array {
-    $smtpHost = envOrNull('SMTP_HOST');
-    $smtpPort = envOrNull('SMTP_PORT');
-    $smtpUser = envOrNull('SMTP_USERNAME');
-    $smtpPass = envOrNull('SMTP_PASSWORD');
-    $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
-    $fromName = envOrNull('SMTP_FROM_NAME') ?? 'OralSync';
-
-    // TEMPORARY FIX: Skip email sending if SMTP not configured
-    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass || !$fromEmail) {
-        return ['sent' => true, 'error' => 'SMTP settings are missing - email skipped for now.'];
-    }
-
-    $autoloadPath = __DIR__ . '/vendor/autoload.php';
-    if (!file_exists($autoloadPath)) {
-        return ['sent' => true, 'error' => 'PHPMailer is not installed - email skipped for now.'];
-    }
-
-    require_once $autoloadPath;
-
-    $clinicName = (string)($params['clinic_name'] ?? '');
-    $ownerName = (string)($params['owner_name'] ?? '');
-    $ownerEmail = (string)($params['owner_email'] ?? '');
-    $tempPassword = (string)($params['temp_password'] ?? '');
-    $loginUrl = (string)($params['login_url'] ?? '');
-
-    if ($clinicName === '' || $ownerEmail === '' || $tempPassword === '' || $loginUrl === '') {
-        return ['sent' => false, 'error' => 'Email parameters are incomplete.'];
-    }
-
-    $safeClinic = htmlspecialchars($clinicName, ENT_QUOTES, 'UTF-8');
-    $safeOwner = htmlspecialchars($ownerName ?: 'Clinic Owner', ENT_QUOTES, 'UTF-8');
-    $safeLoginUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
-    $safeTempPass = htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8');
-
-    $subject = "Your OralSync login for {$clinicName}";
-
-    $html = <<<HTML
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>OralSync Onboarding</title>
-  </head>
-  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-    <div style="padding:24px 12px;">
-      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
-        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
-          <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
-          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Clinic onboarding details</div>
-        </div>
-
-        <div style="padding:22px;">
-          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
-            Hi <strong>{$safeOwner}</strong>,<br />
-            Your clinic <strong>{$safeClinic}</strong> has been set up in OralSync.
-          </div>
-
-          <div style="margin-top:16px;padding:14px 14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
-            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Your clinic login link</div>
-            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:13px;color:#0f172a;word-break:break-all;">{$safeLoginUrl}</div>
-            <div style="margin-top:8px;color:#64748b;font-size:12px;">
-              Tip: to copy, highlight the link and press <strong>Ctrl+C</strong> (or tap-and-hold on mobile).
-            </div>
-            <div style="margin-top:14px;">
-              <a href="{$safeLoginUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Open your OralSync Portal</a>
-            </div>
-          </div>
-
-          <div style="margin-top:14px;padding:14px 14px;border:1px solid #bbf7d0;border-radius:14px;background:#ecfdf3;">
-            <div style="font-size:12px;color:#166534;margin-bottom:8px;font-weight:700;">Temporary password</div>
-            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:18px;color:#0f172a;letter-spacing:0.8px;"><strong>{$safeTempPass}</strong></div>
-          </div>
-
-          <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
-            <div style="font-weight:800;color:#0d3b66;margin-bottom:6px;">Next steps</div>
-            <ul style="margin:0;padding-left:18px;">
-              <li>Open the link above and log in using this email address: <strong>{$ownerEmail}</strong></li>
-              <li>Use the temporary password, then change it immediately after you sign in.</li>
-              <li>Bookmark your clinic's login link for quick access.</li>
-            </ul>
-            <div style="margin-top:10px;color:#64748b;font-size:12px;">
-              If the button doesn't work, copy & paste the URL into your browser.
-            </div>
-          </div>
-        </div>
-
-        <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">
-          This is an automated message from OralSync. If you didn't expect this email, you can ignore it.
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
-HTML;
-
-    try {
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host = $smtpHost;
-        $mail->SMTPAuth = true;
-        $mail->Username = $smtpUser;
-        $mail->Password = $smtpPass;
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = (int)$smtpPort;
-
-        $mail->setFrom($fromEmail, $fromName);
-        $mail->addAddress($ownerEmail, $ownerName ?: $ownerEmail);
-
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body = $html;
-        $mail->AltBody = "OralSync login for {$clinicName}\n\nLogin URL: {$loginUrl}\nTemporary password: {$tempPassword}\n\nNext steps:\n- Log in using your email\n- Change your password after signing in\n- Bookmark your clinic link\n";
-
-        $mail->send();
-        return ['sent' => true];
-    } catch (Throwable $e) {
-        return ['sent' => false, 'error' => $e->getMessage()];
-    }
-}
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -261,26 +109,25 @@ try {
         $homepage_url = "Landing Page/tenant_homepage.php?tenant=" . $slug;
 
         // 4. Insert clinic into database
+        $initial_status = ($tier === 'trial') ? 'active' : 'pending_payment';
+        
         $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "ssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $slug, $homepage_url, $tenant_code, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
             
             // Log activity (single instance)
-            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier)", $email, 'Super Admin');
+            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier, Status: $initial_status)", $email, 'Super Admin');
             
             // Record initial subscription payment for the tenant
-            $tier_prices = [
-                'startup' => 124.00,
-                'professional' => 249.00,
-                'enterprise' => 499.00
-            ];
-            $monthly_amount = $tier_prices[$tier] ?? 124.00;
-            $amount = $monthly_amount;
+            $tier_data = getTierByKey($tier);
+            $monthly_amount = $tier_data['price_min'] ?? 0;
+            $total_amount = $monthly_amount * $duration;
+            
             $billing_period_start = $start_date . ' 00:00:00';
             $billing_period_end = date('Y-m-d 23:59:59', strtotime('+' . max(1, $duration) . ' months -1 day', strtotime($start_date)));
             $payment_date = date('Y-m-d H:i:s');
@@ -289,14 +136,79 @@ try {
                 'item' => 'Initial Subscription',
                 'tier' => $tier,
                 'billing_period_start' => $billing_period_start,
-                'billing_period_end' => $billing_period_end
+                'billing_period_end' => $billing_period_end,
+                'duration' => $duration
             ]);
 
-            $revenue_sql = "INSERT INTO payment (tenant_id, amount, status, payment_date, procedures_json) 
-                           VALUES (?, ?, 'paid', ?, ?)";
+            $paymongo_url = null;
+            $paymongo_session_id = null;
+            $payment_status = ($tier === 'trial' || $total_amount <= 0) ? 'paid' : 'pending';
+
+            // Generate PayMongo link if it's a paid tier
+            if ($payment_status === 'pending') {
+                $pm_config = require __DIR__ . '/config/paymongo.php';
+                $secret = $pm_config['secret_key'] ?? '';
+                
+                if ($secret) {
+                    $auth = base64_encode($secret . ':');
+                    $amount_centavos = (int) round($total_amount * 100);
+                    $description = "OralSync Subscription: " . ucfirst($tier) . " ($duration months)";
+                    
+                    $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+                    $base_url = rtrim($base_url, '/') . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+                    
+                    $payload = json_encode([
+                        'data' => [
+                            'attributes' => [
+                                'payment_method_types' => ['gcash', 'card', 'paymaya', 'grab_pay'],
+                                'line_items' => [[
+                                    'currency'    => 'PHP',
+                                    'amount'      => $amount_centavos,
+                                    'description' => $description,
+                                    'name'        => 'OralSync - ' . ucfirst($tier) . ' Plan',
+                                    'quantity'    => 1,
+                                ]],
+                                'description' => $description,
+                                'send_email_receipt' => true,
+                                'metadata' => [
+                                    'tenant_id' => (string)$new_id,
+                                    'tier_key' => $tier,
+                                    'type' => 'initial_registration',
+                                    'duration' => (string)$duration
+                                ]
+                            ],
+                        ],
+                    ]);
+
+                    $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
+                    curl_setopt_array($ch, [
+                        CURLOPT_POST           => true,
+                        CURLOPT_POSTFIELDS     => $payload,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_HTTPHEADER     => [
+                            'Authorization: Basic ' . $auth,
+                            'Content-Type: application/json',
+                            'Accept: application/json',
+                        ],
+                    ]);
+
+                    $pm_response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+
+                    if ($http_code === 200) {
+                        $pm_data = json_decode($pm_response, true);
+                        $paymongo_url = $pm_data['data']['attributes']['checkout_url'] ?? null;
+                        $paymongo_session_id = $pm_data['data']['id'] ?? null;
+                    }
+                }
+            }
+
+            $revenue_sql = "INSERT INTO payment (tenant_id, amount, status, payment_date, procedures_json, paymongo_link_id) 
+                           VALUES (?, ?, ?, ?, ?, ?)";
             $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
             if ($revenue_stmt) {
-                mysqli_stmt_bind_param($revenue_stmt, "idss", $new_id, $amount, $payment_date, $procedures_json);
+                mysqli_stmt_bind_param($revenue_stmt, "idssss", $new_id, $total_amount, $payment_status, $payment_date, $procedures_json, $paymongo_session_id);
                 mysqli_stmt_execute($revenue_stmt);
                 mysqli_stmt_close($revenue_stmt);
             }
@@ -315,7 +227,6 @@ try {
                         $file_size = $_FILES['documents']['size'][$key];
                         $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
                         
-                        // Basic security: allowed extensions
                         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
                         if (in_array($ext, $allowed)) {
                             $safe_name = uniqid('doc_' . $new_id . '_') . '.' . $ext;
@@ -357,29 +268,31 @@ try {
             throw new Exception("Database error: " . mysqli_error($conn));
         }
 
+        // 6. Conditional Onboarding Email
+        $email_sent = false;
         $login_url = buildTenantLoginUrl($slug);
-        $emailResult = sendTenantOnboardingEmail([
-            'clinic_name' => $clinicName,
-            'owner_name' => $ownerName,
-            'owner_email' => $email,
-            'temp_password' => $temp_password,
-            'login_url' => $login_url
-        ]);
+        
+        // Only send email immediately if it's a trial (already active)
+        if ($initial_status === 'active') {
+            $emailResult = sendTenantOnboardingEmail([
+                'clinic_name' => $clinicName,
+                'owner_name' => $ownerName,
+                'owner_email' => $email,
+                'temp_password' => $temp_password,
+                'login_url' => $login_url
+            ]);
+            $email_sent = (bool)($emailResult['sent'] ?? false);
+        }
 
         $response = [
             'success' => true, 
-            'message' => 'Clinic registered successfully!',
+            'message' => ($initial_status === 'active') ? 'Clinic registered successfully!' : 'Clinic registered. Waiting for payment.',
             'slug' => $slug,
             'tenant_code' => $tenant_code,
-            'email_sent' => (bool)($emailResult['sent'] ?? false)
+            'status' => $initial_status,
+            'checkout_url' => $paymongo_url,
+            'email_sent' => $email_sent
         ];
-
-        // TEMPORARY FIX: Add note if email was skipped due to missing SMTP
-        if (!empty($emailResult['error']) && strpos($emailResult['error'], 'skipped for now') !== false) {
-            $response['message'] .= ' (Email sending temporarily disabled - check SMTP settings)';
-            $response['email_skipped'] = true;
-        } elseif (!($emailResult['sent'] ?? false) && !empty($emailResult['error'])) {
-            $response['email_error'] = $emailResult['error'];
         }
     }
 } catch (Exception $e) {

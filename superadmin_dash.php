@@ -904,6 +904,45 @@ try {
     </div>
     <div id="resend-note" class="sa-note" style="display:none;">A resend has been simulated for this clinic's login email.</div>
 </div>
+
+<!-- New: Payment Link Modal -->
+<div id="sa-payment-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); z-index:1000; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+    <div class="sa-card" style="width: 100%; max-width: 550px; border: 2px solid #0d3b66; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="background: #e0f2fe; width: 60px; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0d3b66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            </div>
+            <h2 style="color: #0d3b66; margin: 0; font-size: 1.5rem;">Payment Required</h2>
+            <p style="color: #64748b; font-size: 0.95rem; margin-top: 8px;">Please share this link with the client to finalize registration.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
+            <div id="pm-link-display" style="font-family: monospace; font-size: 0.85rem; color: #0d3b66; word-break: break-all; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-copy-link" class="sa-btn sa-btn-outline" style="font-size: 0.8rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                    Copy Link
+                </button>
+                <a id="btn-open-link" href="#" target="_blank" class="sa-btn sa-btn-success" style="font-size: 0.8rem;">
+                    Open Link
+                </a>
+            </div>
+        </div>
+
+        <div id="payment-polling-status" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: #64748b; font-size: 0.9rem;">
+            <div class="polling-spinner" style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #0d3b66; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span>Waiting for client to complete payment...</span>
+        </div>
+
+        <div class="sa-form-actions" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <button id="btn-close-payment" class="sa-btn sa-btn-outline">Close & Wait Offline</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
             </div>
         </section>
     </main>
@@ -1760,22 +1799,37 @@ try {
                 if (data.success) {
                     refreshTenantList();
 
-                    if (successPanel) {
-                        successPanel.style.display = 'block';
-                        if (resendNote) resendNote.style.display = 'none';
-                    }
+                    if (data.checkout_url) {
+                        // Payment required flow
+                        modalOverlay.style.display = 'none';
+                        document.getElementById('sa-payment-modal').style.display = 'flex';
+                        document.getElementById('pm-link-display').textContent = data.checkout_url;
+                        document.getElementById('btn-open-link').href = data.checkout_url;
+                        
+                        document.getElementById('btn-copy-link').onclick = () => {
+                            copyToClipboard(data.checkout_url, 'Payment link copied!');
+                        };
 
-                    if (data.email_sent === false) {
-                        showToast('Clinic saved, but email failed to send. Check console for error.', 6500);
-                        if (data.email_error) console.warn('Email error:', data.email_error);
+                        // Start polling for payment success
+                        startPaymentPolling(data.slug);
                     } else {
-                        showToast('Clinic saved! Email sent.');
+                        // Direct success flow (trial or free)
+                        if (successPanel) {
+                            successPanel.style.display = 'block';
+                            if (resendNote) resendNote.style.display = 'none';
+                        }
+
+                        if (data.email_sent === false) {
+                            showToast('Clinic saved, but email failed to send.', 6500);
+                        } else {
+                            showToast('Clinic saved! Email sent.');
+                        }
+                        modalOverlay.style.display = 'none';
                     }
                     form.reset();
                     if (tierDetails) tierDetails.style.display = 'none';
-                    modalOverlay.style.display = 'none'; // Close modal on success
                 } else {
-                    showToast('Database Error: ' + data.message);
+                    showToast('Error: ' + data.message);
                 }
             })
             .catch(error => {
@@ -1783,11 +1837,42 @@ try {
                 showToast('Failed to connect to the server.');
             })
             .finally(() => {
-                // Re-enable buttons for the next time
                 modalConfirm.disabled = false;
                 modalConfirm.textContent = 'Finalize & Save';
             });
         });
+
+        let pollingInterval = null;
+        function startPaymentPolling(slug) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            
+            pollingInterval = setInterval(() => {
+                fetch(`get_tenant_status.php?slug=${encodeURIComponent(slug)}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'active') {
+                            clearInterval(pollingInterval);
+                            document.getElementById('payment-polling-status').innerHTML = `
+                                <div style="color: #16a34a; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Payment Confirmed! Account Activated.
+                                </div>
+                            `;
+                            showToast('Payment received! Tenant is now active.', 5000);
+                            refreshTenantList();
+                        }
+                    })
+                    .catch(() => {});
+            }, 3000); // Check every 3 seconds
+        }
+
+        document.getElementById('btn-close-payment').onclick = () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+            document.getElementById('sa-payment-modal').style.display = 'none';
+            // Switch to tenant section to show it's there but pending
+            document.querySelectorAll('.sa-section').forEach(s => s.classList.remove('active-section'));
+            document.getElementById('tenant-section').classList.add('active-section');
+        };
     })();
 
     function copyToClipboard(text, successText = 'Copied to clipboard') {

@@ -51,7 +51,6 @@ if (function_exists('getAllSettings')) {
             <a href="superadmin_tenant_reports.php" class="<?php echo saMenuActive('superadmin_tenant_reports.php'); ?>"><span>📈</span> Tenant Reports</a>
             <a href="superadmin_sales_reports.php" class="<?php echo saMenuActive('superadmin_sales_reports.php'); ?>"><span>💰</span> Sales Reports</a>
             <a href="superadmin_audit_logs.php" class="<?php echo saMenuActive('superadmin_audit_logs.php'); ?>"><span>📋</span> Audit Logs</a>
-            <a href="admin_audit.php" class="<?php echo saMenuActive('admin_audit.php'); ?>"><span>💳</span> Subscription Audit</a>
             <a href="superadmin_create_superadmin.php" class="<?php echo saMenuActive('superadmin_create_superadmin.php'); ?>"><span>👤</span> Create Super Admin</a>
             <a href="superadmin_settings.php" class="<?php echo saMenuActive('superadmin_settings.php'); ?>"><span>⚙️</span> Settings</a>
         </nav>

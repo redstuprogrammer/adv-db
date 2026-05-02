@@ -162,6 +162,107 @@ try {
             line-height: 1.5;
         }
 
+        /* Transaction Table Styles */
+        .audit-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--sa-border);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .table-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--sa-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--sa-primary);
+        }
+
+        .module-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .module-table th {
+            background: #f8fafc;
+            padding: 14px 24px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--sa-border);
+        }
+
+        .module-table td {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--sa-border);
+            font-size: 14px;
+            color: #1e293b;
+        }
+
+        .module-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .module-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .clinic-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .clinic-name {
+            font-weight: 600;
+            color: var(--sa-primary);
+        }
+
+        .tier-badge {
+            font-size: 11px;
+            color: var(--sa-muted);
+            margin-top: 2px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-paid { background-color: #dcfce7; color: #15803d; }
+        .status-pending { background-color: #fef9c3; color: #a16207; }
+        .status-failed { background-color: #fee2e2; color: #b91c1c; }
+
+        .amount-cell {
+            font-weight: 700;
+            color: #0d3b66;
+        }
+
+        .ref-id {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 3px 7px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
         .sa-table {
             width: 100%;
             border-collapse: collapse;
@@ -387,9 +488,8 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     $month_revenue = getMonthlyRevenue($conn); 
                     $stmt = $pdo->query("SELECT COUNT(DISTINCT tenant_id) as count FROM tenants WHERE status = 'active'");
                     $active_subscriptions = $stmt->fetch()['count'] ?? 0;
-                    $avg_revenue = $active_subscriptions > 0 ? $total_revenue / $active_subscriptions : 0;
                 } catch (Exception $e) {
-                    $total_revenue = $month_revenue = $active_subscriptions = $avg_revenue = 0;
+                    $total_revenue = $month_revenue = $active_subscriptions = 0;
                 }
                 ?>
                 <div class="sa-metric">
@@ -403,10 +503,6 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                 <div class="sa-metric">
                     <div class="sa-metric-value"><?php echo $active_subscriptions; ?></div>
                     <div class="sa-metric-label">Active Subscriptions</div>
-                </div>
-                <div class="sa-metric">
-                    <div class="sa-metric-value currency">₱<?php echo number_format($avg_revenue, 2); ?></div>
-                    <div class="sa-metric-label">Average Sales per Tenant</div>
                 </div>
             </div>
         </div>
@@ -434,6 +530,75 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             </div>
             <div class="chart-container">
                 <canvas id="tierChart"></canvas>
+            </div>
+        <!-- Subscription Transactions Audit -->
+        <div class="audit-card">
+            <div class="table-header">
+                <div>
+                    <h2>Transaction Audit Log</h2>
+                    <p style="font-size: 13px; color: var(--sa-muted); margin-top: 4px;">Real-time history of platform payments and onboarding attempts.</p>
+                </div>
+                <div style="font-size: 13px; color: var(--sa-muted); font-weight: 500;">
+                    <?php echo date('F j, Y'); ?>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Clinic / Tenant</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Reference / Session ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        $audit_query = "SELECT p.*, t.company_name, t.subscription_tier as current_tier 
+                                       FROM payment p 
+                                       JOIN tenants t ON p.tenant_id = t.tenant_id 
+                                       ORDER BY p.payment_date DESC 
+                                       LIMIT 50";
+                        $audit_res = mysqli_query($conn, $audit_query);
+                        
+                        if ($audit_res && mysqli_num_rows($audit_res) > 0):
+                            while ($row = mysqli_fetch_assoc($audit_res)):
+                                $status = strtolower($row['status']);
+                        ?>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;"><?php echo date('M d, Y', strtotime($row['payment_date'])); ?></div>
+                                <div style="font-size: 12px; color: var(--sa-muted);"><?php echo date('h:i A', strtotime($row['payment_date'])); ?></div>
+                            </td>
+                            <td>
+                                <div class="clinic-info">
+                                    <span class="clinic-name"><?php echo htmlspecialchars($row['company_name']); ?></span>
+                                    <span class="tier-badge">Plan: <?php echo ucfirst($row['current_tier']); ?></span>
+                                </div>
+                            </td>
+                            <td class="amount-cell">₱<?php echo number_format($row['amount'], 2); ?></td>
+                            <td>
+                                <span class="status-pill status-<?php echo $status; ?>">
+                                    <?php echo ucfirst($status); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="ref-id"><?php echo htmlspecialchars($row['paymongo_link_id'] ?: 'N/A'); ?></span>
+                            </td>
+                        </tr>
+                        <?php 
+                            endwhile;
+                        else: 
+                        ?>
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px; color: var(--sa-muted);">
+                                No transaction history found.
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -642,8 +807,7 @@ require_once __DIR__ . '/includes/revenue_queries.php';
             ['Metric', 'Value'],
             ['Total Sales (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
             ['Sales This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
-            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Sales per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>']
+            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>']
         ];
 
         const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');

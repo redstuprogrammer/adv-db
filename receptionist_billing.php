@@ -121,12 +121,47 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         .add-btn-main { background: #0d3b66; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
         /* Modal Logic */
-        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 450px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .close-x { position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 24px; color: #64748b; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; color: #0d3b66; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
+        .modal-content { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            width: 100%; 
+            max-width: 900px; 
+            position: relative; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close-x { position: absolute; right: 25px; top: 20px; cursor: pointer; font-size: 28px; color: #64748b; transition: 0.2s; }
+        .close-x:hover { color: #0d3b66; transform: rotate(90deg); }
+        
+        .billing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .billing-grid { grid-template-columns: 1fr; }
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #0d3b66; }
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 10px; 
+            box-sizing: border-box;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #0d3b66;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.1);
+        }
 
         .live-clock-badge {
             background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
@@ -342,76 +377,113 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
             <input type="hidden" name="payment_id" id="payment_id">
             
-            <div class="form-group">
-                <label>Patient <span style="color: red;">*</span></label>
-                <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
-                    <option value="">-- Select Patient --</option>
-                    <?php 
-                    $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
-                    if ($pStmt) {
-                        mysqli_stmt_bind_param($pStmt, "i", $tenantId);
-                        mysqli_stmt_execute($pStmt);
-                        $pResult = mysqli_stmt_get_result($pStmt);
-                        while($p = mysqli_fetch_assoc($pResult)) {
-                            echo "<option value='".$p['patient_id']."'>".h(formatTenantPatientId($p['tenant_patient_id']) . ' - ' . ($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
-                        }
-                        mysqli_stmt_close($pStmt);
-                    }
-                    ?>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Related Appointment <span style="color: red;">*</span></label>
-                <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
-                    <option value="">-- Choose Patient First --</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Services (search & select)</label>
-                <div class="service-multi-input">
-                    <input type="text" id="service_search" class="service-input" placeholder="Search services..." oninput="filterServices(this.value)" />
-                    
-                    <div id="service_list_container" class="service-selection-list">
-                        <?php foreach ($services as $service): ?>
-                            <div class="service-item" 
-                                 data-id="<?php echo (int)$service['service_id']; ?>" 
-                                 data-name="<?php echo h($service['service_name']); ?>" 
-                                 data-price="<?php echo (float)$service['price']; ?>"
-                                 onclick="toggleServiceSelection(this)">
-                                <span><?php echo h($service['service_name']); ?></span>
-                                <span style="color: #64748b;">₱<?php echo number_format($service['price'], 2); ?></span>
-                            </div>
-                        <?php endforeach; ?>
+            <div class="billing-grid">
+                <div class="billing-left">
+                    <div class="form-group">
+                        <label>Patient <span style="color: red;">*</span></label>
+                        <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
+                            <option value="">-- Select Patient --</option>
+                            <?php 
+                            $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                            if ($pStmt) {
+                                mysqli_stmt_bind_param($pStmt, "i", $tenantId);
+                                mysqli_stmt_execute($pStmt);
+                                $pResult = mysqli_stmt_get_result($pStmt);
+                                while($p = mysqli_fetch_assoc($pResult)) {
+                                    echo "<option value='".$p['patient_id']."'>".h(formatTenantPatientId($p['tenant_patient_id']) . ' - ' . ($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
+                                }
+                                mysqli_stmt_close($pStmt);
+                            }
+                            ?>
+                        </select>
                     </div>
 
-                    <button type="button" class="add-selected-btn" onclick="addSelectedToCart()">Add Selected Services</button>
+                    <div class="form-group">
+                        <label>Related Appointment <span style="color: red;">*</span></label>
+                        <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
+                            <option value="">-- Choose Patient First --</option>
+                        </select>
+                        <p id="appt-auto-select-msg" style="font-size: 11px; color: #166534; margin-top: 4px; display: none;">✅ Automatically selected the most recent appointment.</p>
+                    </div>
 
-                    <div id="service-tags" class="service-tags" style="margin-top: 15px;">
-                        <p id="cart-empty" style="color: #64748b; margin: 0;">No services added to invoice yet.</p>
+                    <div class="form-group">
+                        <label>Downpayment Applied</label>
+                        <input type="text" id="deposit_info" readonly style="background: #f8fafc;" value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit: ₱' . number_format($bookingDepositAmount, 2) : 'No deposit configured'; ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Total Amount (₱) <span style="color: red;">*</span></label>
+                        <input type="number" name="amount" id="amount_input" step="0.01" min="0" required oninput="validateTotal()" style="font-size: 1.2rem; font-weight: 700; color: #0d3b66;">
+                        <div id="floor-info" class="floor-info"></div>
+                    </div>
+                </div>
+
+                <div class="billing-right">
+                    <div class="form-group">
+                        <label>Payment Mode</label>
+                        <select name="mode" id="mode">
+                            <option value="Cash">Cash</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Credit Card">Credit Card</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Payment Status</label>
+                        <select name="status" id="status">
+                            <option value="unpaid">Unpaid (Invoice Only)</option>
+                            <option value="paid">Paid</option>
+                            <option value="partial">Partial Payment</option>
+                            <option value="installment">Installment</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Update Appointment Status?</label>
+                        <select name="update_appt_status" id="update_appt_status">
+                            <option value="">No Change (Keep In Progress)</option>
+                            <option value="Completed">Mark as Completed</option>
+                        </select>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Choose if this appointment should be finished after billing.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Services (search & select)</label>
+                        <div class="service-multi-input">
+                            <input type="text" id="service_search" class="service-input" placeholder="Search services..." oninput="filterServices(this.value)" />
+                            
+                            <div id="service_list_container" class="service-selection-list" style="max-height: 150px;">
+                                <?php foreach ($services as $service): ?>
+                                    <div class="service-item" 
+                                         data-id="<?php echo (int)$service['service_id']; ?>" 
+                                         data-name="<?php echo h($service['service_name']); ?>" 
+                                         data-price="<?php echo (float)$service['price']; ?>"
+                                         onclick="toggleServiceSelection(this)">
+                                        <span><?php echo h($service['service_name']); ?></span>
+                                        <span style="color: #64748b;">₱<?php echo number_format($service['price'], 2); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <button type="button" class="add-selected-btn" onclick="addSelectedToCart()">Add Selected Services</button>
+
+                            <div id="service-tags" class="service-tags" style="margin-top: 15px; max-height: 120px; overflow-y: auto;">
+                                <p id="cart-empty" style="color: #64748b; margin: 0;">No services added to invoice yet.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-    <input type="hidden" name="procedures_json" id="procedures_json">
+            <input type="hidden" name="procedures_json" id="procedures_json">
 
-    <div class="form-group">
-        <label>Downpayment Applied</label>
-        <input type="text" id="deposit_info" readonly value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit: ₱' . number_format($bookingDepositAmount, 2) : 'No deposit configured'; ?>">
-    </div>
-
-    <div id="toast"></div>
-
-            <div class="form-group">
-                <label>Total Amount (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0" required oninput="validateTotal()">
-                <div id="floor-info" class="floor-info"></div>
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn-action" onclick="closeModal()" style="background: #f1f5f9; color: #475569; padding: 12px 24px; border-radius: 8px;">Cancel</button>
+                <button type="submit" class="add-btn-main" style="padding: 12px 40px;">Save Transaction & Generate Invoice</button>
             </div>
-
-            <input type="hidden" name="status" id="status" value="unpaid">
-
-            <button type="submit" class="add-btn-main" style="width:100%; margin-top:10px;">Save Transaction</button>
+            
+            <div id="toast"></div>
         </form>
     </div>
 </div>
@@ -436,9 +508,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     let bookingDepositAmount = <?php echo json_encode($bookingDepositAmount); ?>;
     let cart = [];
 
-    const serviceInput = document.getElementById('service_input');
-    const serviceTags = document.getElementById('service-tags');
-    const serviceList = document.getElementById('service-list');
     const proceduresJson = document.getElementById('procedures_json');
     const amountInput = document.getElementById('amount_input');
     const floorInfo = document.getElementById('floor-info');
@@ -485,6 +554,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     }
 
     function renderTags() {
+        const serviceTags = document.getElementById('service-tags');
         if (!serviceTags) return;
         if (cart.length === 0) {
             serviceTags.innerHTML = '<p style="color: #64748b; margin: 0;">No services added</p>';
@@ -510,7 +580,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         const opt = apptSelect.selectedOptions[0];
         if (!opt || !opt.value) return 0;
         const requestedBy = opt.dataset.requestedBy || '';
-        // If it was a patient request, and it's arrived (or just generally for billing), apply deposit
         return (requestedBy.toLowerCase() === 'patient') ? Number(bookingDepositAmount || 0) : 0;
     }
 
@@ -554,12 +623,83 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         setTimeout(() => toast.classList.remove('show'), 4000);
     }
 
-    // Modal Toggles
+     function formatTimeJS(timeStr) {
+        if (!timeStr) return 'TBD';
+        let [hours, minutes] = timeStr.split(':');
+        let hour = parseInt(hours);
+        let ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        hour = hour ? hour : 12;
+        return `${hour}:${minutes} ${ampm}`;
+    }
+
+    function formatDateJS(dateStr) {
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const d = new Date(dateStr);
+        return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    }
+
+    function loadPatientAppointments(patient_id, selectedApptId = null) {
+        const apptSelect = document.getElementById('appointment_dropdown');
+        const autoMsg = document.getElementById('appt-auto-select-msg');
+        if (!apptSelect) return;
+        
+        apptSelect.innerHTML = '<option value="">-- Loading active appointments... --</option>';
+        if (autoMsg) autoMsg.style.display = 'none';
+        
+        if (!patient_id) {
+            apptSelect.innerHTML = '<option value="">-- Choose Patient First --</option>';
+            return;
+        }
+
+        const params = new URLSearchParams({
+            patient_id: patient_id,
+            tenant_id: <?php echo $tenantId; ?>
+        });
+        
+        fetch('get_patient_services.php?' + params)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) {
+                    apptSelect.innerHTML = '<option value="">No "In Progress" appointments found</option>';
+                    updateTotal();
+                    return;
+                }
+
+                apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
+                
+                data.forEach((item, index) => {
+                    let opt = document.createElement('option');
+                    opt.value = item.appointment_id;
+                    const formattedDate = formatDateJS(item.appointment_date);
+                    const formattedTime = formatTimeJS(item.appointment_time);
+                    opt.textContent = `${formattedDate} at ${formattedTime}`;
+                    opt.dataset.requestedBy = item.requested_by || '';
+                    
+                    if (selectedApptId) {
+                        if (item.appointment_id == selectedApptId) opt.selected = true;
+                    } else if (index === 0) {
+                        opt.selected = true;
+                        if (autoMsg) autoMsg.style.display = 'block';
+                    }
+                    
+                    apptSelect.appendChild(opt);
+                });
+                updateTotal();
+            })
+            .catch(err => {
+                console.error('Error loading appointments:', err);
+                apptSelect.innerHTML = '<option value="">-- Error loading appointments --</option>';
+            });
+    }
+
     function openAddModal() {
         const form = document.getElementById('paymentForm');
         if (form) form.reset();
         document.getElementById('payment_id').value = "";
         document.getElementById('modalTitle').innerText = "Create New Invoice";
+        const autoMsg = document.getElementById('appt-auto-select-msg');
+        if (autoMsg) autoMsg.style.display = 'none';
         cart = [];
         // Reset selections in the list
         document.querySelectorAll('.service-item').forEach(el => el.classList.remove('selected'));
@@ -623,38 +763,35 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         }
     }
 
-    function loadPatientAppointments(patientId, selectedApptId = null) {
-        const apptSelect = document.getElementById('appointment_dropdown');
-        if (!apptSelect) return;
-        apptSelect.innerHTML = '<option value="">-- Loading --</option>';
-        
-        if (!patientId) {
-            apptSelect.innerHTML = '<option value="">-- Select Patient First --</option>';
-            return;
-        }
-
-        const params = new URLSearchParams({
-            patient_id: patientId,
-            tenant_id: <?php echo $tenantId; ?>
-        });
-        
-        fetch('get_patient_services.php?' + params)
-            .then(res => res.json())
-            .then(data => {
-                apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
-                data.forEach(item => {
+                
+                // Sort by date and time DESC (most recent first) - though server already does this
+                // We'll automatically select the first one if no selectedApptId is provided
+                
+                data.forEach((item, index) => {
                     let opt = document.createElement('option');
                     opt.value = item.appointment_id;
-                    opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
+                    const formattedDate = formatDateJS(item.appointment_date);
+                    const formattedTime = formatTimeJS(item.appointment_time);
+                    opt.textContent = `${formattedDate} at ${formattedTime} (${item.status})`;
                     opt.dataset.requestedBy = item.requested_by || '';
-                    if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
+                    
+                    // Logic for auto-selection:
+                    // If selectedApptId is provided, use it.
+                    // Otherwise, select the first one (most recent).
+                    if (selectedApptId) {
+                        if (item.appointment_id == selectedApptId) opt.selected = true;
+                    } else if (index === 0) {
+                        opt.selected = true;
+                        if (autoMsg) autoMsg.style.display = 'block';
+                    }
+                    
                     apptSelect.appendChild(opt);
                 });
                 updateTotal();
             })
             .catch(err => {
                 console.error('Error loading appointments:', err);
-                apptSelect.innerHTML = '<option value="">-- Error loading --</option>';
+                apptSelect.innerHTML = '<option value="">-- Error loading appointments --</option>';
             });
     }
 

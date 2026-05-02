@@ -6,13 +6,25 @@
 
 
 function getMonthlyRevenue($conn, $target_month_ym = null) {
-    // Simple: active tenants × ₱250 monthly subscription
-    $stmt = mysqli_prepare($conn, "SELECT COUNT(*) as active_count FROM tenants WHERE status = 'active'");
+    $year  = date('Y');
+    $month = date('m');
+    
+    // Sum actual paid payments for the current month
+    $stmt = mysqli_prepare($conn, "
+        SELECT COALESCE(SUM(amount), 0) as total 
+        FROM payment 
+        WHERE status = 'paid'
+        AND YEAR(payment_date) = ? 
+        AND MONTH(payment_date) = ?
+    ");
+    
+    mysqli_stmt_bind_param($stmt, "ss", $year, $month);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result);
     mysqli_stmt_close($stmt);
-    return (floatval($row['active_count'] ?? 0)) * 250;
+    
+    return floatval($row['total'] ?? 0);
 }
 
 
