@@ -430,11 +430,16 @@ HTML;
           }
 
           .color-input {
-            width: 0;
-            height: 0;
-            opacity: 0;
             position: absolute;
-            pointer-events: none;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+            opacity: 0;
           }
 
           .file-input {
@@ -904,7 +909,7 @@ HTML;
       <div class="module-card" style="margin-bottom: 32px;">
         <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
         <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
-        <a href="Landing Page/edit_tenant_homepage.php" class="btn-primary" style="display: inline-block;">Edit Landing Page Content</a>
+        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;">Edit Landing Page Content</a>
       </div>
 
       <div class="login-customizer">
@@ -973,10 +978,10 @@ HTML;
             <div class="form-group">
               <label for="card_bg_color">Login Card Background Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="card_bg_color">
+                <label for="card_bg_color" class="color-swatch">
                   <span class="swatch-box" id="swatch-card-bg-color" style="background: <?php echo h($tenantSettings['card_bg_color']); ?>;"></span>
                   <span class="swatch-label" id="label-card-bg-color"><?php echo h($tenantSettings['card_bg_color']); ?></span>
-                </button>
+                </label>
                 <input type="color" id="card_bg_color" name="card_bg_color" class="live-update color-input" data-target="preview-right-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['card_bg_color']); ?>">
               </div>
             </div>
@@ -984,10 +989,10 @@ HTML;
             <div class="form-group">
               <label for="primary_btn_color">Sign In Button Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="primary_btn_color">
+                <label for="primary_btn_color" class="color-swatch">
                   <span class="swatch-box" id="swatch-button-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
                   <span class="swatch-label" id="label-button-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
-                </button>
+                </label>
                 <input type="color" id="primary_btn_color" name="primary_btn_color" class="live-update color-input" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['primary_btn_color']); ?>">
               </div>
             </div>
@@ -995,10 +1000,10 @@ HTML;
             <div class="form-group">
               <label for="link_color">Text Link Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="link_color">
+                <label for="link_color" class="color-swatch">
                   <span class="swatch-box" id="swatch-link-color" style="background: <?php echo h($tenantSettings['link_color']); ?>;"></span>
                   <span class="swatch-label" id="label-link-color"><?php echo h($tenantSettings['link_color']); ?></span>
-                </button>
+                </label>
                 <input type="color" id="link_color" name="link_color" class="live-update color-input" data-target="preview-forgot-link" data-style="color" value="<?php echo h($tenantSettings['link_color']); ?>">
               </div>
             </div>
@@ -1068,7 +1073,7 @@ HTML;
                       <p style="margin:0 0 10px;font-size:12px;opacity:0.9;line-height:1.5;">Sign in to manage appointments, patients, and clinic operations. Your clinic can customize this portal soon.</p>
                       <div class="preview-coming-soon-box">
                         <div style="font-size:10px;font-weight:700;margin-bottom:5px;opacity:0.8;">Customization spots (coming soon)</div>
-                        <div style="font-size:10px;opacity:0.7;line-height:1.6;">- Clinic logo upload<br>- Accent color / theme<br>- Welcome message / announcements<br>- Support contact details</div>
+                        <div style="font-size:10px;opacity:0.7;line-height:1.6;">- Clinic logo upload<br>- Accent color / theme</div>
                       </div>
                     </div>
                   </div>
@@ -1218,15 +1223,7 @@ HTML;
       }
     });
 
-    document.querySelectorAll('.color-swatch').forEach(button => {
-      button.addEventListener('click', function() {
-        const inputId = this.dataset.input;
-        const colorInput = document.getElementById(inputId);
-        if (colorInput) {
-          colorInput.click();
-        }
-      });
-    });
+
 
     document.querySelectorAll('.file-input').forEach(input => {
       input.addEventListener('change', function() {
@@ -1354,16 +1351,6 @@ HTML;
       }
     }
 
-    // Live color swatch updates
-    document.querySelectorAll('.color-input').forEach(input => {
-      input.addEventListener('input', function() {
-        const swatchId = this.id.replace(/_/g, '-');
-        const label = document.getElementById(`label-${swatchId}`);
-        const swatch = document.getElementById(`swatch-${swatchId}`);
-        if (label) label.textContent = this.value;
-        if (swatch) swatch.style.backgroundColor = this.value;
-      });
-    });
 
     function validateForm() {
       return true;
