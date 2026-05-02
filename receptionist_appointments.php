@@ -616,7 +616,7 @@ if ($stmtReq) {
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" onclick="closeManageModal()">Cancel</button>
-          <button type="submit" class="btn-primary" name="update_appointment">Update Status</button>
+          <button type="submit" id="updateStatusBtn" class="btn-primary" name="update_appointment">Update Status</button>
         </div>
       </form>
     </div>
@@ -825,17 +825,23 @@ if ($stmtReq) {
       document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
       
       const newStatusSelect = document.getElementById('new_status');
+      const updateBtn = document.getElementById('updateStatusBtn');
       newStatusSelect.value = status;
       
-      // Restriction: If Completed or Cancelled, don't allow "In Progress"
-      const inProgressOption = newStatusSelect.querySelector('option[value="In Progress"]');
-      if (inProgressOption) {
-        if (status === 'Completed' || status === 'Cancelled') {
-          inProgressOption.disabled = true;
-          inProgressOption.style.display = 'none';
-        } else {
-          inProgressOption.disabled = false;
-          inProgressOption.style.display = 'block';
+      if (status === 'Completed' || status === 'Cancelled') {
+        // Fully lock the status if it's in a final state
+        newStatusSelect.disabled = true;
+        if (updateBtn) updateBtn.disabled = true;
+      } else {
+        // Allow modification for Pending or In Progress
+        newStatusSelect.disabled = false;
+        if (updateBtn) updateBtn.disabled = false;
+        
+        // Ensure "In Progress" option visibility logic
+        const inProgressOption = newStatusSelect.querySelector('option[value="In Progress"]');
+        if (inProgressOption) {
+            inProgressOption.disabled = false;
+            inProgressOption.style.display = 'block';
         }
       }
       
