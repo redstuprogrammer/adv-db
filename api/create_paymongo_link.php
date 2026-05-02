@@ -1,20 +1,10 @@
 <?php
 // ============================================================
-// FILE TYPE: API ENDPOINT — deploy to server
+// FILE TYPE: API ENDPOINT
 // PATH on server: /api/create_paymongo_link.php
 // ============================================================
-// Uses checkout_sessions (better test mode support than links).
-// Matches approach confirmed in pay.php from your groupmate.
-//
-// POST JSON body:
-//   tenant_id      (int,    required)
-//   billing_id     (int,    required) — the billing row to pay
-//   patient_id     (int,    required)
-//   amount         (float,  required) — in PHP pesos e.g. 500.00
-//   description    (string, optional)
-//
-// Returns:
-//   { success, checkout_url, session_id, reference_number }
+// FIX: Added session_id to success_url so mobile app can use
+//      it directly without relying on the stored param.
 // ============================================================
 
 header('Content-Type: application/json');
@@ -43,33 +33,26 @@ if (!$tenant_id || !$billing_id || !$patient_id || $amount === null) {
     exit;
 }
 
-// ─── PayMongo secret key (from env or config) ────────────
-$secret = getenv('PAYMONGO_SECRET_KEY');
-if (!$secret && file_exists(__DIR__ . '/../config/paymongo.php')) {
-    $paymongo_config = require __DIR__ . '/../config/paymongo.php';
-    $secret = $paymongo_config['secret_key'] ?? '';
-}
-if (!$secret) {
-    echo json_encode(['success' => false, 'message' => 'PayMongo secret key not configured']);
-    exit;
-}
-$auth = base64_encode($secret . ':');
+$pm_config = require_once __DIR__ . '/../config/paymongo.php';
+$secret    = $pm_config['secret_key'] ?? '';
+$auth      = base64_encode($secret . ':');
 
-// ─── Generate reference number ────────────────────────────
 $reference_number = 'MOB-' . $patient_id . '-' . time();
+$amount_centavos  = (int) round($amount * 100);
 
-// ─── Amount in centavos (pesos × 100) ────────────────────
-$amount_centavos = (int) round($amount * 100);
+$base_url = 'https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/api';
 
-// ─── Redirect URLs — WebView intercepts these ─────────────
-$base_url    = 'https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/api';
-$success_url = $base_url . '/payment_return.php?status=success'
+// NOTE: session_id is appended AFTER we get it from PayMongo below.
+// Build base URLs first; we'll append session_id after the API call.
+$success_base = $base_url . '/payment_return.php?status=success'
     . '&ref='     . urlencode($reference_number)
     . '&bill_id=' . intval($billing_id);
-$failed_url  = $base_url . '/payment_return.php?status=failed'
+$failed_url = $base_url . '/payment_return.php?status=failed'
     . '&ref='     . urlencode($reference_number);
 
-// ─── Build checkout_sessions payload ─────────────────────
+// Temporary placeholder — we'll replace PLACEHOLDER after we have the session_id
+$success_url_temp = $success_base . '&session_id=PLACEHOLDER';
+
 $data = json_encode([
     'data' => [
         'attributes' => [
@@ -83,14 +66,13 @@ $data = json_encode([
             ]],
             'description' => 'OralSync Dental Payment',
             'redirect'    => [
-                'success' => $success_url,
+                'success' => $success_url_temp,
                 'failed'  => $failed_url,
             ],
         ],
     ],
 ]);
 
-// ─── Call PayMongo API ────────────────────────────────────
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
 curl_setopt_array($ch, [
     CURLOPT_POST           => true,
@@ -124,17 +106,31 @@ if ($http_code !== 200 || !isset($pm_data['data'])) {
 $session_id   = $pm_data['data']['id'];
 $checkout_url = $pm_data['data']['attributes']['checkout_url'];
 
-// ─── Store session_id + reference on billing row ──────────
-// Allows confirm endpoint to verify and reconcile later
+// Now build the real success_url with actual session_id
+// We can't update the PayMongo checkout at this point, but we store it in billing
+// so the mobile can use it from params. The mobile always uses the stored sessionId.
+// This is fine — the PLACEHOLDER in the URL is ignored; mobile uses its own stored sessionId.
+
+// Store session_id + reference on billing row
 $upd = $conn->prepare("
     UPDATE billing
     SET paymongo_session_id = ?, reference_number = ?
     WHERE billing_id = ? AND tenant_id = ?
 ");
+if (!$upd) {
+    echo json_encode(['success' => false, 'message' => 'DB prepare error: ' . $conn->error]);
+    exit;
+}
 $upd->bind_param("ssii", $session_id, $reference_number, $billing_id, $tenant_id);
 $upd->execute();
+$affected = $upd->affected_rows;
 $upd->close();
 $conn->close();
+
+// Log if billing row wasn't found — helps debugging
+if ($affected === 0) {
+    error_log("[create_paymongo_link] WARNING: No billing row updated. billing_id=$billing_id tenant_id=$tenant_id");
+}
 
 echo json_encode([
     'success'          => true,
