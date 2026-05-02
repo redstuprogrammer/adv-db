@@ -62,7 +62,8 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
     private function createLineChartSVG($config, $width, $height) {
         $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];
         $labels = isset($config['data']['labels']) ? $config['data']['labels'] : [];
-        $maxValue = max($data) ?: 1;
+        $maxValue = !empty($data) ? max($data) : 1;
+        $maxValue = $maxValue ?: 1;
         $maxValue = ceil($maxValue / 100) * 100; // Round up for better grid
 
         $chartWidth = $width - 80;
@@ -121,7 +122,8 @@ $this->pdf->setHeaderFont(Array('dejavusans', '', PDF_FONT_SIZE_MAIN));
     private function createBarChartSVG($config, $width, $height) {
         $data = isset($config['data']['datasets'][0]['data']) ? $config['data']['datasets'][0]['data'] : [];
         $labels = isset($config['data']['labels']) ? $config['data']['labels'] : [];
-        $maxValue = max($data) ?: 1;
+        $maxValue = !empty($data) ? max($data) : 1;
+        $maxValue = $maxValue ?: 1;
         $maxValue = ceil($maxValue / 100) * 100;
 
         $chartWidth = $width - 80;

@@ -1,7 +1,13 @@
 <?php
-// Buffer ALL output from this point — prevents TCPDF internals or included
-// files from sending bytes before our header() calls.
 ob_start();
+
+// Disable zlib compression which can corrupt binary PDF output when combined with Content-Length
+if (ini_get('zlib.output_compression')) {
+    ini_set('zlib.output_compression', 'Off');
+}
+if (function_exists('apache_setenv')) {
+    @apache_setenv('no-gzip', 1);
+}
 
 // PDF generation can be slow for large reports; disable the FPM timeout
 // for this script only and keep the connection alive if the client disconnects.
@@ -79,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($isSuperAdmin) {
             $context = 'superadmin';
             $sqlDateCol = "r.payment_date";
-            $filter = $dateFilter ? sprintf($dateFilter, $sqlDateCol, $sqlDateCol) : "";
+            $filter = $dateFilter ? str_replace('%s', $sqlDateCol, $dateFilter) : "";
             
             // Fetch aggregated revenue from all Tenant Subscriptions
             $query = "SELECT r.*, t.company_name as tenant_name, t.subscription_tier as plan 
@@ -88,6 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       WHERE r.status = 'paid' $filter
                       ORDER BY r.payment_date DESC";
             $result = $conn->query($query);
+            if (!$result) {
+                error_log("SuperAdmin PDF Query failed: " . $conn->error);
+                while (ob_get_level() > 0) ob_end_clean();
+                http_response_code(500);
+                echo "Database query failed. Please check server logs.";
+                exit;
+            }
             while ($row = $result->fetch_assoc()) {
                 $reportData[] = $row;
             }
@@ -96,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $context = 'tenant';
             $tenantId = $sessionManager->getTenantId();
             $sqlDateCol = "py.billing_date"; // Use billing_date for sales reports
-            $filter = $dateFilter ? sprintf($dateFilter, $sqlDateCol, $sqlDateCol) : "";
+            $filter = $dateFilter ? str_replace('%s', $sqlDateCol, $dateFilter) : "";
             
             // Fetch clinic-specific revenue
             $query = "SELECT py.*, py.billing_id as payment_id, py.amount_paid as amount, p.first_name, p.last_name, 
@@ -109,6 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       WHERE py.tenant_id = ? AND py.payment_status = 'paid' $filter
                       ORDER BY py.billing_date DESC";
             $stmt = $conn->prepare($query);
+            if (!$stmt) {
+                error_log("Tenant PDF Prepare failed: " . $conn->error);
+                while (ob_get_level() > 0) ob_end_clean();
+                http_response_code(500);
+                echo "Database preparation failed. Please check server logs.";
+                exit;
+            }
             $stmt->bind_param('i', $tenantId);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -142,7 +162,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Discard any buffered output from TCPDF internals before sending headers
-    ob_end_clean();
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
 
     $safeFilename = preg_replace('/[^a-zA-Z0-9\-_\.]/', '_', $title) . '.pdf';
     header('Content-Type: application/pdf');
@@ -230,13 +252,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
     $pdfContent = generatePDF($invoiceData, $title, 'invoice_' . $payment['payment_id'] . '.pdf', 'professional');
 
     if (empty($pdfContent)) {
-        ob_end_clean();
+        while (ob_get_level() > 0) ob_end_clean();
         http_response_code(500);
         echo 'PDF generation failed — generator returned empty content.';
         exit;
     }
 
-    ob_end_clean();
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
     $safeFilename = 'invoice_' . $payment['payment_id'] . '.pdf';
     header('Content-Type: application/pdf');
     header('Content-Disposition: inline; filename="' . $safeFilename . '"');
@@ -248,4 +272,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['id'])) {
 ob_end_clean();
 http_response_code(400);
 echo 'Invalid request';
-?>

@@ -5,12 +5,11 @@ SUPERADMIN
 - send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
 - below, add a feature where users can change their username and password (current password, password, confirm password)
 
-
+2. superadmin_dash.php
+- New This Month card doesnt display accurate users within the present month.
 
 ADMIN
 users.php
-- move "Add User" button to the right side.
-when creating an account for new users:
 - send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
 
 edit_staff_details.php
@@ -27,9 +26,11 @@ reports.php - Sales Performance tab
 - remove "Service Rendered" column
 - total sales dispaly label doesnt match with total sales from dashboard.php
 
-billing.php
-- use the same view invoice function from receptionist_billing.php
+billing.php and receptionist_billing.php
+- for both those pages, display whether its a downpayment for the appointment, partial, or full payment from the billing/invoice. indicate time and date.
 
+appointments.php
+- remove details button
 
 DENTIST
 dentist_dashboard.php

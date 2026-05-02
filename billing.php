@@ -64,6 +64,8 @@ $query = "SELECT
             py.amount_paid as amount, 
             py.payment_status as status, 
             py.mode,
+            py.payment_type,
+            py.billing_date,
             a.appointment_id,
             a.appointment_date
           FROM billing py
@@ -332,6 +334,8 @@ foreach ($payments as $payment) {
               <th>Invoice</th>
               <th>Patient Name</th>
               <th>Amount</th>
+              <th>Type</th>
+              <th>Date & Time</th>
               <th>Mode</th>
               <th>Status</th>
               <th style="text-align: right;">Action</th>
@@ -348,6 +352,27 @@ foreach ($payments as $payment) {
                   <td style="font-family: monospace; font-weight: bold; color: var(--accent);">#<?php echo str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT); ?></td>
                   <td><strong><?php echo h($payment['first_name'] . " " . $payment['last_name']); ?></strong></td>
                   <td style="font-weight:700; color: var(--accent);">₱<?php echo number_format($payment['amount'], 2); ?></td>
+                  <td>
+                    <?php 
+                      $typeLabel = 'Full Payment';
+                      if (strtolower($payment['payment_type'] ?? '') === 'deposit') {
+                          $typeLabel = 'Downpayment';
+                      } elseif (strtolower($payment['status'] ?? '') === 'partial' || strtolower($payment['status'] ?? '') === 'installment') {
+                          $typeLabel = 'Partial Payment';
+                      }
+                      echo '<span class="badge" style="background:rgba(13, 59, 102, 0.1); color:var(--accent);">' . h($typeLabel) . '</span>';
+                    ?>
+                  </td>
+                  <td style="font-size: 12px; color: #64748b;">
+                    <?php 
+                      if (!empty($payment['billing_date'])) {
+                          echo date('M d, Y', strtotime($payment['billing_date'])) . '<br>';
+                          echo '<small>' . date('h:i A', strtotime($payment['billing_date'])) . '</small>';
+                      } else {
+                          echo 'N/A';
+                      }
+                    ?>
+                  </td>
                   <td><?php echo h(ucfirst($payment['mode'] ?: 'N/A')); ?></td>
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
                   <td style="text-align: right;">

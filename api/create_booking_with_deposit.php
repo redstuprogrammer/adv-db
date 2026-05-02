@@ -175,9 +175,9 @@ try {
         // service_id must be nullable for this to work (see schema note at top)
         $bill = $conn->prepare("
             INSERT INTO billing
-                (tenant_id, appointment_id, patient_id, service_id, total_amount, amount_paid, payment_status)
+                (tenant_id, appointment_id, patient_id, service_id, total_amount, amount_paid, payment_status, payment_type)
             VALUES
-                (?, ?, ?, NULL, ?, 0.00, 'unpaid')
+                (?, ?, ?, NULL, ?, 0.00, 'unpaid', 'deposit')
         ");
         if (!$bill) throw new Exception('DB error (insert billing): ' . $conn->error);
 

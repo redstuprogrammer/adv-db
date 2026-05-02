@@ -521,7 +521,6 @@ $stmt->close();
                   <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
                     <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>')">Manage</button>
-                    <button class="action-btn" onclick="openDetailsModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo json_encode($appt['patient_first'] . ' ' . $appt['patient_last']); ?>, <?php echo json_encode($appt['dentist_name'] ?: 'Unassigned'); ?>, <?php echo json_encode(date('M d, Y', strtotime($appt['appointment_date']))); ?>, <?php echo json_encode(!empty($appt['appointment_time']) ? date('g:i A', strtotime($appt['appointment_time'])) : '-'); ?>, <?php echo json_encode($appt['procedure_name'] ?? ''); ?>, <?php echo json_encode($appt['notes'] ?? ''); ?>)">Details</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -546,23 +545,7 @@ $stmt->close();
     </div>
   </div>
 
-  <!-- Appointment Details Modal -->
-  <div id="detailsModal" class="edit-modal">
-    <div class="edit-modal-content">
-      <span class="close" onclick="closeDetailsModal()">&times;</span>
-      <h3 style="margin-top:0; color: var(--accent);">Appointment Details</h3>
-      <p><strong>Patient:</strong> <span id="detailPatient"></span></p>
-      <p><strong>Dentist:</strong> <span id="detailDentist"></span></p>
-      <p><strong>Date:</strong> <span id="detailDate"></span></p>
-      <p><strong>Time:</strong> <span id="detailTime"></span></p>
-      <p><strong>Procedure:</strong> <span id="detailProcedure"></span></p>
-      <p><strong>Notes:</strong></p>
-      <p id="detailNotes" style="white-space: pre-wrap; color: #334155; margin-top: 0;"></p>
-      <div class="edit-modal-actions">
-        <button type="button" class="edit-btn-cancel" onclick="closeDetailsModal()">Close</button>
-      </div>
-    </div>
-  </div>
+
 
   <!-- Edit Appointment Modal -->
   <div id="editModal" class="edit-modal">
@@ -611,19 +594,7 @@ $stmt->close();
       document.getElementById('scheduleModal').style.display = 'block';
     }
 
-    function openDetailsModal(id, patient, dentist, date, time, procedure, notes) {
-      document.getElementById('detailPatient').textContent = patient;
-      document.getElementById('detailDentist').textContent = dentist;
-      document.getElementById('detailDate').textContent = date;
-      document.getElementById('detailTime').textContent = time;
-      document.getElementById('detailProcedure').textContent = procedure || 'No procedure entered';
-      document.getElementById('detailNotes').textContent = notes || 'No notes available.';
-      document.getElementById('detailsModal').style.display = 'flex';
-    }
 
-    function closeDetailsModal() {
-      document.getElementById('detailsModal').style.display = 'none';
-    }
 
 
     // Edit Modal Functions

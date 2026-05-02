@@ -59,6 +59,8 @@ $query = "SELECT
             py.amount_paid as amount, 
             py.mode, 
             py.payment_status as status,
+            py.payment_type,
+            py.billing_date,
             a.appointment_id,
             a.appointment_date,
             py.procedures_json
@@ -338,6 +340,8 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                         <th>Inv #</th>
                         <th>Patient Name</th>
                         <th>Amount</th>
+                        <th>Type</th>
+                        <th>Date & Time</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -349,6 +353,27 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                                 <td><strong>#<?= str_pad($row['billing_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
                                 <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
+                                <td>
+                                    <?php 
+                                        $typeLabel = 'Full Payment';
+                                        if (strtolower($row['payment_type'] ?? '') === 'deposit') {
+                                            $typeLabel = 'Downpayment';
+                                        } elseif (strtolower($row['status'] ?? '') === 'partial' || strtolower($row['status'] ?? '') === 'installment') {
+                                            $typeLabel = 'Partial Payment';
+                                        }
+                                        echo '<span class="status-pill" style="background:rgba(13, 59, 102, 0.1); color:#0d3b66;">' . h($typeLabel) . '</span>';
+                                    ?>
+                                </td>
+                                <td style="font-size: 13px; color: #64748b;">
+                                    <?php 
+                                        if (!empty($row['billing_date'])) {
+                                            echo date('M d, Y', strtotime($row['billing_date'])) . '<br>';
+                                            echo '<small>' . date('h:i A', strtotime($row['billing_date'])) . '</small>';
+                                        } else {
+                                            echo 'N/A';
+                                        }
+                                    ?>
+                                </td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
                                     <?php if ($hasInvoiceGeneration): ?>

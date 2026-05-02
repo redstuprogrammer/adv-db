@@ -121,4 +121,3 @@ function generatePDF($data, $title, $filename, $type = 'standard') {
     // caused "headers already sent" conflicts. 'S' returns the PDF as a string.
     return $pdf->Output('', 'S');
 }
-?>
