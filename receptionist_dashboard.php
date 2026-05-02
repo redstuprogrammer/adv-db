@@ -195,7 +195,9 @@ if ($stmt) {
       .queue-table th { background: var(--dashboard-bg); color: #64748b; padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; }
       .queue-table td { padding: 15px; border-bottom: 1px solid var(--dashboard-border); }
 
-      .time-badge { background: rgba(13, 59, 102, 0.1); color: var(--dashboard-accent); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+      .status-pill.pending { background: #fff3cd; color: #856404; font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; }
+      .status-pill.in-progress { background: #e0f2fe; color: #0369a1; font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; }
+      .status-pill.completed { background: #dcfce7; color: #166534; font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; }
       .action-link { color: var(--dashboard-accent); text-decoration: none; font-weight: 600; font-size: 13px; }
       .action-link:hover { text-decoration: underline; }
 
@@ -357,7 +359,7 @@ if ($stmt) {
                   <td><strong><?php echo h($row['first_name'] . " " . $row['last_name']); ?></strong></td>
                   <td><span class="time-badge"><?php echo date('h:i A', strtotime($row['appointment_time'])); ?></span></td>
                   <td>Dr. <?php echo h($row['d_last']); ?></td>
-                  <td><span class="status-pill <?php echo strtolower($row['status']); ?>"><?php echo h($row['status']); ?></span></td>
+                  <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'])); ?>"><?php echo h($row['status']); ?></span></td>
                   <td><a href="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="action-link">Manage</a></td>
                 </tr>
               <?php endwhile; ?>

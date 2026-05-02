@@ -276,10 +276,12 @@ if ($stmt) {
       .today-highlight .day-num { background: var(--dashboard-accent); color: white; border-radius: 50%; }
       .appt-dot { width: 6px; height: 6px; background-color: #38bdf8; border-radius: 50%; margin-top: 5px; }
 
-      .schedule-item-pop { background: var(--dashboard-bg); border-left: 4px solid var(--dashboard-accent); padding: 12px; margin-bottom: 10px; border-radius: 4px; }
-      .schedule-item-pop strong { color: var(--dashboard-accent); font-size: 14px; }
-      .schedule-item-pop span { font-size: 13px; color: #475569; }
       .schedule-item-pop small { color: #64748b; font-weight: bold; }
+      
+      .status-indicator { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 5px; display: inline-block; }
+      .status-pending { color: #f59e0b; }
+      .status-completed { color: #10b981; }
+      .status-in-progress { color: #0ea5e9; }
 
       .cal-nav { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--dashboard-bg); border-radius: 8px; margin-bottom: 10px; }
       .cal-nav a { text-decoration: none; color: var(--dashboard-accent); font-weight: bold; font-size: 18px; }
@@ -422,7 +424,9 @@ if ($stmt) {
                   <small>📅 <?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></small><br>
                   <strong><?php echo h($row['service_name'] ?? 'General Consultation'); ?></strong><br>
                   <span>Patient: <?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></span><br>
-                  <small>Status: <?php echo h($row['status'] ?? ''); ?></small>
+                  <span class="status-indicator status-<?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>">
+                    ● <?php echo h(ucwords(strtolower($row['status'] ?? 'pending'))); ?>
+                  </span>
                 </div>
               <?php endwhile; ?>
             <?php else: ?>

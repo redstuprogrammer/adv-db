@@ -314,6 +314,7 @@ if ($stmtReq) {
       .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
       .status-pill.pending { background: #fff3cd; color: #856404; }
       .status-pill.completed { background: #dcfce7; color: #166534; }
+      .status-pill.in-progress { background: #e0f2fe; color: #0369a1; }
       .status-pill.cancelled { background: #fee2e2; color: #991b1b; }
       .status-pill.disapproved { background: #fee2e2; color: #991b1b; }
       .status-pill.approved { background: #dcfce7; color: #166534; }
@@ -531,7 +532,7 @@ if ($stmtReq) {
                     <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
                     <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
                     <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
-                    <td><span class="status-pill <?php echo strtolower($row['status'] ?? ''); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
+                    <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? '')); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
                     <td class="actions-cell">
                       <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['status'] ?? ''); ?>)">Manage</a>
                       <a href="javascript:void(0);" class="action-link" onclick="openEditModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>, <?php echo json_encode('Dr. ' . ($row['d_last'] ?? '')); ?>, <?php echo json_encode($row['appointment_date']); ?>, <?php echo json_encode($row['appointment_time'] ?? ''); ?>, <?php echo json_encode($row['procedure_name'] ?? ''); ?>, <?php echo json_encode($row['status'] ?? ''); ?>, <?php echo (int)($row['dentist_id'] ?? 0); ?>)">Edit</a>
@@ -644,6 +645,7 @@ if ($stmtReq) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
+            <option value="In Progress">In Progress</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
@@ -694,6 +696,7 @@ if ($stmtReq) {
           <label for="edit_status">Status</label>
           <select id="edit_status" name="edit_status" required>
             <option value="">Select status</option>
+            <option value="In Progress">In Progress</option>
             <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>

@@ -645,7 +645,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                 data.forEach(item => {
                     let opt = document.createElement('option');
                     opt.value = item.appointment_id;
-                    opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString() + " (" + (item.status || 'Pending') + ")";
+                    opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
                     opt.dataset.requestedBy = item.requested_by || '';
                     if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
                     apptSelect.appendChild(opt);

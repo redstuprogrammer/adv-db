@@ -207,6 +207,7 @@ if ($stmt) {
       /* Status Colors */
       .status-pending { color: #f59e0b; }
       .status-completed { color: #10b981; }
+      .status-in-progress { color: #0ea5e9; }
 
       .live-clock-badge {
         background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
@@ -284,8 +285,8 @@ if ($stmt) {
                   <?php if (!empty($row['service_name']) && $row['service_name'] !== 'No Service Specified'): ?>
                     <span class="service-tag"><?php echo h($row['service_name']); ?></span>
                   <?php endif; ?>
-                  <span class="status-indicator status-<?php echo $statusClass; ?>">
-                    ● <?php echo h(ucfirst($statusClass)); ?>
+                  <span class="status-indicator status-<?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>">
+                    ● <?php echo h(ucwords(strtolower($row['status'] ?? 'pending'))); ?>
                   </span>
                 </div>
 
