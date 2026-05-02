@@ -3,15 +3,36 @@
 // FILE TYPE: API ENDPOINT
 // PATH on server: /api/confirm_paymongo_payment.php
 // ============================================================
-// FIX 1: PayMongo checkout_sessions uses `payment_status` on
-//         the session object, BUT in test mode after GCash
-//         payment the session `status` can be 'active' while
-//         `payment_status` is 'paid'. We now also check
-//         `payments` array inside the session as fallback.
-// FIX 2: Returns `retry: true` on "not yet paid" so the mobile
-//         knows to keep polling vs. a hard failure.
-// FIX 3: Added detailed error logging to server error_log.
+// FIXES applied to original file:
+//   1. Added ob_start() + register_shutdown_function so PHP
+//      fatal errors return JSON instead of empty HTTP 500.
+//   2. Robust config/paymongo.php loader with path fallbacks
+//      (Azure __DIR__ can resolve differently per deployment).
+//   3. Added CURLOPT_TIMEOUT + CURLOPT_CONNECTTIMEOUT so a
+//      slow PayMongo response doesn't kill the script silently.
+//   4. set_time_limit(60) for Azure safety.
 // ============================================================
+
+ob_start();
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        ob_clean();
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => 'Internal server error.',
+            'debug'   => $error['message'],
+            'file'    => basename($error['file']),
+            'line'    => $error['line'],
+        ]);
+    }
+    ob_end_flush();
+});
+
+set_time_limit(60);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -19,7 +40,14 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
 require_once __DIR__ . '/../connect.php';
+
+if (!isset($conn) || !$conn || $conn->connect_error) {
+    http_response_code(503);
+    echo json_encode(['success' => false, 'message' => 'Database connection failed.']);
+    exit;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Only POST requests allowed']);
@@ -42,14 +70,37 @@ if (!$session_id || !$billing_id || !$tenant_id || !$patient_id || $amount_paid 
 
 error_log("[confirm_payment] START session=$session_id billing=$billing_id tenant=$tenant_id patient=$patient_id amount=$amount_paid mode=$mode");
 
-$pm_config = require_once __DIR__ . '/../config/paymongo.php';
-$secret    = $pm_config['secret_key'] ?? '';
-$auth      = base64_encode($secret . ':');
+// ─── Robust config/paymongo.php loader ────────────────────
+$pm_config = null;
+$config_candidates = [
+    __DIR__ . '/../config/paymongo.php',
+    dirname(__DIR__) . '/config/paymongo.php',
+    $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
+];
+foreach ($config_candidates as $path) {
+    if (file_exists($path)) {
+        $pm_config = require $path;
+        break;
+    }
+}
+
+$secret = $pm_config['secret_key'] ?? getenv('PAYMONGO_SECRET_KEY') ?? '';
+$auth   = base64_encode($secret . ':');
+
+if (!$secret) {
+    error_log("[confirm_payment] ERROR: PayMongo secret key not found. Tried: " . implode(', ', $config_candidates));
+    echo json_encode(['success' => false, 'message' => 'Server configuration error: payment credentials missing.']);
+    exit;
+}
 
 // ─── Verify checkout session with PayMongo ────────────────
 $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions/' . urlencode($session_id));
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CONNECTTIMEOUT => 10,
+    CURLOPT_TIMEOUT        => 30,
+    CURLOPT_SSL_VERIFYPEER => true,
+    CURLOPT_SSL_VERIFYHOST => 2,
     CURLOPT_HTTPHEADER     => [
         'Accept: application/json',
         'Authorization: Basic ' . $auth,
@@ -57,12 +108,13 @@ curl_setopt_array($ch, [
 ]);
 $pm_response = curl_exec($ch);
 $http_code   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curl_errno  = curl_errno($ch);
 $curl_error  = curl_error($ch);
 curl_close($ch);
 
-if ($curl_error || !$pm_response) {
-    error_log("[confirm_payment] cURL error: $curl_error");
-    echo json_encode(['success' => false, 'message' => 'Could not verify payment with PayMongo.']);
+if ($curl_errno || !$pm_response) {
+    error_log("[confirm_payment] cURL error #{$curl_errno}: {$curl_error}");
+    echo json_encode(['success' => false, 'message' => 'Could not verify payment with PayMongo.', 'debug' => "cURL #{$curl_errno}: {$curl_error}"]);
     exit;
 }
 
@@ -71,19 +123,13 @@ error_log("[confirm_payment] PayMongo HTTP=$http_code response=" . substr($pm_re
 $pm_data = json_decode($pm_response, true);
 
 // ─── Determine if payment is confirmed ───────────────────
-// PayMongo checkout_sessions can report payment as:
-//   1. session.attributes.payment_status = 'paid'   (most reliable)
-//   2. session.attributes.payments array with status 'paid'
-// We accept EITHER as confirmation.
-$pm_payment_status = $pm_data['data']['attributes']['payment_status'] ?? 'unpaid';
-$pm_payments       = $pm_data['data']['attributes']['payments']       ?? [];
-
-$payment_confirmed = false;
+$pm_payment_status   = $pm_data['data']['attributes']['payment_status'] ?? 'unpaid';
+$pm_payments         = $pm_data['data']['attributes']['payments']       ?? [];
+$payment_confirmed   = false;
 $paymongo_payment_id = null;
 
 if ($pm_payment_status === 'paid') {
     $payment_confirmed = true;
-    // Try to get payment ID from payments array
     if (!empty($pm_payments) && isset($pm_payments[0]['id'])) {
         $paymongo_payment_id = $pm_payments[0]['id'];
     }
@@ -104,7 +150,6 @@ if (!$payment_confirmed && !empty($pm_payments)) {
 error_log("[confirm_payment] payment_status=$pm_payment_status confirmed=" . ($payment_confirmed ? 'YES' : 'NO') . " payment_id=$paymongo_payment_id");
 
 if (!$payment_confirmed) {
-    // Return retry:true so mobile knows to keep polling
     echo json_encode([
         'success' => false,
         'retry'   => true,
@@ -133,16 +178,12 @@ $chk->close();
 error_log("[confirm_payment] Billing row: " . json_encode($bill));
 
 if (!$bill) {
-    // Billing record not found — this usually means the UPDATE in
-    // create_paymongo_link.php matched 0 rows (wrong billing_id or tenant_id).
-    // Try fetching just by billing_id to debug.
     $dbg = $conn->prepare("SELECT billing_id, tenant_id, payment_status FROM billing WHERE billing_id = ? LIMIT 1");
     $dbg->bind_param("i", $billing_id);
     $dbg->execute();
     $dbgRow = $dbg->get_result()->fetch_assoc();
     $dbg->close();
-    error_log("[confirm_payment] Debug lookup by billing_id only: " . json_encode($dbgRow));
-
+    error_log("[confirm_payment] Debug lookup: " . json_encode($dbgRow));
     $conn->close();
     echo json_encode(['success' => false, 'message' => "Billing record not found (billing_id=$billing_id, tenant_id=$tenant_id). Payment was received by PayMongo — please contact the clinic."]);
     exit;
