@@ -16,8 +16,10 @@ $tenantId = $sessionManager->getTenantId();
 $tenantSlug = $sessionManager->getCurrentTenantSlug();
 
 $tiers = getAllTiers();
-// Remove 'trial' from the list of purchasable plans
-unset($tiers['trial']);
+$selectedPlan = $_GET['plan'] ?? '';
+if (!isset($tiers[$selectedPlan]) && $selectedPlan !== 'trial') {
+    $selectedPlan = '';
+}
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -127,6 +129,77 @@ function h(string $s): string {
         .secure-icon {
             color: #10b981;
         }
+        
+        /* Plan Cards Styling */
+        .plans-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .plan-card {
+            border: 2px solid var(--tenant-border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .plan-card:hover {
+            border-color: var(--tenant-accent);
+            background: rgba(13, 59, 102, 0.02);
+        }
+        
+        .plan-card.selected {
+            border-color: var(--tenant-accent);
+            background: rgba(13, 59, 102, 0.05);
+            box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.1);
+        }
+        
+        .plan-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: var(--tenant-accent);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .plan-info h3 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .plan-info p {
+            margin: 0;
+            font-size: 14px;
+            color: var(--tenant-muted);
+        }
+        
+        .plan-price {
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--tenant-accent);
+        }
+
+        .checkout-container {
+            max-width: 650px;
+        }
     </style>
 </head>
 <body>
@@ -148,18 +221,31 @@ function h(string $s): string {
                 <p>Choose a plan that fits your clinic's growing needs. Secure payments powered by PayMongo.</p>
             </div>
 
-            <form action="subscription_gateway.php" method="POST">
+            <form action="subscription_gateway.php" method="POST" id="checkout-form">
+                <input type="hidden" name="tier_key" id="tier_key_input" value="<?php echo h($selectedPlan); ?>" required>
+                
                 <div class="plan-selection">
-                    <label class="plan-label" for="tier_key">Select Subscription Plan</label>
-                    <select name="tier_key" id="tier_key" class="plan-select" required>
-                        <option value="" disabled selected>-- Select your plan --</option>
-                        <?php foreach ($tiers as $key => $tier): ?>
-                            <option value="<?php echo $key; ?>">
-                                <?php echo htmlspecialchars($tier['name']); ?> 
-                                (₱<?php echo number_format($tier['price_max'], 2); ?> / month)
-                            </option>
+                    <label class="plan-label">Select Subscription Plan</label>
+                    <div class="plans-grid">
+                        <?php 
+                        // We include trial in the display if requested, but subscription_gateway might need handling
+                        $allDisplayTiers = getAllTiers();
+                        foreach ($allDisplayTiers as $key => $tier): 
+                            $isSelected = ($selectedPlan === $key);
+                        ?>
+                            <div class="plan-card <?php echo $isSelected ? 'selected' : ''; ?>" 
+                                 onclick="selectPlan('<?php echo $key; ?>')"
+                                 data-tier="<?php echo $key; ?>">
+                                <div class="plan-info">
+                                    <h3><?php echo h($tier['name']); ?></h3>
+                                    <p><?php echo h($tier['description']); ?></p>
+                                </div>
+                                <div class="plan-price">
+                                    <?php echo $tier['price_max'] > 0 ? '₱' . number_format($tier['price_max'], 2) : 'Free'; ?>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
-                    </select>
+                    </div>
                 </div>
 
                 <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
@@ -181,6 +267,28 @@ function h(string $s): string {
 
 <script>
     <?php printDateClockScript(); ?>
+
+    function selectPlan(tierKey) {
+        // Update hidden input
+        document.getElementById('tier_key_input').value = tierKey;
+        
+        // Update UI
+        document.querySelectorAll('.plan-card').forEach(card => {
+            card.classList.remove('selected');
+            if (card.getAttribute('data-tier') === tierKey) {
+                card.classList.add('selected');
+            }
+        });
+    }
+
+    // Form validation
+    document.getElementById('checkout-form').addEventListener('submit', function(e) {
+        const tierKey = document.getElementById('tier_key_input').value;
+        if (!tierKey) {
+            e.preventDefault();
+            alert('Please select a subscription plan.');
+        }
+    });
 </script>
 
 </body>
