@@ -3,15 +3,23 @@
  * Edit Tenant Homepage — Inline Visual Editor
  * Tenant-isolated: all reads/writes are scoped to the logged-in tenant's ID.
  */
+require_once '../includes/session_utils.php';
 require_once '../includes/connect.php';
 
-// ── Tenant isolation ──────────────────────────────────────────────────────────
-// Assumes your auth middleware sets $_SESSION['tenant_id'] on login.
-if (empty($_SESSION['tenant_id'])) {
-    header('Location: /login.php');
+$session = SessionManager::getInstance();
+$tenantSlug = $session->getCurrentTenantSlug();
+
+if (!$session->isTenantUser()) {
+    $slugParam = $tenantSlug ? '?tenant=' . urlencode($tenantSlug) : '';
+    header('Location: ../tenant_login.php' . $slugParam);
     exit;
 }
-$tenant_id = (int) $_SESSION['tenant_id'];
+
+$tenant_id = $session->getTenantId();
+if (!$tenant_id) {
+    header('Location: ../tenant_login.php');
+    exit;
+}
 
 // ── Handle AJAX save ──────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
@@ -424,14 +432,14 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
             <div class="topbar-right">
                 <span id="unsaved-badge">● Unsaved changes</span>
                 <button class="preview-action-btn" id="undo-btn">Undo</button>
-                <button class="preview-action-btn primary" onclick="window.open('tenant_homepage.php', '_blank')">
+                <button class="preview-action-btn primary" onclick="window.open('tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>', '_blank')">
                     View Live ↗
                 </button>
             </div>
         </div>
 
         <div id="preview-viewport">
-            <iframe id="preview-iframe" src="tenant_homepage.php" sandbox="allow-same-origin allow-scripts"></iframe>
+            <iframe id="preview-iframe" src="tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>" sandbox="allow-same-origin allow-scripts"></iframe>
         </div>
     </div>
 

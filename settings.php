@@ -347,6 +347,13 @@ HTML;
         <title><?php echo h($tenantName); ?> | Settings</title>
         <link rel="stylesheet" href="tenant_style.css">
         <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden; /* Prevent double scrollbars */
+          }
+
           :root {
             --accent: #0d3b66;
             --border: #e2e8f0;
