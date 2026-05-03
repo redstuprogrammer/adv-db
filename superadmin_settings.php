@@ -1,3 +1,4 @@
+<?php
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/session_utils.php';
