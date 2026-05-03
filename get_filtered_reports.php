@@ -87,14 +87,15 @@ try {
         $countStmt->execute($countParams);
         $total_count = $countStmt->fetchColumn();
 
-        if ($page !== null) {
-            $query .= " LIMIT ? OFFSET ?";
-            $params[] = $per_page;
-            $params[] = $offset;
+        $stmt = $pdo->prepare($query . ($page !== null ? " LIMIT ? OFFSET ?" : ""));
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
         }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
+        if ($page !== null) {
+            $stmt->bindValue(count($params) + 1, $per_page, PDO::PARAM_INT);
+            $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         while ($row = $stmt->fetch()) {
             $data[] = [
@@ -151,14 +152,15 @@ try {
         $countStmt->execute($countParams);
         $total_count = $countStmt->fetchColumn();
 
-        if ($page !== null) {
-            $query .= " LIMIT ? OFFSET ?";
-            $params[] = $per_page;
-            $params[] = $offset;
+        $stmt = $pdo->prepare($query . ($page !== null ? " LIMIT ? OFFSET ?" : ""));
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
         }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
+        if ($page !== null) {
+            $stmt->bindValue(count($params) + 1, $per_page, PDO::PARAM_INT);
+            $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         while ($row = $stmt->fetch()) {
             $data[] = $row;
@@ -191,14 +193,15 @@ try {
         $countStmt->execute($countParams);
         $total_count = $countStmt->fetchColumn();
 
-        if ($page !== null) {
-            $query .= " LIMIT ? OFFSET ?";
-            $params[] = $per_page;
-            $params[] = $offset;
+        $stmt = $pdo->prepare($query . ($page !== null ? " LIMIT ? OFFSET ?" : ""));
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
         }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
+        if ($page !== null) {
+            $stmt->bindValue(count($params) + 1, $per_page, PDO::PARAM_INT);
+            $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         while ($row = $stmt->fetch()) {
             $data[] = [
@@ -250,14 +253,15 @@ try {
         $countStmt->execute($countParams);
         $total_count = $countStmt->fetchColumn();
 
-        if ($page !== null) {
-            $query .= " LIMIT ? OFFSET ?";
-            $params[] = $per_page;
-            $params[] = $offset;
+        $stmt = $pdo->prepare($query . ($page !== null ? " LIMIT ? OFFSET ?" : ""));
+        foreach ($params as $i => $val) {
+            $stmt->bindValue($i + 1, $val);
         }
-
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
+        if ($page !== null) {
+            $stmt->bindValue(count($params) + 1, $per_page, PDO::PARAM_INT);
+            $stmt->bindValue(count($params) + 2, $offset, PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         while ($row = $stmt->fetch()) {
             $data[] = [

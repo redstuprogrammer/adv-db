@@ -86,7 +86,7 @@ switch ($role) {
 }
 ?>
 <nav class="tenant-sidebar">
-    <div class="sidebar-header h-20" style="height: 80px; min-height: 80px;">
+    <div class="sidebar-header h-20">
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon" style="font-size: 24px; font-weight: 900; color: #0d3b66;">🏥</div>
             <div>

@@ -20,7 +20,7 @@ if (function_exists('getAllSettings')) {
 ?>
 <aside class="sidebar">
     <div class="sidebar-top">
-        <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); height: 80px;">
+        <div class="sidebar-logo" style="display: flex; align-items: center; gap: 12px; padding: 24px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
             <div style="font-size: 32px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; overflow: hidden; border-radius: 4px; background: #ffffff;">
                 <?php 
                 $logoPath = trim($currentSettings['logo_path'] ?? '');

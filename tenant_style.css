@@ -215,8 +215,20 @@ body {
 }
 
 .tenant-sidebar::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  width: 5px;
+}
+
+.tenant-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tenant-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.tenant-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .sidebar-header {
@@ -643,5 +655,65 @@ body {
   .sa-table th,
   .sa-table td {
     padding: 8px 4px;
+  }
+}
+
+/* Vertical Responsiveness for Small Screens */
+@media (max-height: 850px) {
+  .sidebar-header {
+    padding: 16px;
+  }
+  
+  .sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .sidebar-logo-text {
+    font-size: 14px;
+  }
+
+  .sidebar-nav {
+    padding: 8px 0;
+  }
+
+  .sidebar-nav-item, 
+  .sidebar-dropdown-toggle {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .sidebar-section-title {
+    padding: 8px 16px 4px;
+    font-size: 10px;
+  }
+
+  .sidebar-footer {
+    padding: 12px;
+  }
+}
+
+@media (max-height: 650px) {
+  .sidebar-header {
+    padding: 12px;
+  }
+
+  .sidebar-logo {
+    gap: 8px;
+  }
+
+  .sidebar-clinic-name {
+    display: none;
+  }
+
+  .sidebar-nav-item, 
+  .sidebar-dropdown-toggle {
+    padding: 6px 16px;
+    gap: 10px;
+  }
+
+  .sidebar-section-title {
+    padding: 4px 16px 2px;
   }
 }
