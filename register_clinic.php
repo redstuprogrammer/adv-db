@@ -297,11 +297,15 @@ try {
             'email_sent' => $email_sent
         ];
     }
-} catch (Exception $e) {
-    $response['message'] = $e->getMessage();
+} catch (Throwable $e) {
+    if (ob_get_level()) ob_end_clean();
+    $response['message'] = "Error: " . $e->getMessage();
+    $response['success'] = false;
+    echo json_encode($response);
+    exit;
 }
 
-ob_end_clean();
+if (ob_get_level()) ob_end_clean();
 echo json_encode($response);
 exit;
 ?>

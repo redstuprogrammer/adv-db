@@ -74,7 +74,8 @@ $query = "SELECT
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            py.amount_paid as amount, 
+            py.total_amount as amount, 
+            py.amount_paid,
             py.mode, 
             py.payment_status as status,
             py.payment_type,
@@ -416,7 +417,9 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                                         $pStatus = strtolower(trim($row['status'] ?? ''));
                                         $pSource = strtolower(trim($row['source'] ?? ''));
 
-                                        if ($pType === 'deposit') {
+                                        if ($pStatus === 'unpaid') {
+                                            $typeLabel = 'Unpaid Invoice';
+                                        } elseif ($pType === 'deposit') {
                                             $typeLabel = 'Downpayment';
                                         } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
                                             $typeLabel = 'Partial Payment';

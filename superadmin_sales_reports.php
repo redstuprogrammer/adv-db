@@ -431,6 +431,52 @@ try {
         .menu-dropdown-item:hover {
             background-color: rgba(255, 255, 255, 0.15);
         }
+
+        /* Pagination Styles */
+        .sa-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            padding: 20px;
+            border-top: 1px solid var(--sa-border);
+            background: #fff;
+        }
+
+        .sa-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid var(--sa-border);
+            background: white;
+            color: #475569;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sa-page-link:hover:not(.disabled) {
+            border-color: var(--sa-primary);
+            color: var(--sa-primary);
+            background: #f8fafc;
+        }
+
+        .sa-page-link.active {
+            background: var(--sa-primary);
+            color: white;
+            border-color: var(--sa-primary);
+        }
+
+        .sa-page-link.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f1f5f9;
+        }
     </style>
 </head>
 <body>
@@ -555,12 +601,27 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     </thead>
                     <tbody>
                         <?php
+                        // Pagination logic for Transaction Audit Log
+                        $itemsPerPage = 10;
+                        $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                        $offset = ($currentPage - 1) * $itemsPerPage;
+
+                        // Count total records
+                        $count_query = "SELECT COUNT(*) as total FROM payment p JOIN tenants t ON p.tenant_id = t.tenant_id";
+                        $count_res = mysqli_query($conn, $count_query);
+                        $total_records = mysqli_fetch_assoc($count_res)['total'] ?? 0;
+                        $totalPages = ceil($total_records / $itemsPerPage);
+
                         $audit_query = "SELECT p.*, t.company_name, t.subscription_tier as current_tier 
                                        FROM payment p 
                                        JOIN tenants t ON p.tenant_id = t.tenant_id 
                                        ORDER BY p.payment_date DESC 
-                                       LIMIT 50";
-                        $audit_res = mysqli_query($conn, $audit_query);
+                                       LIMIT ? OFFSET ?";
+                        
+                        $stmt = mysqli_prepare($conn, $audit_query);
+                        mysqli_stmt_bind_param($stmt, "ii", $itemsPerPage, $offset);
+                        mysqli_stmt_execute($stmt);
+                        $audit_res = mysqli_stmt_get_result($stmt);
                         
                         if ($audit_res && mysqli_num_rows($audit_res) > 0):
                             while ($row = mysqli_fetch_assoc($audit_res)):
@@ -600,6 +661,42 @@ require_once __DIR__ . '/includes/revenue_queries.php';
                     </tbody>
                 </table>
             </div>
+            
+            <?php if ($totalPages > 1): ?>
+            <div class="sa-pagination">
+                <a href="?page=<?php echo max(1, $currentPage - 1); ?>" 
+                   class="sa-page-link <?php echo ($currentPage <= 1) ? 'disabled' : ''; ?>"
+                   aria-label="Previous page">
+                    &laquo; Prev
+                </a>
+
+                <?php
+                $startRange = max(1, $currentPage - 2);
+                $endRange = min($totalPages, $currentPage + 2);
+
+                if ($startRange > 1) {
+                    echo '<a href="?page=1" class="sa-page-link">1</a>';
+                    if ($startRange > 2) echo '<span style="color: var(--sa-muted); padding: 0 8px;">...</span>';
+                }
+
+                for ($i = $startRange; $i <= $endRange; $i++) {
+                    $activeClass = ($i == $currentPage) ? 'active' : '';
+                    echo "<a href=\"?page=$i\" class=\"sa-page-link $activeClass\">$i</a>";
+                }
+
+                if ($endRange < $totalPages) {
+                    if ($endRange < $totalPages - 1) echo '<span style="color: var(--sa-muted); padding: 0 8px;">...</span>';
+                    echo "<a href=\"?page=$totalPages\" class=\"sa-page-link\">$totalPages</a>";
+                }
+                ?>
+
+                <a href="?page=<?php echo min($totalPages, $currentPage + 1); ?>" 
+                   class="sa-page-link <?php echo ($currentPage >= $totalPages) ? 'disabled' : ''; ?>"
+                   aria-label="Next page">
+                    Next &raquo;
+                </a>
+            </div>
+            <?php endif; ?>
         </div>
 
     </main>

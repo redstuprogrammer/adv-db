@@ -79,7 +79,8 @@ $query = "SELECT
             p.first_name, 
             p.last_name, 
             COALESCE(s.service_name, 'General Service') AS service_name, 
-            py.amount_paid as amount, 
+            py.total_amount as amount, 
+            py.amount_paid,
             py.payment_status as status, 
             py.mode,
             py.payment_type,
@@ -423,7 +424,9 @@ if ($stats_stmt) {
                       $pStatus = strtolower(trim($payment['status'] ?? ''));
                       $pSource = strtolower(trim($payment['source'] ?? ''));
 
-                      if ($pType === 'deposit') {
+                      if ($pStatus === 'unpaid') {
+                          $typeLabel = 'Unpaid Invoice';
+                      } elseif ($pType === 'deposit') {
                           $typeLabel = 'Downpayment';
                       } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
                           $typeLabel = 'Partial Payment';
