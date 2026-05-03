@@ -27,12 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
     
     try {
         // Ensure all newer columns exist before any INSERT/UPDATE is attempted.
-        // IF NOT EXISTS makes these a no-op when the column is already present.
-        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS announcements_json TEXT");
-        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS team_json TEXT");
-        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS hero_image TEXT");
-        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS about_image_1 TEXT");
-        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS about_image_2 TEXT");
+        // errno 1060 = "Duplicate column name" — safe to ignore, means column already exists.
+        $newColumns = ['announcements_json' => 'TEXT', 'team_json' => 'TEXT', 'hero_image' => 'TEXT', 'about_image_1' => 'TEXT', 'about_image_2' => 'TEXT'];
+        foreach ($newColumns as $col => $type) {
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN `$col` $type");
+            if ($conn->errno !== 0 && $conn->errno !== 1060) {
+                throw new Exception("Migration failed for $col: " . $conn->error);
+            }
+        }
 
         $allowed = [
             'clinic_name', 'hero_title', 'hero_description',

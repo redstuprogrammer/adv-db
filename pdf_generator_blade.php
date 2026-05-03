@@ -86,8 +86,9 @@ class OralSyncPDFGenerator {
         if ($n > 0) {
             $pts = [];
             foreach ($data as $i => $v) {
+                $xFrac = ($n > 1) ? ($i / ($n - 1)) : 0.5;
                 $pts[] = [
-                    $xOff + ($n > 1 ? ($i / ($n - 1)) * $cw : $cw / 2),
+                    $xOff + $xFrac * $cw,
                     $yOff + $ch - ($v / $max) * $ch
                 ];
             }
@@ -312,27 +313,29 @@ class OralSyncPDFGenerator {
         $svgH   = 50; 
 
         $this->renderSectionLabel('Sales Analytics');
-        $startY = $pdf->GetY();
-        $maxY   = $startY;
+        $startY    = $pdf->GetY();
+        $maxY      = $startY;
+        $rowOnPage = 0; // tracks row index within the current page
 
         foreach ($chartSVGs as $i => $chart) {
-            $row = floor($i / 2);
             $col = $i % 2;
-            
+            $row = (int)floor($rowOnPage / 2);
+
             $x = 15 + $col * ($colW + 8);
             $y = $startY + $row * ($cardH + 8);
 
-            // Page break check
-            if ($y + $cardH > $pdf->getPageHeight() - 25) {
+            // Page break check — trigger before starting a new row pair
+            if ($col === 0 && $i > 0 && $y + $cardH > $pdf->getPageHeight() - 25) {
                 $pdf->AddPage();
                 $this->renderPageHeader('(continued charts)', '');
-                $startY = $pdf->GetY();
-                $y = $startY;
-                // Re-calculate based on new startY
-                // We keep i, but row is effectively reset for this page
-                $rowOffset = floor($i / 2);
-                $y = $startY + (floor($i / 2) - $rowOffset) * ($cardH + 8);
+                $startY    = $pdf->GetY();
+                $maxY      = $startY;
+                $rowOnPage = 0;
+                $row       = 0;
+                $y         = $startY;
             }
+
+            $rowOnPage++;
 
             // Card
             $pdf->SetFillColor(255, 255, 255);
@@ -384,21 +387,25 @@ class OralSyncPDFGenerator {
             $colW  = array_map(fn($c) => $c / $total * $pw, $colW);
         }
 
-        // Header row
-        $pdf->SetFillColor(13, 59, 102);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('dejavusans', 'B', 7.5);
-        $pdf->SetDrawColor(255, 255, 255);
-        $pdf->SetLineWidth(0.1);
+        // ── helper closure to draw the header row ──────────────────────────────
+        $drawHeader = function() use ($pdf, $headers, $colW, $n, $pw) {
+            $pdf->SetFillColor(13, 59, 102);
+            $pdf->SetTextColor(255, 255, 255);
+            $pdf->SetFont('dejavusans', 'B', 7.5);
+            $pdf->SetDrawColor(255, 255, 255);
+            $pdf->SetLineWidth(0.1);
+            $x = 15;
+            $y = $pdf->GetY();
+            foreach ($headers as $ci => $h) {
+                $pdf->SetXY($x, $y);
+                $pdf->Cell($colW[$ci], 8, strtoupper((string)$h), 0, 0, 'C', true);
+                $x += $colW[$ci];
+            }
+            $pdf->Ln(8);
+        };
 
-        $x = 15;
-        $y = $pdf->GetY();
-        foreach ($headers as $ci => $h) {
-            $pdf->SetXY($x, $y);
-            $pdf->Cell($colW[$ci], 8, strtoupper((string)$h), 0, 0, 'C', true);
-            $x += $colW[$ci];
-        }
-        $pdf->Ln(8);
+        // Header row
+        $drawHeader();
 
         if (empty($rows)) {
             $pdf->SetFillColor(248, 250, 252);
@@ -416,16 +423,20 @@ class OralSyncPDFGenerator {
 
         $even = false;
         foreach ($rows as $row) {
-            // Auto page-break
+            // Auto page-break — re-draw column headers on the new page
             if ($pdf->GetY() + 8 > $pdf->getPageHeight() - 25) {
                 $pdf->AddPage();
                 $this->renderPageHeader('(continued)', '');
+                $drawHeader();
             }
 
             $even = !$even;
             $pdf->SetFillColor($even ? 248 : 255, $even ? 250 : 255, $even ? 252 : 255);
 
             $cells = array_values((array)$row);
+            // Pad or trim so cell count always matches header count
+            while (count($cells) < $n) $cells[] = '';
+            $cells = array_slice($cells, 0, $n);
             $x     = 15;
             $y     = $pdf->GetY();
 
@@ -509,37 +520,46 @@ class OralSyncPDFGenerator {
             ];
         }
 
-        // Trend charts based on period
+        // Trend charts — for a specific period show only that period's chart;
+        // for 'all' show all four so readers can see every granularity.
         if ($period === 'all' || $period === 'daily') {
             $daily = $this->aggregateByDate($data);
-            $charts[] = [
-                'title' => 'Daily Sales Performance',
-                'svg'   => $this->createLineChartSVG(array_values($daily), array_keys($daily)),
-            ];
+            if (!empty($daily)) {
+                $charts[] = [
+                    'title' => 'Daily Sales Performance',
+                    'svg'   => $this->createLineChartSVG(array_values($daily), array_keys($daily)),
+                ];
+            }
         }
-        
+
         if ($period === 'all' || $period === 'weekly') {
             $weekly = $this->aggregateByWeek($data);
-            $charts[] = [
-                'title' => 'Weekly Sales Performance',
-                'svg'   => $this->createLineChartSVG(array_values($weekly), array_keys($weekly)),
-            ];
+            if (!empty($weekly)) {
+                $charts[] = [
+                    'title' => 'Weekly Sales Performance',
+                    'svg'   => $this->createLineChartSVG(array_values($weekly), array_keys($weekly)),
+                ];
+            }
         }
 
         if ($period === 'all' || $period === 'monthly') {
             $monthly = $this->aggregateByMonth($data);
-            $charts[] = [
-                'title' => 'Monthly Sales Performance',
-                'svg'   => $this->createLineChartSVG(array_values($monthly), array_keys($monthly)),
-            ];
+            if (!empty($monthly)) {
+                $charts[] = [
+                    'title' => 'Monthly Sales Performance',
+                    'svg'   => $this->createLineChartSVG(array_values($monthly), array_keys($monthly)),
+                ];
+            }
         }
 
         if ($period === 'all' || $period === 'yearly') {
             $yearly = $this->aggregateByYear($data);
-            $charts[] = [
-                'title' => 'Yearly Sales Performance',
-                'svg'   => $this->createLineChartSVG(array_values($yearly), array_keys($yearly)),
-            ];
+            if (!empty($yearly)) {
+                $charts[] = [
+                    'title' => 'Yearly Sales Performance',
+                    'svg'   => $this->createLineChartSVG(array_values($yearly), array_keys($yearly)),
+                ];
+            }
         }
 
         return $charts;

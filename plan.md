@@ -42,3 +42,8 @@ do the same for clinic pdf
 edit_tenant_homepage.php
 - when I click apply changes, it works, but then the page refreshes and displays the original state of the element. so it appears that the changes didnt apply.
 - when I click sync to live site, it displays "Error: Unknown column 'announcements_json' in 'field list'".
+
+
+oralsync_sales_report_yearly_2026-05-03.pdf
+oralsync_sales_report_monthly_2026-05-03.pdf
+oralsync_sales_report_weekly_2026-05-03.pdf
