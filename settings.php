@@ -410,45 +410,54 @@ HTML;
           .color-swatch-wrap {
             display: flex;
             align-items: center;
-            gap: 12px;
+            width: 100%;
             position: relative;
           }
 
           .color-swatch {
-            display: inline-flex;
+            flex: 1;
+            display: flex;
             align-items: center;
             gap: 12px;
-            padding: 8px 12px;
+            padding: 0 16px;
             border: 1px solid var(--border);
-            border-radius: 10px;
-            background: white;
+            border-radius: 12px;
+            background: #ffffff;
             cursor: pointer;
-            width: 100%;
-            text-align: left;
-            height: 46px;
+            height: 48px;
             box-sizing: border-box;
-            transition: all 0.2s ease;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            min-width: 0; /* Prevent flex-item from overflowing */
           }
 
           .color-swatch:hover {
             border-color: #94a3b8;
-            background: #f1f5f9;
+            background: #f8fafc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
           }
 
           .swatch-box {
             width: 24px;
             height: 24px;
-            border-radius: 6px;
-            border: 1px solid rgba(15, 23, 42, 0.12);
+            min-width: 24px;
+            min-height: 24px;
+            border-radius: 8px;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
             flex-shrink: 0;
-            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+            display: block;
+            background-color: transparent; /* Fallback */
           }
 
           .swatch-label {
             font-size: 14px;
-            color: #475569;
-            font-weight: 600;
+            color: #334155;
+            font-weight: 700;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            letter-spacing: -0.2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
           }
 

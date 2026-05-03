@@ -1,19 +1,21 @@
-for appointments.php, dentist_appointments.php, and receptionist_appointments.php
-- when status is already 'completed' or 'cancelled'. it shouldnt be allowed to be modified anymore.
 
-
-
-- sidebar portability in screen sizes
-
-superadmin_tenant_reports.php
-Error: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''10' OFFSET '0'' at line 4
 
 superadmin_sales_reports.php
 - pdf file display does not look good.
 
 reports.php
-- Error loading revenue data: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''10' OFFSET '0'' at line 7
+- when I click Sales Performance tab, and click Activity Audit Trail again, the list displays undefined values in all of the columns. fix that.
 
-settings.php
-- color picker has a bug. color picker display has become a line instead of square display of color.
-- when color picker is opened, its buggy
+
+dashboard.php
+- total sales (₱13,300.00) doesnt match with total sales (₱12,740.00) in reports.php and chart displays 225,640 pesos but total sales displays ₱12,740.00 (in reports.php) 
+
+move "reset to default" modal form to the center. for both superadmin_settings.php and settings.php
+
+Fix Color Picker Appearance
+
+The .color-swatch and .swatch-box elements are currently rendering as vertical lines.
+
+Adjust the CSS so that .swatch-box is a clearly visible 24x24px square with the background color of the current selection.
+
+Ensure the .color-swatch wrapper has a fixed height and proper padding so it looks like a clickable button.

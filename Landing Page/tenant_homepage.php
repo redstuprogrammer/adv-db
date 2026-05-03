@@ -491,7 +491,7 @@ foreach ($announcements as $index => $announcement):
                     </div>
                     <div>
                         <p class="font-bold text-on-surface">Install the app</p>
-                        <a href="https://drive.google.com/file/d/1CfuJhg_iKHftk-ftXNAvddrXPiuvjdrh/view?usp=sharing" target="_blank" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+                        <a href="https://drive.google.com/drive/folders/199ac2H14VbdUJSwrAsn3uJEL9Shbw_Xp?usp=sharing" target="_blank" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
                             Download APK via GDrive
                             <span class="material-symbols-outlined text-xs">open_in_new</span>
                         </a>
