@@ -1,14 +1,7 @@
 SUPERADMIN
 
 1. superadmin_create_superadmin.php
-- for creating a super admin's account remove temporary password and confirm password field.
 - send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
-
-2. superadmin_dash.php
-- New This Month card doesnt display accurate users within the present month.
-
-3. superadmin_settings.php
-- remove platform-wide constraints
 
 ADMIN
 users.php
