@@ -371,6 +371,36 @@ if ($stmtReq) {
         box-shadow: 0 20px 25px rgba(15, 23, 42, 0.15);
       }
 
+      .modal-content.wide {
+        max-width: 1000px;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .booking-grid {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        min-height: 600px;
+      }
+
+      .booking-sidebar {
+        padding: 24px;
+        background: #f8fafc;
+        border-right: 1px solid var(--dashboard-border);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .booking-main {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
       .modal-header {
         display: flex;
         justify-content: space-between;
@@ -393,8 +423,7 @@ if ($stmtReq) {
       }
 
       .modal form {
-        display: grid;
-        gap: 16px;
+        display: contents;
       }
 
       .form-group {
@@ -421,7 +450,8 @@ if ($stmtReq) {
         display: flex;
         justify-content: flex-end;
         gap: 12px;
-        margin-top: 8px;
+        margin-top: auto;
+        padding-top: 20px;
       }
 
       .modal-actions button {
@@ -441,6 +471,140 @@ if ($stmtReq) {
         background: var(--dashboard-accent);
         color: white;
       }
+
+      /* Calendar Grid */
+      .calendar-container {
+        background: white;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+      }
+
+      .cal-day-header {
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        padding: 8px 0;
+      }
+
+      .cal-day {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+        border: 1px solid transparent;
+        position: relative;
+        font-size: 14px;
+      }
+
+      .cal-day:hover:not(.disabled) {
+        background: #f1f5f9;
+        border-color: var(--dashboard-accent);
+      }
+
+      .cal-day.active {
+        background: var(--dashboard-accent) !important;
+        color: white !important;
+      }
+
+      .cal-day.disabled {
+        cursor: not-allowed;
+        opacity: 0.3;
+        background: #f1f5f9;
+      }
+
+      .cal-day.today {
+        border: 2px solid var(--dashboard-accent);
+        font-weight: 700;
+      }
+
+      .cal-day.working {
+        background: #ecfdf5;
+        color: #065f46;
+        font-weight: 600;
+      }
+
+      .cal-dot {
+        width: 4px;
+        height: 4px;
+        background: var(--dashboard-accent);
+        border-radius: 50%;
+        margin-top: 2px;
+      }
+
+      /* Time Grid */
+      .time-slot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .time-chip {
+        padding: 10px;
+        text-align: center;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .time-chip:hover:not(.disabled) {
+        border-color: var(--dashboard-accent);
+        background: #f0f9ff;
+      }
+
+      .time-chip.active {
+        background: var(--dashboard-accent);
+        color: white;
+        border-color: var(--dashboard-accent);
+      }
+
+      .time-chip.disabled {
+        background: #f1f5f9;
+        color: #94a3b8;
+        cursor: not-allowed;
+        text-decoration: line-through;
+        opacity: 0.6;
+      }
+
+      .booking-summary-card {
+        background: white;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: auto;
+      }
+
+      .summary-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .summary-label { color: #64748b; }
+      .summary-value { font-weight: 700; color: var(--dashboard-accent); }
     </style>
 </head>
 <body>
@@ -555,40 +719,86 @@ if ($stmtReq) {
 
   <!-- Schedule Appointment Modal -->
   <div id="scheduleModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Schedule Appointment</h3>
-        <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
-      </div>
+    <div class="modal-content wide">
       <form method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
-        <div class="form-group">
-          <label for="patient_id">Patient</label>
-          <select id="patient_id" name="patient_id" required>
-            <option value="">Select patient</option>
-            <?php foreach ($patients as $patient): ?>
-              <option value="<?php echo (int)$patient['patient_id']; ?>"><?php echo h(formatTenantPatientId($patient['tenant_patient_id']) . ' - ' . $patient['first_name'] . ' ' . $patient['last_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="appointment_date">Appointment Date</label>
-          <input type="date" id="appointment_date" name="appointment_date" required>
-        </div>
-        <div class="form-group">
-          <label for="dentist_id">Dentist</label>
-          <select id="dentist_id" name="dentist_id" required>
-            <option value="">Select dentist</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="appointment_time">Appointment Time</label>
-          <select id="appointment_time" name="appointment_time" required>
-            <option value="">Select time</option>
-          </select>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
-          <button type="submit" class="btn-primary" name="add_appointment">Save Appointment</button>
+        <div class="booking-grid">
+          <!-- Sidebar: Selection -->
+          <div class="booking-sidebar">
+            <div class="modal-header">
+              <h3 class="modal-title">Schedule Appointment</h3>
+              <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+              <label for="patient_id">Patient</label>
+              <select id="patient_id" name="patient_id" required>
+                <option value="">Select patient</option>
+                <?php foreach ($patients as $patient): ?>
+                  <option value="<?php echo (int)$patient['patient_id']; ?>"><?php echo h(formatTenantPatientId($patient['tenant_patient_id']) . ' - ' . $patient['first_name'] . ' ' . $patient['last_name']); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dentist_id">Preferred Dentist</label>
+              <select id="dentist_id" onchange="handleDentistChange()">
+                <option value="">Any Dentist (First Available)</option>
+                <?php foreach ($dentists as $dentist): ?>
+                  <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
+                <?php endforeach; ?>
+              </select>
+              <input type="hidden" id="final_dentist_id" name="dentist_id" value="">
+            </div>
+
+            <div class="booking-summary-card">
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--dashboard-accent);">Appointment Summary</h4>
+              <div class="summary-item">
+                <span class="summary-label">Date:</span>
+                <span class="summary-value" id="summary-date">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Time:</span>
+                <span class="summary-value" id="summary-time">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Dentist:</span>
+                <span class="summary-value" id="summary-dentist">First Available</span>
+              </div>
+            </div>
+
+            <input type="hidden" id="appointment_date" name="appointment_date" required>
+            <input type="hidden" id="appointment_time" name="appointment_time" required>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+              <button type="submit" class="btn-primary" name="add_appointment">Confirm Booking</button>
+            </div>
+          </div>
+
+          <!-- Main: Calendar & Slots -->
+          <div class="booking-main">
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button type="button" class="action-link" onclick="prevMonth()" style="padding: 4px 10px;">❮</button>
+                <h4 id="calendar-month-year" style="margin: 0; font-weight: 700;">September 2026</h4>
+                <button type="button" class="action-link" onclick="nextMonth()" style="padding: 4px 10px;">❯</button>
+              </div>
+              <div class="calendar-grid" id="calendar-grid">
+                <!-- Calendar will be rendered here -->
+              </div>
+            </div>
+
+            <div id="slots-container" style="display: none;">
+              <h4 style="margin: 0; font-size: 14px; color: var(--dashboard-accent);">Available Time Slots</h4>
+              <div class="time-slot-grid" id="time-slot-grid">
+                <!-- Slots will be rendered here -->
+              </div>
+            </div>
+
+            <div id="no-slots-msg" style="display: block; padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 12px;">
+              <p>Please select a date from the calendar to view available times.</p>
+            </div>
+          </div>
         </div>
       </form>
     </div>
@@ -713,113 +923,205 @@ if ($stmtReq) {
 
     function openScheduleModal() {
       console.log('Schedule modal opened');
-      const dateInput = document.getElementById('appointment_date');
-      if (dateInput) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        dateInput.min = tomorrow.toISOString().split('T')[0];
-        dateInput.value = '';
-      }
       const form = document.querySelector('#scheduleModal form');
       if (form) form.reset();
+      
+      // Reset internal state
+      selectedBookingDate = null;
+      selectedBookingTime = null;
+      selectedBookingDentist = null;
+      currentViewDate = new Date();
+      
+      document.getElementById('appointment_date').value = '';
+      document.getElementById('appointment_time').value = '';
+      document.getElementById('summary-date').textContent = 'Not selected';
+      document.getElementById('summary-time').textContent = 'Not selected';
+      document.getElementById('summary-dentist').textContent = 'First Available';
+      document.getElementById('slots-container').style.display = 'none';
+      document.getElementById('no-slots-msg').style.display = 'block';
+      
       document.getElementById('scheduleModal').classList.add('active');
+      fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear());
     }
 
     function closeScheduleModal() {
       document.getElementById('scheduleModal').classList.remove('active');
     }
 
-    async function loadAvailableDentists() {
-      const dateInput = document.getElementById('appointment_date');
-      const dentistSelect = document.getElementById('dentist_id');
-      const timeSelect = document.getElementById('appointment_time');
+    let currentViewDate = new Date();
+    let selectedBookingDate = null;
+    let selectedBookingTime = null;
+    let availabilityData = null;
 
-      if (!dateInput || !dentistSelect || !timeSelect) return;
+    async function fetchAvailabilityData(month, year, dentistId = null) {
+      const url = `api/get_monthly_availability.php?tenant_id=${tenantId}&month=${month + 1}&year=${year}${dentistId ? '&dentist_id=' + dentistId : ''}`;
+      try {
+        const response = await fetch(url);
+        availabilityData = await response.json();
+        renderBookingCalendar();
+      } catch (err) {
+        console.error('Failed to fetch availability:', err);
+      }
+    }
 
-      dentistSelect.innerHTML = '<option value="">Loading available dentists...</option>';
-      timeSelect.innerHTML = '<option value="">Select time</option>';
+    function renderBookingCalendar() {
+      const grid = document.getElementById('calendar-grid');
+      const monthYearLabel = document.getElementById('calendar-month-year');
+      if (!grid || !monthYearLabel) return;
 
-      const selectedDate = dateInput.value;
-      if (!selectedDate) {
-        dentistSelect.innerHTML = '<option value="">Select appointment date first</option>';
-        return;
+      grid.innerHTML = '';
+      const year = currentViewDate.getFullYear();
+      const month = currentViewDate.getMonth();
+      
+      monthYearLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
+
+      // Days of week header
+      ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+        const div = document.createElement('div');
+        div.className = 'cal-day-header';
+        div.textContent = day;
+        grid.appendChild(div);
+      });
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      // Empty slots before first day
+      for (let i = 0; i < firstDay; i++) {
+        grid.appendChild(document.createElement('div'));
       }
 
-      const apiUrl = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${encodeURIComponent(selectedDate)}`;
+      const today = new Date().toISOString().split('T')[0];
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayDiv = document.createElement('div');
+        dayDiv.className = 'cal-day';
+        dayDiv.textContent = d;
+
+        const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(year, month, d));
+        const isClinicClosed = availabilityData?.clinic_closed_days?.includes(dayName);
+        const isDentistWorking = availabilityData?.dentist_working_days?.length > 0 ? availabilityData.dentist_working_days.includes(dayName) : true;
+        
+        const isPast = dateStr < today;
+
+        if (isClinicClosed || !isDentistWorking || isPast) {
+          dayDiv.classList.add('disabled');
+        } else {
+          dayDiv.classList.add('working');
+          dayDiv.onclick = () => handleDateClick(dateStr);
+        }
+
+        if (dateStr === today) dayDiv.classList.add('today');
+        if (dateStr === selectedBookingDate) dayDiv.classList.add('active');
+
+        grid.appendChild(dayDiv);
+      }
+    }
+
+    function prevMonth() {
+      currentViewDate.setMonth(currentViewDate.getMonth() - 1);
+      fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), document.getElementById('dentist_id').value);
+    }
+
+    function nextMonth() {
+      currentViewDate.setMonth(currentViewDate.getMonth() + 1);
+      fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), document.getElementById('dentist_id').value);
+    }
+
+    function handleDentistChange() {
+      const dentistId = document.getElementById('dentist_id').value;
+      const dentistName = document.getElementById('dentist_id').options[document.getElementById('dentist_id').selectedIndex].text;
+      document.getElementById('summary-dentist').textContent = dentistId ? dentistName : 'First Available';
+      document.getElementById('final_dentist_id').value = dentistId;
+      
+      // Reset date/time selection when dentist changes if they were selected
+      selectedBookingTime = null;
+      document.getElementById('appointment_time').value = '';
+      document.getElementById('summary-time').textContent = 'Not selected';
+      
+      fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), dentistId);
+      
+      if (selectedBookingDate) {
+        loadSlotsForDate(selectedBookingDate, dentistId);
+      }
+    }
+
+    async function handleDateClick(dateStr) {
+      selectedBookingDate = dateStr;
+      document.getElementById('appointment_date').value = dateStr;
+      document.getElementById('summary-date').textContent = new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      
+      // Reset time
+      selectedBookingTime = null;
+      document.getElementById('appointment_time').value = '';
+      document.getElementById('summary-time').textContent = 'Not selected';
+      
+      renderBookingCalendar();
+      loadSlotsForDate(dateStr, document.getElementById('dentist_id').value);
+    }
+
+    async function loadSlotsForDate(date, dentistId) {
+      const slotsContainer = document.getElementById('slots-container');
+      const timeGrid = document.getElementById('time-slot-grid');
+      const noSlotsMsg = document.getElementById('no-slots-msg');
+
+      slotsContainer.style.display = 'block';
+      noSlotsMsg.style.display = 'none';
+      timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">Loading slots...</p>';
+
+      let url = '';
+      if (dentistId) {
+        url = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${date}`;
+        document.getElementById('final_dentist_id').value = dentistId;
+      } else {
+        url = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${date}`;
+        try {
+          const resp = await fetch(url);
+          const data = await resp.json();
+          if (data.success && data.dentists.length > 0) {
+            const firstDentistId = data.dentists[0].dentist_id;
+            const firstDentistName = `Dr. ${data.dentists[0].first_name} ${data.dentists[0].last_name}`;
+            document.getElementById('summary-dentist').textContent = firstDentistName + " (Auto-selected)";
+            document.getElementById('final_dentist_id').value = firstDentistId;
+            url = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${firstDentistId}&date=${date}`;
+          } else {
+             timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color: #ef4444;">No dentists available on this day.</p>';
+             return;
+          }
+        } catch(e) { console.error(e); }
+      }
+
       try {
-        const response = await fetch(apiUrl);
+        const response = await fetch(url);
         const data = await response.json();
-        if (!data.success) {
-          dentistSelect.innerHTML = '<option value="">No dentists available</option>';
+        
+        timeGrid.innerHTML = '';
+        if (!data.success || !data.slots || data.slots.length === 0) {
+          timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No available slots for this selection.</p>';
           return;
         }
-        if (data.clinic_closed) {
-          dentistSelect.innerHTML = '<option value="">Clinic closed on this date</option>';
-          return;
-        }
-        dentistSelect.innerHTML = '<option value="">Select dentist</option>';
-        data.dentists.forEach(dentist => {
-          const option = document.createElement('option');
-          option.value = dentist.dentist_id;
-          option.textContent = `Dr. ${dentist.first_name} ${dentist.last_name}`;
-          dentistSelect.appendChild(option);
+
+        data.slots.forEach(slot => {
+          const chip = document.createElement('div');
+          chip.className = `time-chip ${slot.available ? '' : 'disabled'}`;
+          chip.textContent = slot.label;
+          if (slot.available) {
+            chip.onclick = () => {
+              document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+              chip.classList.add('active');
+              selectedBookingTime = slot.time;
+              document.getElementById('appointment_time').value = slot.time;
+              document.getElementById('summary-time').textContent = slot.label;
+            };
+          }
+          if (selectedBookingTime === slot.time) chip.classList.add('active');
+          timeGrid.appendChild(chip);
         });
       } catch (err) {
-        console.error('Dentist load error:', err);
-        dentistSelect.innerHTML = '<option value="">Unable to load dentists</option>';
+        console.error('Failed to load slots:', err);
+        timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color: #ef4444;">Error loading slots.</p>';
       }
-    }
-
-    async function loadAvailableTimes() {
-      const dateInput = document.getElementById('appointment_date');
-      const dentistSelect = document.getElementById('dentist_id');
-      const timeSelect = document.getElementById('appointment_time');
-
-      if (!dateInput || !dentistSelect || !timeSelect) return;
-
-      const selectedDate = dateInput.value;
-      const dentistId = dentistSelect.value;
-      timeSelect.innerHTML = '<option value="">Loading available times...</option>';
-
-      if (!selectedDate || !dentistId) {
-        timeSelect.innerHTML = '<option value="">Select date and dentist first</option>';
-        return;
-      }
-
-      const apiUrl = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${encodeURIComponent(selectedDate)}`;
-      try {
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        if (!data.success) {
-          timeSelect.innerHTML = '<option value="">No available times</option>';
-          return;
-        }
-        const hourlySlots = data.slots.filter(slot => slot.time.endsWith(':00') && slot.available);
-        if (hourlySlots.length === 0) {
-          timeSelect.innerHTML = '<option value="">No hourly slots available</option>';
-          return;
-        }
-        timeSelect.innerHTML = '<option value="">Select time</option>';
-        hourlySlots.forEach(slot => {
-          const option = document.createElement('option');
-          option.value = slot.time;
-          option.textContent = slot.label;
-          timeSelect.appendChild(option);
-        });
-      } catch (err) {
-        console.error('Slots load error:', err);
-        timeSelect.innerHTML = '<option value="">Unable to load times</option>';
-      }
-    }
-
-    const appointmentDateInput = document.getElementById('appointment_date');
-    if (appointmentDateInput) {
-      appointmentDateInput.addEventListener('change', loadAvailableDentists);
-    }
-
-    const dentistSelectInput = document.getElementById('dentist_id');
-    if (dentistSelectInput) {
-      dentistSelectInput.addEventListener('change', loadAvailableTimes);
     }
 
     function openManageModal(id, patientName, dentistName, status) {

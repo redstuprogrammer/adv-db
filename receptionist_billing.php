@@ -705,7 +705,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                     opt.value = item.appointment_id;
                     const formattedDate = formatDateJS(item.appointment_date);
                     const formattedTime = formatTimeJS(item.appointment_time);
-                    opt.textContent = `${formattedDate} at ${formattedTime}`;
+                    opt.textContent = `${formattedDate} at ${formattedTime} (${item.status})`;
                     opt.dataset.requestedBy = item.requested_by || '';
                     
                     if (selectedApptId) {
@@ -795,37 +795,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         }
     }
 
-                
-                // Sort by date and time DESC (most recent first) - though server already does this
-                // We'll automatically select the first one if no selectedApptId is provided
-                
-                data.forEach((item, index) => {
-                    let opt = document.createElement('option');
-                    opt.value = item.appointment_id;
-                    const formattedDate = formatDateJS(item.appointment_date);
-                    const formattedTime = formatTimeJS(item.appointment_time);
-                    opt.textContent = `${formattedDate} at ${formattedTime} (${item.status})`;
-                    opt.dataset.requestedBy = item.requested_by || '';
-                    
-                    // Logic for auto-selection:
-                    // If selectedApptId is provided, use it.
-                    // Otherwise, select the first one (most recent).
-                    if (selectedApptId) {
-                        if (item.appointment_id == selectedApptId) opt.selected = true;
-                    } else if (index === 0) {
-                        opt.selected = true;
-                        if (autoMsg) autoMsg.style.display = 'block';
-                    }
-                    
-                    apptSelect.appendChild(opt);
-                });
-                updateTotal();
-            })
-            .catch(err => {
-                console.error('Error loading appointments:', err);
-                apptSelect.innerHTML = '<option value="">-- Error loading appointments --</option>';
-            });
-    }
+
 
     function filterMainTable() {
         let q = document.getElementById('tableSearch').value.toLowerCase();
