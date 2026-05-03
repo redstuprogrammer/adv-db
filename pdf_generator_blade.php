@@ -8,7 +8,6 @@ use Illuminate\Container\Container;
 class OralSyncPDFGenerator {
     private $blade;
     private $pdf;
-    private $tempFiles = [];
 
     public function __construct() {
         if (!defined('PDF_FONT_NAME_MAIN'))  define('PDF_FONT_NAME_MAIN',  'helvetica');
@@ -17,19 +16,16 @@ class OralSyncPDFGenerator {
         if (!defined('PDF_FONT_SIZE_DATA'))  define('PDF_FONT_SIZE_DATA',  8);
         if (!defined('PDF_FONT_MONOSPACED')) define('PDF_FONT_MONOSPACED', 'courier');
 
+        // Suppress the Jenssegers nullable-parameter deprecation warning so it
+        // never leaks a byte into the PDF binary stream.
+        $prev = error_reporting(E_ALL & ~E_DEPRECATED);
         $container = new \Jenssegers\Blade\Container;
         Container::setInstance($container);
-
         $this->blade = new Blade(__DIR__ . '/views', __DIR__ . '/cache', $container);
+        error_reporting($prev);
 
         $this->pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
         $this->setupPDF();
-    }
-
-    public function __destruct() {
-        foreach ($this->tempFiles as $file) {
-            if (file_exists($file)) @unlink($file);
-        }
     }
 
     private function setupPDF() {
@@ -37,15 +33,11 @@ class OralSyncPDFGenerator {
         $this->pdf->SetAuthor('OralSync');
         $this->pdf->SetTitle('OralSync Report');
 
-        // Disable built-in header/footer — content is rendered entirely via writeHTML.
-        // Leaving them enabled with zero margins causes TCPDF to emit stray bytes
-        // that corrupt the PDF binary stream.
+        // Disable built-in header/footer — all content rendered via writeHTML.
         $this->pdf->setPrintHeader(false);
         $this->pdf->setPrintFooter(false);
 
         $this->pdf->SetDefaultMonospacedFont('courier');
-
-        // Standard A4 margins — zero margins corrupt TCPDF page generation.
         $this->pdf->SetMargins(15, 15, 15);
         $this->pdf->SetAutoPageBreak(true, 15);
 
@@ -57,140 +49,130 @@ class OralSyncPDFGenerator {
     }
 
     // -------------------------------------------------------------------------
-    // Temp SVG helpers
-    // -------------------------------------------------------------------------
-
-    private function saveTempSVG($svg) {
-        $tmp      = tempnam(sys_get_temp_dir(), 'os_chart');
-        $filename = $tmp . '.svg';
-        rename($tmp, $filename);
-        file_put_contents($filename, $svg);
-        $this->tempFiles[] = $filename;
-        return $filename;
-    }
-
-    // -------------------------------------------------------------------------
     // SVG chart builders
+    // Charts are returned as raw SVG strings and embedded INLINE into the HTML.
+    // Do NOT use <img src="..."> or temp files — Azure App Service blocks them.
     // -------------------------------------------------------------------------
 
-    private function createLineChartSVG($config, $width, $height) {
-        $data   = $config['data']['datasets'][0]['data'] ?? [];
-        $labels = $config['data']['labels'] ?? [];
-
+    private function createLineChartSVG($data, $labels, $width = 380, $height = 200) {
         $maxValue = !empty($data) ? max($data) : 1;
         $maxValue = $maxValue ?: 1;
         $maxValue = ceil($maxValue / 100) * 100;
 
-        $chartWidth  = $width  - 80;
-        $chartHeight = $height - 80;
-        $xOffset     = 60;
-        $yOffset     = 20;
+        $chartW = $width  - 70;
+        $chartH = $height - 50;
+        $xOff   = 60;
+        $yOff   = 10;
+        $count  = count($data);
 
-        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background:white;'>";
-        $svg .= "<defs><linearGradient id='areaGradient' x1='0' y1='0' x2='0' y2='1'>"
-              . "<stop offset='0%' stop-color='#0d3b66' stop-opacity='0.2'/>"
+        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
+        $svg .= "<defs><linearGradient id='ag' x1='0' y1='0' x2='0' y2='1'>"
+              . "<stop offset='0%' stop-color='#0d3b66' stop-opacity='0.15'/>"
               . "<stop offset='100%' stop-color='#0d3b66' stop-opacity='0'/>"
               . "</linearGradient></defs>";
 
         for ($i = 0; $i <= 4; $i++) {
-            $y   = $yOffset + $chartHeight - ($i / 4) * $chartHeight;
-            $svg .= "<line x1='{$xOffset}' y1='{$y}' x2='" . ($xOffset + $chartWidth) . "' y2='{$y}' stroke='#f1f5f9' stroke-width='1'/>";
-            $val  = ($maxValue / 4) * $i;
-            $svg .= "<text x='50' y='" . ($y + 4) . "' text-anchor='end' font-family='Helvetica' font-size='10' fill='#64748b'>&#8369;" . number_format($val) . "</text>";
+            $y   = $yOff + $chartH - ($i / 4) * $chartH;
+            $val = number_format(($maxValue / 4) * $i);
+            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $chartW) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
+            $svg .= "<text x='55' y='" . ($y + 3) . "' text-anchor='end' font-size='8' fill='#94a3b8'>P{$val}</text>";
         }
 
-        $points    = '';
-        $areaPoints = "{$xOffset}," . ($yOffset + $chartHeight) . " ";
-        foreach ($data as $i => $value) {
-            $x = $xOffset + ($i / max(1, count($data) - 1)) * $chartWidth;
-            $y = $yOffset + $chartHeight - ($value / $maxValue) * $chartHeight;
-            $points     .= ($i > 0 ? ' L ' : 'M ') . $x . ' ' . $y;
-            $areaPoints .= "{$x},{$y} ";
-        }
-        $areaPoints .= ($xOffset + $chartWidth) . "," . ($yOffset + $chartHeight);
+        if ($count > 0) {
+            $pts  = '';
+            $area = "{$xOff}," . ($yOff + $chartH) . " ";
+            foreach ($data as $i => $v) {
+                $x    = $xOff + ($count > 1 ? ($i / ($count - 1)) * $chartW : $chartW / 2);
+                $y    = $yOff + $chartH - ($v / $maxValue) * $chartH;
+                $pts .= ($i === 0 ? "M{$x} {$y}" : " L{$x} {$y}");
+                $area .= "{$x},{$y} ";
+            }
+            $area .= ($xOff + $chartW) . "," . ($yOff + $chartH);
 
-        $svg .= "<polyline points='{$areaPoints}' fill='url(#areaGradient)'/>";
-        $svg .= "<path d='{$points}' fill='none' stroke='#0d3b66' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/>";
+            $svg .= "<polygon points='{$area}' fill='url(#ag)'/>";
+            $svg .= "<path d='{$pts}' fill='none' stroke='#0d3b66' stroke-width='2' stroke-linejoin='round'/>";
 
-        foreach ($data as $i => $value) {
-            $x    = $xOffset + ($i / max(1, count($data) - 1)) * $chartWidth;
-            $y    = $yOffset + $chartHeight - ($value / $maxValue) * $chartHeight;
-            $svg .= "<circle cx='{$x}' cy='{$y}' r='3' fill='white' stroke='#0d3b66' stroke-width='2'/>";
+            foreach ($data as $i => $v) {
+                $x     = $xOff + ($count > 1 ? ($i / ($count - 1)) * $chartW : $chartW / 2);
+                $y     = $yOff + $chartH - ($v / $maxValue) * $chartH;
+                $svg  .= "<circle cx='{$x}' cy='{$y}' r='3' fill='white' stroke='#0d3b66' stroke-width='1.5'/>";
+                $label = htmlspecialchars($labels[$i] ?? '');
+                if ($count <= 7 || $i % 2 === 0) {
+                    $svg .= "<text x='{$x}' y='" . ($yOff + $chartH + 14) . "' text-anchor='middle' font-size='8' fill='#94a3b8'>{$label}</text>";
+                }
+            }
         }
-        foreach ($labels as $i => $label) {
-            if (count($labels) > 7 && $i % 2 !== 0) continue;
-            $x    = $xOffset + ($i / max(1, count($labels) - 1)) * $chartWidth;
-            $label = htmlspecialchars($label);
-            $svg .= "<text x='{$x}' y='" . ($height - 40) . "' text-anchor='middle' font-family='Helvetica' font-size='10' fill='#64748b'>{$label}</text>";
-        }
+
         $svg .= "</svg>";
         return $svg;
     }
 
-    private function createBarChartSVG($config, $width, $height) {
-        $data   = $config['data']['datasets'][0]['data'] ?? [];
-        $labels = $config['data']['labels'] ?? [];
+    private function createBarChartSVG($data, $labels, $width = 380, $height = 200) {
+        $maxValue   = !empty($data) ? max($data) : 1;
+        $maxValue   = $maxValue ?: 1;
+        $maxValue   = ceil($maxValue / 100) * 100;
+        $chartW     = $width  - 70;
+        $chartH     = $height - 50;
+        $xOff       = 60;
+        $yOff       = 10;
+        $count      = count($data);
+        $barSpacing = $count > 0 ? $chartW / $count : $chartW;
+        $barW       = $barSpacing * 0.6;
 
-        $maxValue    = !empty($data) ? max($data) : 1;
-        $maxValue    = $maxValue ?: 1;
-        $maxValue    = ceil($maxValue / 100) * 100;
-        $chartWidth  = $width  - 80;
-        $chartHeight = $height - 80;
-        $xOffset     = 60;
-        $yOffset     = 20;
+        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
 
-        $svg = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background:white;'>";
         for ($i = 0; $i <= 4; $i++) {
-            $y   = $yOffset + $chartHeight - ($i / 4) * $chartHeight;
-            $svg .= "<line x1='{$xOffset}' y1='{$y}' x2='" . ($xOffset + $chartWidth) . "' y2='{$y}' stroke='#f1f5f9' stroke-width='1'/>";
-            $val  = ($maxValue / 4) * $i;
-            $svg .= "<text x='50' y='" . ($y + 4) . "' text-anchor='end' font-family='Helvetica' font-size='10' fill='#64748b'>&#8369;" . number_format($val) . "</text>";
+            $y   = $yOff + $chartH - ($i / 4) * $chartH;
+            $val = number_format(($maxValue / 4) * $i);
+            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $chartW) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
+            $svg .= "<text x='55' y='" . ($y + 3) . "' text-anchor='end' font-size='8' fill='#94a3b8'>P{$val}</text>";
         }
 
-        $barSpacing = $chartWidth / max(1, count($data));
-        $barWidth   = $barSpacing * 0.6;
-        foreach ($data as $i => $value) {
-            $h     = ($value / $maxValue) * $chartHeight;
-            $x     = $xOffset + ($i * $barSpacing) + ($barSpacing - $barWidth) / 2;
-            $y     = $yOffset + $chartHeight - $h;
-            $svg  .= "<rect x='{$x}' y='{$y}' width='{$barWidth}' height='{$h}' fill='#0d3b66' rx='2'/>";
+        foreach ($data as $i => $v) {
+            $h     = ($v / $maxValue) * $chartH;
+            $x     = $xOff + ($i * $barSpacing) + ($barSpacing - $barW) / 2;
+            $y     = $yOff + $chartH - $h;
+            $svg  .= "<rect x='{$x}' y='{$y}' width='{$barW}' height='{$h}' fill='#0d3b66' rx='2'/>";
             $label = htmlspecialchars($labels[$i] ?? '');
-            $svg  .= "<text x='" . ($x + $barWidth / 2) . "' y='" . ($height - 40) . "' text-anchor='middle' font-family='Helvetica' font-size='9' fill='#64748b' transform='rotate(-30 " . ($x + $barWidth / 2) . "," . ($height - 40) . ")'>{$label}</text>";
+            $svg  .= "<text x='" . ($x + $barW / 2) . "' y='" . ($yOff + $chartH + 14) . "' text-anchor='middle' font-size='8' fill='#94a3b8'>{$label}</text>";
         }
+
         $svg .= "</svg>";
         return $svg;
     }
 
-    private function createPieChartSVG($config, $width, $height) {
-        $data   = $config['data']['datasets'][0]['data'] ?? [];
-        $labels = $config['data']['labels'] ?? [];
-        $colors = ['#0d3b66', '#1e5f74', '#64748b', '#94a3b8', '#cbd5e1'];
-        $total  = array_sum($data) ?: 1;
+    private function createPieChartSVG($data, $labels, $width = 380, $height = 200) {
+        $colors       = ['#0d3b66', '#1e5f74', '#64748b', '#94a3b8', '#cbd5e1', '#475569'];
+        $total        = array_sum($data) ?: 1;
+        $cx           = 100;
+        $cy           = $height / 2;
+        $radius       = min($cx, $cy) - 15;
+        $currentAngle = -90;
 
-        $centerX = $width / 2 - 40;
-        $centerY = $height / 2;
-        $radius  = min($centerX, $centerY) - 40;
+        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
 
-        $svg          = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg' style='background:white;'>";
-        $currentAngle = 0;
-
-        foreach ($data as $i => $value) {
-            $angle = ($value / $total) * 360;
-            $x1    = $centerX + $radius * cos(deg2rad($currentAngle - 90));
-            $y1    = $centerY + $radius * sin(deg2rad($currentAngle - 90));
+        foreach ($data as $i => $v) {
+            $angle        = ($v / $total) * 360;
+            $x1           = $cx + $radius * cos(deg2rad($currentAngle));
+            $y1           = $cy + $radius * sin(deg2rad($currentAngle));
             $currentAngle += $angle;
-            $x2    = $centerX + $radius * cos(deg2rad($currentAngle - 90));
-            $y2    = $centerY + $radius * sin(deg2rad($currentAngle - 90));
-
-            $largeArcFlag = $angle > 180 ? 1 : 0;
-            $pathData     = "M {$centerX} {$centerY} L {$x1} {$y1} A {$radius} {$radius} 0 {$largeArcFlag} 1 {$x2} {$y2} Z";
+            $x2           = $cx + $radius * cos(deg2rad($currentAngle));
+            $y2           = $cy + $radius * sin(deg2rad($currentAngle));
+            $large        = $angle > 180 ? 1 : 0;
             $color        = $colors[$i % count($colors)];
             $label        = htmlspecialchars($labels[$i] ?? '');
+            $pct          = number_format(($v / $total) * 100, 1);
 
-            $svg .= "<path d='{$pathData}' fill='{$color}' stroke='white' stroke-width='1'/>";
-            $svg .= "<rect x='" . ($width - 100) . "' y='" . (40 + $i * 20) . "' width='12' height='12' fill='{$color}' rx='2'/>";
-            $svg .= "<text x='" . ($width - 80) . "' y='" . (50 + $i * 20) . "' font-family='Helvetica' font-size='10' fill='#64748b'>{$label}</text>";
+            $svg .= "<path d='M{$cx} {$cy} L{$x1} {$y1} A{$radius} {$radius} 0 {$large} 1 {$x2} {$y2} Z' fill='{$color}' stroke='white' stroke-width='1'/>";
+
+            $ly   = 20 + $i * 22;
+            $svg .= "<rect x='210' y='" . ($ly - 8) . "' width='10' height='10' fill='{$color}' rx='2'/>";
+            $svg .= "<text x='226' y='{$ly}' font-size='9' fill='#334155'>{$label} ({$pct}%)</text>";
         }
+
         $svg .= "</svg>";
         return $svg;
     }
@@ -201,36 +183,14 @@ class OralSyncPDFGenerator {
 
     public function generateSalesReport($data, $title = 'Sales Report', $context = 'superadmin') {
         $keyMetrics   = $this->calculateKeyMetrics($data, $context);
-        $charts       = $this->generateCharts($data, $context);
+        $chartSVGs    = $this->generateChartSVGs($data, $context);
         $tableHeaders = ($context === 'superadmin')
             ? ['Date', 'Tenant', 'Plan', 'Amount', 'Status']
             : ['Date', 'Patient', 'Service', 'Amount', 'Status'];
         $tableData    = $this->prepareTableData($data, $context);
+        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Sales';
 
-        // Try Blade view first; fall back to inline HTML so a valid PDF is
-        // always produced even when the view file is missing or has errors.
-        $viewPath = __DIR__ . '/views/sales_report.blade.php';
-        if (file_exists($viewPath)) {
-            try {
-                $html = $this->blade->render('sales_report', [
-                    'title'        => $title,
-                    'keyMetrics'   => $keyMetrics,
-                    'charts'       => $charts,
-                    'tableHeaders' => $tableHeaders,
-                    'tableData'    => $tableData,
-                    'tableTitle'   => $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Sales',
-                    'context'      => $context,
-                    'generatedAt'  => date('F j, Y H:i'),
-                    'generatedBy'  => $context === 'superadmin' ? 'System Administrator' : 'Clinic Administrator',
-                ]);
-            } catch (\Exception $e) {
-                error_log('OralSync Blade render failed: ' . $e->getMessage());
-                $html = $this->buildFallbackHTML($title, $keyMetrics, $tableHeaders, $tableData, $charts);
-            }
-        } else {
-            error_log('OralSync: sales_report.blade.php not found at ' . $viewPath . ' — using fallback HTML.');
-            $html = $this->buildFallbackHTML($title, $keyMetrics, $tableHeaders, $tableData, $charts);
-        }
+        $html = $this->buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle);
 
         $this->pdf->AddPage();
         $this->pdf->writeHTML($html, true, false, true, false, '');
@@ -241,18 +201,7 @@ class OralSyncPDFGenerator {
         if (!$headers && !empty($data)) {
             $headers = array_keys($data[0]);
         }
-
-        try {
-            $html = $this->blade->render('generic_report', [
-                'title'   => $title,
-                'headers' => $headers,
-                'data'    => $data,
-            ]);
-        } catch (\Exception $e) {
-            error_log('OralSync Blade render (generic) failed: ' . $e->getMessage());
-            $html = $this->buildFallbackHTML($title, [], $headers ?? [], $data, []);
-        }
-
+        $html = $this->buildHTML($title, [], [], $headers ?? [], $data, 'Records');
         $this->pdf->AddPage();
         $this->pdf->writeHTML($html, true, false, true, false, '');
         return $this->pdf->Output('', 'S');
@@ -274,59 +223,47 @@ class OralSyncPDFGenerator {
                 if (!empty($row['tenant_name'])) $tenants[$row['tenant_name']] = true;
             }
             return [
-                'Metric 1' => ['label' => 'Total Sales',     'value' => '&#8369;' . number_format($totalRevenue, 2)],
-                'Metric 2' => ['label' => 'Active Tenants',  'value' => count($tenants)],
-                'Metric 3' => ['label' => 'Monthly Growth',  'value' => '+12.5%'],
+                ['label' => 'Total Sales',    'value' => 'P' . number_format($totalRevenue, 2)],
+                ['label' => 'Active Tenants', 'value' => count($tenants)],
+                ['label' => 'Transactions',   'value' => count($data)],
             ];
         }
 
         $count = count($data);
         return [
-            'Metric 1' => ['label' => 'Total Sales',      'value' => '&#8369;' . number_format($totalRevenue, 2)],
-            'Metric 2' => ['label' => 'Patient Visits',   'value' => $count],
-            'Metric 3' => ['label' => 'Avg per Patient',  'value' => '&#8369;' . number_format($count > 0 ? $totalRevenue / $count : 0, 2)],
+            ['label' => 'Total Sales',     'value' => 'P' . number_format($totalRevenue, 2)],
+            ['label' => 'Patient Visits',  'value' => $count],
+            ['label' => 'Avg per Patient', 'value' => 'P' . number_format($count > 0 ? $totalRevenue / $count : 0, 2)],
         ];
     }
 
-    private function generateCharts($data, $context) {
-        $charts = [];
-
+    private function generateChartSVGs($data, $context) {
         $trendData = $this->aggregateByDate($data);
-        $charts['chart1'] = [
-            'title' => $context === 'superadmin' ? 'Subscription Growth' : 'Patient Volume Trend',
-            'path'  => $this->saveTempSVG($this->createLineChartSVG([
-                'type' => 'line',
-                'data' => ['labels' => array_keys($trendData), 'datasets' => [['data' => array_values($trendData)]]],
-            ], 400, 300)),
+        $chart1    = [
+            'title' => $context === 'superadmin' ? 'Revenue Trend' : 'Patient Volume Trend',
+            'svg'   => $this->createLineChartSVG(array_values($trendData), array_keys($trendData)),
         ];
 
         if ($context === 'superadmin') {
             $planData = $this->aggregateByField($data, 'plan');
-            $charts['chart2'] = [
+            $chart2   = [
                 'title' => 'Sales by Plan',
-                'path'  => $this->saveTempSVG($this->createBarChartSVG([
-                    'type' => 'bar',
-                    'data' => ['labels' => array_keys($planData), 'datasets' => [['data' => array_values($planData)]]],
-                ], 400, 300)),
+                'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
             ];
         } else {
             $serviceData = $this->aggregateByField($data, 'service');
-            $charts['chart2'] = [
+            $chart2      = [
                 'title' => 'Service Distribution',
-                'path'  => $this->saveTempSVG($this->createPieChartSVG([
-                    'type' => 'pie',
-                    'data' => ['labels' => array_keys($serviceData), 'datasets' => [['data' => array_values($serviceData)]]],
-                ], 400, 300)),
+                'svg'   => $this->createPieChartSVG(array_values($serviceData), array_keys($serviceData)),
             ];
         }
 
-        return $charts;
+        return [$chart1, $chart2];
     }
 
     private function aggregateByDate($data) {
         $aggregated = [];
         foreach ($data as $row) {
-            // Support every date column name used across both superadmin and tenant queries
             $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
             if ($date) {
                 $key = date('M d', strtotime($date));
@@ -340,7 +277,7 @@ class OralSyncPDFGenerator {
         $aggregated = [];
         foreach ($data as $row) {
             $val = $row[$field] ?? $row['service_name'] ?? $row['subscription_tier'] ?? 'Other';
-            if (empty($val)) $val = 'Other';
+            if (empty(trim((string)$val))) $val = 'Other';
             $aggregated[$val] = ($aggregated[$val] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
         }
         return $aggregated;
@@ -349,27 +286,27 @@ class OralSyncPDFGenerator {
     private function prepareTableData($data, $context) {
         $prepared = [];
         foreach ($data as $row) {
-            // Resolve the date from whichever column is present
             $rawDate = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
             $date    = $rawDate ? date('M d, Y', strtotime($rawDate)) : 'N/A';
 
             if ($context === 'superadmin') {
                 $prepared[] = [
-                    'Date'   => $date,
-                    'Tenant' => $row['tenant_name'] ?? 'N/A',
-                    'Plan'   => $row['plan']         ?? $row['subscription_tier'] ?? 'N/A',
-                    'Amount' => '&#8369;' . number_format((float)($row['amount'] ?? 0), 2),
-                    'Status' => ucfirst($row['status'] ?? 'paid'),
+                    $date,
+                    $row['tenant_name'] ?? 'N/A',
+                    $row['plan'] ?? $row['subscription_tier'] ?? 'N/A',
+                    'P' . number_format((float)($row['amount'] ?? 0), 2),
+                    ucfirst($row['status'] ?? 'paid'),
                 ];
             } else {
                 $patient = $row['patient_name']
-                    ?? (trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')) ?: 'N/A');
+                    ?? trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
+                if (!$patient) $patient = 'N/A';
                 $prepared[] = [
-                    'Date'    => $date,
-                    'Patient' => $patient,
-                    'Service' => $row['service'] ?? $row['service_name'] ?? 'General',
-                    'Amount'  => '&#8369;' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
-                    'Status'  => 'Paid',
+                    $date,
+                    $patient,
+                    $row['service'] ?? $row['service_name'] ?? 'General',
+                    'P' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
+                    'Paid',
                 ];
             }
         }
@@ -377,87 +314,89 @@ class OralSyncPDFGenerator {
     }
 
     /**
-     * Self-contained HTML report used when the Blade view is missing or broken.
-     * Renders cleanly via TCPDF's writeHTML without requiring any external assets.
+     * Builds a complete HTML string for TCPDF.
+     * SVG charts are embedded INLINE — TCPDF renders them natively.
+     * No <img> tags, no temp files, no base64 — all three fail on Azure.
      */
-    private function buildFallbackHTML($title, $keyMetrics, $tableHeaders, $tableData, $charts) {
-        $logoPath = __DIR__ . '/oral logo.png';
-        $logoTag  = '';
-        if (file_exists($logoPath)) {
-            $logoData = base64_encode(file_get_contents($logoPath));
-            $logoTag  = '<img src="data:image/png;base64,' . $logoData . '" style="height:40px;" />';
-        }
+    private function buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle) {
+        $generatedAt = date('F j, Y H:i');
 
-        $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8">';
-        $html .= '<style>
-            body { font-family: dejavusans, sans-serif; color: #0f172a; margin: 0; padding: 0; }
-            .header { background: #0d3b66; color: white; padding: 18px 20px; margin-bottom: 20px; }
-            .header h1 { margin: 0; font-size: 18px; }
-            .header p  { margin: 4px 0 0; font-size: 11px; opacity: 0.8; }
-            .metrics { display: table; width: 100%; margin-bottom: 20px; border-collapse: separate; border-spacing: 8px; }
-            .metric  { display: table-cell; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; text-align: center; }
-            .metric-value { font-size: 20px; font-weight: bold; color: #0d3b66; }
-            .metric-label { font-size: 11px; color: #64748b; margin-top: 4px; }
-            .section-title { font-size: 14px; font-weight: bold; color: #0d3b66; margin: 20px 0 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 4px; }
-            table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            th { background: #0d3b66; color: white; padding: 8px 10px; text-align: left; }
-            td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; }
-            tr:nth-child(even) td { background: #f8fafc; }
-            .charts { display: table; width: 100%; border-collapse: separate; border-spacing: 8px; margin-bottom: 20px; }
-            .chart-box { display: table-cell; background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; text-align: center; }
-            .chart-title { font-size: 12px; font-weight: bold; color: #0d3b66; margin-bottom: 8px; }
-            .footer { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-        </style></head><body>';
+        $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
+        $html .= '
+        body  { font-family:dejavusans,sans-serif; color:#0f172a; font-size:10px; margin:0; padding:0; }
+        .hdr  { background:#0d3b66; color:white; padding:14px 16px; margin-bottom:16px; }
+        .hdr h1 { margin:0 0 3px; font-size:15px; }
+        .hdr p  { margin:0; font-size:9px; opacity:0.8; }
+        .sec  { font-size:12px; font-weight:bold; color:#0d3b66; border-bottom:2px solid #e2e8f0; padding-bottom:3px; margin:14px 0 8px; }
+        table.metrics { width:100%; border-collapse:separate; border-spacing:6px; margin-bottom:12px; }
+        td.metric { background:#f8fafc; border:1px solid #e2e8f0; padding:12px 8px; text-align:center; width:33%; }
+        .mv { font-size:15px; font-weight:bold; color:#0d3b66; }
+        .ml { font-size:9px; color:#64748b; margin-top:3px; }
+        table.charts { width:100%; border-collapse:separate; border-spacing:6px; margin-bottom:12px; }
+        td.chart { background:white; border:1px solid #e2e8f0; padding:8px; text-align:center; width:50%; vertical-align:top; }
+        .ct { font-size:10px; font-weight:bold; color:#0d3b66; margin-bottom:6px; }
+        table.data { width:100%; border-collapse:collapse; font-size:9px; }
+        table.data th { background:#0d3b66; color:white; padding:7px 8px; text-align:left; }
+        table.data td { padding:6px 8px; border-bottom:1px solid #e2e8f0; }
+        table.data tr:nth-child(even) td { background:#f8fafc; }
+        .footer { margin-top:20px; border-top:1px solid #e2e8f0; padding-top:6px; font-size:8px; color:#94a3b8; text-align:center; }
+        ';
+        $html .= '</style></head><body>';
 
         // Header
-        $html .= '<div class="header">';
-        $html .= $logoTag ? '<table><tr><td style="width:50px;">' . $logoTag . '</td><td><h1>' . htmlspecialchars($title) . '</h1><p>Generated on ' . date('F j, Y H:i') . '</p></td></tr></table>' : '<h1>' . htmlspecialchars($title) . '</h1><p>Generated on ' . date('F j, Y H:i') . '</p>';
-        $html .= '</div>';
+        $html .= '<div class="hdr">'
+               . '<h1>' . htmlspecialchars($title) . '</h1>'
+               . '<p>Generated: ' . $generatedAt . '</p>'
+               . '</div>';
 
         // Key metrics
         if (!empty($keyMetrics)) {
-            $html .= '<div class="section-title">Key Metrics</div>';
-            $html .= '<div class="metrics">';
+            $html .= '<div class="sec">Key Metrics</div><table class="metrics"><tr>';
             foreach ($keyMetrics as $m) {
-                $html .= '<div class="metric"><div class="metric-value">' . $m['value'] . '</div><div class="metric-label">' . htmlspecialchars($m['label']) . '</div></div>';
+                $html .= '<td class="metric">'
+                       . '<div class="mv">' . htmlspecialchars((string)$m['value']) . '</div>'
+                       . '<div class="ml">' . htmlspecialchars($m['label']) . '</div>'
+                       . '</td>';
             }
-            $html .= '</div>';
+            $html .= '</tr></table>';
         }
 
-        // Charts (embed as SVG images)
-        if (!empty($charts)) {
-            $html .= '<div class="section-title">Charts</div>';
-            $html .= '<div class="charts">';
-            foreach ($charts as $chart) {
-                $html .= '<div class="chart-box"><div class="chart-title">' . htmlspecialchars($chart['title']) . '</div>';
-                if (!empty($chart['path']) && file_exists($chart['path'])) {
-                    $svgData = base64_encode(file_get_contents($chart['path']));
-                    $html   .= '<img src="data:image/svg+xml;base64,' . $svgData . '" style="max-width:100%;height:auto;" />';
-                }
-                $html .= '</div>';
+        // Charts — inline SVG, not <img>
+        if (!empty($chartSVGs)) {
+            $html .= '<div class="sec">Charts</div><table class="charts"><tr>';
+            foreach ($chartSVGs as $chart) {
+                $html .= '<td class="chart">'
+                       . '<div class="ct">' . htmlspecialchars($chart['title']) . '</div>'
+                       . $chart['svg']   // raw <svg>...</svg> embedded directly
+                       . '</td>';
             }
-            $html .= '</div>';
+            $html .= '</tr></table>';
         }
 
-        // Transactions table
-        if (!empty($tableData) && !empty($tableHeaders)) {
-            $html .= '<div class="section-title">Transactions</div>';
-            $html .= '<table><thead><tr>';
+        // Data table
+        if (!empty($tableHeaders)) {
+            $html .= '<div class="sec">' . htmlspecialchars($tableTitle) . '</div>';
+            $html .= '<table class="data"><thead><tr>';
             foreach ($tableHeaders as $h) {
                 $html .= '<th>' . htmlspecialchars($h) . '</th>';
             }
             $html .= '</tr></thead><tbody>';
-            foreach ($tableData as $row) {
-                $html .= '<tr>';
-                foreach ($row as $cell) {
-                    $html .= '<td>' . $cell . '</td>';
+
+            if (!empty($tableData)) {
+                foreach ($tableData as $row) {
+                    $html .= '<tr>';
+                    foreach ($row as $cell) {
+                        $html .= '<td>' . htmlspecialchars((string)$cell) . '</td>';
+                    }
+                    $html .= '</tr>';
                 }
-                $html .= '</tr>';
+            } else {
+                $html .= '<tr><td colspan="' . count($tableHeaders) . '" style="text-align:center;padding:16px;color:#94a3b8;">No records found.</td></tr>';
             }
             $html .= '</tbody></table>';
         }
 
-        $html .= '<div class="footer">OralSync &mdash; Confidential Report &mdash; Page {nb}</div>';
+        $html .= '<div class="footer">OralSync &mdash; Confidential &mdash; All amounts in Philippine Peso (PHP)</div>';
         $html .= '</body></html>';
 
         return $html;

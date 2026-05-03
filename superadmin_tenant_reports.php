@@ -369,6 +369,52 @@ try {
         .menu-dropdown-item:hover {
             background-color: rgba(255, 255, 255, 0.15);
         }
+
+        /* Pagination Styles */
+        .sa-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid var(--sa-border);
+        }
+
+        .sa-pagination-info {
+            font-size: 0.875rem;
+            color: var(--sa-muted);
+        }
+
+        .sa-pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sa-pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--sa-border);
+            background: white;
+            color: var(--sa-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .sa-pagination-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+        }
+
+        .sa-pagination-btn.active {
+            background: var(--sa-primary);
+            color: white;
+            border-color: var(--sa-primary);
+        }
+
+        .sa-pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -545,6 +591,8 @@ try {
 
         let currentReportData = [];
         let selectedReportType = 'tenant_activity';
+        let currentPage = 1;
+        const perPage = 10;
 
         function isValidDateRange() {
             const dateFrom = document.getElementById('date_from').value;
@@ -570,25 +618,27 @@ try {
                 activeBtn.classList.add('active');
                 activeBtn.style.opacity = '1';
             }
-            generateReport(type);
+            currentPage = 1;
+            generateReport(type, 1);
         }
 
-        function generateReport(type) {
+        function generateReport(type, page = 1) {
             if (!isValidDateRange()) {
                 return;
             }
 
+            currentPage = page;
             const dateFrom = document.getElementById('date_from').value;
             const dateTo = document.getElementById('date_to').value;
             const tenantId = document.getElementById('tenant_filter').value;
             const activityType = document.getElementById('activity_type').value;
 
-            fetch(`/get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
+            fetch(`/get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}&page=${page}&per_page=${perPage}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         currentReportData = data.data;
-                        displayReportResults(data.data, type);
+                        displayReportResults(data.data, type, data.pagination);
                     } else {
                         alert('Error: ' + data.error);
                     }
@@ -599,7 +649,7 @@ try {
                 });
         }
 
-        function displayReportResults(data, type) {
+        function displayReportResults(data, type, pagination = null) {
             const resultsDiv = document.getElementById('report-results');
             if (data.length === 0) {
                 resultsDiv.innerHTML = '<p>No data found for the selected filters.</p>';
@@ -622,6 +672,35 @@ try {
                 html += '</tr>';
             });
             html += '</tbody></table>';
+
+            // Pagination Controls
+            if (pagination && pagination.total_pages > 1) {
+                html += `
+                <div class="sa-pagination">
+                    <div class="sa-pagination-info">
+                        Showing ${(pagination.current_page - 1) * pagination.per_page + 1} to ${Math.min(pagination.current_page * pagination.per_page, pagination.total_count)} of ${pagination.total_count} records
+                    </div>
+                    <div class="sa-pagination-controls">
+                        <button class="sa-pagination-btn" ${pagination.current_page <= 1 ? 'disabled' : ''} onclick="generateReport('${selectedReportType}', ${pagination.current_page - 1})">Previous</button>
+                `;
+
+                // Page numbers
+                let startPage = Math.max(1, pagination.current_page - 2);
+                let endPage = Math.min(pagination.total_pages, startPage + 4);
+                if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    html += `<button class="sa-pagination-btn ${i === pagination.current_page ? 'active' : ''}" onclick="generateReport('${selectedReportType}', ${i})">${i}</button>`;
+                }
+
+                html += `
+                        <button class="sa-pagination-btn" ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} onclick="generateReport('${selectedReportType}', ${pagination.current_page + 1})">Next</button>
+                    </div>
+                </div>
+                `;
+            }
 
             resultsDiv.innerHTML = html;
         }
@@ -648,50 +727,62 @@ try {
         }
 
         function exportPDF() {
-            if (currentReportData.length === 0) {
-                alert('Please generate a report first');
-                return;
-            }
+            const dateFrom = document.getElementById('date_from').value;
+            const dateTo = document.getElementById('date_to').value;
+            const tenantId = document.getElementById('tenant_filter').value;
+            const activityType = document.getElementById('activity_type').value;
 
-            // Determine PDF type based on report type
-            let pdfType = 'standard';
-            if (selectedReportType === 'revenue') {
-                pdfType = 'sales';
-            }
+            // Fetch ALL data for export (omit page parameter)
+            fetch(`/get_filtered_reports.php?type=${selectedReportType}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const allData = data.data;
+                        
+                        // Determine PDF type based on report type
+                        let pdfType = 'standard';
+                        if (selectedReportType === 'revenue') {
+                            pdfType = 'sales';
+                        }
 
-            // Send data to PDF generator
-            fetch('generate_pdf.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    data: currentReportData,
-                    title: getReportTitle(selectedReportType),
-                    type: pdfType
+                        // Send all data to PDF generator
+                        return fetch('generate_pdf.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                data: allData,
+                                title: getReportTitle(selectedReportType),
+                                type: pdfType
+                            })
+                        });
+                    } else {
+                        throw new Error(data.error || 'Failed to fetch data for export');
+                    }
                 })
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                } else {
-                    throw new Error('PDF generation failed');
-                }
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'oralsync_report.pdf';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to export PDF');
-            });
+                .then(response => {
+                    if (response && response.ok) {
+                        return response.blob();
+                    } else if (response) {
+                        throw new Error('PDF generation failed');
+                    }
+                })
+                .then(blob => {
+                    if (!blob) return;
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `oralsync_${selectedReportType}_report.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to export PDF: ' + error.message);
+                });
         }
 
         function exportCSV() {

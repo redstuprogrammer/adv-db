@@ -185,6 +185,52 @@ if (!$hasBasicReporting) {
         height: 320px;
         position: relative;
       }
+
+      /* Pagination Styles */
+      .sa-pagination {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 20px;
+          padding: 15px 0;
+          border-top: 1px solid var(--border);
+      }
+
+      .sa-pagination-info {
+          font-size: 0.875rem;
+          color: #64748b;
+      }
+
+      .sa-pagination-controls {
+          display: flex;
+          gap: 5px;
+      }
+
+      .sa-pagination-btn {
+          padding: 6px 12px;
+          border: 1px solid var(--border);
+          background: white;
+          color: var(--accent);
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          transition: all 0.2s;
+      }
+
+      .sa-pagination-btn:hover:not(:disabled) {
+          background: #f1f5f9;
+      }
+
+      .sa-pagination-btn.active {
+          background: var(--accent);
+          color: white;
+          border-color: var(--accent);
+      }
+
+      .sa-pagination-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+      }
     </style>
 </head>
 <body>
@@ -291,6 +337,7 @@ if (!$hasBasicReporting) {
               ?>
             </tbody>
           </table>
+          <div id="activity-pagination"></div>
         </div><!-- end .module-card -->
       </div><!-- end #activity tab-content -->
 
@@ -385,6 +432,7 @@ if (!$hasBasicReporting) {
               ?>
             </tbody>
           </table>
+          <div id="revenue-pagination"></div>
           <?php
           echo "<script>document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱" . number_format($allTimeTotal, 2) . "';</script>";
           // Revenue chart data - last 12 months
@@ -441,6 +489,10 @@ if (!$hasBasicReporting) {
 
   <script>
     <?php printDateClockScript(); ?>
+
+    let currentActivityPage = 1;
+    let currentRevenuePage = 1;
+    const perPage = 10;
 
     document.addEventListener('DOMContentLoaded', function() {
       const params = new URLSearchParams(window.location.search);
@@ -505,16 +557,18 @@ if (!$hasBasicReporting) {
     });
 
 
-    function loadActivityReport() {
+    function loadActivityReport(page = 1) {
+      currentActivityPage = page;
       const dateFrom = document.getElementById('activity_date_from').value;
       const dateTo = document.getElementById('activity_date_to').value;
       const type = document.getElementById('activity_type_filter').value;
 
-      fetch(`/get_filtered_reports.php?type=tenant_activity&date_from=${dateFrom}&date_to=${dateTo}&activity_type=${type}`)
+      fetch(`/get_filtered_reports.php?type=tenant_activity&date_from=${dateFrom}&date_to=${dateTo}&activity_type=${type}&page=${page}&per_page=${perPage}`)
         .then(resp => resp.json())
         .then(data => {
           if (data.success) {
             renderActivityTable(data.data);
+            renderPagination('activity', data.pagination);
           } else {
             showCustomAlert('Error loading activity data: ' + data.error);
           }
@@ -557,10 +611,11 @@ if (!$hasBasicReporting) {
       }
     }
 
-function loadRevenueReport() {
+    function loadRevenueReport(page = 1) {
+      currentRevenuePage = page;
       const dateFrom = document.getElementById('revenue_date_from').value;
       const dateTo = document.getElementById('revenue_date_to').value;
-      const url = `/get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}`;
+      const url = `/get_filtered_reports.php?type=revenue&date_from=${dateFrom}&date_to=${dateTo}&page=${page}&per_page=${perPage}`;
       console.log('Fetching revenue:', url);
 
       fetch(url)
@@ -572,6 +627,7 @@ function loadRevenueReport() {
         .then(data => {
           if (data.success) {
             renderRevenueTable(data.data);
+            renderPagination('revenue', data.pagination);
           } else {
             showCustomAlert('Error loading revenue data: ' + data.error);
           }
@@ -606,6 +662,45 @@ function loadRevenueReport() {
         </tr>`;
       });
       document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
+    function renderPagination(type, pagination) {
+      const container = document.getElementById(`${type}-pagination`);
+      if (!container) return;
+      
+      if (!pagination || pagination.total_pages <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      const loadFunc = type === 'activity' ? 'loadActivityReport' : 'loadRevenueReport';
+      
+      let html = `
+        <div class="sa-pagination">
+          <div class="sa-pagination-info">
+            Showing ${(pagination.current_page - 1) * pagination.per_page + 1} to ${Math.min(pagination.current_page * pagination.per_page, pagination.total_count)} of ${pagination.total_count} records
+          </div>
+          <div class="sa-pagination-controls">
+            <button class="sa-pagination-btn" ${pagination.current_page <= 1 ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page - 1})">Previous</button>
+      `;
+
+      let startPage = Math.max(1, pagination.current_page - 2);
+      let endPage = Math.min(pagination.total_pages, startPage + 4);
+      if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        if (i < 1) continue;
+        html += `<button class="sa-pagination-btn ${i === pagination.current_page ? 'active' : ''}" onclick="${loadFunc}(${i})">${i}</button>`;
+      }
+
+      html += `
+            <button class="sa-pagination-btn" ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page + 1})">Next</button>
+          </div>
+        </div>
+      `;
+      container.innerHTML = html;
     }
 
     function exportRevenuePDF() {

@@ -21,6 +21,9 @@ $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
 $tenant_id = $_GET['tenant_id'] ?? '';
 $activity_type = $_GET['activity_type'] ?? '';
+$page = isset($_GET['page']) ? (int)$_GET['page'] : null;
+$per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+$offset = ($page !== null) ? ($page - 1) * $per_page : 0;
 
 if (!$isSuperAdmin && $tenantSessionId > 0) {
     if (!tenantHasTierFeature($tenantSessionId, 'basic_reporting', $conn)) {
@@ -71,6 +74,25 @@ try {
 
         $query .= " ORDER BY tal.log_date DESC";
 
+        // Get total count for pagination
+        $countQuery = "SELECT COUNT(*) FROM tenant_activity_logs tal WHERE 1=1";
+        $countParams = [];
+        if ($date_from) { $countQuery .= " AND tal.log_date >= ?"; $countParams[] = $date_from; }
+        if ($date_to) { $countQuery .= " AND tal.log_date <= ?"; $countParams[] = $date_to; }
+        if (!$isSuperAdmin && $tenantSessionId > 0) { $countQuery .= " AND tal.tenant_id = ?"; $countParams[] = $tenantSessionId; }
+        elseif ($tenant_id) { $countQuery .= " AND tal.tenant_id = ?"; $countParams[] = $tenant_id; }
+        if ($activity_type) { $countQuery .= " AND tal.activity_type = ?"; $countParams[] = $activity_type; }
+        
+        $countStmt = $pdo->prepare($countQuery);
+        $countStmt->execute($countParams);
+        $total_count = $countStmt->fetchColumn();
+
+        if ($page !== null) {
+            $query .= " LIMIT ? OFFSET ?";
+            $params[] = $per_page;
+            $params[] = $offset;
+        }
+
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
 
@@ -120,6 +142,21 @@ try {
         }
         $query .= " ORDER BY t.company_name";
 
+        // For usage stats, the count is simply the number of tenants matching filters (if any)
+        $countQuery = "SELECT COUNT(*) FROM tenants t WHERE 1=1";
+        $countParams = [];
+        if ($tenant_id) { $countQuery .= " AND t.tenant_id = ?"; $countParams[] = $tenant_id; }
+        
+        $countStmt = $pdo->prepare($countQuery);
+        $countStmt->execute($countParams);
+        $total_count = $countStmt->fetchColumn();
+
+        if ($page !== null) {
+            $query .= " LIMIT ? OFFSET ?";
+            $params[] = $per_page;
+            $params[] = $offset;
+        }
+
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
 
@@ -143,6 +180,22 @@ try {
         }
 
         $query .= " ORDER BY created_at DESC";
+
+        // Get total count
+        $countQuery = "SELECT COUNT(*) FROM tenants WHERE 1=1";
+        $countParams = [];
+        if ($date_from) { $countQuery .= " AND DATE(created_at) >= ?"; $countParams[] = $date_from; }
+        if ($date_to) { $countQuery .= " AND DATE(created_at) <= ?"; $countParams[] = $date_to; }
+        
+        $countStmt = $pdo->prepare($countQuery);
+        $countStmt->execute($countParams);
+        $total_count = $countStmt->fetchColumn();
+
+        if ($page !== null) {
+            $query .= " LIMIT ? OFFSET ?";
+            $params[] = $per_page;
+            $params[] = $offset;
+        }
 
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
@@ -185,6 +238,24 @@ try {
 
         $query .= " ORDER BY a.appointment_date DESC";
 
+        // Get total count
+        $countQuery = "SELECT COUNT(*) FROM billing py LEFT JOIN appointment a ON py.appointment_id = a.appointment_id WHERE py.payment_status IN ('paid', 'partial')";
+        $countParams = [];
+        if ($date_from) { $countQuery .= " AND a.appointment_date >= ?"; $countParams[] = $date_from; }
+        if ($date_to) { $countQuery .= " AND a.appointment_date <= ?"; $countParams[] = $date_to; }
+        if (!$isSuperAdmin && $tenantSessionId > 0) { $countQuery .= " AND py.tenant_id = ?"; $countParams[] = $tenantSessionId; }
+        elseif ($tenant_id) { $countQuery .= " AND py.tenant_id = ?"; $countParams[] = $tenant_id; }
+        
+        $countStmt = $pdo->prepare($countQuery);
+        $countStmt->execute($countParams);
+        $total_count = $countStmt->fetchColumn();
+
+        if ($page !== null) {
+            $query .= " LIMIT ? OFFSET ?";
+            $params[] = $per_page;
+            $params[] = $offset;
+        }
+
         $stmt = $pdo->prepare($query);
         $stmt->execute($params);
 
@@ -202,7 +273,16 @@ try {
         }
     }
 
-    echo json_encode(['success' => true, 'data' => $data]);
+    echo json_encode([
+        'success' => true, 
+        'data' => $data,
+        'pagination' => ($page !== null) ? [
+            'total_count' => (int)$total_count,
+            'total_pages' => ceil($total_count / $per_page),
+            'current_page' => $page,
+            'per_page' => $per_page
+        ] : null
+    ]);
 } catch (Exception $e) {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
