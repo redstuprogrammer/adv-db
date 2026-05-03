@@ -10,9 +10,9 @@ class OralSyncPDFGenerator {
     private $pdf;
 
     public function __construct() {
-        if (!defined('PDF_FONT_NAME_MAIN'))  define('PDF_FONT_NAME_MAIN',  'helvetica');
+        if (!defined('PDF_FONT_NAME_MAIN'))  define('PDF_FONT_NAME_MAIN',  'dejavusans');
         if (!defined('PDF_FONT_SIZE_MAIN'))  define('PDF_FONT_SIZE_MAIN',  10);
-        if (!defined('PDF_FONT_NAME_DATA'))  define('PDF_FONT_NAME_DATA',  'helvetica');
+        if (!defined('PDF_FONT_NAME_DATA'))  define('PDF_FONT_NAME_DATA',  'dejavusans');
         if (!defined('PDF_FONT_SIZE_DATA'))  define('PDF_FONT_SIZE_DATA',  8);
         if (!defined('PDF_FONT_MONOSPACED')) define('PDF_FONT_MONOSPACED', 'courier');
 
@@ -28,78 +28,84 @@ class OralSyncPDFGenerator {
         $this->setupPDF();
     }
 
-    private function setupPDF() {
+    private function setupPDF(): void {
         $this->pdf->SetCreator('OralSync');
         $this->pdf->SetAuthor('OralSync');
         $this->pdf->SetTitle('OralSync Report');
 
-        // Disable built-in header/footer — all content rendered via writeHTML.
+        // Disable built-in header/footer — rendered manually below.
         $this->pdf->setPrintHeader(false);
         $this->pdf->setPrintFooter(false);
 
         $this->pdf->SetDefaultMonospacedFont('courier');
         $this->pdf->SetMargins(15, 15, 15);
-        $this->pdf->SetAutoPageBreak(true, 15);
+        $this->pdf->SetAutoPageBreak(true, 22);
 
         if (defined('PDF_IMAGE_SCALE_RATIO')) {
             $this->pdf->setImageScale(PDF_IMAGE_SCALE_RATIO);
         }
 
+        // DejaVu Sans supports full Unicode including ₱
         $this->pdf->SetFont('dejavusans', '', 10);
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // SVG chart builders
-    // Charts are returned as raw SVG strings and embedded INLINE into the HTML.
-    // Do NOT use <img src="..."> or temp files — Azure App Service blocks them.
-    // -------------------------------------------------------------------------
+    // Return raw SVG strings — rendered via ImageSVG(), NOT writeHTML().
+    // TCPDF does NOT render <svg> tags inside writeHTML; ImageSVG() is correct.
+    // =========================================================================
 
-    private function createLineChartSVG($data, $labels, $width = 380, $height = 200) {
-        $maxValue = !empty($data) ? max($data) : 1;
-        $maxValue = $maxValue ?: 1;
-        $maxValue = ceil($maxValue / 100) * 100;
+    private function createLineChartSVG(array $data, array $labels, int $w = 500, int $h = 170): string {
+        $max   = max(!empty($data) ? $data : [1]);
+        $max   = $max ?: 1;
+        $max   = ceil($max / 100) * 100;
+        $cw    = $w - 80;
+        $ch    = $h - 48;
+        $xOff  = 68;
+        $yOff  = 14;
+        $n     = count($data);
 
-        $chartW = $width  - 70;
-        $chartH = $height - 50;
-        $xOff   = 60;
-        $yOff   = 10;
-        $count  = count($data);
-
-        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
-        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
-        $svg .= "<defs><linearGradient id='ag' x1='0' y1='0' x2='0' y2='1'>"
-              . "<stop offset='0%' stop-color='#0d3b66' stop-opacity='0.15'/>"
-              . "<stop offset='100%' stop-color='#0d3b66' stop-opacity='0'/>"
+        $svg  = "<svg width='{$w}' height='{$h}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$w}' height='{$h}' fill='#ffffff'/>";
+        $svg .= "<defs><linearGradient id='lg' x1='0' y1='0' x2='0' y2='1'>"
+              . "<stop offset='0%' stop-color='#0d3b66' stop-opacity='0.18'/>"
+              . "<stop offset='100%' stop-color='#0d3b66' stop-opacity='0.01'/>"
               . "</linearGradient></defs>";
 
+        // Grid + Y labels
         for ($i = 0; $i <= 4; $i++) {
-            $y   = $yOff + $chartH - ($i / 4) * $chartH;
-            $val = number_format(($maxValue / 4) * $i);
-            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $chartW) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
-            $svg .= "<text x='55' y='" . ($y + 3) . "' text-anchor='end' font-size='8' fill='#94a3b8'>P{$val}</text>";
+            $y   = $yOff + $ch - ($i / 4) * $ch;
+            $val = number_format(($max / 4) * $i, 0);
+            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $cw) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
+            $svg .= "<text x='" . ($xOff - 5) . "' y='" . ($y + 4) . "' text-anchor='end' font-size='9' fill='#94a3b8' font-family='Arial'>{$val}</text>";
         }
+        // Axes
+        $svg .= "<line x1='{$xOff}' y1='{$yOff}' x2='{$xOff}' y2='" . ($yOff + $ch) . "' stroke='#cbd5e1' stroke-width='1'/>";
+        $svg .= "<line x1='{$xOff}' y1='" . ($yOff + $ch) . "' x2='" . ($xOff + $cw) . "' y2='" . ($yOff + $ch) . "' stroke='#cbd5e1' stroke-width='1'/>";
 
-        if ($count > 0) {
-            $pts  = '';
-            $area = "{$xOff}," . ($yOff + $chartH) . " ";
+        if ($n > 0) {
+            $pts = [];
             foreach ($data as $i => $v) {
-                $x    = $xOff + ($count > 1 ? ($i / ($count - 1)) * $chartW : $chartW / 2);
-                $y    = $yOff + $chartH - ($v / $maxValue) * $chartH;
-                $pts .= ($i === 0 ? "M{$x} {$y}" : " L{$x} {$y}");
-                $area .= "{$x},{$y} ";
+                $pts[] = [
+                    $xOff + ($n > 1 ? ($i / ($n - 1)) * $cw : $cw / 2),
+                    $yOff + $ch - ($v / $max) * $ch
+                ];
             }
-            $area .= ($xOff + $chartW) . "," . ($yOff + $chartH);
-
-            $svg .= "<polygon points='{$area}' fill='url(#ag)'/>";
-            $svg .= "<path d='{$pts}' fill='none' stroke='#0d3b66' stroke-width='2' stroke-linejoin='round'/>";
-
-            foreach ($data as $i => $v) {
-                $x     = $xOff + ($count > 1 ? ($i / ($count - 1)) * $chartW : $chartW / 2);
-                $y     = $yOff + $chartH - ($v / $maxValue) * $chartH;
-                $svg  .= "<circle cx='{$x}' cy='{$y}' r='3' fill='white' stroke='#0d3b66' stroke-width='1.5'/>";
-                $label = htmlspecialchars($labels[$i] ?? '');
-                if ($count <= 7 || $i % 2 === 0) {
-                    $svg .= "<text x='{$x}' y='" . ($yOff + $chartH + 14) . "' text-anchor='middle' font-size='8' fill='#94a3b8'>{$label}</text>";
+            // Area
+            $area = "M{$pts[0][0]}," . ($yOff + $ch);
+            foreach ($pts as [$px, $py]) $area .= " L{$px},{$py}";
+            $area .= " L{$pts[$n-1][0]}," . ($yOff + $ch) . " Z";
+            $svg .= "<path d='{$area}' fill='url(#lg)'/>";
+            // Line
+            $path = "M{$pts[0][0]},{$pts[0][1]}";
+            for ($i = 1; $i < $n; $i++) $path .= " L{$pts[$i][0]},{$pts[$i][1]}";
+            $svg .= "<path d='{$path}' fill='none' stroke='#0d3b66' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/>";
+            // Points + X labels
+            foreach ($pts as $i => [$px, $py]) {
+                $svg .= "<circle cx='{$px}' cy='{$py}' r='3.5' fill='white' stroke='#0d3b66' stroke-width='2'/>";
+                if ($n <= 8 || $i % 2 === 0) {
+                    $lbl = htmlspecialchars($labels[$i] ?? '', ENT_XML1, 'UTF-8');
+                    $svg .= "<text x='{$px}' y='" . ($yOff + $ch + 15) . "' text-anchor='middle' font-size='8' fill='#64748b' font-family='Arial'>{$lbl}</text>";
                 }
             }
         }
@@ -108,110 +114,423 @@ class OralSyncPDFGenerator {
         return $svg;
     }
 
-    private function createBarChartSVG($data, $labels, $width = 380, $height = 200) {
-        $maxValue   = !empty($data) ? max($data) : 1;
-        $maxValue   = $maxValue ?: 1;
-        $maxValue   = ceil($maxValue / 100) * 100;
-        $chartW     = $width  - 70;
-        $chartH     = $height - 50;
-        $xOff       = 60;
-        $yOff       = 10;
-        $count      = count($data);
-        $barSpacing = $count > 0 ? $chartW / $count : $chartW;
-        $barW       = $barSpacing * 0.6;
+    private function createBarChartSVG(array $data, array $labels, int $w = 500, int $h = 170): string {
+        $max      = max(!empty($data) ? $data : [1]);
+        $max      = $max ?: 1;
+        $max      = ceil($max / 100) * 100;
+        $cw       = $w - 80;
+        $ch       = $h - 48;
+        $xOff     = 68;
+        $yOff     = 14;
+        $n        = count($data);
+        $spacing  = $n > 0 ? $cw / $n : $cw;
+        $barW     = max(8, $spacing * 0.55);
+        $colors   = ['#0d3b66', '#1e5f74', '#2d8a6b', '#64748b', '#94a3b8'];
 
-        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
-        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
+        $svg  = "<svg width='{$w}' height='{$h}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$w}' height='{$h}' fill='#ffffff'/>";
 
         for ($i = 0; $i <= 4; $i++) {
-            $y   = $yOff + $chartH - ($i / 4) * $chartH;
-            $val = number_format(($maxValue / 4) * $i);
-            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $chartW) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
-            $svg .= "<text x='55' y='" . ($y + 3) . "' text-anchor='end' font-size='8' fill='#94a3b8'>P{$val}</text>";
+            $y   = $yOff + $ch - ($i / 4) * $ch;
+            $val = number_format(($max / 4) * $i, 0);
+            $svg .= "<line x1='{$xOff}' y1='{$y}' x2='" . ($xOff + $cw) . "' y2='{$y}' stroke='#e2e8f0' stroke-width='1'/>";
+            $svg .= "<text x='" . ($xOff - 5) . "' y='" . ($y + 4) . "' text-anchor='end' font-size='9' fill='#94a3b8' font-family='Arial'>{$val}</text>";
         }
+        $svg .= "<line x1='{$xOff}' y1='{$yOff}' x2='{$xOff}' y2='" . ($yOff + $ch) . "' stroke='#cbd5e1' stroke-width='1'/>";
+        $svg .= "<line x1='{$xOff}' y1='" . ($yOff + $ch) . "' x2='" . ($xOff + $cw) . "' y2='" . ($yOff + $ch) . "' stroke='#cbd5e1' stroke-width='1'/>";
 
         foreach ($data as $i => $v) {
-            $h     = ($v / $maxValue) * $chartH;
-            $x     = $xOff + ($i * $barSpacing) + ($barSpacing - $barW) / 2;
-            $y     = $yOff + $chartH - $h;
-            $svg  .= "<rect x='{$x}' y='{$y}' width='{$barW}' height='{$h}' fill='#0d3b66' rx='2'/>";
-            $label = htmlspecialchars($labels[$i] ?? '');
-            $svg  .= "<text x='" . ($x + $barW / 2) . "' y='" . ($yOff + $chartH + 14) . "' text-anchor='middle' font-size='8' fill='#94a3b8'>{$label}</text>";
+            $bh    = ($v / $max) * $ch;
+            $bx    = $xOff + ($i * $spacing) + ($spacing - $barW) / 2;
+            $by    = $yOff + $ch - $bh;
+            $color = $colors[$i % count($colors)];
+            $svg  .= "<rect x='{$bx}' y='{$by}' width='{$barW}' height='{$bh}' fill='{$color}' rx='3'/>";
+            $lbl   = htmlspecialchars($labels[$i] ?? '', ENT_XML1, 'UTF-8');
+            $svg  .= "<text x='" . ($bx + $barW / 2) . "' y='" . ($yOff + $ch + 15) . "' text-anchor='middle' font-size='8' fill='#64748b' font-family='Arial'>{$lbl}</text>";
         }
 
         $svg .= "</svg>";
         return $svg;
     }
 
-    private function createPieChartSVG($data, $labels, $width = 380, $height = 200) {
-        $colors       = ['#0d3b66', '#1e5f74', '#64748b', '#94a3b8', '#cbd5e1', '#475569'];
-        $total        = array_sum($data) ?: 1;
-        $cx           = 100;
-        $cy           = $height / 2;
-        $radius       = min($cx, $cy) - 15;
-        $currentAngle = -90;
+    private function createPieChartSVG(array $data, array $labels, int $w = 500, int $h = 170): string {
+        $colors = ['#0d3b66', '#1e5f74', '#2d8a6b', '#64748b', '#94a3b8', '#475569'];
+        $total  = array_sum($data) ?: 1;
+        $cx     = 85;
+        $cy     = $h / 2;
+        $r      = 65;
+        $angle  = -90;
 
-        $svg  = "<svg width='{$width}' height='{$height}' xmlns='http://www.w3.org/2000/svg'>";
-        $svg .= "<rect width='{$width}' height='{$height}' fill='white'/>";
+        $svg  = "<svg width='{$w}' height='{$h}' xmlns='http://www.w3.org/2000/svg'>";
+        $svg .= "<rect width='{$w}' height='{$h}' fill='#ffffff'/>";
 
         foreach ($data as $i => $v) {
-            $angle        = ($v / $total) * 360;
-            $x1           = $cx + $radius * cos(deg2rad($currentAngle));
-            $y1           = $cy + $radius * sin(deg2rad($currentAngle));
-            $currentAngle += $angle;
-            $x2           = $cx + $radius * cos(deg2rad($currentAngle));
-            $y2           = $cy + $radius * sin(deg2rad($currentAngle));
-            $large        = $angle > 180 ? 1 : 0;
-            $color        = $colors[$i % count($colors)];
-            $label        = htmlspecialchars($labels[$i] ?? '');
-            $pct          = number_format(($v / $total) * 100, 1);
+            $sweep = ($v / $total) * 360;
+            if ($sweep >= 360) $sweep = 359.99;
+            $x1   = $cx + $r * cos(deg2rad($angle));
+            $y1   = $cy + $r * sin(deg2rad($angle));
+            $angle += $sweep;
+            $x2   = $cx + $r * cos(deg2rad($angle));
+            $y2   = $cy + $r * sin(deg2rad($angle));
+            $lg   = $sweep > 180 ? 1 : 0;
+            $col  = $colors[$i % count($colors)];
+            $svg .= "<path d='M{$cx},{$cy} L{$x1},{$y1} A{$r},{$r} 0 {$lg},1 {$x2},{$y2} Z' fill='{$col}' stroke='white' stroke-width='1.5'/>";
+        }
 
-            $svg .= "<path d='M{$cx} {$cy} L{$x1} {$y1} A{$radius} {$radius} 0 {$large} 1 {$x2} {$y2} Z' fill='{$color}' stroke='white' stroke-width='1'/>";
-
-            $ly   = 20 + $i * 22;
-            $svg .= "<rect x='210' y='" . ($ly - 8) . "' width='10' height='10' fill='{$color}' rx='2'/>";
-            $svg .= "<text x='226' y='{$ly}' font-size='9' fill='#334155'>{$label} ({$pct}%)</text>";
+        // Legend
+        foreach ($data as $i => $v) {
+            $col  = $colors[$i % count($colors)];
+            $lbl  = htmlspecialchars($labels[$i] ?? '', ENT_XML1, 'UTF-8');
+            $pct  = number_format(($v / $total) * 100, 1);
+            $ly   = 28 + $i * 26;
+            if ($ly + 14 > $h) break;
+            $svg .= "<rect x='175' y='" . ($ly - 10) . "' width='12' height='12' fill='{$col}' rx='2'/>";
+            $svg .= "<text x='193' y='{$ly}' font-size='10' fill='#334155' font-family='Arial'>{$lbl}</text>";
+            $svg .= "<text x='193' y='" . ($ly + 13) . "' font-size='9' fill='#94a3b8' font-family='Arial'>{$pct}%</text>";
         }
 
         $svg .= "</svg>";
         return $svg;
     }
 
-    // -------------------------------------------------------------------------
+    // =========================================================================
     // Public report generators
-    // -------------------------------------------------------------------------
+    // =========================================================================
 
-    public function generateSalesReport($data, $title = 'Sales Report', $context = 'superadmin') {
+    public function generateSalesReport(array $data, string $title = 'Sales Report', string $context = 'superadmin'): string {
         $keyMetrics   = $this->calculateKeyMetrics($data, $context);
         $chartSVGs    = $this->generateChartSVGs($data, $context);
         $tableHeaders = ($context === 'superadmin')
-            ? ['Date', 'Tenant', 'Plan', 'Amount', 'Status']
-            : ['Date', 'Patient', 'Service', 'Amount', 'Status'];
+            ? ['Date', 'Tenant / Clinic', 'Plan', 'Amount (PHP)', 'Status']
+            : ['Date', 'Patient', 'Service', 'Amount (PHP)', 'Type'];
         $tableData    = $this->prepareTableData($data, $context);
-        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Clinic Transactions';
-
-        $html = $this->buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle);
+        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Clinic Revenue Transactions';
 
         $this->pdf->AddPage();
-        $this->pdf->writeHTML($html, true, false, true, false, '');
+        $this->renderPageHeader($title, $context);
+        $this->renderKeyMetrics($keyMetrics);
+        $this->renderCharts($chartSVGs);
+        $this->renderTable($tableHeaders, $tableData, $tableTitle);
+        $this->renderPageFooter();
+
         return $this->pdf->Output('', 'S');
     }
 
-    public function generateGenericReport($data, $title, $headers = null) {
+    public function generateGenericReport(array $data, string $title, ?array $headers = null): string {
         if (!$headers && !empty($data)) {
             $headers = array_keys($data[0]);
         }
-        $html = $this->buildHTML($title, [], [], $headers ?? [], $data, 'Records');
         $this->pdf->AddPage();
-        $this->pdf->writeHTML($html, true, false, true, false, '');
+        $this->renderPageHeader($title, 'generic');
+        $this->renderTable($headers ?? [], $data, 'Records');
+        $this->renderPageFooter();
         return $this->pdf->Output('', 'S');
     }
 
-    // -------------------------------------------------------------------------
-    // Private helpers
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // Direct rendering helpers — write to $this->pdf using native TCPDF calls
+    // =========================================================================
 
-    private function calculateKeyMetrics($data, $context) {
+    private function renderPageHeader(string $title, string $context): void {
+        $pdf  = $this->pdf;
+        $pw   = $pdf->getPageWidth() - 30; // usable width
+
+        // Dark header band
+        $pdf->SetFillColor(13, 59, 102);
+        $pdf->Rect(15, 15, $pw, 28, 'F');
+
+        // Brand name (left)
+        $pdf->SetFont('dejavusans', 'B', 14);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetXY(20, 21);
+        $pdf->Cell($pw * 0.55, 8, 'OralSync', 0, 0, 'L');
+
+        // Generated date (right)
+        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetXY(20, 21);
+        $pdf->Cell($pw, 8, 'Generated: ' . date('F j, Y  H:i'), 0, 0, 'R');
+
+        // Report title (left, second line)
+        $pdf->SetFont('dejavusans', '', 10);
+        $pdf->SetXY(20, 30);
+        $pdf->Cell($pw * 0.65, 7, $title, 0, 0, 'L');
+
+        // Context badge (right, second line)
+        if ($context && $context !== 'generic') {
+            $ctxLabel = $context === 'superadmin' ? 'System-Wide Report' : 'Clinic Report';
+            $pdf->SetFont('dejavusans', 'I', 8);
+            $pdf->SetXY(20, 30);
+            $pdf->Cell($pw, 7, $ctxLabel, 0, 0, 'R');
+        }
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->Ln(32);
+    }
+
+    private function renderKeyMetrics(array $metrics): void {
+        if (empty($metrics)) return;
+        $pdf  = $this->pdf;
+        $pw   = $pdf->getPageWidth() - 30;
+        $n    = count($metrics);
+        $gap  = 5;
+        $colW = ($pw - $gap * ($n - 1)) / $n;
+        $y    = $pdf->GetY();
+
+        $this->renderSectionLabel('Performance Overview');
+        $y = $pdf->GetY();
+
+        foreach ($metrics as $i => $m) {
+            $x = 15 + $i * ($colW + $gap);
+            $pdf->SetFillColor(248, 250, 252);
+            $pdf->SetDrawColor(226, 232, 240);
+            $pdf->SetLineWidth(0.3);
+            $pdf->RoundedRect($x, $y, $colW, 26, 3, '1111', 'DF');
+
+            // Value (₱ renders because dejavusans is set)
+            $pdf->SetFont('dejavusans', 'B', 13);
+            $pdf->SetTextColor(13, 59, 102);
+            $pdf->SetXY($x, $y + 5);
+            $pdf->Cell($colW, 8, (string)($m['value'] ?? ''), 0, 0, 'C');
+
+            // Label
+            $pdf->SetFont('dejavusans', '', 7);
+            $pdf->SetTextColor(100, 116, 139);
+            $pdf->SetXY($x, $y + 14);
+            $pdf->Cell($colW, 6, strtoupper((string)($m['label'] ?? '')), 0, 0, 'C');
+        }
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->SetY($y + 32);
+    }
+
+    private function renderCharts(array $chartSVGs): void {
+        if (empty($chartSVGs)) return;
+        $pdf    = $this->pdf;
+        $pw     = $pdf->getPageWidth() - 30;
+        $colW   = ($pw - 8) / 2;
+        $cardH  = 62; // mm total card height
+        $svgH   = 50; // mm for the SVG inside the card
+
+        $this->renderSectionLabel('Sales Analytics');
+        $y = $pdf->GetY();
+
+        foreach ($chartSVGs as $i => $chart) {
+            $x = 15 + $i * ($colW + 8);
+
+            // Card
+            $pdf->SetFillColor(255, 255, 255);
+            $pdf->SetDrawColor(226, 232, 240);
+            $pdf->SetLineWidth(0.3);
+            $pdf->RoundedRect($x, $y, $colW, $cardH, 3, '1111', 'DF');
+
+            // Chart title
+            $pdf->SetFont('dejavusans', 'B', 8);
+            $pdf->SetTextColor(51, 65, 85);
+            $pdf->SetXY($x + 3, $y + 3);
+            $pdf->Cell($colW - 6, 5, $chart['title'], 0, 0, 'C');
+
+            // Render SVG via ImageSVG — the only correct TCPDF API for vector SVGs
+            if (!empty($chart['svg'])) {
+                try {
+                    $pdf->ImageSVG(
+                        '@' . $chart['svg'], // '@' prefix = SVG from string buffer
+                        $x + 3,
+                        $y + 9,
+                        $colW - 6,
+                        $svgH,
+                        '', '', 0, false
+                    );
+                } catch (\Exception $e) {
+                    $pdf->SetFont('dejavusans', 'I', 7);
+                    $pdf->SetTextColor(148, 163, 184);
+                    $pdf->SetXY($x + 3, $y + 28);
+                    $pdf->Cell($colW - 6, 5, '[Chart unavailable]', 0, 0, 'C');
+                }
+            }
+        }
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->SetY($y + $cardH + 6);
+    }
+
+    private function renderTable(array $headers, array $rows, string $title): void {
+        $pdf  = $this->pdf;
+        $pw   = $pdf->getPageWidth() - 30;
+        $n    = count($headers);
+        if ($n === 0) return;
+
+        $this->renderSectionLabel($title);
+
+        // Column widths — make Amount column slightly wider
+        $colW = array_fill(0, $n, $pw / $n);
+        // If there's an "Amount" column (index 3 for 5-col tables), give it more room
+        if ($n === 5) {
+            $colW = [38, 45, 40, 35, 22];
+            // Scale to fill page width
+            $total = array_sum($colW);
+            $colW  = array_map(fn($c) => $c / $total * $pw, $colW);
+        }
+
+        // Header row
+        $pdf->SetFillColor(13, 59, 102);
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetFont('dejavusans', 'B', 7.5);
+        $pdf->SetDrawColor(255, 255, 255);
+        $pdf->SetLineWidth(0.1);
+
+        $x = 15;
+        $y = $pdf->GetY();
+        foreach ($headers as $ci => $h) {
+            $pdf->SetXY($x, $y);
+            $pdf->Cell($colW[$ci], 8, strtoupper((string)$h), 0, 0, 'C', true);
+            $x += $colW[$ci];
+        }
+        $pdf->Ln(8);
+
+        if (empty($rows)) {
+            $pdf->SetFillColor(248, 250, 252);
+            $pdf->SetTextColor(148, 163, 184);
+            $pdf->SetFont('dejavusans', 'I', 9);
+            $pdf->Cell($pw, 12, 'No transaction data available for this period.', 0, 1, 'C', true);
+            $pdf->SetTextColor(30, 41, 59);
+            return;
+        }
+
+        // Data rows
+        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetDrawColor(226, 232, 240);
+        $pdf->SetLineWidth(0.2);
+
+        $even = false;
+        foreach ($rows as $row) {
+            // Auto page-break
+            if ($pdf->GetY() + 8 > $pdf->getPageHeight() - 25) {
+                $pdf->AddPage();
+                $this->renderPageHeader('(continued)', '');
+            }
+
+            $even = !$even;
+            $pdf->SetFillColor($even ? 248 : 255, $even ? 250 : 255, $even ? 252 : 255);
+
+            $cells = array_values((array)$row);
+            $x     = 15;
+            $y     = $pdf->GetY();
+
+            foreach ($cells as $ci => $cell) {
+                $cellStr = (string)$cell;
+
+                // Colour status/type column
+                if ($ci === count($cells) - 1) {
+                    $lower = strtolower($cellStr);
+                    if (in_array($lower, ['paid', 'full payment'])) {
+                        $pdf->SetTextColor(21, 128, 61);
+                    } elseif (in_array($lower, ['partial', 'partial payment', 'downpayment'])) {
+                        $pdf->SetTextColor(161, 98, 7);
+                    } else {
+                        $pdf->SetTextColor(30, 41, 59);
+                    }
+                } else {
+                    $pdf->SetTextColor(30, 41, 59);
+                }
+
+                // Amount column: right-align
+                $align = ($ci === $n - 2) ? 'R' : 'L';
+                $pdf->SetXY($x, $y);
+                $pdf->Cell($colW[$ci], 8, $cellStr, 'B', 0, $align, true);
+                $x += $colW[$ci];
+            }
+            $pdf->Ln(8);
+        }
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->SetDrawColor(0, 0, 0);
+        $pdf->SetLineWidth(0.2);
+    }
+
+    private function renderPageFooter(): void {
+        $pdf = $this->pdf;
+        $pw  = $pdf->getPageWidth() - 30;
+
+        $pdf->SetY(-18);
+        $pdf->SetDrawColor(226, 232, 240);
+        $pdf->SetLineWidth(0.3);
+        $pdf->Line(15, $pdf->GetY(), 15 + $pw, $pdf->GetY());
+        $pdf->Ln(2);
+        $pdf->SetFont('dejavusans', 'I', 7);
+        $pdf->SetTextColor(148, 163, 184);
+        $pdf->Cell($pw * 0.55, 5, 'OralSync Management System  |  Amounts in Philippine Peso (PHP)', 0, 0, 'L');
+        $pdf->Cell($pw * 0.45, 5, 'Confidential  |  Page ' . $pdf->getAliasNumPage() . ' of ' . $pdf->getAliasNbPages(), 0, 0, 'R');
+        $pdf->SetTextColor(30, 41, 59);
+    }
+
+    private function renderSectionLabel(string $label): void {
+        $pdf = $this->pdf;
+        $pw  = $pdf->getPageWidth() - 30;
+        $y   = $pdf->GetY() + 3;
+
+        // Accent bar
+        $pdf->SetFillColor(13, 59, 102);
+        $pdf->Rect(15, $y, 3, 6, 'F');
+
+        $pdf->SetFont('dejavusans', 'B', 9);
+        $pdf->SetTextColor(13, 59, 102);
+        $pdf->SetXY(21, $y);
+        $pdf->Cell($pw - 6, 6, strtoupper($label), 0, 0, 'L');
+        $pdf->Ln(10);
+        $pdf->SetTextColor(30, 41, 59);
+    }
+
+    // =========================================================================
+    // Data helpers
+    // =========================================================================
+
+    private function generateChartSVGs(array $data, string $context): array {
+        $trendData = $this->aggregateByDate($data);
+        $chart1    = [
+            'title' => 'Daily Sales Performance',
+            'svg'   => $this->createLineChartSVG(array_values($trendData), array_keys($trendData)),
+        ];
+
+        if ($context === 'superadmin') {
+            $planData = $this->aggregateByField($data, 'plan');
+            $chart2   = [
+                'title' => 'Revenue by Subscription Plan',
+                'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
+            ];
+        } else {
+            $serviceData = $this->aggregateByField($data, 'service');
+            $chart2      = [
+                'title' => 'Revenue by Service Type',
+                'svg'   => $this->createPieChartSVG(array_values($serviceData), array_keys($serviceData)),
+            ];
+        }
+
+        return [$chart1, $chart2];
+    }
+
+    private function aggregateByDate(array $data): array {
+        $agg = [];
+        foreach ($data as $row) {
+            $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
+            if ($date) {
+                $key      = date('M d', strtotime($date));
+                $agg[$key] = ($agg[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
+            }
+        }
+        return array_slice($agg, -12, null, true);
+    }
+
+    private function aggregateByField(array $data, string $field): array {
+        $agg = [];
+        foreach ($data as $row) {
+            $val = $row[$field] ?? $row['service_name'] ?? $row['subscription_tier'] ?? 'Other';
+            if (empty(trim((string)$val))) $val = 'Other';
+            $agg[$val] = ($agg[$val] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
+        }
+        return $agg;
+    }
+
+    private function calculateKeyMetrics(array $data, string $context): array {
         $totalRevenue = 0;
         foreach ($data as $row) {
             $totalRevenue += (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
@@ -237,54 +556,7 @@ class OralSyncPDFGenerator {
         ];
     }
 
-    private function generateChartSVGs($data, $context) {
-        $trendData = $this->aggregateByDate($data);
-        $chart1    = [
-            'title' => 'Daily Sales Performance',
-            'svg'   => $this->createLineChartSVG(array_values($trendData), array_keys($trendData)),
-        ];
-
-        if ($context === 'superadmin') {
-            $planData = $this->aggregateByField($data, 'plan');
-            $chart2   = [
-                'title' => 'Sales by Subscription Plan',
-                'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
-            ];
-        } else {
-            $serviceData = $this->aggregateByField($data, 'service');
-            $chart2      = [
-                'title' => 'Sales by Service Type',
-                'svg'   => $this->createPieChartSVG(array_values($serviceData), array_keys($serviceData)),
-            ];
-        }
-
-        return [$chart1, $chart2];
-    }
-
-    private function aggregateByDate($data) {
-        $aggregated = [];
-        foreach ($data as $row) {
-            $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
-            if ($date) {
-                $key = date('M d', strtotime($date));
-                $aggregated[$key] = ($aggregated[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
-            }
-        }
-        // Return more days if available
-        return array_slice($aggregated, -10, null, true);
-    }
-
-    private function aggregateByField($data, $field) {
-        $aggregated = [];
-        foreach ($data as $row) {
-            $val = $row[$field] ?? $row['service_name'] ?? $row['subscription_tier'] ?? 'Other';
-            if (empty(trim((string)$val))) $val = 'Other';
-            $aggregated[$val] = ($aggregated[$val] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
-        }
-        return $aggregated;
-    }
-
-    private function prepareTableData($data, $context) {
+    private function prepareTableData(array $data, string $context): array {
         $prepared = [];
         foreach ($data as $row) {
             $rawDate = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
@@ -302,107 +574,26 @@ class OralSyncPDFGenerator {
                 $patient = $row['patient_name']
                     ?? trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
                 if (!$patient) $patient = 'N/A';
+
+                $type    = 'Full Payment';
+                $pType   = strtolower((string)($row['payment_type']   ?? ''));
+                $pStatus = strtolower((string)($row['payment_status'] ?? ''));
+                $pSource = strtolower((string)($row['source']         ?? ''));
+                if ($pType === 'deposit' || ($pSource === 'mobile' && $pStatus === 'paid')) {
+                    $type = 'Downpayment';
+                } elseif ($pStatus === 'partial') {
+                    $type = 'Partial Payment';
+                }
+
                 $prepared[] = [
                     $date,
                     $patient,
                     $row['service'] ?? $row['service_name'] ?? 'General',
                     '₱' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
-                    'Paid',
+                    $type,
                 ];
             }
         }
         return $prepared;
     }
-
-    /**
-     * Builds a complete HTML string for TCPDF.
-     * SVG charts are embedded INLINE — TCPDF renders them natively.
-     */
-    private function buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle) {
-        $generatedAt = date('F j, Y H:i');
-
-        $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
-        $html .= '
-        body  { font-family:helvetica,sans-serif; color:#1e293b; font-size:10px; margin:0; padding:0; }
-        .hdr  { background-color:#0d3b66; color:white; padding:25px 20px; margin-bottom:20px; }
-        .hdr h1 { margin:0 0 5px; font-size:20px; letter-spacing:-0.5px; }
-        .hdr p  { margin:0; font-size:10px; opacity:0.9; }
-        .sec  { font-size:13px; font-weight:bold; color:#0d3b66; border-left:4px solid #0d3b66; padding-left:10px; margin:20px 0 10px; text-transform:uppercase; letter-spacing:1px; }
-        table.metrics { width:100%; border-collapse:separate; border-spacing:10px; margin-bottom:15px; }
-        td.metric { background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px 10px; text-align:center; width:33%; }
-        .mv { font-size:18px; font-weight:bold; color:#0d3b66; margin-bottom:4px; }
-        .ml { font-size:9px; color:#64748b; font-weight:bold; text-transform:uppercase; }
-        table.charts { width:100%; border-collapse:separate; border-spacing:10px; margin-bottom:15px; }
-        td.chart { background-color:white; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center; width:50%; vertical-align:top; }
-        .ct { font-size:11px; font-weight:bold; color:#334155; margin-bottom:10px; }
-        table.data { width:100%; border-collapse:collapse; font-size:9px; margin-top:5px; }
-        table.data th { background-color:#f1f5f9; color:#475569; padding:10px 12px; text-align:left; border-bottom:2px solid #e2e8f0; font-weight:bold; text-transform:uppercase; }
-        table.data td { padding:10px 12px; border-bottom:1px solid #f1f5f9; color:#334155; }
-        table.data tr:nth-child(even) td { background-color:#f8fafc; }
-        .footer { margin-top:30px; border-top:1px solid #e2e8f0; padding-top:15px; font-size:8px; color:#94a3b8; text-align:center; }
-        .status-paid { color:#16a34a; font-weight:bold; }
-        ';
-        $html .= '</style></head><body>';
-
-        // Header
-        $html .= '<div class="hdr">'
-               . '<h1>' . htmlspecialchars($title) . '</h1>'
-               . '<p>Official Financial Document &bull; Generated on ' . $generatedAt . '</p>'
-               . '</div>';
-
-        // Key metrics
-        if (!empty($keyMetrics)) {
-            $html .= '<div class="sec">Performance Overview</div><table class="metrics"><tr>';
-            foreach ($keyMetrics as $m) {
-                $html .= '<td class="metric">'
-                       . '<div class="mv">' . htmlspecialchars((string)$m['value']) . '</div>'
-                       . '<div class="ml">' . htmlspecialchars($m['label']) . '</div>'
-                       . '</td>';
-            }
-            $html .= '</tr></table>';
-        }
-
-        // Charts
-        if (!empty($chartSVGs)) {
-            $html .= '<div class="sec">Sales Analytics</div><table class="charts"><tr>';
-            foreach ($chartSVGs as $chart) {
-                $html .= '<td class="chart">'
-                       . '<div class="ct">' . htmlspecialchars($chart['title']) . '</div>'
-                       . $chart['svg']
-                       . '</td>';
-            }
-            $html .= '</tr></table>';
-        }
-
-        // Data table
-        if (!empty($tableHeaders)) {
-            $html .= '<div class="sec">' . htmlspecialchars($tableTitle) . '</div>';
-            $html .= '<table class="data"><thead><tr>';
-            foreach ($tableHeaders as $h) {
-                $html .= '<th>' . htmlspecialchars($h) . '</th>';
-            }
-            $html .= '</tr></thead><tbody>';
-
-            if (!empty($tableData)) {
-                foreach ($tableData as $row) {
-                    $html .= '<tr>';
-                    foreach ($row as $i => $cell) {
-                        $isStatus = ($i === count($row) - 1);
-                        $class = ($isStatus && strtolower($cell) === 'paid') ? ' class="status-paid"' : '';
-                        $html .= '<td' . $class . '>' . htmlspecialchars((string)$cell) . '</td>';
-                    }
-                    $html .= '</tr>';
-                }
-            } else {
-                $html .= '<tr><td colspan="' . count($tableHeaders) . '" style="text-align:center;padding:25px;color:#94a3b8;">No transaction data available for this period.</td></tr>';
-            }
-            $html .= '</tbody></table>';
-        }
-
-        $html .= '<div class="footer">OralSync Management System &bull; All amounts are in Philippine Peso (PHP) &bull; Confidential</div>';
-        $html .= '</body></html>';
-
-        return $html;
-    }
-
 }
