@@ -710,13 +710,17 @@ if (!$hasBasicReporting) {
       btn.textContent = 'Generating...';
       btn.disabled = true;
 
-      fetch('generate_pdf.php', {
+      const tenantSlug = new URLSearchParams(window.location.search).get('tenant');
+      const tenantId = '<?php echo $tenantId; ?>';
+
+      fetch(`generate_pdf.php?tenant=${tenantSlug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           type: 'sales', 
           title: 'Clinic Sales Report',
-          period: period
+          period: period,
+          tenant_id: tenantId
         })
       })
       .then(response => {

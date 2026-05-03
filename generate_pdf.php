@@ -88,7 +88,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
         }
 
-        if ($isSuperAdmin) {
+        $isClinicReport = ($type === 'sales');
+        
+        if ($isSuperAdmin && !$isClinicReport) {
             $context    = 'superadmin';
             $sqlDateCol = 'r.payment_date';
             $filter     = $dateFilter ? str_replace('%s', $sqlDateCol, $dateFilter) : '';
@@ -112,9 +114,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $title = 'Super Admin Sales Report - ' . $periodTitle;
 
-        } elseif ($isTenantAdmin) {
+        } elseif ($isTenantAdmin || ($isSuperAdmin && $isClinicReport)) {
             $context  = 'tenant';
+            
+            // If superadmin is viewing a clinic, we need the tenant_id from the data or URL
             $tenantId = $sessionManager->getTenantId();
+            if (!$tenantId && isset($data['tenant_id'])) {
+                $tenantId = (int)$data['tenant_id'];
+            }
+            if (!$tenantId && isset($_GET['tenant'])) {
+                // Try to resolve tenant_id from slug if provided
+                $slug = $_GET['tenant'];
+                $stmt = $conn->prepare("SELECT tenant_id FROM tenants WHERE slug = ?");
+                $stmt->bind_param('s', $slug);
+                $stmt->execute();
+                $tenantId = $stmt->get_result()->fetch_assoc()['tenant_id'] ?? null;
+            }
+
+            if (!$tenantId) {
+                while (ob_get_level() > 0) ob_end_clean();
+                http_response_code(403);
+                echo 'Unauthorized or missing tenant context';
+                exit;
+            }
 
             $sqlDateCol = 'py.billing_date';
             // monthly needs two placeholders
@@ -135,7 +157,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
                       LEFT JOIN service     s ON a.service_id      = s.service_id
-                      WHERE py.tenant_id = ? AND py.payment_status = 'paid' $filter
+                      WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') $filter
                       ORDER BY py.billing_date DESC";
 
             $stmt = $conn->prepare($query);

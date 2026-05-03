@@ -63,6 +63,42 @@ if ($stmt) {
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 }
+
+$successMessage = '';
+$errorMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
+    $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
+    $newStatus = trim($_POST['new_status'] ?? '');
+
+    if ($appointmentId > 0 && $newStatus !== '') {
+        // Extra safety check: verify current status is not a final state
+        $checkStmt = mysqli_prepare($conn, 'SELECT status FROM appointment WHERE appointment_id = ? AND tenant_id = ?');
+        mysqli_stmt_bind_param($checkStmt, 'ii', $appointmentId, $tenantId);
+        mysqli_stmt_execute($checkStmt);
+        $checkRes = mysqli_stmt_get_result($checkStmt);
+        $current = mysqli_fetch_assoc($checkRes);
+        mysqli_stmt_close($checkStmt);
+
+        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+            $errorMessage = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
+        } else {
+            $stmtUpdate = mysqli_prepare($conn, 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
+            if ($stmtUpdate) {
+                mysqli_stmt_bind_param($stmtUpdate, 'sii', $newStatus, $appointmentId, $tenantId);
+                if (mysqli_stmt_execute($stmtUpdate)) {
+                    $successMessage = 'Appointment status updated successfully.';
+                    // Refresh current result to show new status
+                    mysqli_stmt_execute($stmt);
+                    $result = mysqli_stmt_get_result($stmt);
+                } else {
+                    $errorMessage = 'Unable to update appointment status.';
+                }
+                mysqli_stmt_close($stmtUpdate);
+            }
+        }
+    }
+}
 ?>
 
 <!doctype html>
@@ -221,6 +257,118 @@ if ($stmt) {
         letter-spacing: 1px;
         white-space: nowrap;
       }
+
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1100;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        width: 100%;
+        max-width: 450px;
+        box-shadow: 0 20px 25px rgba(15, 23, 42, 0.15);
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--dashboard-accent);
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .form-group label {
+        font-weight: 600;
+        color: #334155;
+        font-size: 13px;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 10px;
+        font-size: 14px;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .modal-actions button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      .btn-secondary {
+        background: #f1f5f9;
+        color: #334155;
+      }
+
+      .btn-primary-modal {
+        background: var(--dashboard-accent);
+        color: white;
+      }
+
+      .btn-manage {
+        background: white;
+        color: var(--dashboard-accent);
+        border: 1px solid var(--dashboard-accent);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 13px;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .btn-manage:hover {
+        background: var(--dashboard-accent);
+        color: white;
+      }
+
+      .alert-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -249,6 +397,13 @@ if ($stmt) {
             </p>
           </div>
         </div>
+
+        <?php if ($successMessage): ?>
+          <div class="alert-box" style="background: #ecfdf5; color: #16573b; border: 1px solid #bbf7d0;"><?php echo h($successMessage); ?></div>
+        <?php endif; ?>
+        <?php if ($errorMessage): ?>
+          <div class="alert-box" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;"><?php echo h($errorMessage); ?></div>
+        <?php endif; ?>
 
         <div class="action-bar">
           <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name...">
@@ -291,6 +446,9 @@ if ($stmt) {
                 </div>
 
                 <div class="appt-actions" style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                  <button type="button" class="btn-manage" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . $dentistName), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">
+                    Manage Status
+                  </button>
                   <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">
                     Open Clinical Log
                   </a>
@@ -310,13 +468,70 @@ if ($stmt) {
     </div>
   </div>
 
+  <!-- Manage Appointment Modal -->
+  <div id="manageModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Manage Appointment</h3>
+        <button class="modal-close" type="button" onclick="closeManageModal()">&times;</button>
+      </div>
+      <form method="POST" action="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?><?php echo $filter !== 'all' ? '&filter=' . $filter : ''; ?>">
+        <input type="hidden" id="update_id" name="update_id" value="">
+        <div class="form-group">
+          <label>Appointment</label>
+          <input type="text" id="manageAppointmentInfo" readonly style="background: #f8fafc;">
+        </div>
+        <div class="form-group">
+          <label for="new_status">Status</label>
+          <select id="new_status" name="new_status" required>
+            <option value="">Select status</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeManageModal()">Cancel</button>
+          <button type="submit" id="updateStatusBtn" class="btn-primary-modal" name="update_appointment">Update Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     <?php printDateClockScript(); ?>
+
+    function openManageModal(id, patientName, dentistName, status) {
+      document.getElementById('update_id').value = id;
+      document.getElementById('manageAppointmentInfo').value = patientName + ' (' + status + ')';
+      
+      const newStatusSelect = document.getElementById('new_status');
+      const updateBtn = document.getElementById('updateStatusBtn');
+      newStatusSelect.value = status;
+      
+      if (status === 'Completed' || status === 'Cancelled') {
+        newStatusSelect.disabled = true;
+        if (updateBtn) updateBtn.disabled = true;
+      } else {
+        newStatusSelect.disabled = false;
+        if (updateBtn) updateBtn.disabled = false;
+      }
+      
+      document.getElementById('manageModal').classList.add('active');
+    }
+
+    function closeManageModal() {
+      document.getElementById('manageModal').classList.remove('active');
+    }
+
+    window.onclick = function(event) {
+      const manageModal = document.getElementById('manageModal');
+      if (event.target === manageModal) closeManageModal();
+    };
 
     // Verification logs
     console.log('UI Parity Active - Version 2.0');
     console.log('Dentist Appointments Module Active');
-    console.log('FINAL UI SYNC COMPLETE');
     
     document.getElementById('apptSearch').addEventListener('input', function() {
       const q = this.value.toLowerCase();

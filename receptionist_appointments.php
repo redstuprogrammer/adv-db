@@ -98,17 +98,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     $newStatus = trim($_POST['new_status'] ?? '');
 
     if ($appointmentId > 0 && $newStatus !== '') {
-        $stmtUpdate = mysqli_prepare($conn, 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
-        if ($stmtUpdate) {
-            mysqli_stmt_bind_param($stmtUpdate, 'sii', $newStatus, $appointmentId, $tenantId);
-            if (mysqli_stmt_execute($stmtUpdate)) {
-                $successMessage = 'Appointment status updated successfully.';
-            } else {
-                $errorMessage = 'Unable to update appointment status.';
-            }
-            mysqli_stmt_close($stmtUpdate);
+        // Extra safety check: verify current status is not a final state
+        $checkStmt = mysqli_prepare($conn, 'SELECT status FROM appointment WHERE appointment_id = ? AND tenant_id = ?');
+        mysqli_stmt_bind_param($checkStmt, 'ii', $appointmentId, $tenantId);
+        mysqli_stmt_execute($checkStmt);
+        $checkRes = mysqli_stmt_get_result($checkStmt);
+        $current = mysqli_fetch_assoc($checkRes);
+        mysqli_stmt_close($checkStmt);
+
+        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+            $errorMessage = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
         } else {
-            $errorMessage = 'Unable to prepare appointment status statement.';
+            $stmtUpdate = mysqli_prepare($conn, 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
+            if ($stmtUpdate) {
+                mysqli_stmt_bind_param($stmtUpdate, 'sii', $newStatus, $appointmentId, $tenantId);
+                if (mysqli_stmt_execute($stmtUpdate)) {
+                    $successMessage = 'Appointment status updated successfully.';
+                } else {
+                    $errorMessage = 'Unable to update appointment status.';
+                }
+                mysqli_stmt_close($stmtUpdate);
+            } else {
+                $errorMessage = 'Unable to prepare appointment status statement.';
+            }
         }
     } else {
         $errorMessage = 'Valid appointment and status are required.';

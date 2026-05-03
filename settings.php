@@ -410,20 +410,29 @@ HTML;
           .color-swatch-wrap {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            position: relative;
           }
 
           .color-swatch {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
+            gap: 12px;
+            padding: 8px 12px;
             border: 1px solid var(--border);
             border-radius: 10px;
             background: white;
             cursor: pointer;
             width: 100%;
             text-align: left;
+            height: 46px;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+          }
+
+          .color-swatch:hover {
+            border-color: #94a3b8;
+            background: #f1f5f9;
           }
 
           .swatch-box {
@@ -431,25 +440,31 @@ HTML;
             height: 24px;
             border-radius: 6px;
             border: 1px solid rgba(15, 23, 42, 0.12);
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
           }
 
           .swatch-label {
             font-size: 14px;
             color: #475569;
             font-weight: 600;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            white-space: nowrap;
           }
 
           .color-input {
             position: absolute;
+            top: 50%;
+            left: 50%;
             width: 1px;
             height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
             opacity: 0;
+            cursor: pointer;
+            pointer-events: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            z-index: -1;
           }
 
           .file-input {
@@ -1001,8 +1016,8 @@ HTML;
               <label for="primary_btn_color">Sign In Button Color</label>
               <div class="color-swatch-wrap">
                 <label for="primary_btn_color" class="color-swatch">
-                  <span class="swatch-box" id="swatch-button-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-button-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
+                  <span class="swatch-box" id="swatch-primary-btn-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-primary-btn-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
                 </label>
                 <input type="color" id="primary_btn_color" name="primary_btn_color" class="live-update color-input" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['primary_btn_color']); ?>">
               </div>
@@ -1129,14 +1144,16 @@ HTML;
     setInterval(updateClock, 1000);
 
     function updateSwatch(input) {
+      if (!input || !input.id) return;
       const swatchId = input.id.replace(/_/g, '-');
       const label = document.getElementById(`label-${swatchId}`);
       const swatch = document.getElementById(`swatch-${swatchId}`);
+      
       if (label) {
         label.textContent = input.value;
       }
       if (swatch) {
-        swatch.style.background = input.value;
+        swatch.style.backgroundColor = input.value;
       }
     }
 
@@ -1211,7 +1228,7 @@ HTML;
     }
 
     document.querySelectorAll('.live-update').forEach(input => {
-      input.addEventListener('input', function() {
+      input.addEventListener('input', function(e) {
         const targetId = this.dataset.target;
         const target = document.getElementById(targetId);
         if (!target) return;
@@ -1228,9 +1245,17 @@ HTML;
         }
       });
 
+      // Avoid focus shifting on color picker trigger
+      if (input.type === 'color') {
+        input.addEventListener('click', (e) => {
+          // If the browser tries to focus the hidden input, prevent defaults that might cause scroll
+          // However, we want the color picker to open, so we don't preventDefault() here.
+        });
+      }
+
       // Trigger initial state for visible color pickers only
       if (input.type === 'color' && document.getElementById(input.id)) {
-        input.dispatchEvent(new Event('input'));
+        updateSwatch(input);
       }
     });
 

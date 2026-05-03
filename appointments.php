@@ -62,16 +62,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
 // Handle Update Appointment Status
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
     $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
-    $newStatus = isset($_POST['new_status']) ? trim($_POST['new_status']) : '';
+    $newStatus = trim($_POST['new_status'] ?? '');
 
     if ($appointmentId > 0 && $newStatus !== '') {
-        $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
-        $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
-        if ($stmt->execute()) {
-            $successMsg = 'Appointment updated successfully!';
-            logTenantActivity($conn, $tenantId, 'Appointment', "Appointment ID: $appointmentId updated to $newStatus");
+        // Extra safety check: verify current status is not a final state
+        $checkStmt = $conn->prepare('SELECT status FROM appointment WHERE appointment_id = ? AND tenant_id = ?');
+        $checkStmt->bind_param('ii', $appointmentId, $tenantId);
+        $checkStmt->execute();
+        $checkRes = $checkStmt->get_result();
+        $current = $checkRes->fetch_assoc();
+        $checkStmt->close();
+
+        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+            $errorMsg = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
+        } else {
+            $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
+            $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
+            if ($stmt->execute()) {
+                $successMsg = 'Appointment updated successfully!';
+                logTenantActivity($conn, $tenantId, 'Appointment', "Appointment ID: $appointmentId updated to $newStatus");
+            } else {
+                $errorMsg = 'Unable to update appointment status.';
+            }
+            $stmt->close();
         }
-        $stmt->close();
+    } else {
+        $errorMsg = 'Valid appointment and status are required.';
     }
 }
 
@@ -484,7 +500,10 @@ $stmt->close();
 
       <div class="module-card">
         <?php if (isset($successMsg)): ?>
-          <div class="success-msg" style="display: block;"><?php echo h($successMsg); ?></div>
+          <div class="alert-box" style="background: #ecfdf5; color: #16573b; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($successMsg); ?></div>
+        <?php endif; ?>
+        <?php if (isset($errorMsg)): ?>
+          <div class="alert-box" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -520,7 +539,7 @@ $stmt->close();
                   <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
                   <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
-                    <button class="action-btn" onclick="openEditModal('<?php echo $appt['appointment_id']; ?>', '<?php echo h($appt['patient_first'] . ' ' . $appt['patient_last']); ?>', '<?php echo $appt['status']; ?>')">Manage</button>
+                    <button class="action-btn" onclick="openManageModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['dentist_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</button>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -547,29 +566,31 @@ $stmt->close();
 
 
 
-  <!-- Edit Appointment Modal -->
-  <div id="editModal" class="edit-modal">
-    <div class="edit-modal-content">
-      <h3 style="margin-top:0; color: var(--accent);">Update Treatment Status</h3>
-      <form action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>" method="POST">
-        <input type="hidden" name="update_id" id="edit_id">
-        <div class="edit-form-group">
-          <label>Patient</label>
-          <input type="text" id="edit_name_display" disabled style="background:#f1f5f9; border:none; font-weight:bold; color:#475569;">
+  <!-- Manage Appointment Modal -->
+  <div id="manageModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" style="margin:0; color:var(--accent);">Manage Appointment</h3>
+        <span class="close" onclick="closeManageModal()">&times;</span>
+      </div>
+      <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+        <input type="hidden" id="update_id" name="update_id" value="">
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Appointment</label>
+          <input type="text" id="manageAppointmentInfo" readonly style="background: #f8fafc;">
         </div>
-        <div class="edit-form-group">
-          <label>Status</label>
-          <select name="new_status" id="edit_status">
-            <!-- Options populated dynamically by JavaScript -->
+        <div class="form-group">
+          <label for="new_status">Status</label>
+          <select id="new_status" name="new_status" required>
+            <option value="">Select status</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
         </div>
-        <div class="edit-form-group">
-          <label>Clinical Notes</label>
-          <p style="color:#64748b; margin: 0;">Clinical notes are not available in the current appointment schema.</p>
-        </div>
-        <div class="edit-modal-actions">
-          <button type="button" class="edit-btn-cancel" onclick="closeEditModal()">Cancel</button>
-          <button type="submit" name="update_appointment" class="edit-btn-save">Save Changes</button>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeManageModal()">Cancel</button>
+          <button type="submit" id="updateStatusBtn" class="btn-submit" name="update_appointment">Update Status</button>
         </div>
       </form>
     </div>
@@ -597,58 +618,34 @@ $stmt->close();
 
 
 
-    // Edit Modal Functions
-    function openEditModal(id, name, status) {
-      document.getElementById("edit_id").value = id;
-      document.getElementById("edit_name_display").value = name;
+    function openManageModal(id, patientName, dentistName, status) {
+      document.getElementById('update_id').value = id;
+      document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
       
-      // Dynamically populate status dropdown
-      const statusSelect = document.getElementById("edit_status");
-      statusSelect.innerHTML = ''; // Clear existing options
+      const newStatusSelect = document.getElementById('new_status');
+      const updateBtn = document.getElementById('updateStatusBtn');
+      newStatusSelect.value = status;
       
-      // Always include Completed and Cancelled
-      const options = ['Completed', 'Cancelled'];
-      
-      // Only include Pending if current status is not Pending
-      if (status !== 'Pending') {
-        options.unshift('Pending'); // Add to beginning
+      if (status === 'Completed' || status === 'Cancelled') {
+        newStatusSelect.disabled = true;
+        if (updateBtn) updateBtn.disabled = true;
+      } else {
+        newStatusSelect.disabled = false;
+        if (updateBtn) updateBtn.disabled = false;
       }
       
-      // Create option elements
-      options.forEach(optionValue => {
-        const option = document.createElement('option');
-        option.value = optionValue;
-        option.textContent = optionValue;
-        if (optionValue === status) {
-          option.selected = true;
-        }
-        statusSelect.appendChild(option);
-      });
-      
-      document.getElementById("editModal").style.display = "flex";
+      document.getElementById('manageModal').style.display = 'block';
     }
 
-    function closeEditModal() {
-      document.getElementById("editModal").style.display = "none";
+    function closeManageModal() {
+      document.getElementById('manageModal').style.display = 'none';
     }
 
-    // Filter Appointments
-    function filterAppointments() {
-      const query = document.getElementById('appointmentSearch').value.toLowerCase();
-      const rows = document.querySelectorAll('#appointmentTable tbody tr');
-      
-      rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(query) ? '' : 'none';
-      });
-    }
-
-    // Close edit modal when clicking outside
+    // Close modal when clicking outside
     window.onclick = function(event) {
-      const editModal = document.getElementById('editModal');
-      
-      if (event.target == editModal) {
-        editModal.style.display = 'none';
+      const manageModal = document.getElementById('manageModal');
+      if (event.target == manageModal) {
+        manageModal.style.display = 'none';
       }
     }
   </script>

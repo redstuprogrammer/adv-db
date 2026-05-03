@@ -188,7 +188,7 @@ class OralSyncPDFGenerator {
             ? ['Date', 'Tenant', 'Plan', 'Amount', 'Status']
             : ['Date', 'Patient', 'Service', 'Amount', 'Status'];
         $tableData    = $this->prepareTableData($data, $context);
-        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Patient Sales';
+        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Clinic Transactions';
 
         $html = $this->buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle);
 
@@ -223,7 +223,7 @@ class OralSyncPDFGenerator {
                 if (!empty($row['tenant_name'])) $tenants[$row['tenant_name']] = true;
             }
             return [
-                ['label' => 'Total Sales',    'value' => 'P' . number_format($totalRevenue, 2)],
+                ['label' => 'Total Sales',    'value' => '₱' . number_format($totalRevenue, 2)],
                 ['label' => 'Active Tenants', 'value' => count($tenants)],
                 ['label' => 'Transactions',   'value' => count($data)],
             ];
@@ -231,29 +231,29 @@ class OralSyncPDFGenerator {
 
         $count = count($data);
         return [
-            ['label' => 'Total Sales',     'value' => 'P' . number_format($totalRevenue, 2)],
+            ['label' => 'Total Sales',     'value' => '₱' . number_format($totalRevenue, 2)],
             ['label' => 'Patient Visits',  'value' => $count],
-            ['label' => 'Avg per Patient', 'value' => 'P' . number_format($count > 0 ? $totalRevenue / $count : 0, 2)],
+            ['label' => 'Avg per Patient', 'value' => '₱' . number_format($count > 0 ? $totalRevenue / $count : 0, 2)],
         ];
     }
 
     private function generateChartSVGs($data, $context) {
         $trendData = $this->aggregateByDate($data);
         $chart1    = [
-            'title' => $context === 'superadmin' ? 'Revenue Trend' : 'Patient Volume Trend',
+            'title' => 'Daily Sales Performance',
             'svg'   => $this->createLineChartSVG(array_values($trendData), array_keys($trendData)),
         ];
 
         if ($context === 'superadmin') {
             $planData = $this->aggregateByField($data, 'plan');
             $chart2   = [
-                'title' => 'Sales by Plan',
+                'title' => 'Sales by Subscription Plan',
                 'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
             ];
         } else {
             $serviceData = $this->aggregateByField($data, 'service');
             $chart2      = [
-                'title' => 'Service Distribution',
+                'title' => 'Sales by Service Type',
                 'svg'   => $this->createPieChartSVG(array_values($serviceData), array_keys($serviceData)),
             ];
         }
@@ -270,7 +270,8 @@ class OralSyncPDFGenerator {
                 $aggregated[$key] = ($aggregated[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
             }
         }
-        return array_slice($aggregated, -7, null, true);
+        // Return more days if available
+        return array_slice($aggregated, -10, null, true);
     }
 
     private function aggregateByField($data, $field) {
@@ -294,7 +295,7 @@ class OralSyncPDFGenerator {
                     $date,
                     $row['tenant_name'] ?? 'N/A',
                     $row['plan'] ?? $row['subscription_tier'] ?? 'N/A',
-                    'P' . number_format((float)($row['amount'] ?? 0), 2),
+                    '₱' . number_format((float)($row['amount'] ?? 0), 2),
                     ucfirst($row['status'] ?? 'paid'),
                 ];
             } else {
@@ -305,7 +306,7 @@ class OralSyncPDFGenerator {
                     $date,
                     $patient,
                     $row['service'] ?? $row['service_name'] ?? 'General',
-                    'P' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
+                    '₱' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
                     'Paid',
                 ];
             }
@@ -316,42 +317,42 @@ class OralSyncPDFGenerator {
     /**
      * Builds a complete HTML string for TCPDF.
      * SVG charts are embedded INLINE — TCPDF renders them natively.
-     * No <img> tags, no temp files, no base64 — all three fail on Azure.
      */
     private function buildHTML($title, $keyMetrics, $chartSVGs, $tableHeaders, $tableData, $tableTitle) {
         $generatedAt = date('F j, Y H:i');
 
         $html  = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>';
         $html .= '
-        body  { font-family:dejavusans,sans-serif; color:#0f172a; font-size:10px; margin:0; padding:0; }
-        .hdr  { background:#0d3b66; color:white; padding:14px 16px; margin-bottom:16px; }
-        .hdr h1 { margin:0 0 3px; font-size:15px; }
-        .hdr p  { margin:0; font-size:9px; opacity:0.8; }
-        .sec  { font-size:12px; font-weight:bold; color:#0d3b66; border-bottom:2px solid #e2e8f0; padding-bottom:3px; margin:14px 0 8px; }
-        table.metrics { width:100%; border-collapse:separate; border-spacing:6px; margin-bottom:12px; }
-        td.metric { background:#f8fafc; border:1px solid #e2e8f0; padding:12px 8px; text-align:center; width:33%; }
-        .mv { font-size:15px; font-weight:bold; color:#0d3b66; }
-        .ml { font-size:9px; color:#64748b; margin-top:3px; }
-        table.charts { width:100%; border-collapse:separate; border-spacing:6px; margin-bottom:12px; }
-        td.chart { background:white; border:1px solid #e2e8f0; padding:8px; text-align:center; width:50%; vertical-align:top; }
-        .ct { font-size:10px; font-weight:bold; color:#0d3b66; margin-bottom:6px; }
-        table.data { width:100%; border-collapse:collapse; font-size:9px; }
-        table.data th { background:#0d3b66; color:white; padding:7px 8px; text-align:left; }
-        table.data td { padding:6px 8px; border-bottom:1px solid #e2e8f0; }
-        table.data tr:nth-child(even) td { background:#f8fafc; }
-        .footer { margin-top:20px; border-top:1px solid #e2e8f0; padding-top:6px; font-size:8px; color:#94a3b8; text-align:center; }
+        body  { font-family:helvetica,sans-serif; color:#1e293b; font-size:10px; margin:0; padding:0; }
+        .hdr  { background-color:#0d3b66; color:white; padding:25px 20px; margin-bottom:20px; }
+        .hdr h1 { margin:0 0 5px; font-size:20px; letter-spacing:-0.5px; }
+        .hdr p  { margin:0; font-size:10px; opacity:0.9; }
+        .sec  { font-size:13px; font-weight:bold; color:#0d3b66; border-left:4px solid #0d3b66; padding-left:10px; margin:20px 0 10px; text-transform:uppercase; letter-spacing:1px; }
+        table.metrics { width:100%; border-collapse:separate; border-spacing:10px; margin-bottom:15px; }
+        td.metric { background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:15px 10px; text-align:center; width:33%; }
+        .mv { font-size:18px; font-weight:bold; color:#0d3b66; margin-bottom:4px; }
+        .ml { font-size:9px; color:#64748b; font-weight:bold; text-transform:uppercase; }
+        table.charts { width:100%; border-collapse:separate; border-spacing:10px; margin-bottom:15px; }
+        td.chart { background-color:white; border:1px solid #e2e8f0; border-radius:8px; padding:12px; text-align:center; width:50%; vertical-align:top; }
+        .ct { font-size:11px; font-weight:bold; color:#334155; margin-bottom:10px; }
+        table.data { width:100%; border-collapse:collapse; font-size:9px; margin-top:5px; }
+        table.data th { background-color:#f1f5f9; color:#475569; padding:10px 12px; text-align:left; border-bottom:2px solid #e2e8f0; font-weight:bold; text-transform:uppercase; }
+        table.data td { padding:10px 12px; border-bottom:1px solid #f1f5f9; color:#334155; }
+        table.data tr:nth-child(even) td { background-color:#f8fafc; }
+        .footer { margin-top:30px; border-top:1px solid #e2e8f0; padding-top:15px; font-size:8px; color:#94a3b8; text-align:center; }
+        .status-paid { color:#16a34a; font-weight:bold; }
         ';
         $html .= '</style></head><body>';
 
         // Header
         $html .= '<div class="hdr">'
                . '<h1>' . htmlspecialchars($title) . '</h1>'
-               . '<p>Generated: ' . $generatedAt . '</p>'
+               . '<p>Official Financial Document &bull; Generated on ' . $generatedAt . '</p>'
                . '</div>';
 
         // Key metrics
         if (!empty($keyMetrics)) {
-            $html .= '<div class="sec">Key Metrics</div><table class="metrics"><tr>';
+            $html .= '<div class="sec">Performance Overview</div><table class="metrics"><tr>';
             foreach ($keyMetrics as $m) {
                 $html .= '<td class="metric">'
                        . '<div class="mv">' . htmlspecialchars((string)$m['value']) . '</div>'
@@ -361,13 +362,13 @@ class OralSyncPDFGenerator {
             $html .= '</tr></table>';
         }
 
-        // Charts — inline SVG, not <img>
+        // Charts
         if (!empty($chartSVGs)) {
-            $html .= '<div class="sec">Charts</div><table class="charts"><tr>';
+            $html .= '<div class="sec">Sales Analytics</div><table class="charts"><tr>';
             foreach ($chartSVGs as $chart) {
                 $html .= '<td class="chart">'
                        . '<div class="ct">' . htmlspecialchars($chart['title']) . '</div>'
-                       . $chart['svg']   // raw <svg>...</svg> embedded directly
+                       . $chart['svg']
                        . '</td>';
             }
             $html .= '</tr></table>';
@@ -385,20 +386,23 @@ class OralSyncPDFGenerator {
             if (!empty($tableData)) {
                 foreach ($tableData as $row) {
                     $html .= '<tr>';
-                    foreach ($row as $cell) {
-                        $html .= '<td>' . htmlspecialchars((string)$cell) . '</td>';
+                    foreach ($row as $i => $cell) {
+                        $isStatus = ($i === count($row) - 1);
+                        $class = ($isStatus && strtolower($cell) === 'paid') ? ' class="status-paid"' : '';
+                        $html .= '<td' . $class . '>' . htmlspecialchars((string)$cell) . '</td>';
                     }
                     $html .= '</tr>';
                 }
             } else {
-                $html .= '<tr><td colspan="' . count($tableHeaders) . '" style="text-align:center;padding:16px;color:#94a3b8;">No records found.</td></tr>';
+                $html .= '<tr><td colspan="' . count($tableHeaders) . '" style="text-align:center;padding:25px;color:#94a3b8;">No transaction data available for this period.</td></tr>';
             }
             $html .= '</tbody></table>';
         }
 
-        $html .= '<div class="footer">OralSync &mdash; Confidential &mdash; All amounts in Philippine Peso (PHP)</div>';
+        $html .= '<div class="footer">OralSync Management System &bull; All amounts are in Philippine Peso (PHP) &bull; Confidential</div>';
         $html .= '</body></html>';
 
         return $html;
     }
+
 }

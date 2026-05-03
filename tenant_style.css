@@ -1,174 +1,199 @@
-:root{
-  --tenant-accent:#0d3b66;
-  --tenant-accent-2:#0f172a;
-  --tenant-bg:#f4f7f9;
-  --tenant-card:#ffffff;
-  --tenant-border:#e2e8f0;
-  --tenant-muted:#64748b;
-  --tenant-success:#22c55e;
+:root {
+  --tenant-accent: #0d3b66;
+  --tenant-accent-2: #0f172a;
+  --tenant-bg: #f4f7f9;
+  --tenant-card: #ffffff;
+  --tenant-border: #e2e8f0;
+  --tenant-muted: #64748b;
+  --tenant-success: #22c55e;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
-body{
-  margin:0;
-  font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
-  background:radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%),
-             radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%),
-             var(--tenant-bg);
-  color:#0f172a;
+* {
+  box-sizing: border-box
 }
 
-.t-wrap{
-  min-height:100%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:28px 14px;
+html,
+body {
+  height: 100%
 }
 
-.t-shell{
-  width:100%;
-  max-width:980px;
-  display:grid;
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(900px 400px at 12% 10%, rgba(13, 59, 102, 0.10), transparent 60%),
+    radial-gradient(700px 400px at 90% 30%, rgba(34, 197, 94, 0.10), transparent 55%),
+    var(--tenant-bg);
+  color: #0f172a;
+}
+
+.t-wrap {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 14px;
+}
+
+.t-shell {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
   grid-template-columns: 1.1fr 0.9fr;
-  gap:18px;
+  gap: 18px;
 }
 
-.t-brandPanel{
-  border:1px solid var(--tenant-border);
-  background:linear-gradient(135deg,var(--tenant-accent),var(--tenant-accent-2));
-  border-radius:18px;
-  padding:22px;
-  color:#fff;
-  position:relative;
-  overflow:hidden;
-  box-shadow:0 20px 40px rgba(15,23,42,0.12);
-}
-.t-brandPanel:before{
-  content:'';
-  position:absolute;
-  inset:-120px -140px auto auto;
-  width:340px;height:340px;
-  background:rgba(255,255,255,0.12);
-  border-radius:999px;
-  filter:blur(1px);
-}
-.t-brandTop{
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-.t-logo{
-  width:44px;height:44px;
-  border-radius:14px;
-  background:rgba(255,255,255,0.14);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:900;
-  letter-spacing:0.2px;
-}
-.t-brandTitle{
-  font-size:18px;
-  font-weight:900;
-  letter-spacing:0.2px;
-}
-.t-brandSub{
-  margin-top:2px;
-  font-size:13px;
-  opacity:0.9;
-}
-.t-brandBody{
-  margin-top:18px;
-  font-size:14px;
-  line-height:1.7;
-  opacity:0.95;
-}
-.t-placeholder{
-  margin-top:14px;
-  border:1px dashed rgba(255,255,255,0.35);
-  background:rgba(255,255,255,0.08);
-  padding:12px 12px;
-  border-radius:14px;
-  font-size:12px;
-  line-height:1.5;
+.t-brandPanel {
+  border: 1px solid var(--tenant-border);
+  background: linear-gradient(135deg, var(--tenant-accent), var(--tenant-accent-2));
+  border-radius: 18px;
+  padding: 22px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
 }
 
-.t-card{
-  border:1px solid var(--tenant-border);
-  background:var(--tenant-card);
-  border-radius:18px;
-  padding:22px;
-  box-shadow:0 20px 40px rgba(15,23,42,0.10);
+.t-brandPanel:before {
+  content: '';
+  position: absolute;
+  inset: -120px -140px auto auto;
+  width: 340px;
+  height: 340px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  filter: blur(1px);
 }
 
-.t-cardTitle{
-  font-size:18px;
-  font-weight:900;
-  color:var(--tenant-accent);
-  margin:0;
-}
-.t-cardSub{
-  margin-top:6px;
-  font-size:13px;
-  color:var(--tenant-muted);
+.t-brandTop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.t-form{
-  margin-top:16px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.t-field label{
-  display:block;
-  font-size:12px;
-  font-weight:700;
-  margin-bottom:6px;
-  color:#0f172a;
-}
-.t-field input{
-  width:100%;
-  border:1px solid var(--tenant-border);
-  border-radius:12px;
-  padding:11px 12px;
-  font-size:14px;
-  outline:none;
-}
-.t-field input:focus{
-  border-color:rgba(13,59,102,0.55);
-  box-shadow:0 0 0 4px rgba(13,59,102,0.10);
+.t-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
 
-.t-btn{
-  border:none;
-  border-radius:999px;
-  padding:11px 14px;
-  font-size:13px;
-  font-weight:900;
-  cursor:pointer;
+.t-brandTitle {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.2px;
 }
-.t-btnPrimary{
-  background:var(--tenant-success);
-  color:#0b1f13;
-}
-.t-btnPrimary:hover{filter:brightness(0.98)}
 
-.t-error{
-  margin-top:10px;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid #fecaca;
-  background:#fef2f2;
-  color:#991b1b;
-  font-size:13px;
+.t-brandSub {
+  margin-top: 2px;
+  font-size: 13px;
+  opacity: 0.9;
 }
-.t-foot{
-  margin-top:12px;
-  color:var(--tenant-muted);
-  font-size:12px;
-  line-height:1.5;
+
+.t-brandBody {
+  margin-top: 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  opacity: 0.95;
+}
+
+.t-placeholder {
+  margin-top: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 12px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.t-card {
+  border: 1px solid var(--tenant-border);
+  background: var(--tenant-card);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.10);
+}
+
+.t-cardTitle {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--tenant-accent);
+  margin: 0;
+}
+
+.t-cardSub {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--tenant-muted);
+}
+
+.t-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.t-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+
+.t-field input {
+  width: 100%;
+  border: 1px solid var(--tenant-border);
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.t-field input:focus {
+  border-color: rgba(13, 59, 102, 0.55);
+  box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.10);
+}
+
+.t-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.t-btnPrimary {
+  background: var(--tenant-success);
+  color: #0b1f13;
+}
+
+.t-btnPrimary:hover {
+  filter: brightness(0.98)
+}
+
+.t-error {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.t-foot {
+  margin-top: 12px;
+  color: var(--tenant-muted);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* Sidebar Navigation Styles */
@@ -284,7 +309,8 @@ body{
 /* Dropdown Menu Styles - FIXED VERSION WITH Z-INDEX */
 .sidebar-dropdown-container {
   position: relative;
-  z-index: 50;  /* FIX: Ensure dropdown stays above other content */
+  z-index: 50;
+  /* FIX: Ensure dropdown stays above other content */
 }
 
 .sidebar-dropdown-toggle {
@@ -341,7 +367,8 @@ body{
 
 .sidebar-dropdown-menu {
   display: none;
-  background: rgba(255, 255, 255, 0.08);  /* FIX: Transparent overlay, not white */
+  background: rgba(255, 255, 255, 0.08);
+  /* FIX: Transparent overlay, not white */
   border-left: 3px solid rgba(255, 255, 255, 0.2);
   margin: 4px 0;
   overflow: hidden;
@@ -365,11 +392,13 @@ body{
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
-  background: rgba(255, 255, 255, 0.05);  /* FIX: Subtle dark overlay base */
+  background: rgba(255, 255, 255, 0.05);
+  /* FIX: Subtle dark overlay base */
 }
 
 .sidebar-dropdown-item:hover {
-  background: rgba(13, 59, 102, 0.3);  /* FIX: Dark navy overlay instead of white */
+  background: rgba(13, 59, 102, 0.3);
+  /* FIX: Dark navy overlay instead of white */
   color: rgba(255, 255, 255, 0.95);
   border-left-color: rgba(255, 255, 255, 0.3);
 }
@@ -387,7 +416,11 @@ body{
 }
 
 /* Hide superfluous circles/indicators in detail view */
-.status-blob, .status-bullet, .green-circle, .info-bubble, .status-dot {
+.status-blob,
+.status-bullet,
+.green-circle,
+.info-bubble,
+.status-dot {
   display: none !important;
 }
 
@@ -484,8 +517,10 @@ body{
   }
 }
 
-@media (max-width: 900px){
-  .t-shell{grid-template-columns:1fr}
+@media (max-width: 900px) {
+  .t-shell {
+    grid-template-columns: 1fr
+  }
 }
 
 /* Additional responsive design for phones and tablets */
@@ -493,49 +528,49 @@ body{
   .t-wrap {
     padding: 14px 7px;
   }
-  
+
   .t-shell {
     grid-template-columns: 1fr;
     gap: 14px;
   }
-  
+
   .t-brandPanel {
     padding: 18px;
     border-radius: 12px;
   }
-  
+
   .t-card {
     padding: 18px;
     border-radius: 12px;
   }
-  
+
   .t-form {
     gap: 12px;
   }
-  
+
   .t-field {
     margin-bottom: 12px;
   }
-  
+
   .t-btn {
     width: 100%;
     padding: 12px;
   }
-  
+
   /* Dashboard responsive */
   .dashboard-grid {
     grid-template-columns: 1fr;
     gap: 16px;
   }
-  
+
   .dashboard-card {
     padding: 16px;
   }
-  
+
   .sales-overview-card canvas {
     height: 200px !important;
   }
-  
+
   /* Sidebar for mobile */
   .tenant-sidebar {
     position: fixed;
@@ -546,16 +581,16 @@ body{
     z-index: 1000;
     transition: left 0.3s ease;
   }
-  
+
   .tenant-main-content {
     margin-left: 0;
     width: 100%;
   }
-  
+
   .tenant-sidebar.open {
     left: 0;
   }
-  
+
   .sidebar-toggle {
     display: block;
     position: fixed;
@@ -575,38 +610,38 @@ body{
   .t-brandPanel {
     padding: 14px;
   }
-  
+
   .t-card {
     padding: 14px;
   }
-  
+
   .t-form {
     gap: 10px;
   }
-  
+
   .t-field label {
     font-size: 14px;
   }
-  
+
   .t-field input,
   .t-field select {
     padding: 10px;
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Prevent zoom on iOS */
   }
-  
+
   .t-btn {
     padding: 14px;
     font-size: 16px;
   }
-  
+
   /* Tables responsive */
   .sa-table {
     font-size: 12px;
   }
-  
+
   .sa-table th,
   .sa-table td {
     padding: 8px 4px;
   }
 }
-
