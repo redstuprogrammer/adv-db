@@ -29,10 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
         'clinic_name', 'hero_title', 'hero_description',
         'about_description', 'footer_copyright',
         'badge_visible', 'badge_text',
-        'stat_number', 'stat_label',
         'checklist_1', 'checklist_2', 'checklist_3',
-        'cta_primary', 'cta_secondary',
+        'cta_primary',
         'accent_color',
+        'announcements_json', 'team_json'
     ];
 
     $fields = [];
@@ -67,7 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
 
         $types = str_repeat('s', count($params) - 1) . 'i';
         $stmt->bind_param($types, ...$params);
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            // If it fails, maybe columns are missing? Try to add them.
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
+            $stmt->execute();
+        }
     }
 
     echo json_encode(['ok' => true]);
@@ -110,8 +115,9 @@ $c = [
     'checklist_2'      => $clinic['checklist_2']       ?? 'Bio-compatible Premium Materials',
     'checklist_3'      => $clinic['checklist_3']       ?? 'Post-treatment Serenity Lounges',
     'cta_primary'      => $clinic['cta_primary']       ?? 'Book Appointment',
-    'cta_secondary'    => $clinic['cta_secondary']     ?? 'Explore Services',
     'accent_color'     => $clinic['accent_color']      ?? '#004872',
+    'announcements_json' => $clinic['announcements_json'] ?? '[]',
+    'team_json'        => $clinic['team_json']        ?? '[]',
 ];
 
 function e($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
@@ -391,10 +397,7 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
                 <div class="fi-label">Hero Description</div>
                 <div class="fi-preview"><?= e($c['hero_description']) ?></div>
             </div>
-            <div class="field-item" data-field="cta_secondary">
-                <div class="fi-label">Secondary Button</div>
-                <div class="fi-preview"><?= e($c['cta_secondary']) ?></div>
-            </div>
+
 
             <!-- ─ About ─ -->
             <div class="field-section-label">About Section</div>
@@ -415,7 +418,7 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
             <div class="field-section-label">Announcements</div>
             <div class="field-item" data-field="announcements">
                 <div class="fi-label">Latest Pulse Posts</div>
-                <div class="fi-preview">Manage posts →</div>
+                <div class="fi-preview">Edit Announcements</div>
             </div>
 
 
@@ -544,13 +547,7 @@ const FIELDS = {
             return field('hero_description', 'Description', 'textarea', state.hero_description);
         }
     },
-    cta_secondary: {
-        label: 'Secondary Button',
-        sub: 'Hero section · outline button',
-        render() {
-            return field('cta_secondary', 'Button Label', 'input', state.cta_secondary);
-        }
-    },
+
     about_description: {
         label: 'About Body Text',
         sub: 'Paragraph in the About section',
@@ -581,13 +578,29 @@ const FIELDS = {
     },
     announcements: {
         label: 'Announcements',
-        sub: 'Manage posts separately',
+        sub: 'Manage pulse posts',
         render() {
-            return `<div style="padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;color:#475569;line-height:1.6;">
-                Announcements are managed from the <strong>Posts Manager</strong>.
-                <br/><br/>
-                <a href="manage_posts.php" style="color:#004872;font-weight:600;text-decoration:underline;">Open Posts Manager →</a>
-            </div>`;
+            let data = [];
+            try { data = JSON.parse(state.announcements_json || '[]'); } catch(e) {}
+            if (!Array.isArray(data)) data = [];
+            
+            return `
+                <div class="space-y-4" id="announcements-list">
+                    ${data.map((item, i) => `
+                        <div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 relative group">
+                            <button onclick="removeListItem('announcements_json', ${i})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                            ${field(`announcements_json.${i}.date`, 'Date', 'input', item.date)}
+                            ${field(`announcements_json.${i}.title`, 'Title', 'input', item.title)}
+                            ${field(`announcements_json.${i}.description`, 'Content', 'textarea', item.description)}
+                        </div>
+                    `).join('')}
+                    <button onclick="addListItem('announcements_json')" class="w-full py-3 border-2 border-dashed border-outline-variant/30 rounded-xl text-primary font-bold text-xs hover:border-primary/50 transition-all">
+                        + Add Announcement
+                    </button>
+                </div>
+            `;
         }
     },
 
@@ -800,6 +813,8 @@ iframe.addEventListener('load', () => {
                 { sel: '#about p.text-on-surface-variant',             key: 'about_description' },
                 { sel: '#about .space-y-4',                            key: 'checklist' },
                 { sel: '.text-4xl.font-black',                         key: 'stat' },
+                { sel: '.announcement-item',                          key: 'announcements' },
+                { sel: '.team-member-card',                           key: 'team' },
                 { sel: '#location .text-on-surface-variant',           key: 'contact_phone' },
                 { sel: 'footer .text-slate-400',                       key: 'footer_copyright' },
                 { sel: '#schedule',                                     key: null }, // read-only
@@ -878,14 +893,9 @@ document.querySelectorAll('.sidebar-tab').forEach(tab => {
             rpSub.textContent = 'Applied across the whole page';
             openField('accent_color', 'colors');
         } else if (t === 'team') {
-            rpBody.innerHTML = `<div class="rp-empty">
-                <span class="material-symbols-outlined rp-empty-icon">group</span>
-                <p>Team members are managed from the Team Manager.<br/><br/>
-                <a href="manage_team.php" style="color:#004872;font-weight:600;text-decoration:underline;">Open Team Manager →</a></p>
-            </div>`;
-            applyBtn.style.display = 'none';
-            rpTitle.textContent = 'Team';
-            rpSub.textContent = 'Doctors & specialists';
+            rpTitle.textContent = 'Team Members';
+            rpSub.textContent = 'Manage your specialists';
+            openField('team', 'team');
         } else {
             // back to content
             rpBody.innerHTML = `<div class="rp-empty" id="rp-empty-state">
@@ -1003,7 +1013,7 @@ function refreshSidebarItem(key) {
         about_description: 'about_description', contact_phone: 'contact_phone',
         contact_email: 'contact_email', contact_address: 'contact_address',
         footer_copyright: 'footer_copyright', cta_primary: 'cta_primary',
-        cta_secondary: 'cta_secondary', checklist_1: 'checklist',
+        checklist_1: 'checklist',
         stat_number: 'stat',
     };
     const field = map[key];
@@ -1016,6 +1026,277 @@ function refreshSidebarItem(key) {
 //  TOAST
 // ════════════════════════════════════════════════════════════════════════
 let toastTimer;
+// ════════════════════════════════════════════════════════════════════════
+//  LIST HELPERS
+// ════════════════════════════════════════════════════════════════════════
+function addListItem(key) {
+    let data = [];
+    try { data = JSON.parse(state[key] || '[]'); } catch(e) {}
+    if (!Array.isArray(data)) data = [];
+    
+    if (key === 'announcements_json') {
+        data.push({ date: 'Date', title: 'New Announcement', description: 'Enter details here...' });
+    } else {
+        data.push({ name: 'New Member', role: 'Role', description: 'Short bio...', image: 'https://via.placeholder.com/400', tags: ['Tag'] });
+    }
+    
+    state[key] = JSON.stringify(data);
+    markUnsaved();
+    openField(key === 'announcements_json' ? 'announcements' : 'team', key === 'announcements_json' ? 'content' : 'team');
+    refreshAllPreview();
+}
+
+function removeListItem(key, index) {
+    let data = [];
+    try { data = JSON.parse(state[key] || '[]'); } catch(e) {}
+    if (!Array.isArray(data)) data = [];
+    
+    data.splice(index, 1);
+    state[key] = JSON.stringify(data);
+    markUnsaved();
+    openField(key === 'announcements_json' ? 'announcements' : 'team', key === 'announcements_json' ? 'content' : 'team');
+    refreshAllPreview();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  TEAM FIELD DEFINITION
+// ════════════════════════════════════════════════════════════════════════
+const TEAM_FIELDS = {
+    team: {
+        label: 'Team Members',
+        sub: 'Profiles shown in Team section',
+        render() {
+            let data = [];
+            try { data = JSON.parse(state.team_json || '[]'); } catch(e) {}
+            if (!Array.isArray(data)) data = [];
+            
+            return `
+                <div class="space-y-6" id="team-list">
+                    ${data.map((item, i) => `
+                        <div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 relative group">
+                            <button onclick="removeListItem('team_json', ${i})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                            ${field(`team_json.${i}.name`, 'Name', 'input', item.name)}
+                            ${field(`team_json.${i}.role`, 'Role', 'input', item.role)}
+                            ${field(`team_json.${i}.image`, 'Image URL', 'input', item.image)}
+                            ${field(`team_json.${i}.description`, 'Bio', 'textarea', item.description)}
+                            ${field(`team_json.${i}.tags`, 'Tags (comma separated)', 'input', (item.tags || []).join(', '))}
+                        </div>
+                    `).join('')}
+                    <button onclick="addListItem('team_json')" class="w-full py-3 border-2 border-dashed border-outline-variant/30 rounded-xl text-primary font-bold text-xs hover:border-primary/50 transition-all">
+                        + Add Team Member
+                    </button>
+                </div>
+            `;
+        }
+    }
+};
+
+// ════════════════════════════════════════════════════════════════════════
+//  PANEL RENDERING (extended for deep keys)
+// ════════════════════════════════════════════════════════════════════════
+function openField(key, tab = 'content') {
+    activeField = key;
+
+    // highlight sidebar item
+    document.querySelectorAll('.field-item').forEach(el => el.classList.remove('active'));
+    const sidebarItem = document.querySelector(`.field-item[data-field="${key}"]`);
+    if (sidebarItem) sidebarItem.classList.add('active');
+
+    let def;
+    if (tab === 'colors') def = COLOR_FIELDS[key];
+    else if (tab === 'team') def = TEAM_FIELDS[key];
+    else def = FIELDS[key];
+    
+    if (!def) return;
+
+    rpTitle.textContent = def.label;
+    rpSub.textContent = def.sub;
+
+    rpBody.innerHTML = def.render();
+    applyBtn.style.display = 'block';
+
+    // wire inputs
+    rpBody.querySelectorAll('[data-key]').forEach(el => {
+        el.addEventListener('input', () => {
+            const fullKey = el.dataset.key;
+            if (fullKey.includes('.')) {
+                // handle deep keys like team_json.0.name
+                const parts = fullKey.split('.');
+                const rootKey = parts[0];
+                const index = parseInt(parts[1]);
+                const field = parts[2];
+                
+                let data = JSON.parse(state[rootKey] || '[]');
+                if (field === 'tags') {
+                    data[index][field] = el.value.split(',').map(s => s.trim()).filter(Boolean);
+                } else {
+                    data[index][field] = el.value;
+                }
+                state[rootKey] = JSON.stringify(data);
+                refreshAllPreview();
+            } else {
+                state[fullKey] = el.value;
+                updatePreview(fullKey, el.value);
+            }
+            markUnsaved();
+            refreshSidebarItem(fullKey);
+        });
+    });
+
+    // wire toggles & color swatches (rest of the wiring same as before)
+    rpBody.querySelectorAll('[data-toggle]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const k = btn.dataset.toggle;
+            const isOn = btn.classList.toggle('on');
+            state[k] = isOn ? '1' : '0';
+            markUnsaved();
+            updatePreview(k, state[k]);
+        });
+    });
+    rpBody.querySelectorAll('.color-swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+            rpBody.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+            sw.classList.add('selected');
+            const color = sw.dataset.color;
+            state.accent_color = color;
+            const hex = rpBody.querySelector('[data-key="accent_color"]');
+            if (hex) hex.value = color;
+            markUnsaved();
+            updatePreview('accent_color', color);
+        });
+    });
+}
+
+function refreshAllPreview() {
+    // Standard fields
+    Object.entries(state).forEach(([k, v]) => {
+        if (!k.endsWith('_json')) updatePreview(k, v);
+    });
+    // Special lists
+    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+}
+
+// Update the iframe refresh logic
+iframe.addEventListener('load', () => {
+    try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+
+        // Inject the receiver script into the iframe's page
+        const script = doc.createElement('script');
+        script.textContent = `
+        (function() {
+            const MAP = {
+                clinic_name:       ['nav .text-2xl', 'footer .text-xl'],
+                hero_title:        ['section h1'],
+                hero_description:  ['section h1 ~ p'],
+                cta_primary:       ['nav button', 'section .flex button:first-child'],
+                badge_text:        ['.inline-flex .text-xs.uppercase'],
+                badge_visible:     ['.inline-flex[class*="bg-secondary-fixed"]'],
+                about_description: ['#about p.text-on-surface-variant'],
+                checklist_1:       ['#about .space-y-4 > div:nth-child(1) span:last-child'],
+                checklist_2:       ['#about .space-y-4 > div:nth-child(2) span:last-child'],
+                checklist_3:       ['#about .space-y-4 > div:nth-child(3) span:last-child'],
+                stat_number:       ['.text-4xl.font-black'],
+                stat_label:        ['.text-sm.uppercase.tracking-widest.opacity-80'],
+                contact_phone:     ['#location .text-on-surface-variant:first-of-type'],
+                contact_email:     ['#location .text-on-surface-variant'],
+                contact_address:   ['#location h4 + p:first-of-type'],
+                footer_copyright:  ['footer .text-slate-400'],
+            };
+
+            window.addEventListener('message', function(e) {
+                const { type, key, value } = e.data || {};
+                if (type === 'refresh') {
+                    location.reload(); 
+                    return;
+                }
+                if (type !== 'update') return;
+
+                if (key === 'accent_color') {
+                    document.documentElement.style.setProperty('--accent', value);
+                    return;
+                }
+
+                if (key === 'badge_visible') {
+                    const badge = document.querySelector('.inline-flex[class*="bg-secondary-fixed"]');
+                    if (badge) badge.style.display = value === '1' ? '' : 'none';
+                    return;
+                }
+
+                const selectors = MAP[key] || [];
+                selectors.forEach(sel => {
+                    document.querySelectorAll(sel).forEach(el => {
+                        el.textContent = value;
+                    });
+                });
+            });
+
+            const EDITABLE = [
+                { sel: 'nav .text-2xl',                                key: 'clinic_name' },
+                { sel: 'section h1',                                   key: 'hero_title' },
+                { sel: 'section h1 ~ p',                               key: 'hero_description' },
+                { sel: '.inline-flex[class*="bg-secondary-fixed"]',    key: 'badge' },
+                { sel: '#about p.text-on-surface-variant',             key: 'about_description' },
+                { sel: '#about .space-y-4',                            key: 'checklist' },
+                { sel: '.text-4xl.font-black',                         key: 'stat' },
+                { sel: '.announcement-item',                          key: 'announcements' },
+                { sel: '.team-member-card',                           key: 'team' },
+                { sel: '#location .text-on-surface-variant',           key: 'contact_phone' },
+                { sel: 'footer .text-slate-400',                       key: 'footer_copyright' },
+                { sel: '#schedule',                                     key: null }, 
+            ];
+
+            const style = document.createElement('style');
+            style.textContent = \`
+                .ez-editable { cursor: pointer; position: relative; transition: outline 0.1s; }
+                .ez-editable:hover { outline: 1.5px dashed #3b82f6 !important; outline-offset: 2px; }
+                .ez-editable::before {
+                    content: attr(data-ez-label);
+                    display: none; position: absolute; top: -18px; left: 0;
+                    font-size: 10px; background: #3b82f6; color: #fff;
+                    padding: 1px 6px; border-radius: 3px;
+                    font-family: Inter, sans-serif; white-space: nowrap;
+                    pointer-events: none; z-index: 9999;
+                }
+                .ez-editable:hover::before { display: block; }
+                .ez-readonly { cursor: default; }
+                .ez-readonly:hover { outline: 1px dashed #94a3b8 !important; }
+            \`;
+            document.head.appendChild(style);
+
+            EDITABLE.forEach(({ sel, key }) => {
+                document.querySelectorAll(sel).forEach(el => {
+                    if (key === null) {
+                        el.classList.add('ez-readonly');
+                        return;
+                    }
+                    el.classList.add('ez-editable');
+                    el.dataset.ezLabel = key.replace(/_/g,' ');
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.parent.postMessage({ type: 'field-click', key }, '*');
+                    });
+                });
+            });
+        })();
+        \`;
+        doc.head.appendChild(script);
+        setTimeout(() => {
+             Object.entries(window.parent.state).forEach(([k, v]) => {
+                if (!k.endsWith('_json')) {
+                    iframe.contentWindow?.postMessage({ type: 'update', key: k, value: v }, '*');
+                }
+             });
+        }, 100);
+    } catch(err) {
+        console.warn('iframe inject skipped:', err);
+    }
+});
+
 function showToast(msg, isError = false) {
     clearTimeout(toastTimer);
     toastMsg.textContent = msg;

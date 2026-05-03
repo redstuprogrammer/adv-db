@@ -40,8 +40,9 @@ if ($tenant) {
         'checklist_2' => $settings['checklist_2'] ?? 'Bio-compatible Premium Materials',
         'checklist_3' => $settings['checklist_3'] ?? 'Post-treatment Serenity Lounges',
         'cta_primary' => $settings['cta_primary'] ?? 'Book Appointment',
-        'cta_secondary' => $settings['cta_secondary'] ?? 'Explore Services',
-        'footer_copyright' => $settings['footer_copyright'] ?? ("© 2024 " . $tenant['company_name'] . ". Professional Dental Serenity.")
+        'footer_copyright' => $settings['footer_copyright'] ?? ("© 2024 " . $tenant['company_name'] . ". Professional Dental Serenity."),
+        'announcements' => json_decode($settings['announcements_json'] ?? '[]', true),
+        'team' => json_decode($settings['team_json'] ?? '[]', true)
     ];
 
     // Fetch clinic schedule for this tenant
@@ -217,9 +218,6 @@ if ($tenant) {
 <button onclick="openModal()" class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
                             <?= htmlspecialchars($clinic['cta_primary']) ?>
                         </button>
-<button class="border border-outline-variant/40 text-primary px-8 py-4 rounded-full font-bold hover:bg-surface-container-low transition-all">
-                            <?= htmlspecialchars($clinic['cta_secondary']) ?>
-                        </button>
 </div>
 </div>
 <div class="relative">
@@ -287,51 +285,53 @@ if ($tenant) {
 <p class="text-on-surface-variant font-body">Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.</p>
 </div>
 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-<!-- Dentist 1 -->
-<div class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all duration-300">
+<?php 
+$teamMembers = $clinic['team'];
+if (empty($teamMembers)) {
+    // Default team members
+    $teamMembers = [
+        [
+            'name' => 'Dr. Julian Vance',
+            'role' => 'Chief Prosthodontist',
+            'description' => 'Expert in reconstructive aesthetic dentistry with 15 years of clinical excellence.',
+            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuAL6y-PIHQgnWOeLZ5oQKYGgDndV6mBtY3McI8O3gNlbATmsN2z2HgaxB-ro25d2kQLdLGYhOU-mXkv8H1ymAXABErj7Ln5TcPKwyl4vUKofbL7zTdrh1qMT7qHTaUX5Vdp6_XodPSrNA6ITzHaqKly1bE44rPUXUcGVU4Uk4l3stZltFc-XUdPrAY-kWiZ1WkUnwinm2qQLIeboU5FEBIbIngq4zL38-_-JJFPxiIKlpFt4ZfZ-mmfZEXnMz2iprXW9ITFVCdm6ec',
+            'tags' => ['Implants', 'Veneers']
+        ],
+        [
+            'name' => 'Dr. Elena Rostova',
+            'role' => 'Lead Orthodontist',
+            'description' => 'Specializing in invisible alignment systems and holistic jaw alignment therapies.',
+            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuBg81LjkOL5PJs-3Td8bb1ZgBCLAPvxEAdqtUpn67cGf3NLmthtQeSDEQuTK34bONhUB0kdmmBZiPLjbDi8yGyEO-Tsyz1-dRm2R1xJS0pR09srYU5-qxYt_zlgOvCPVXV0-dMwj3nskjmm23Untq7MI233FD1FLJLQJALp8M7fhspLqa7YGnut6EmSYskyCLavjOQgdDoNiZLugEawq3GJp28iLds9YBHjDhgoOHV_W535CyhByi1fyrDdLI5jJnmze3TR7u0WgXE',
+            'tags' => ['Invisalign', 'Alignment']
+        ],
+        [
+            'name' => 'Marcus Chen',
+            'role' => 'Oral Hygienist',
+            'description' => 'Pioneer of pain-free ultrasonic cleaning protocols and preventive care wellness.',
+            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuA0eWtPM78tu6eWdZGq4m28rrX6alFZJgIexcRarCMngAQLEPexwrUY-IK_jv6PMQBsCy94KBDN3RYbOxrHW0lIj5adOrqhlGLXUnpygo86x9VOIDFqDuZxHbybXTjCQsZ9eQ02aqP-_-_dXUG2LJm3DqdZcGaskOIiAvJR7Mhm1EoSYxVVpMraYoYNL0rsIfnd4pRPoVLM6PfJZEQCSkAybceC2G9uJVZZbyQd9_VK5JaB3J28og-YJnJOFEZjxmGw7fmItxQG-eQ',
+            'tags' => ['Cleaning', 'Prevention']
+        ]
+    ];
+}
+
+foreach ($teamMembers as $index => $member):
+?>
+<div class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all duration-300 team-member-card" data-index="<?= $index ?>">
 <div class="aspect-square overflow-hidden">
-<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Professional portrait of a male dentist in a modern clinic, smiling warmly with soft focus medical background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL6y-PIHQgnWOeLZ5oQKYGgDndV6mBtY3McI8O3gNlbATmsN2z2HgaxB-ro25d2kQLdLGYhOU-mXkv8H1ymAXABErj7Ln5TcPKwyl4vUKofbL7zTdrh1qMT7qHTaUX5Vdp6_XodPSrNA6ITzHaqKly1bE44rPUXUcGVU4Uk4l3stZltFc-XUdPrAY-kWiZ1WkUnwinm2qQLIeboU5FEBIbIngq4zL38-_-JJFPxiIKlpFt4ZfZ-mmfZEXnMz2iprXW9ITFVCdm6ec"/>
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Professional portrait" src="<?= htmlspecialchars($member['image']) ?>"/>
 </div>
 <div class="p-8">
-<span class="text-secondary text-xs font-bold uppercase tracking-widest block mb-2">Chief Prosthodontist</span>
-<h3 class="text-xl font-bold text-on-surface mb-2">Dr. Julian Vance</h3>
-<p class="text-on-surface-variant text-sm leading-relaxed mb-6">Expert in reconstructive aesthetic dentistry with 15 years of clinical excellence.</p>
+<span class="text-secondary text-xs font-bold uppercase tracking-widest block mb-2"><?= htmlspecialchars($member['role']) ?></span>
+<h3 class="text-xl font-bold text-on-surface mb-2"><?= htmlspecialchars($member['name']) ?></h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6"><?= htmlspecialchars($member['description']) ?></p>
 <div class="flex gap-2">
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Implants</span>
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Veneers</span>
+<?php foreach ($member['tags'] as $tag): ?>
+<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold"><?= htmlspecialchars($tag) ?></span>
+<?php endforeach; ?>
 </div>
 </div>
 </div>
-<!-- Dentist 2 -->
-<div class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all duration-300">
-<div class="aspect-square overflow-hidden">
-<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Professional female dentist with stethoscope, wearing clean white scrubs in a bright airy studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg81LjkOL5PJs-3Td8bb1ZgBCLAPvxEAdqtUpn67cGf3NLmthtQeSDEQuTK34bONhUB0kdmmBZiPLjbDi8yGyEO-Tsyz1-dRm2R1xJS0pR09srYU5-qxYt_zlgOvCPVXV0-dMwj3nskjmm23Untq7MI233FD1FLJLQJALp8M7fhspLqa7YGnut6EmSYskyCLavjOQgdDoNiZLugEawq3GJp28iLds9YBHjDhgoOHV_W535CyhByi1fyrDdLI5jJnmze3TR7u0WgXE"/>
-</div>
-<div class="p-8">
-<span class="text-secondary text-xs font-bold uppercase tracking-widest block mb-2">Lead Orthodontist</span>
-<h3 class="text-xl font-bold text-on-surface mb-2">Dr. Elena Rostova</h3>
-<p class="text-on-surface-variant text-sm leading-relaxed mb-6">Specializing in invisible alignment systems and holistic jaw alignment therapies.</p>
-<div class="flex gap-2">
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Invisalign</span>
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Alignment</span>
-</div>
-</div>
-</div>
-<!-- Dentist 3 -->
-<div class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all duration-300">
-<div class="aspect-square overflow-hidden">
-<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Smiling dental specialist in clinical setting, wearing glasses and high-quality professional uniform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA0eWtPM78tu6eWdZGq4m28rrX6alFZJgIexcRarCMngAQLEPexwrUY-IK_jv6PMQBsCy94KBDN3RYbOxrHW0lIj5adOrqhlGLXUnpygo86x9VOIDFqDuZxHbybXTjCQsZ9eQ02aqP-_-_dXUG2LJm3DqdZcGaskOIiAvJR7Mhm1EoSYxVVpMraYoYNL0rsIfnd4pRPoVLM6PfJZEQCSkAybceC2G9uJVZZbyQd9_VK5JaB3J28og-YJnJOFEZjxmGw7fmItxQG-eQ"/>
-</div>
-<div class="p-8">
-<span class="text-secondary text-xs font-bold uppercase tracking-widest block mb-2">Oral Hygienist</span>
-<h3 class="text-xl font-bold text-on-surface mb-2">Marcus Chen</h3>
-<p class="text-on-surface-variant text-sm leading-relaxed mb-6">Pioneer of pain-free ultrasonic cleaning protocols and preventive care wellness.</p>
-<div class="flex gap-2">
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Cleaning</span>
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold">Prevention</span>
-</div>
-</div>
-</div>
+<?php endforeach; ?>
 </div>
 </div>
 </section>
@@ -382,16 +382,32 @@ foreach ($daysOrder as $day):
 <h2 class="text-2xl font-bold">Latest Pulse</h2>
 </div>
 <div class="space-y-8">
-<div>
-<span class="text-xs uppercase font-bold tracking-widest opacity-60">Sept 12, 2024</span>
-<h4 class="font-bold text-lg mt-1">New Aesthetic Laser Protocol</h4>
-<p class="text-on-primary/70 text-sm mt-2">Introducing the Mint-Glow series for 20-minute whitening without sensitivity.</p>
+<?php 
+$announcements = $clinic['announcements'];
+if (empty($announcements)) {
+    // Default announcements
+    $announcements = [
+        [
+            'date' => 'Sept 12, 2024',
+            'title' => 'New Aesthetic Laser Protocol',
+            'description' => 'Introducing the Mint-Glow series for 20-minute whitening without sensitivity.'
+        ],
+        [
+            'date' => 'Sept 05, 2024',
+            'title' => 'Evening Hours Extended',
+            'description' => 'Thursday nights are now open until 9 PM for our executive patients.'
+        ]
+    ];
+}
+
+foreach ($announcements as $index => $announcement):
+?>
+<div class="announcement-item" data-index="<?= $index ?>">
+<span class="text-xs uppercase font-bold tracking-widest opacity-60"><?= htmlspecialchars($announcement['date']) ?></span>
+<h4 class="font-bold text-lg mt-1"><?= htmlspecialchars($announcement['title']) ?></h4>
+<p class="text-on-primary/70 text-sm mt-2"><?= htmlspecialchars($announcement['description']) ?></p>
 </div>
-<div>
-<span class="text-xs uppercase font-bold tracking-widest opacity-60">Sept 05, 2024</span>
-<h4 class="font-bold text-lg mt-1">Evening Hours Extended</h4>
-<p class="text-on-primary/70 text-sm mt-2">Thursday nights are now open until 9 PM for our executive patients.</p>
-</div>
+<?php endforeach; ?>
 </div>
 </div>
 
