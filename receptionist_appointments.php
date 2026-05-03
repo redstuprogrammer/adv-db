@@ -71,25 +71,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
         
         if (mysqli_stmt_num_rows($stmtCheck) > 0) {
             $errorMessage = 'Booking already exists for this dentist at the selected date and time.';
+            $isBookingError = true;
             mysqli_stmt_close($stmtCheck);
         } else {
             mysqli_stmt_close($stmtCheck);
-            $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
+            $stmtAdd = mysqli_prepare($conn, 'INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status, is_appointment_request) VALUES (?, ?, ?, ?, ?, ?, 0)');
             if ($stmtAdd) {
                 mysqli_stmt_bind_param($stmtAdd, 'iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
                 if (mysqli_stmt_execute($stmtAdd)) {
                     $successMessage = 'Appointment scheduled successfully.';
                 } else {
                     $errorMessage = 'Unable to schedule appointment. DB Error: ' . $conn->error;
+                    $isBookingError = true;
                     error_log("Appt add failed for tenant $tenantId: " . $conn->error);
                 }
                 mysqli_stmt_close($stmtAdd);
             } else {
                 $errorMessage = 'Unable to prepare appointment statement.';
+                $isBookingError = true;
             }
         }
     } else {
         $errorMessage = 'Please select a patient, dentist, date, and time for the appointment.';
+        $isBookingError = true;
     }
 }
 
@@ -640,7 +644,7 @@ if ($stmtReq) {
         <?php if ($successMessage): ?>
           <div class="alert-box" style="background: #ecfdf5; color: #16573b; border-color: #bbf7d0; margin-bottom: 20px;"><?php echo h($successMessage); ?></div>
         <?php endif; ?>
-        <?php if ($errorMessage): ?>
+        <?php if ($errorMessage && !isset($_POST['add_appointment'])): ?>
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; margin-bottom: 20px;"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
         <div class="content-header">
@@ -747,6 +751,12 @@ if ($stmtReq) {
               <h3 class="modal-title">Schedule Appointment</h3>
               <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
             </div>
+
+            <?php if ($errorMessage && isset($_POST['add_appointment'])): ?>
+              <div style="background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; font-size: 13px; margin-bottom: 15px; font-weight: 600;">
+                ⚠️ <?php echo h($errorMessage); ?>
+              </div>
+            <?php endif; ?>
 
             <div class="form-group">
               <label for="patient_id">Patient</label>
@@ -1186,6 +1196,27 @@ if ($stmtReq) {
       if (event.target === requestViewModal) closeRequestViewModal();
     });
     
+    
+    // Auto-reopen modal if there was an error booking
+    <?php if ($errorMessage && isset($_POST['add_appointment'])): ?>
+    document.addEventListener('DOMContentLoaded', () => {
+      openScheduleModal();
+      // Restore previous selections if available
+      const prevPatient = <?php echo json_encode($_POST['patient_id'] ?? ''); ?>;
+      const prevDentist = <?php echo json_encode($_POST['dentist_id'] ?? ''); ?>;
+      const prevDate = <?php echo json_encode($_POST['appointment_date'] ?? ''); ?>;
+      const prevTime = <?php echo json_encode($_POST['appointment_time'] ?? ''); ?>;
+      
+      if (prevPatient) document.getElementById('patient_id').value = prevPatient;
+      if (prevDentist) {
+        document.getElementById('dentist_id').value = prevDentist;
+        handleDentistChange();
+      }
+      if (prevDate) handleDateClick(prevDate);
+      // Note: Time slot will be re-rendered after handleDateClick and fetchAvailabilityData
+    });
+    <?php endif; ?>
+
     console.log('Receptionist Appointments Page Initialized');
   </script>
 </body>

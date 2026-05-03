@@ -24,3 +24,9 @@ Adjust the CSS so that .swatch-box is a clearly visible 24x24px square with the 
 Ensure the .color-swatch wrapper has a fixed height and proper padding so it looks like a clickable button.
 
 test creating an appointment for recept
+
+Please select a patient, dentist, date, and time for the appointment.
+
+receptionist_appointments.php
+- instead of displaying "Please select a patient, dentist, date, and time for the appointment." when there is something missing, display it inside the modal form for booking an appointment.
+- appointments by the receptionist should not be inserted in appointment requests, but on the appointment list. only appointment bookings from the mobile app should be in appointment requests
