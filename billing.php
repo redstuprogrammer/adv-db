@@ -55,6 +55,24 @@ if ($checkColumn && $checkColumn->num_rows == 0) {
     $conn->query("ALTER TABLE payment ADD COLUMN appointment_id INT AFTER tenant_id");
 }
 
+// Pagination Logic
+$records_per_page = 10;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $records_per_page;
+
+// Get total records for pagination
+$total_records = 0;
+$count_query = "SELECT COUNT(*) FROM billing WHERE tenant_id = ?";
+$count_stmt = mysqli_prepare($conn, $count_query);
+if ($count_stmt) {
+    mysqli_stmt_bind_param($count_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($count_stmt);
+    mysqli_stmt_bind_result($count_stmt, $total_records);
+    mysqli_stmt_fetch($count_stmt);
+    mysqli_stmt_close($count_stmt);
+}
+$total_pages = ceil($total_records / $records_per_page);
+
 $query = "SELECT 
             py.billing_id as payment_id, 
             p.patient_id,
@@ -74,12 +92,13 @@ $query = "SELECT
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           LEFT JOIN service s ON a.service_id = s.service_id
           WHERE py.tenant_id = ?
-          ORDER BY py.billing_id DESC";
+          ORDER BY py.billing_id DESC
+          LIMIT ? OFFSET ?";
 
 $payments = [];
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, 'i', $tenantId);
+    mysqli_stmt_bind_param($stmt, 'iii', $tenantId, $records_per_page, $offset);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     while ($row = mysqli_fetch_assoc($result)) {
@@ -88,20 +107,28 @@ if ($stmt) {
     mysqli_stmt_close($stmt);
 }
 
-// Calculate summary statistics
+// Calculate summary statistics (for ALL records, not just the paginated page)
 $totalRevenue = 0;
 $pendingAmount = 0;
 $paidCount = 0;
 $pendingCount = 0;
 
-foreach ($payments as $payment) {
-    $totalRevenue += (float)$payment['amount'];
-    if (strtolower($payment['status']) === 'paid') {
-        $paidCount++;
-    } else {
-        $pendingAmount += (float)$payment['amount'];
-        $pendingCount++;
+$stats_query = "SELECT amount_paid, payment_status FROM billing WHERE tenant_id = ?";
+$stats_stmt = mysqli_prepare($conn, $stats_query);
+if ($stats_stmt) {
+    mysqli_stmt_bind_param($stats_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($stats_stmt);
+    $stats_result = mysqli_stmt_get_result($stats_stmt);
+    while ($row = mysqli_fetch_assoc($stats_result)) {
+        $totalRevenue += (float)$row['amount_paid'];
+        if (strtolower($row['payment_status'] ?? '') === 'paid') {
+            $paidCount++;
+        } else {
+            $pendingAmount += (float)$row['amount_paid'];
+            $pendingCount++;
+        }
     }
+    mysqli_stmt_close($stats_stmt);
 }
 ?>
 <!doctype html>
@@ -301,6 +328,42 @@ foreach ($payments as $payment) {
       .form-group { margin-bottom: 16px; }
       .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #0d3b66; }
       .form-group input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+      
+      /* Pagination Styles */
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 30px;
+        padding: 20px 0;
+      }
+      .page-link {
+        padding: 8px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
+      }
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      .page-link.disabled {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
     </style>
 </head>
 <body>
@@ -396,6 +459,41 @@ foreach ($payments as $payment) {
             <?php endif; ?>
           </tbody>
         </table>
+
+        <!-- Pagination Navigation -->
+        <?php if ($total_pages > 1): ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" 
+               class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
+               &laquo; Previous
+            </a>
+
+            <?php
+            $start = max(1, $page - 2);
+            $end = min($total_pages, $page + 2);
+
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $page) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+
+            if ($end < $total_pages) {
+                if ($end < $total_pages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $total_pages . '" class="page-link">' . $total_pages . '</a>';
+            }
+            ?>
+
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($total_pages, $page + 1); ?>" 
+               class="page-link <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
+               Next &raquo;
+            </a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>

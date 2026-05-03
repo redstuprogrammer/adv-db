@@ -51,6 +51,24 @@ if (!$hasPaymentTracking) {
    2. DATA FETCHING (Billing List)
 ========================================= */
 
+// Pagination Logic
+$records_per_page = 10;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $records_per_page;
+
+// Get total records for pagination
+$total_records = 0;
+$count_query = "SELECT COUNT(*) FROM billing WHERE tenant_id = ?";
+$count_stmt = mysqli_prepare($conn, $count_query);
+if ($count_stmt) {
+    mysqli_stmt_bind_param($count_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($count_stmt);
+    mysqli_stmt_bind_result($count_stmt, $total_records);
+    mysqli_stmt_fetch($count_stmt);
+    mysqli_stmt_close($count_stmt);
+}
+$total_pages = ceil($total_records / $records_per_page);
+
 $query = "SELECT 
             py.billing_id, 
             p.patient_id,
@@ -69,12 +87,13 @@ $query = "SELECT
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           WHERE py.tenant_id = ?
-          ORDER BY py.billing_id DESC";
+          ORDER BY py.billing_id DESC
+          LIMIT ? OFFSET ?";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_bind_param($stmt, "iii", $tenantId, $records_per_page, $offset);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 }
@@ -289,6 +308,42 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         .add-selected-btn:hover {
             background: #0284c7;
         }
+        
+        /* Pagination Styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 30px;
+            padding: 20px 0;
+        }
+        .page-link {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #0d3b66;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        .page-link:hover {
+            background: #f8fafc;
+            border-color: #0d3b66;
+        }
+        .page-link.active {
+            background: #0d3b66;
+            color: white;
+            border-color: #0d3b66;
+        }
+        .page-link.disabled {
+            color: #94a3b8;
+            pointer-events: none;
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+        }
     </style>
 </head>
 <body>
@@ -396,6 +451,41 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                         <?php endif; ?>
                 </tbody>
             </table>
+
+            <!-- Pagination Navigation -->
+            <?php if ($total_pages > 1): ?>
+                <div class="pagination">
+                    <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" 
+                       class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
+                       &laquo; Previous
+                    </a>
+
+                    <?php
+                    $start = max(1, $page - 2);
+                    $end = min($total_pages, $page + 2);
+
+                    if ($start > 1) {
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                        if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+                    }
+
+                    for ($i = $start; $i <= $end; $i++) {
+                        $activeClass = ($i === $page) ? 'active' : '';
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+                    }
+
+                    if ($end < $total_pages) {
+                        if ($end < $total_pages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $total_pages . '" class="page-link">' . $total_pages . '</a>';
+                    }
+                    ?>
+
+                    <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($total_pages, $page + 1); ?>" 
+                       class="page-link <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
+                       Next &raquo;
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
