@@ -347,6 +347,8 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
     </div>
 </div>
 
+<input type="file" id="hidden-file-input" style="display:none" accept="image/*">
+
 <div id="toast"><span class="material-symbols-outlined" style="font-size:16px;">check_circle</span><span id="toast-msg">Saved.</span></div>
 
 <script>
@@ -382,6 +384,20 @@ function field(key, label, type, value) {
     return `<div class="rp-field"><label>${label}</label><${tag} data-key="${key}">${tag==='textarea'?e(value):''}</${tag}></div>`;
 }
 
+function imageField(key, label, value) {
+    return `
+        <div class="rp-field">
+            <label>${label}</label>
+            <div class="flex gap-2">
+                <input type="text" data-key="${key}" value="${e(value)}" class="flex-1 text-xs">
+                <button onclick="triggerUpload('${key}')" class="p-1 px-2 bg-slate-100 rounded border hover:bg-slate-200 transition-colors" title="Upload from device">
+                    <span class="material-symbols-outlined text-sm mt-1">upload</span>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 function toggleRow(key, label, checked) {
     return `<div class="rp-field"><div class="toggle-row"><span class="toggle-label">${label}</span><button class="toggle-switch ${checked ? 'on' : ''}" data-toggle="${key}"></button></div></div>`;
 }
@@ -394,9 +410,9 @@ const FIELDS = {
     cta_primary: { label: 'Book Button', sub: 'Primary CTA', render: () => field('cta_primary', 'Label', 'input', state.cta_primary) },
     badge: { label: 'Hero Badge', sub: 'Tagline', render: () => toggleRow('badge_visible', 'Show', state.badge_visible==='1') + field('badge_text', 'Text', 'input', state.badge_text) },
     hero_title: { label: 'Headline', sub: 'Hero main text', render: () => field('hero_title', 'Title', 'textarea', state.hero_title) },
-    hero_image: { label: 'Hero Image', sub: 'Main image', render: () => field('hero_image', 'URL', 'input', state.hero_image) },
+    hero_image: { label: 'Hero Image', sub: 'Main image', render: () => imageField('hero_image', 'Image', state.hero_image) },
     about_description: { label: 'About Text', sub: 'Intro paragraph', render: () => field('about_description', 'Content', 'textarea', state.about_description) },
-    about_images: { label: 'Gallery', sub: 'Section images', render: () => field('about_image_1', 'Image 1', 'input', state.about_image_1) + field('about_image_2', 'Image 2', 'input', state.about_image_2) },
+    about_images: { label: 'Gallery', sub: 'Section images', render: () => imageField('about_image_1', 'Image 1', state.about_image_1) + imageField('about_image_2', 'Image 2', state.about_image_2) },
     checklist: { label: 'Checklist', sub: '3 bullet points', render: () => field('checklist_1', 'Item 1', 'input', state.checklist_1) + field('checklist_2', 'Item 2', 'input', state.checklist_2) + field('checklist_3', 'Item 3', 'input', state.checklist_3) },
     footer_copyright: { label: 'Copyright', sub: 'Bottom line', render: () => field('footer_copyright', 'Text', 'input', state.footer_copyright) },
     announcements: {
@@ -435,7 +451,7 @@ const TEAM_FIELDS = {
                     <button onclick="removeListItem('team_json', ${i})" class="absolute top-1 right-1 text-red-500"><span class="material-symbols-outlined text-xs">delete</span></button>
                     ${field(`team_json.${i}.name`, 'Name', 'input', it.name)}
                     ${field(`team_json.${i}.role`, 'Role', 'input', it.role)}
-                    ${field(`team_json.${i}.image`, 'Image URL', 'input', it.image)}
+                    ${imageField(`team_json.${i}.image`, 'Profile Image', it.image)}
                 </div>`).join('')}
                 <button onclick="addListItem('team_json')" class="w-full py-2 border-2 border-dashed rounded">+ Add</button>
             </div>`;
@@ -498,6 +514,43 @@ function openField(key, tab = 'content') {
         });
     });
 }
+
+let uploadTargetKey = null;
+function triggerUpload(key) {
+    uploadTargetKey = key;
+    document.getElementById('hidden-file-input').click();
+}
+
+document.getElementById('hidden-file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file || !uploadTargetKey) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    showToast('Uploading image...');
+    try {
+        const res = await fetch('upload_homepage_image.php', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.success) {
+            setVal(uploadTargetKey, data.url);
+            markUnsaved();
+            updatePreview(uploadTargetKey, data.url);
+            refreshSidebarItem(uploadTargetKey);
+            // Refresh the current field UI to show the new URL
+            if (activeField) openField(activeField); 
+            showToast('Uploaded successfully!');
+        } else {
+            showToast(data.message || 'Upload failed', true);
+        }
+    } catch (err) {
+        showToast('Upload error occurred', true);
+    }
+    e.target.value = ''; // Reset file input
+});
 
 function getVal(path) {
     if (!path.includes('.')) return state[path];
