@@ -148,8 +148,20 @@ try {
 
             // Generate PayMongo link if it's a paid tier
             if ($payment_status === 'pending') {
-                $pm_config = require __DIR__ . '/config/paymongo.php';
-                $secret = $pm_config['secret_key'] ?? '';
+                $pm_config = null;
+                $config_candidates = [
+                    __DIR__ . '/config/paymongo.php',
+                    $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
+                ];
+
+                foreach ($config_candidates as $path) {
+                    if (file_exists($path)) {
+                        $pm_config = require $path;
+                        break;
+                    }
+                }
+
+                $secret = ($pm_config && isset($pm_config['secret_key'])) ? $pm_config['secret_key'] : (getenv('PAYMONGO_SECRET_KEY') ?: '');
                 
                 if ($secret) {
                     $auth = base64_encode($secret . ':');
@@ -202,7 +214,11 @@ try {
                         $pm_data = json_decode($pm_response, true);
                         $paymongo_url = $pm_data['data']['attributes']['checkout_url'] ?? null;
                         $paymongo_session_id = $pm_data['data']['id'] ?? null;
+                    } else {
+                        error_log("PayMongo API Error (HTTP $http_code): " . $pm_response);
                     }
+                } else {
+                    error_log("PayMongo Secret Key is missing. Skipping checkout session creation.");
                 }
             }
 
@@ -275,16 +291,17 @@ try {
         $email_sent = false;
         $login_url = buildTenantLoginUrl($slug);
         
-        // Only send email immediately if it's a trial (already active)
-        if ($initial_status === 'active') {
-            $emailResult = sendTenantOnboardingEmail([
-                'clinic_name' => $clinicName,
-                'owner_name' => $ownerName,
-                'owner_email' => $email,
-                'temp_password' => $temp_password,
-                'login_url' => $login_url
-            ]);
-            $email_sent = (bool)($emailResult['sent'] ?? false);
+        // Send onboarding email so the user has their credentials
+        $emailResult = sendTenantOnboardingEmail([
+            'clinic_name' => $clinicName,
+            'owner_name' => $ownerName,
+            'owner_email' => $email,
+            'temp_password' => $temp_password,
+            'login_url' => $login_url
+        ]);
+        $email_sent = (bool)($emailResult['sent'] ?? false);
+        if (!$email_sent) {
+            error_log("Failed to send onboarding email to $email: " . ($emailResult['error'] ?? 'Unknown error'));
         }
 
         $response = [
