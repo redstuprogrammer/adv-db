@@ -205,7 +205,8 @@ if ($currentAdminId) {
     $stmt = mysqli_prepare($conn, "SELECT username, email FROM super_admins WHERE id = ?");
     mysqli_stmt_bind_param($stmt, "i", $currentAdminId);
     mysqli_stmt_execute($stmt);
-    $currentUser = mysqli_fetch_assoc($stmt) ?: ['username' => ''];
+    $res = mysqli_stmt_get_result($stmt);
+    $currentUser = mysqli_fetch_assoc($res) ?: ['username' => ''];
     mysqli_stmt_close($stmt);
 }
 

@@ -28,7 +28,7 @@ function h(string $s): string {
 /**
  * Sends a welcome email with a temporary password to a new user.
  */
-function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $tenantName, $tenantSlug) {
+function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $tenantName, $tenantSlug, $role) {
     // Check for SMTP settings using environment detection
     $smtpHost = getenv('SMTP_HOST') ?: $_ENV['SMTP_HOST'] ?? $_SERVER['SMTP_HOST'] ?? null;
     $smtpPort = getenv('SMTP_PORT') ?: $_ENV['SMTP_PORT'] ?? $_SERVER['SMTP_PORT'] ?? null;
@@ -63,6 +63,7 @@ function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $ten
         $safeName = htmlspecialchars($firstName ?: 'there', ENT_QUOTES, 'UTF-8');
         $safeClinic = htmlspecialchars($tenantName, ENT_QUOTES, 'UTF-8');
         $safePass = htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8');
+        $safeRole = htmlspecialchars($role, ENT_QUOTES, 'UTF-8');
         
         // Build login URL
         $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
@@ -77,7 +78,7 @@ function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $ten
     </div>
     <div style="padding: 32px; color: #1e293b; line-height: 1.6;">
         <p style="font-size: 18px; margin-bottom: 16px;">Hello <strong>{$safeName}</strong>,</p>
-        <p>You have been registered as a <strong>{$role}</strong> at <strong>{$safeClinic}</strong>. You can now access the clinic management portal using the credentials below:</p>
+        <p>You have been registered as a <strong>{$safeRole}</strong> at <strong>{$safeClinic}</strong>. You can now access the clinic management portal using the credentials below:</p>
         
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 24px 0;">
             <div style="margin-bottom: 16px;">
@@ -135,11 +136,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     $firstName = isset($_POST['first_name']) ? trim($_POST['first_name']) : '';
     $lastName = isset($_POST['last_name']) ? trim($_POST['last_name']) : '';
     $phone = isset($_POST['phone_number']) ? trim($_POST['phone_number']) : '';
-    $rawPassword = isset($_POST['password']) ? trim($_POST['password']) : '';
     $role = isset($_POST['role']) ? trim($_POST['role']) : '';
 
-    if ($email === '' || $rawPassword === '' || $role === '') {
-        $formError = 'Email, password, and role are required.';
+    // Generate a random 8-character temporary password in the background
+    $rawPassword = bin2hex(random_bytes(4)); 
+
+    if ($email === '' || $role === '') {
+        $formError = 'Email and role are required.';
     } elseif (!in_array($role, ['Admin', 'Receptionist', 'Dentist'], true)) {
         $formError = 'Invalid role selected.';
     } else {
@@ -199,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     }
                     
                     // Send welcome email with temporary password
-                    sendUserWelcomeEmail($email, $firstName, $lastName, $rawPassword, $tenantName, $tenantSlug);
+                    sendUserWelcomeEmail($email, $firstName, $lastName, $rawPassword, $tenantName, $tenantSlug, $role);
                     
                     header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
                     exit;
@@ -410,18 +413,6 @@ try {
 
     function openAddUserModal() {
       document.getElementById('addUserModal').style.display = 'flex';
-      // Generate temporary password
-      const password = generateTempPassword();
-      document.getElementById('userPassword').value = password;
-    }
-
-    function generateTempPassword() {
-      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let password = '';
-      for (let i = 0; i < 8; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return password;
     }
 
     function closeAddUserModal() {
@@ -452,10 +443,7 @@ try {
         <div style="margin-bottom: 10px;">
           <label style="display: block; margin-bottom: 4px;">Email</label>
           <input type="email" name="email" required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-        </div>
-        <div style="margin-bottom: 10px;">
-          <label style="display: block; margin-bottom: 4px;">Temporary Password</label>
-          <input type="text" name="password" id="userPassword" readonly required style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+          <p style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">A temporary password will be auto-generated and sent to this email.</p>
         </div>
         <div style="margin-bottom: 15px;">
           <label style="display: block; margin-bottom: 4px;">Role</label>
