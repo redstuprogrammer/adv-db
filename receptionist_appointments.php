@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
         $current = mysqli_fetch_assoc($checkRes);
         mysqli_stmt_close($checkStmt);
 
-        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+        if ($current && in_array(strtolower($current['status']), ['completed', 'cancelled'])) {
             $errorMessage = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
         } else {
             $stmtUpdate = mysqli_prepare($conn, 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
@@ -676,7 +676,14 @@ if ($stmtReq) {
                     <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
                     <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? '')); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
                     <td class="actions-cell">
-                      <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($row['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</a>
+                      <?php 
+                        $isFinalStatus = in_array(strtolower($row['status'] ?? ''), ['completed', 'cancelled']);
+                        if (!$isFinalStatus): 
+                      ?>
+                        <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($row['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</a>
+                      <?php else: ?>
+                        <span class="action-link" style="opacity: 0.5; cursor: not-allowed; border-color: #ccc; color: #999;">Locked</span>
+                      <?php endif; ?>
                     </td>
                   </tr>
                 <?php endwhile; ?>
@@ -1144,7 +1151,8 @@ if ($stmtReq) {
       const updateBtn = document.getElementById('updateStatusBtn');
       newStatusSelect.value = status;
       
-      if (status === 'Completed' || status === 'Cancelled') {
+      const lowerStatus = status ? status.toLowerCase() : '';
+      if (lowerStatus === 'completed' || lowerStatus === 'cancelled') {
         // Fully lock the status if it's in a final state
         newStatusSelect.disabled = true;
         if (updateBtn) updateBtn.disabled = true;

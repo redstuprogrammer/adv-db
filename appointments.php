@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
         $current = $checkRes->fetch_assoc();
         $checkStmt->close();
 
-        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+        if ($current && in_array(strtolower($current['status']), ['completed', 'cancelled'])) {
             $errorMsg = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
         } else {
             $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
@@ -539,7 +539,14 @@ $stmt->close();
                   <td><?php echo h($appt['dentist_name'] ?: 'Unassigned'); ?></td>
                   <td><span class="status-pill <?php echo strtolower($appt['status']); ?>"><?php echo ucfirst($appt['status']); ?></span></td>
                   <td>
-                    <button class="action-btn" onclick="openManageModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['dentist_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</button>
+                    <?php 
+                      $isFinalStatus = in_array(strtolower($appt['status'] ?? ''), ['completed', 'cancelled']);
+                      if (!$isFinalStatus): 
+                    ?>
+                      <button class="action-btn" onclick="openManageModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['dentist_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</button>
+                    <?php else: ?>
+                      <button class="action-btn" style="opacity: 0.5; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;" disabled>Locked</button>
+                    <?php endif; ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
@@ -626,7 +633,8 @@ $stmt->close();
       const updateBtn = document.getElementById('updateStatusBtn');
       newStatusSelect.value = status;
       
-      if (status === 'Completed' || status === 'Cancelled') {
+      const lowerStatus = status ? status.toLowerCase() : '';
+      if (lowerStatus === 'completed' || lowerStatus === 'cancelled') {
         newStatusSelect.disabled = true;
         if (updateBtn) updateBtn.disabled = true;
       } else {

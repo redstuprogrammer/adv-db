@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
         $current = mysqli_fetch_assoc($checkRes);
         mysqli_stmt_close($checkStmt);
 
-        if ($current && in_array($current['status'], ['Completed', 'Cancelled'])) {
+        if ($current && in_array(strtolower($current['status']), ['completed', 'cancelled'])) {
             $errorMessage = 'This appointment is already ' . strtolower($current['status']) . ' and cannot be modified.';
         } else {
             $stmtUpdate = mysqli_prepare($conn, 'UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
@@ -446,9 +446,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
                 </div>
 
                 <div class="appt-actions" style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                  <button type="button" class="btn-manage" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . $dentistName), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">
-                    Manage Status
-                  </button>
+                  <?php 
+                    $isFinalStatus = in_array(strtolower($row['status'] ?? ''), ['completed', 'cancelled']);
+                    if (!$isFinalStatus): 
+                  ?>
+                    <button type="button" class="btn-manage" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . $dentistName), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">
+                      Manage Status
+                    </button>
+                  <?php else: ?>
+                    <button type="button" class="btn-manage" style="opacity: 0.5; cursor: not-allowed; border-color: #ccc; color: #999;" disabled>
+                      Status Locked
+                    </button>
+                  <?php endif; ?>
                   <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">
                     Open Clinical Log
                   </a>
@@ -509,7 +518,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
       const updateBtn = document.getElementById('updateStatusBtn');
       newStatusSelect.value = status;
       
-      if (status === 'Completed' || status === 'Cancelled') {
+      const lowerStatus = status ? status.toLowerCase() : '';
+      if (lowerStatus === 'completed' || lowerStatus === 'cancelled') {
         newStatusSelect.disabled = true;
         if (updateBtn) updateBtn.disabled = true;
       } else {
