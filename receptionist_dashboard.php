@@ -89,6 +89,10 @@ $stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_nam
                WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.status = 'Pending'
                ORDER BY a.appointment_time ASC, a.appointment_id ASC
                LIMIT 8");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
+    mysqli_stmt_execute($stmt);
+    $queueResult = mysqli_stmt_get_result($stmt);
 }
 
 /* =========================
