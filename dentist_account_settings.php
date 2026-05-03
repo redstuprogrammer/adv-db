@@ -234,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <form method="POST" autocomplete="off">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input id="username" name="username" type="text" value="<?php echo h((string)($currentUser['username'] ?? '')); ?>">
+                <input id="username" name="username" type="text" placeholder="Enter username to update">
                 <div class="helper">Your unique login name within this clinic.</div>
             </div>
 

@@ -890,7 +890,8 @@ HTML;
           
           <div class="form-group">
             <label for="username">Username</label>
-            <input type="text" id="username" name="username" value="<?php echo h($currentUsername); ?>" required>
+            <input id="username" name="username" type="text" placeholder="Enter username to update">
+            <div class="helper">Your unique login name within this clinic.</div>
           </div>
 
           <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid var(--accent);">

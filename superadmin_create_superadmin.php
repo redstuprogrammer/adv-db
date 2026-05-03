@@ -401,7 +401,7 @@ if ($currentAdminId) {
                 <div class="sa-form-grid">
                     <div class="sa-form-group">
                         <label for="new_username">Username</label>
-                        <input id="new_username" name="new_username" type="text" value="<?php echo h($currentUser['username'] ?? ''); ?>" required />
+                        <input id="new_username" name="new_username" type="text" placeholder="Enter username to update" required />
                     </div>
                     <div class="sa-form-group">
                         <label for="current_password">Current Password</label>
