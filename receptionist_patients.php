@@ -139,7 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
             if ($countStmt) {
                 $countStmt->bind_param('i', $tenantId);
                 $countStmt->execute();
-                $countRow = $countStmt->get_result()->fetch_assoc();
+                $resCount = $countStmt->get_result();
+                $countRow = $resCount->fetch_assoc();
                 $countStmt->close();
                 if ((int)($countRow['c'] ?? 0) >= $patientLimit) {
                     $errorMessage = 'Patient limit reached for your plan (' . $patientLimit . '). Upgrade to add more patients.';
@@ -622,18 +623,14 @@ if (isset($_GET['view_patient_id'])) {
           <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email">
+            <small style="color: #666;">Welcome email will be sent here.</small>
           </div>
-          <div class="form-group">
-            <label for="temp_password">Temporary Password</label>
-            <input type="text" id="temp_password" name="temp_password" readonly value="<?php echo bin2hex(random_bytes(4)); ?>">
-            <small style="color: #666;">This password will be given to the patient for login.</small>
-          </div>
-        </div>
-        <div class="form-row">
           <div class="form-group">
             <label for="birthdate">Birthdate</label>
             <input type="date" id="birthdate" name="birthdate">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label for="gender">Gender</label>
             <select id="gender" name="gender">
@@ -643,11 +640,12 @@ if (isset($_GET['view_patient_id'])) {
               <option value="Other">Other</option>
             </select>
           </div>
+          <div class="form-group">
+             <label for="address">Address</label>
+             <input type="text" id="address" name="address">
+          </div>
         </div>
-        <div class="form-group">
-          <label for="address">Address</label>
-          <input type="text" id="address" name="address">
-        </div>
+
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
           <button type="submit" class="btn-submit" name="add_patient">Save Patient</button>

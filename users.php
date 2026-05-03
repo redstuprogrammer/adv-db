@@ -1,25 +1,11 @@
 <?php
-// Extend session timeout
-ini_set('session.gc_maxlifetime', 86400 * 7); // 7 days
-session_set_cookie_params(['lifetime' => 86400 * 7, 'samesite' => 'Lax']);
-
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/tenant_tier_helper.php';
+require_once __DIR__ . '/includes/session_utils.php';
 
-// Role Check Implementation - Ensure user is logged in
-if (!isset($_SESSION['role'])) {
-    header("Location: tenant_login.php");
-    exit();
-}
-
-// Role Check Implementation - Ensure user is an Admin
-if ($_SESSION['role'] !== 'Admin') {
-    header("Location: tenant_login.php");
-    exit();
-}
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('Admin');
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');

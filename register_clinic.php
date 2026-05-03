@@ -92,6 +92,7 @@ try {
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
         if ($row = mysqli_fetch_assoc($resultCheck)) {
+            mysqli_stmt_close($stmtCheck);
             if ($row['company_name'] === $clinicName) {
                 throw new Exception("Clinic name already exists.");
             }
@@ -102,6 +103,7 @@ try {
                 throw new Exception("Email address is already registered. Please use a different email.");
             }
         }
+        mysqli_stmt_close($stmtCheck);
 
         // 3. Generate Slug and Tenant Code
         $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinicName))) . '-' . substr(uniqid(), -4);
@@ -264,6 +266,7 @@ try {
                 }
                 mysqli_stmt_close($schedStmt);
             }
+            mysqli_stmt_close($stmt);
         } else {
             throw new Exception("Database error: " . mysqli_error($conn));
         }

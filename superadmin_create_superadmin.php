@@ -1,12 +1,9 @@
-<?php
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
-}
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireSuperAdmin();
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -135,20 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
     $currentPass = (string)($_POST['current_password'] ?? '');
     $newPass = (string)($_POST['new_password'] ?? '');
     $confirmPass = (string)($_POST['confirm_new_password'] ?? '');
-    $currentAdminId = $_SESSION['superadmin_id'] ?? null;
-
-    if (!$currentAdminId) {
-        $sessUser = $_SESSION['superadmin_username'] ?? '';
-        $idStmt = mysqli_prepare($conn, "SELECT id FROM super_admins WHERE username = ? LIMIT 1");
-        mysqli_stmt_bind_param($idStmt, "s", $sessUser);
-        mysqli_stmt_execute($idStmt);
-        $idRes = mysqli_stmt_get_result($idStmt);
-        if ($row = mysqli_fetch_assoc($idRes)) {
-            $currentAdminId = $row['id'];
-            $_SESSION['superadmin_id'] = $currentAdminId;
-        }
-        mysqli_stmt_close($idStmt);
-    }
+    $currentAdminId = $sessionManager->getUserId();
 
     if ($newUsername === '') {
         $error = 'Username cannot be empty.';
@@ -188,7 +172,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
                 mysqli_stmt_bind_param($updateStmt, $types, ...$params);
                 if (mysqli_stmt_execute($updateStmt)) {
                     $success = 'Account settings updated successfully.';
+                    // Sync session with new username
                     $_SESSION['superadmin_username'] = $newUsername;
+                    if (isset($_SESSION['superadmin'])) {
+                        $_SESSION['superadmin']['username'] = $newUsername;
+                    }
                 } else {
                     $error = 'Failed to update settings. Username might already be taken.';
                 }
@@ -199,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
 }
 
 // Fetch current user data
-$currentAdminId = $_SESSION['superadmin_id'] ?? null;
+$currentAdminId = $sessionManager->getUserId();
 $currentUser = ['username' => ''];
 if ($currentAdminId) {
     $stmt = mysqli_prepare($conn, "SELECT username, email FROM super_admins WHERE id = ?");

@@ -1,13 +1,9 @@
-<?php
-// Force redeployment - version 1.1
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
-}
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireSuperAdmin();
 
 // Load current settings
 require_once __DIR__ . '/settings.php';

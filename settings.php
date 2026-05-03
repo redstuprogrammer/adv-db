@@ -29,13 +29,10 @@ function redirect($path) {
 $isSettingsPage = (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'settings.php');
 
 if ($isSettingsPage) {
-    // Role Check Implementation - Ensure user is logged in
-    if (!isset($_SESSION['role'])) {
-        redirect('tenant_login.php');
-    }
-
-    // Role Check Implementation - Ensure user is an Admin or Superadmin
-    $userRole = strtolower($_SESSION['role'] ?? '');
+    // Ensure user is logged in as Admin or Superadmin
+    $sessionManager = SessionManager::getInstance();
+    $userRole = strtolower($sessionManager->getRole() ?? '');
+    
     if ($userRole !== 'admin' && $userRole !== 'superadmin') {
         redirect('tenant_login.php');
     }
@@ -209,6 +206,12 @@ HTML;
                         if ($updateUsernameStmt->execute()) {
                             $updatesMade = true;
                             $message = 'Username updated successfully. ';
+                            // Sync session with new username
+                            $tenantData = $sessionManager->getTenantData();
+                            if ($tenantData) {
+                                $tenantData['username'] = $newUsername;
+                                $sessionManager->loginTenantUser($tenantSlug, $tenantData);
+                            }
                         } else {
                             $message = 'Error updating username. ';
                         }
