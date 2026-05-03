@@ -138,6 +138,14 @@ $procedure_name_concat = implode(', ', $procedure_names);
 // Begin transaction
 $conn->begin_transaction();
 
+// Final amount and status determination
+$total_amount_final = $amount;
+$amount_paid_final = ($status === 'paid') ? $total_amount_final : 0.0;
+
+// For "Mobile App" mode, we store the mode as NULL initially so the mobile app 
+// doesn't display "MOBILE APP" as the payment method before it's actually paid.
+$db_mode = ($mode === 'Mobile App' && $status === 'unpaid') ? null : $mode;
+
 try {
     // Insert payment record
     $insert_sql = "INSERT INTO billing (
@@ -150,7 +158,8 @@ try {
         throw new Exception("Failed to prepare payment insert: " . mysqli_error($conn));
     }
 
-    mysqli_stmt_bind_param($stmt, "iiiddssss", $tenantId, $patient_id, $appointment_id, $amount, $amount, $mode, $status, $procedures_json, $reference_number);
+    // Use amount_paid_final and total_amount_final instead of just amount twice
+    mysqli_stmt_bind_param($stmt, "iiiddssss", $tenantId, $patient_id, $appointment_id, $amount_paid_final, $total_amount_final, $db_mode, $status, $procedures_json, $reference_number);
 
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception("Failed to insert payment: " . mysqli_stmt_error($stmt));
