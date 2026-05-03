@@ -188,7 +188,7 @@ if ($tenant) {
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#schedule">Schedule</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#location">Location</a>
 </div>
-<button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-6 py-2.5 rounded-full font-semibold shadow-md active:scale-95 transition-all duration-200">
+<button onclick="openModal()" class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-6 py-2.5 rounded-full font-semibold shadow-md active:scale-95 transition-all duration-200">
                 <?= htmlspecialchars($clinic['cta_primary']) ?>
             </button>
 </nav>
@@ -214,7 +214,7 @@ if ($tenant) {
                         <?= htmlspecialchars($clinic['hero_description'] ?? 'Experience a new standard of dental care where precision engineering meets a curated, calming environment. Your comfort is our primary clinical protocol.') ?>
                     </p>
 <div class="flex flex-wrap gap-4">
-<button class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
+<button onclick="openModal()" class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
                             <?= htmlspecialchars($clinic['cta_primary']) ?>
                         </button>
 <button class="border border-outline-variant/40 text-primary px-8 py-4 rounded-full font-bold hover:bg-surface-container-low transition-all">
@@ -394,10 +394,7 @@ foreach ($daysOrder as $day):
 </div>
 </div>
 </div>
-<button class="mt-12 group flex items-center gap-2 font-bold hover:gap-4 transition-all">
-                            View All Updates
-                            <span class="material-symbols-outlined">arrow_right_alt</span>
-</button>
+
 </div>
 </div>
 </div>
@@ -457,4 +454,80 @@ foreach ($daysOrder as $day):
             </div>
 </div>
 </footer>
+<!-- Modal -->
+<div id="appointmentModal" class="fixed inset-0 z-[100] hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-surface p-8 rounded-3xl shadow-2xl mx-4">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-on-surface">Book Appointment</h2>
+            <button onclick="closeModal()" class="material-symbols-outlined text-outline hover:text-on-surface transition-colors">close</button>
+        </div>
+        
+        <div class="space-y-6">
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-primary mb-3">Mobile Application</p>
+                <div class="bg-surface-container-low p-4 rounded-2xl flex items-center gap-4 border border-outline-variant/10">
+                    <div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center shrink-0">
+                        <span class="material-symbols-outlined text-primary">install_mobile</span>
+                    </div>
+                    <div>
+                        <p class="font-bold text-on-surface">Install the app</p>
+                        <a href="https://drive.google.com/file/d/1CfuJhg_iKHftk-ftXNAvddrXPiuvjdrh/view?usp=sharing" target="_blank" class="text-primary text-sm font-medium hover:underline flex items-center gap-1">
+                            Download APK via GDrive
+                            <span class="material-symbols-outlined text-xs">open_in_new</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <p class="text-sm font-bold uppercase tracking-widest text-primary mb-3">Contact Us</p>
+                <div class="space-y-4">
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-surface-container-high rounded-full flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-primary">call</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm">Phone</p>
+                            <p class="text-on-surface-variant text-sm"><?= htmlspecialchars($clinic['contact_phone']) ?></p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-surface-container-high rounded-full flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-primary">mail</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm">Email</p>
+                            <p class="text-on-surface-variant text-sm"><?= htmlspecialchars($clinic['contact_email']) ?></p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 bg-surface-container-high rounded-full flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-primary">location_on</span>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm">Address</p>
+                            <p class="text-on-surface-variant text-sm"><?= htmlspecialchars($clinic['contact_address']) ?></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="closeModal()" class="w-full mt-8 bg-primary text-on-primary py-4 rounded-full font-bold shadow-lg hover:opacity-90 active:scale-[0.98] transition-all">
+            Close
+        </button>
+    </div>
+</div>
+
+<script>
+    function openModal() {
+        document.getElementById('appointmentModal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeModal() {
+        document.getElementById('appointmentModal').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+</script>
 </body></html>

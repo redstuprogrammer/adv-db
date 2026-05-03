@@ -37,3 +37,10 @@ RECEPTIONIST
 
 6. receptionist_patients.php
     - when creating a patient's account, remove temporary password field
+
+
+edit_tenant_homepage.php
+- allow announcements to be edited in edit_tenant_homepage.php rather than just bringing them to manage_posts.php which doesnt exist,
+
+make sure when user clicks on announcements in the middle panel/preview, it allows them to conveniently edit without needing to select in the left panel.
+- allow images/info for the team to be edited in edit_tenant_homepage.php rather than just bringing them to manage_team.php which doesnt exist
