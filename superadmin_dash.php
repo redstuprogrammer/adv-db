@@ -1447,7 +1447,7 @@ try {
             if (!tenantId) return;
             window.activeTenantId = tenantId;
 
-            fetch(`/get_tenant_details.php?id=${tenantId}`)
+            fetch(`get_tenant_details.php?id=${tenantId}`)
                 .then(res => res.json())
                 .then(tenant => {
                     document.getElementById('modal-clinic-name').textContent = tenant.company_name;

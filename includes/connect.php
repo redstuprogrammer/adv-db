@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Manila');
+
 // ── Environment detection ────────────────────────────────────────────────────
 $is_local = (
     gethostname() === 'DESKTOP-' . substr(gethostname(), 8) ||
@@ -79,6 +81,8 @@ if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, null, $flags)) 
 }
 
 mysqli_set_charset($conn, "utf8mb4");
+mysqli_query($conn, "SET time_zone = '+08:00'");
+
 
 // ── PDO (for scripts that need it) ────────────────────────────────────────────
 try {

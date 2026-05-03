@@ -1,32 +1,26 @@
 
 
-superadmin_sales_reports.php
-- pdf file display does not look good.
+superadmin_dash.php
+- "view document" button doesnt show documents.
 
-reports.php
-- pdf file display does not look good.
+register_clinic.php
+- i tried registering a tenant/clinic. but there seems to be a problem with the document's file size. make it accept more bigger file sizes. 
 
-reports.php
-- when I click Sales Performance tab, and click Activity Audit Trail again, the list displays undefined values in all of the columns. fix that.
+superadmin_settings.php
+- reset to default button is not resetting.
 
+superadmin_audit_logs.php
+- fix time (its currently london)
 
-dashboard.php
-- total sales (₱13,300.00) doesnt match with total sales (₱12,740.00) in reports.php and chart displays 225,640 pesos but total sales displays ₱12,740.00 (in reports.php) 
+edit_tenant_homepage.php
+- apply changes works but refreshes page and just displays the previous/default element.
+- sync to live site displays "Error" when clicked
+edit_tenant_homepage.php?tenant=toothfairy-73d1:571  POST https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/Landing%20Page/edit_tenant_homepage.php?tenant=toothfairy-73d1 500 (Internal Server Error)
+(anonymous) @ edit_tenant_homepage.php?tenant=toothfairy-73d1:571
+- image size make it accept bigger size
 
-move "reset to default" modal form to the center. for both superadmin_settings.php and settings.php
+check pdf report for superadmin and tenant
 
-Fix Color Picker Appearance
+patients.php, dentist_patients.php, receptionist_patients.php
+- order should be by id
 
-The .color-swatch and .swatch-box elements are currently rendering as vertical lines.
-
-Adjust the CSS so that .swatch-box is a clearly visible 24x24px square with the background color of the current selection.
-
-Ensure the .color-swatch wrapper has a fixed height and proper padding so it looks like a clickable button.
-
-test creating an appointment for recept
-
-Please select a patient, dentist, date, and time for the appointment.
-
-receptionist_appointments.php
-- instead of displaying "Please select a patient, dentist, date, and time for the appointment." when there is something missing, display it inside the modal form for booking an appointment.
-- appointments by the receptionist should not be inserted in appointment requests, but on the appointment list. only appointment bookings from the mobile app should be in appointment requests

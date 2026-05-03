@@ -30,7 +30,7 @@ try {
 
         $validDocsCount = 0;
         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
-        $maxSizeMB = 5;
+        $maxSizeMB = 50; // Increased to 50MB
         $maxSizeBytes = $maxSizeMB * 1024 * 1024;
 
         if (!isset($_FILES['documents']) || !is_array($_FILES['documents']['tmp_name'])) {

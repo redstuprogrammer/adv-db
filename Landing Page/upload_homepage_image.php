@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
         exit;
     }
 
-    if ($file['size'] > 5 * 1024 * 1024) {
-        echo json_encode(['success' => false, 'message' => 'File too large (max 5MB)']);
+    if ($file['size'] > 50 * 1024 * 1024) {
+        echo json_encode(['success' => false, 'message' => 'File too large (max 50MB)']);
         exit;
     }
 

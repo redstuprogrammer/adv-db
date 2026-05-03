@@ -22,16 +22,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['reset'])) {
             // Reset to defaults
             setSetting('system_name', 'OralSync');
+            
             // Delete existing logo file if exists
             $currentLogo = $currentSettings['logo_path'] ?? '';
             if ($currentLogo && file_exists(__DIR__ . '/' . ltrim($currentLogo, '/'))) {
-                unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
+                @unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
             setSetting('logo_path', '');
 
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest' || isset($_POST['reset'])) {
+                // If it's the fetch request from JS
+                if (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+                     echo json_encode(['success' => true]);
+                     exit;
+                }
+            }
 
             $message = "Settings reset to defaults!";
-        } else {
+        }
+ else {
             // Save settings
             setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
 
@@ -695,9 +704,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             fetch(window.location.href, {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
                 body: formData
             })
-            .then(response => response.text())
+            .then(response => response.json())
             .then(data => {
                 // Update UI to show defaults
                 document.getElementById('system_name').value = 'OralSync';

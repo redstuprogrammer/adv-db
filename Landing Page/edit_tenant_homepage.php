@@ -24,61 +24,92 @@ if (!$tenant_id) {
 // ── Handle AJAX save ──────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
     header('Content-Type: application/json');
+    
+    try {
+        $allowed = [
+            'clinic_name', 'hero_title', 'hero_description',
+            'about_description', 'footer_copyright',
+            'badge_visible', 'badge_text',
+            'checklist_1', 'checklist_2', 'checklist_3',
+            'cta_primary',
+            'accent_color',
+            'announcements_json', 'team_json',
+            'hero_image', 'about_image_1', 'about_image_2'
+        ];
 
-    $allowed = [
-        'clinic_name', 'hero_title', 'hero_description',
-        'about_description', 'footer_copyright',
-        'badge_visible', 'badge_text',
-        'checklist_1', 'checklist_2', 'checklist_3',
-        'cta_primary',
-        'accent_color',
-        'announcements_json', 'team_json',
-        'hero_image', 'about_image_1', 'about_image_2'
-    ];
-
-    $fields = [];
-    $params = [];
-    foreach ($allowed as $key) {
-        if (isset($_POST[$key])) {
-            $fields[] = "$key = ?";
-            $params[] = $_POST[$key];
+        $fields = [];
+        $params = [];
+        foreach ($allowed as $key) {
+            if (isset($_POST[$key])) {
+                $fields[] = "`$key` = ?";
+                $params[] = $_POST[$key];
+            }
         }
+
+        if ($fields) {
+            $check = $conn->prepare("SELECT id FROM clinic_settings WHERE tenant_id = ?");
+            $check->bind_param("i", $tenant_id);
+            $check->execute();
+            $exists = $check->get_result()->fetch_assoc();
+            $check->close();
+
+            if ($exists) {
+                $params[] = $tenant_id;
+                $sql = "UPDATE clinic_settings SET " . implode(', ', $fields) . " WHERE tenant_id = ?";
+                $stmt = $conn->prepare($sql);
+            } else {
+                $params[] = $tenant_id;
+                $colNames = array_map(fn($f) => str_replace('`', '', explode(' =', $f)[0]), $fields);
+                $colNames[] = 'tenant_id';
+                $placeholders = implode(', ', array_fill(0, count($params), '?'));
+                $sql = "INSERT INTO clinic_settings (" . implode(', ', array_map(fn($c) => "`$c`", $colNames)) . ") VALUES ($placeholders)";
+                $stmt = $conn->prepare($sql);
+            }
+
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $conn->error);
+            }
+
+            $types = str_repeat('s', count($params) - 1) . 'i';
+            $stmt->bind_param($types, ...$params);
+            
+            if (!$stmt->execute()) {
+                $err = $stmt->error;
+                $stmt->close();
+                
+                // Try to add missing columns if that's the error
+                if (strpos($err, 'Unknown column') !== false) {
+                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
+                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
+                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
+                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
+                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
+                    
+                    // Retry
+                    if ($exists) {
+                        $stmt = $conn->prepare($sql);
+                    } else {
+                        $stmt = $conn->prepare($sql);
+                    }
+                    $stmt->bind_param($types, ...$params);
+                    if (!$stmt->execute()) {
+                        throw new Exception("Execute failed after alter: " . $stmt->error);
+                    }
+                } else {
+                    throw new Exception("Execute failed: " . $err);
+                }
+            }
+            $stmt->close();
+        }
+
+        echo json_encode(['ok' => true]);
+    } catch (Exception $e) {
+        error_log("Editor Save Error: " . $e->getMessage());
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
     }
-
-    if ($fields) {
-        $check = $conn->prepare("SELECT id FROM clinic_settings WHERE tenant_id = ?");
-        $check->bind_param("i", $tenant_id);
-        $check->execute();
-        $exists = $check->get_result()->fetch_assoc();
-
-        if ($exists) {
-            $params[] = $tenant_id;
-            $sql = "UPDATE clinic_settings SET " . implode(', ', $fields) . " WHERE tenant_id = ?";
-            $stmt = $conn->prepare($sql);
-        } else {
-            $params[] = $tenant_id;
-            $colNames = array_map(fn($f) => explode(' =', $f)[0], $fields);
-            $colNames[] = 'tenant_id';
-            $placeholders = implode(', ', array_fill(0, count($params), '?'));
-            $sql = "INSERT INTO clinic_settings (" . implode(', ', $colNames) . ") VALUES ($placeholders)";
-            $stmt = $conn->prepare($sql);
-        }
-
-        $types = str_repeat('s', count($params) - 1) . 'i';
-        $stmt->bind_param($types, ...$params);
-        if (!$stmt->execute()) {
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
-            $stmt->execute();
-        }
-    }
-
-    echo json_encode(['ok' => true]);
     exit;
 }
+
 
 // ── Fetch this tenant's homepage settings ─────────────────────────────────────
 $stmt = $conn->prepare("SELECT * FROM clinic_settings WHERE tenant_id = ?");
@@ -568,7 +599,7 @@ function setVal(path, val) {
     state[p[0]] = JSON.stringify(d);
 }
 
-function addListItem(key) {
+async function addListItem(key) {
     pushToHistory();
     let d = JSON.parse(state[key] || '[]');
     if (key === 'team_json') d.push({ name: 'New Member', role: 'Role', description: '', image: '', tags: [] });
@@ -576,16 +607,22 @@ function addListItem(key) {
     state[key] = JSON.stringify(d);
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
+    
+    // Save before refresh to ensure iframe sees the new data
+    await autoSaveQuietly();
     iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
 }
 
-function removeListItem(key, i) {
+async function removeListItem(key, i) {
     pushToHistory();
     let d = JSON.parse(state[key] || '[]');
     d.splice(i, 1);
     state[key] = JSON.stringify(d);
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
+    
+    // Save before refresh
+    await autoSaveQuietly();
     iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
 }
 
@@ -692,13 +729,19 @@ document.getElementById('undo-btn').addEventListener('click', () => {
     if (historyIdx > 0) { historyIdx--; state = { ...history[historyIdx] }; refreshAllPreview(); if (activeField) openField(activeField); showToast('Undone.'); }
 });
 
+async function autoSaveQuietly() {
+    try {
+        await fetch('', { method: 'POST', body: new URLSearchParams({ ajax_save: '1', ...state }) });
+    } catch (err) { console.error('Auto-save failed', err); }
+}
+
 syncBtn.addEventListener('click', async () => {
     syncBtn.classList.add('saving'); syncBtn.querySelector('.sync-icon').textContent = 'hourglass_empty';
     try {
         const res = await fetch('', { method: 'POST', body: new URLSearchParams({ ajax_save: '1', ...state }) });
         const res_1 = await res.json();
-        if (res_1.ok) { markSaved(); showToast('Synced!'); } else showToast('Error', true);
-    } catch { showToast('Error', true); } finally {
+        if (res_1.ok) { markSaved(); showToast('Synced!'); } else showToast('Error: ' + (res_1.error || 'Unknown'), true);
+    } catch { showToast('Network Error', true); } finally {
         syncBtn.classList.remove('saving'); syncBtn.querySelector('.sync-icon').textContent = 'sync';
     }
 });

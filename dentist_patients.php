@@ -40,7 +40,7 @@ $stmt = mysqli_prepare($conn,
      WHERE p.tenant_id = ?
      GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name,
               p.contact_number, p.email, p.birthdate, p.gender
-     ORDER BY p.first_name ASC');
+     ORDER BY p.patient_id ASC');
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
