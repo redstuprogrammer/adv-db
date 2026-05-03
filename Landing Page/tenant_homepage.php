@@ -42,7 +42,10 @@ if ($tenant) {
         'cta_primary' => $settings['cta_primary'] ?? 'Book Appointment',
         'footer_copyright' => $settings['footer_copyright'] ?? ("© 2024 " . $tenant['company_name'] . ". Professional Dental Serenity."),
         'announcements' => json_decode($settings['announcements_json'] ?? '[]', true),
-        'team' => json_decode($settings['team_json'] ?? '[]', true)
+        'team' => json_decode($settings['team_json'] ?? '[]', true),
+        'hero_image' => $settings['hero_image'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo',
+        'about_image_1' => $settings['about_image_1'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g',
+        'about_image_2' => $settings['about_image_2'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10'
     ];
 
     // Fetch clinic schedule for this tenant
@@ -222,7 +225,7 @@ if ($tenant) {
 </div>
 <div class="relative">
 <div class="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl relative z-10">
-<img class="w-full h-full object-cover" data-alt="Modern high-end dental clinic room with soft natural lighting, a comfortable reclining chair, and minimalist organic decor elements" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo"/>
+<img id="hero-image" class="w-full h-full object-cover" data-alt="Modern high-end dental clinic" src="<?= htmlspecialchars($clinic['hero_image']) ?>"/>
 </div>
 <div class="absolute -bottom-6 -left-6 bg-surface-container-lowest p-6 rounded-xl shadow-xl z-20 flex items-center gap-4 max-w-xs">
 <div class="w-12 h-12 bg-secondary-container rounded-full flex items-center justify-center text-on-secondary-container">
@@ -263,7 +266,7 @@ if ($tenant) {
 <div class="md:col-span-7 grid grid-cols-2 gap-4">
 <div class="space-y-4 pt-12">
 <div class="rounded-2xl overflow-hidden shadow-lg h-64">
-<img class="w-full h-full object-cover" data-alt="Abstract macro shot of clean water droplets on a mint leaf with soft focus white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g"/>
+<img id="about-image-1" class="w-full h-full object-cover" data-alt="Abstract macro shot" src="<?= htmlspecialchars($clinic['about_image_1']) ?>"/>
 </div>
 <div class="bg-primary p-8 rounded-2xl text-on-primary">
 <p class="text-4xl font-black mb-2"><?= htmlspecialchars($clinic['stat_number']) ?></p>
@@ -271,7 +274,7 @@ if ($tenant) {
 </div>
 </div>
 <div class="rounded-2xl overflow-hidden shadow-lg h-[450px]">
-<img class="w-full h-full object-cover" data-alt="Interior of a luxury spa-like clinic waiting area with soft linen chairs and tall indoor plants" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10"/>
+<img id="about-image-2" class="w-full h-full object-cover" data-alt="Interior of a luxury clinic" src="<?= htmlspecialchars($clinic['about_image_2']) ?>"/>
 </div>
 </div>
 </div>

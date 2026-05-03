@@ -32,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
         'checklist_1', 'checklist_2', 'checklist_3',
         'cta_primary',
         'accent_color',
-        'announcements_json', 'team_json'
+        'announcements_json', 'team_json',
+        'hero_image', 'about_image_1', 'about_image_2'
     ];
 
     $fields = [];
@@ -71,6 +72,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
             // If it fails, maybe columns are missing? Try to add them.
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
+            $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
             $stmt->execute();
         }
     }
@@ -118,6 +122,9 @@ $c = [
     'accent_color'     => $clinic['accent_color']      ?? '#004872',
     'announcements_json' => $clinic['announcements_json'] ?? '[]',
     'team_json'        => $clinic['team_json']        ?? '[]',
+    'hero_image'       => $clinic['hero_image']       ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo',
+    'about_image_1'    => $clinic['about_image_1']    ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g',
+    'about_image_2'    => $clinic['about_image_2']    ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10',
 ];
 
 function e($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
@@ -399,11 +406,20 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
             </div>
 
 
+            <div class="field-item" data-field="hero_image">
+                <div class="fi-label">Hero Image</div>
+                <div class="fi-preview">Update Image URL</div>
+            </div>
+            
             <!-- ─ About ─ -->
             <div class="field-section-label">About Section</div>
             <div class="field-item" data-field="about_description">
                 <div class="fi-label">About Body Text</div>
                 <div class="fi-preview"><?= e($c['about_description']) ?></div>
+            </div>
+            <div class="field-item" data-field="about_images">
+                <div class="fi-label">Gallery Images</div>
+                <div class="fi-preview">Update URLs</div>
             </div>
             <div class="field-item" data-field="checklist">
                 <div class="fi-label">Feature Checklist (3 items)</div>
@@ -540,6 +556,13 @@ const FIELDS = {
             return field('hero_title', 'Headline', 'textarea', state.hero_title);
         }
     },
+    hero_image: {
+        label: 'Hero Image',
+        sub: 'Large image in the hero section',
+        render() {
+            return field('hero_image', 'Image URL', 'input', state.hero_image);
+        }
+    },
     hero_description: {
         label: 'Hero Description',
         sub: 'Paragraph below the headline',
@@ -563,6 +586,16 @@ const FIELDS = {
                 ${field('checklist_1', 'Item 1', 'input', state.checklist_1)}
                 ${field('checklist_2', 'Item 2', 'input', state.checklist_2)}
                 ${field('checklist_3', 'Item 3', 'input', state.checklist_3)}
+            `;
+        }
+    },
+    about_images: {
+        label: 'Gallery Images',
+        sub: 'Images in the about section',
+        render() {
+            return `
+                ${field('about_image_1', 'Image 1 (Square)', 'input', state.about_image_1)}
+                ${field('about_image_2', 'Image 2 (Tall)', 'input', state.about_image_2)}
             `;
         }
     },
@@ -1105,6 +1138,13 @@ function openField(key, tab = 'content') {
     if (sidebarItem) sidebarItem.classList.add('active');
 
     let def;
+    // Auto-detect tab based on key if not provided
+    if (tab === 'content' || !tab) {
+        if (key === 'accent_color') tab = 'colors';
+        else if (key === 'team') tab = 'team';
+        else tab = 'content';
+    }
+
     if (tab === 'colors') def = COLOR_FIELDS[key];
     else if (tab === 'team') def = TEAM_FIELDS[key];
     else def = FIELDS[key];
@@ -1205,6 +1245,9 @@ iframe.addEventListener('load', () => {
                 contact_email:     ['#location .text-on-surface-variant'],
                 contact_address:   ['#location h4 + p:first-of-type'],
                 footer_copyright:  ['footer .text-slate-400'],
+                hero_image:        ['#hero-image'],
+                about_image_1:     ['#about-image-1'],
+                about_image_2:     ['#about-image-2'],
             };
 
             window.addEventListener('message', function(e) {
@@ -1229,7 +1272,11 @@ iframe.addEventListener('load', () => {
                 const selectors = MAP[key] || [];
                 selectors.forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
-                        el.textContent = value;
+                        if (el.tagName === 'IMG') {
+                            el.src = value;
+                        } else {
+                            el.textContent = value;
+                        }
                     });
                 });
             });
@@ -1244,6 +1291,9 @@ iframe.addEventListener('load', () => {
                 { sel: '.text-4xl.font-black',                         key: 'stat' },
                 { sel: '.announcement-item',                          key: 'announcements' },
                 { sel: '.team-member-card',                           key: 'team' },
+                { sel: '#about-image-1',                           key: 'about_images' },
+                { sel: '#about-image-2',                           key: 'about_images' },
+                { sel: '#hero-image',                              key: 'hero_image' },
                 { sel: '#location .text-on-surface-variant',           key: 'contact_phone' },
                 { sel: 'footer .text-slate-400',                       key: 'footer_copyright' },
                 { sel: '#schedule',                                     key: null }, 

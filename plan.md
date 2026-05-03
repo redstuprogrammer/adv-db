@@ -1,16 +1,7 @@
-SUPERADMIN
-
-1. superadmin_create_superadmin.php
-- send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
-
 ADMIN
 users.php
 - send an email to the email address inputted. this is to send their temporary password. like how emailing works for super admin (emailing tenant's email address). 
 - when creating a user, remove the temporary password field.
-
-reports.php (Sales Performance tab), billing.php, and receptionist_billing.php
-- admin and receptionist could set the downpayment for an appointment booked in the mobile correct? now if they pay a deposit for the appointment (or downpayment), it should be displayed as downpayment. currently, every downpayment made through the mobile app is displayed as 'full payment'. maybe make it that it only display partial / full payment, when paymongo process in mobile is done.
-
 
 RECEPTIONIST
 1. receptionist_dashboard.php
