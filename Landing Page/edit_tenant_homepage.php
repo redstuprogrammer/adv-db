@@ -26,6 +26,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
     header('Content-Type: application/json');
     
     try {
+        // Ensure all newer columns exist before any INSERT/UPDATE is attempted.
+        // IF NOT EXISTS makes these a no-op when the column is already present.
+        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS announcements_json TEXT");
+        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS team_json TEXT");
+        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS hero_image TEXT");
+        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS about_image_1 TEXT");
+        $conn->query("ALTER TABLE clinic_settings ADD COLUMN IF NOT EXISTS about_image_2 TEXT");
+
         $allowed = [
             'clinic_name', 'hero_title', 'hero_description',
             'about_description', 'footer_copyright',
@@ -67,17 +75,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
 
             $stmt = $conn->prepare($sql);
             
-            // If prepare fails, it's likely due to missing columns
-            if (!$stmt && strpos($conn->error, 'Unknown column') !== false) {
-                $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
-                $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
-                $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
-                $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
-                $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
-                // Retry prepare
-                $stmt = $conn->prepare($sql);
-            }
-
             if (!$stmt) {
                 throw new Exception("Prepare failed: " . $conn->error);
             }
@@ -88,24 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
             if (!$stmt->execute()) {
                 $err = $stmt->error;
                 $stmt->close();
-                
-                // Retry if execute failed due to unknown column (just in case)
-                if (strpos($err, 'Unknown column') !== false) {
-                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
-                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
-                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
-                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
-                    $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
-                    
-                    // Re-prepare and execute
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param($types, ...$params);
-                    if (!$stmt->execute()) {
-                        throw new Exception("Execute failed after alter: " . $stmt->error);
-                    }
-                } else {
-                    throw new Exception("Execute failed: " . $err);
-                }
+                throw new Exception("Execute failed: " . $err);
             }
             if ($stmt) $stmt->close();
         }
@@ -642,8 +622,7 @@ function updatePreview(key, value) {
 }
 
 function refreshAllPreview() {
-    Object.entries(state).forEach(([k, v]) => { if (!k.endsWith('_json')) updatePreview(k, v); });
-    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+    Object.entries(state).forEach(([k, v]) => updatePreview(k, v));
 }
 
 // ════════════════════════════════════════════════════════════════════════

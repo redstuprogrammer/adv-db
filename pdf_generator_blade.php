@@ -197,9 +197,9 @@ class OralSyncPDFGenerator {
     // Public report generators
     // =========================================================================
 
-    public function generateSalesReport(array $data, string $title = 'Sales Report', string $context = 'superadmin'): string {
+    public function generateSalesReport(array $data, string $title = 'Sales Report', string $context = 'superadmin', string $period = 'all'): string {
         $keyMetrics   = $this->calculateKeyMetrics($data, $context);
-        $chartSVGs    = $this->generateChartSVGs($data, $context);
+        $chartSVGs    = $this->generateChartSVGs($data, $context, $period);
         $tableHeaders = ($context === 'superadmin')
             ? ['Date', 'Tenant / Clinic', 'Plan', 'Amount (PHP)', 'Status']
             : ['Date', 'Patient', 'Amount (PHP)', 'Type'];
@@ -308,14 +308,31 @@ class OralSyncPDFGenerator {
         $pdf    = $this->pdf;
         $pw     = $pdf->getPageWidth() - 30;
         $colW   = ($pw - 8) / 2;
-        $cardH  = 62; // mm total card height
-        $svgH   = 50; // mm for the SVG inside the card
+        $cardH  = 62; 
+        $svgH   = 50; 
 
         $this->renderSectionLabel('Sales Analytics');
-        $y = $pdf->GetY();
+        $startY = $pdf->GetY();
+        $maxY   = $startY;
 
         foreach ($chartSVGs as $i => $chart) {
-            $x = 15 + $i * ($colW + 8);
+            $row = floor($i / 2);
+            $col = $i % 2;
+            
+            $x = 15 + $col * ($colW + 8);
+            $y = $startY + $row * ($cardH + 8);
+
+            // Page break check
+            if ($y + $cardH > $pdf->getPageHeight() - 25) {
+                $pdf->AddPage();
+                $this->renderPageHeader('(continued charts)', '');
+                $startY = $pdf->GetY();
+                $y = $startY;
+                // Re-calculate based on new startY
+                // We keep i, but row is effectively reset for this page
+                $rowOffset = floor($i / 2);
+                $y = $startY + (floor($i / 2) - $rowOffset) * ($cardH + 8);
+            }
 
             // Card
             $pdf->SetFillColor(255, 255, 255);
@@ -329,17 +346,9 @@ class OralSyncPDFGenerator {
             $pdf->SetXY($x + 3, $y + 3);
             $pdf->Cell($colW - 6, 5, $chart['title'], 0, 0, 'C');
 
-            // Render SVG via ImageSVG — the only correct TCPDF API for vector SVGs
             if (!empty($chart['svg'])) {
                 try {
-                    $pdf->ImageSVG(
-                        '@' . $chart['svg'], // '@' prefix = SVG from string buffer
-                        $x + 3,
-                        $y + 9,
-                        $colW - 6,
-                        $svgH,
-                        '', '', 0, false
-                    );
+                    $pdf->ImageSVG('@' . $chart['svg'], $x + 3, $y + 9, $colW - 6, $svgH, '', '', 0, false);
                 } catch (\Exception $e) {
                     $pdf->SetFont('dejavusans', 'I', 7);
                     $pdf->SetTextColor(148, 163, 184);
@@ -347,10 +356,11 @@ class OralSyncPDFGenerator {
                     $pdf->Cell($colW - 6, 5, '[Chart unavailable]', 0, 0, 'C');
                 }
             }
+            $maxY = max($maxY, $y + $cardH);
         }
 
         $pdf->SetTextColor(30, 41, 59);
-        $pdf->SetY($y + $cardH + 6);
+        $pdf->SetY($maxY + 6);
     }
 
     private function renderTable(array $headers, array $rows, string $title): void {
@@ -487,23 +497,88 @@ class OralSyncPDFGenerator {
     // Data helpers
     // =========================================================================
 
-    private function generateChartSVGs(array $data, string $context): array {
-        $trendData = $this->aggregateByDate($data);
-        $chart1    = [
-            'title' => 'Daily Sales Performance',
-            'svg'   => $this->createLineChartSVG(array_values($trendData), array_keys($trendData)),
-        ];
-
+    private function generateChartSVGs(array $data, string $context, string $period = 'all'): array {
+        $charts = [];
+        
+        // Always include plan chart for superadmin if appropriate
         if ($context === 'superadmin') {
             $planData = $this->aggregateByField($data, 'plan');
-            $chart2   = [
-                'title' => 'Revenue by Subscription Plan',
+            $charts[] = [
+                'title' => 'Sales by Subscription Plan',
                 'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
             ];
-            return [$chart1, $chart2];
         }
 
-        return [$chart1];
+        // Trend charts based on period
+        if ($period === 'all' || $period === 'daily') {
+            $daily = $this->aggregateByDate($data);
+            $charts[] = [
+                'title' => 'Daily Sales Performance',
+                'svg'   => $this->createLineChartSVG(array_values($daily), array_keys($daily)),
+            ];
+        }
+        
+        if ($period === 'all' || $period === 'weekly') {
+            $weekly = $this->aggregateByWeek($data);
+            $charts[] = [
+                'title' => 'Weekly Sales Performance',
+                'svg'   => $this->createLineChartSVG(array_values($weekly), array_keys($weekly)),
+            ];
+        }
+
+        if ($period === 'all' || $period === 'monthly') {
+            $monthly = $this->aggregateByMonth($data);
+            $charts[] = [
+                'title' => 'Monthly Sales Performance',
+                'svg'   => $this->createLineChartSVG(array_values($monthly), array_keys($monthly)),
+            ];
+        }
+
+        if ($period === 'all' || $period === 'yearly') {
+            $yearly = $this->aggregateByYear($data);
+            $charts[] = [
+                'title' => 'Yearly Sales Performance',
+                'svg'   => $this->createLineChartSVG(array_values($yearly), array_keys($yearly)),
+            ];
+        }
+
+        return $charts;
+    }
+
+    private function aggregateByWeek(array $data): array {
+        $agg = [];
+        foreach ($data as $row) {
+            $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
+            if ($date) {
+                $key = 'Wk ' . date('W, Y', strtotime($date));
+                $agg[$key] = ($agg[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
+            }
+        }
+        return array_slice($agg, -12, null, true);
+    }
+
+    private function aggregateByMonth(array $data): array {
+        $agg = [];
+        foreach ($data as $row) {
+            $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
+            if ($date) {
+                $key = date('M Y', strtotime($date));
+                $agg[$key] = ($agg[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
+            }
+        }
+        return array_slice($agg, -12, null, true);
+    }
+
+    private function aggregateByYear(array $data): array {
+        $agg = [];
+        foreach ($data as $row) {
+            $date = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? '';
+            if ($date) {
+                $key = date('Y', strtotime($date));
+                $agg[$key] = ($agg[$key] ?? 0) + (float)($row['amount'] ?? $row['amount_paid'] ?? 0);
+            }
+        }
+        return array_slice($agg, -10, null, true);
     }
 
     private function aggregateByDate(array $data): array {

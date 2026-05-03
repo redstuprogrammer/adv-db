@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                        LEFT JOIN patient     p ON a.patient_id      = p.patient_id
                        WHERE r.tenant_id = ? AND r.status = 'paid' AND r.appointment_id IS NOT NULL 
                        AND (r.payment_type = 'deposit' OR r.payment_type = 'downpayment') " 
-                       . str_replace('billing_date', 'payment_date', $filter) . ")
+                       . str_replace('py.billing_date', 'r.payment_date', $filter) . ")
                        
                        ORDER BY billing_date DESC";
 
@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $pdfContent = $generator->generateSalesReport($reportData, $title, $context);
+        $pdfContent = $generator->generateSalesReport($reportData, $title, $context, $period);
 
     } else {
         $pdfContent = generatePDF($reportData, $title, '', $type);

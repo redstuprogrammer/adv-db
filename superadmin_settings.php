@@ -561,6 +561,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function validateForm() {
             return true;
         }
+    </script>
 
     <!-- Reset Confirmation Modal -->
     <style>
