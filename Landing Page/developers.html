@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html class="light scroll-smooth" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Our Developers | OralSync</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                "colors": {
+                        "primary": "#000000",
+                        "secondary": "#515f74",
+                        "background": "#fcf8fa",
+                        "surface": "#fcf8fa",
+                        "on-surface": "#1b1b1d",
+                        "on-surface-variant": "#45464d",
+                        "on-tertiary-container": "#3980f4",
+                },
+                "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                }
+              },
+            }
+          }
+    </script>
+    <style>
+        .developer-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .developer-card:hover {
+            transform: translateY(-12px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #000000 0%, #131b2e 100%);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body">
+    <nav class="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl border-b border-black/5">
+        <div class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full">
+            <div class="text-2xl font-bold tracking-tighter text-slate-900">OralSync</div>
+            <a href="code.html" class="flex items-center gap-2 text-slate-600 font-medium hover:text-black transition-colors group">
+                <span class="material-symbols-outlined transition-transform group-hover:-translate-x-1">arrow_back</span>
+                Return to Homepage
+            </a>
+        </div>
+    </nav>
+
+    <main class="pt-32 pb-24 px-8 min-h-screen">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20">
+                <span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-4 block">The Brains Behind OralSync</span>
+                <h1 class="font-headline text-5xl md:text-6xl font-extrabold tracking-tight text-on-surface mb-6">Meet Our Developers</h1>
+                <p class="text-lg text-on-surface-variant max-w-2xl mx-auto">The dedicated team committed to revolutionizing dental practice management through technology and innovation.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <!-- Developer 1: Amiel -->
+                <div class="developer-card bg-white rounded-[2rem] overflow-hidden border border-black/5 flex flex-col items-center p-8 text-center group">
+                    <div class="w-48 h-48 rounded-full overflow-hidden mb-8 border-4 border-slate-50 shadow-xl relative">
+                        <img src="../images/Amiel.jpg" alt="Amiel Carl Santos" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-110 group-hover:scale-100">
+                    </div>
+                    <div class="mb-6">
+                        <span class="inline-block px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-wider mb-3">Database</span>
+                        <h3 class="font-headline text-2xl font-extrabold mb-1">Amiel Carl Santos</h3>
+                        <p class="text-slate-500 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">mail</span>
+                            amsantos21@gmail.com
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Developer 2: Micko -->
+                <div class="developer-card bg-white rounded-[2rem] overflow-hidden border border-black/5 flex flex-col items-center p-8 text-center group">
+                    <div class="w-48 h-48 rounded-full overflow-hidden mb-8 border-4 border-slate-50 shadow-xl relative">
+                        <img src="../images/Micko.jpg" alt="Carl Micko Tibay" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-110 group-hover:scale-100">
+                    </div>
+                    <div class="mb-6">
+                        <span class="inline-block px-4 py-1.5 rounded-full bg-purple-50 text-purple-600 text-xs font-bold uppercase tracking-wider mb-3">Web Developer</span>
+                        <h3 class="font-headline text-2xl font-extrabold mb-1">Carl Micko Tibay</h3>
+                        <p class="text-slate-500 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">mail</span>
+                            darkagedbat@gmail.com
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Developer 3: Jethro -->
+                <div class="developer-card bg-white rounded-[2rem] overflow-hidden border border-black/5 flex flex-col items-center p-8 text-center group">
+                    <div class="w-48 h-48 rounded-full overflow-hidden mb-8 border-4 border-slate-50 shadow-xl relative">
+                        <img src="../images/Jethro.jpg" alt="Jethro Silva" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500 scale-110 group-hover:scale-100">
+                    </div>
+                    <div class="mb-6">
+                        <span class="inline-block px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-bold uppercase tracking-wider mb-3">Mobile App Developer</span>
+                        <h3 class="font-headline text-2xl font-extrabold mb-1">Jethro Silva</h3>
+                        <p class="text-slate-500 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-sm">mail</span>
+                            jethyy@gmail.com
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-20 text-center">
+                <a href="code.html" class="gradient-bg text-white px-10 py-4 rounded-2xl font-bold hover:shadow-2xl hover:shadow-black/20 transition-all active:scale-95 inline-flex items-center gap-3">
+                    <span class="material-symbols-outlined">home</span>
+                    Back to Homepage
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-50">
+        <div class="flex flex-col md:flex-row justify-between items-center px-12 py-16 w-full max-w-7xl mx-auto">
+            <div>
+                <div class="text-xl font-black text-slate-50 mb-4">OralSync</div>
+                <p class="font-label text-slate-400 text-xs tracking-widest uppercase">© 2026 ORALSYNC Management Systems. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

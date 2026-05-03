@@ -574,7 +574,12 @@ try {
         <header class="sa-main-header">
             <div>
                 <h1>Super Admin Control</h1>
-                <span>Manage clinics and onboard new tenants for OralSync.</span>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                    <span>Manage clinics and onboard new tenants for OralSync.</span>
+                    <a href="https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/Landing%20Page/code.html" target="_blank" class="sa-pill sa-pill-active" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 14px;">🌐</span> View Homepage
+                    </a>
+                </div>
             </div>
             <div class="sa-profile">
                 <span>Welcome, <strong>Super Admin</strong></span>
