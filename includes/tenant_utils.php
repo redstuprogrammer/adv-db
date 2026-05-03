@@ -36,7 +36,14 @@ if (!function_exists('getAbsoluteBaseUrl')) {
 if (!function_exists('envOrNull')) {
     function envOrNull(string $key): ?string {
         $val = getenv($key);
-        return $val === false ? null : $val;
+        if ($val === false || $val === null || $val === '') {
+            if (isset($_ENV[$key])) $val = (string)$_ENV[$key];
+            else if (isset($_SERVER[$key])) $val = (string)$_SERVER[$key];
+            else $val = null;
+        }
+        if ($val === null) return null;
+        $val = trim((string)$val);
+        return $val === '' ? null : $val;
     }
 }
 

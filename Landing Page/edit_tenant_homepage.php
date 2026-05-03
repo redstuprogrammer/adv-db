@@ -46,7 +46,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
     }
 
     if ($fields) {
-        // Upsert: insert row for this tenant if it doesn't exist yet
         $check = $conn->prepare("SELECT id FROM clinic_settings WHERE tenant_id = ?");
         $check->bind_param("i", $tenant_id);
         $check->execute();
@@ -57,7 +56,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
             $sql = "UPDATE clinic_settings SET " . implode(', ', $fields) . " WHERE tenant_id = ?";
             $stmt = $conn->prepare($sql);
         } else {
-            // Build INSERT … ON DUPLICATE KEY UPDATE or plain insert
             $params[] = $tenant_id;
             $colNames = array_map(fn($f) => explode(' =', $f)[0], $fields);
             $colNames[] = 'tenant_id';
@@ -69,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
         $types = str_repeat('s', count($params) - 1) . 'i';
         $stmt->bind_param($types, ...$params);
         if (!$stmt->execute()) {
-            // If it fails, maybe columns are missing? Try to add them.
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
@@ -101,7 +98,6 @@ $realAddress = ($tenantData['address'] ?? '') . ", " . ($tenantData['city'] ?? '
 $realPhone = $tenantData['phone'] ?? '+1 (555) 890-2344';
 $realEmail = $tenantData['contact_email'] ?? $tenantData['email'] ?? 'concierge@yourclinic.com';
 
-// Fallback defaults
 $c = [
     'clinic_name'      => $clinic['clinic_name']      ?? $realClinicName,
     'hero_title'       => $clinic['hero_title']        ?? $realClinicName,
@@ -127,14 +123,14 @@ $c = [
     'about_image_2'    => $clinic['about_image_2']    ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10',
 ];
 
-function e($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
+function php_e($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Page Editor — <?= e($c['clinic_name']) ?></title>
+<title>Page Editor — <?= php_e($c['clinic_name']) ?></title>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -183,71 +179,32 @@ body { font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
 h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
 .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; font-family: 'Material Symbols Outlined'; }
 
-/* ── Layout shell ── */
 #editor-shell { display: flex; height: 100vh; width: 100vw; background: #f0f4f8; }
 
-/* ── Left sidebar ── */
-#sidebar {
-    width: 272px; min-width: 272px;
-    background: #fff;
-    border-right: 1px solid #e2e8f0;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-    z-index: 20;
-}
-#sidebar-header {
-    padding: 18px 20px 14px;
-    border-bottom: 1px solid #e2e8f0;
-}
+#sidebar { width: 272px; min-width: 272px; background: #fff; border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; z-index: 20; }
+#sidebar-header { padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0; }
 #sidebar-header .editor-title { font-size: 15px; font-weight: 700; color: #0f172a; font-family: 'Manrope', sans-serif; }
 #sidebar-header .tenant-label { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
 .sidebar-tabs { display: flex; gap: 4px; padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
-.sidebar-tab {
-    flex: 1; font-size: 11px; font-weight: 500; padding: 5px 0;
-    border-radius: 6px; border: none; cursor: pointer;
-    background: transparent; color: #64748b; text-align: center;
-    transition: all 0.15s;
-}
+.sidebar-tab { flex: 1; font-size: 11px; font-weight: 500; padding: 5px 0; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: #64748b; text-align: center; transition: all 0.15s; }
 .sidebar-tab.active { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 
 #field-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
-
-.field-section-label {
-    font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em;
-    color: #94a3b8; font-weight: 600; padding: 8px 4px 2px;
-}
-.field-item {
-    padding: 9px 12px; border-radius: 8px;
-    border: 1px solid #f1f5f9;
-    background: #f8fafc;
-    cursor: pointer;
-    transition: all 0.12s;
-}
+.field-section-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: #94a3b8; font-weight: 600; padding: 8px 4px 2px; }
+.field-item { padding: 9px 12px; border-radius: 8px; border: 1px solid #f1f5f9; background: #f8fafc; cursor: pointer; transition: all 0.12s; }
 .field-item:hover { border-color: #bfdbfe; background: #eff6ff; }
 .field-item.active { border-color: #3b82f6; background: #eff6ff; }
 .field-item .fi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 600; margin-bottom: 2px; }
 .field-item .fi-preview { font-size: 12px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-#sync-btn {
-    margin: 12px; padding: 11px; border: none; border-radius: 10px;
-    background: #004872; color: #fff; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s; font-family: 'Manrope', sans-serif;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-}
+#sync-btn { margin: 12px; padding: 11px; border: none; border-radius: 10px; background: #004872; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: 'Manrope', sans-serif; display: flex; align-items: center; justify-content: center; gap: 6px; }
 #sync-btn:hover { background: #003a5c; }
 #sync-btn.saving { opacity: 0.7; pointer-events: none; }
 #sync-btn .sync-icon { font-size: 16px; }
 
-/* ── Center preview ── */
 #preview-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-
-#preview-topbar {
-    height: 44px; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px;
-    background: #fff; border-bottom: 1px solid #e2e8f0;
-    flex-shrink: 0;
-}
+#preview-topbar { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: #fff; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; }
 .view-tabs { display: flex; gap: 2px; background: #f1f5f9; border-radius: 8px; padding: 3px; }
 .view-tab { font-size: 11px; padding: 3px 12px; border-radius: 6px; border: none; cursor: pointer; background: transparent; color: #64748b; font-weight: 500; }
 .view-tab.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
@@ -255,108 +212,47 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 #unsaved-badge { font-size: 11px; color: #f59e0b; font-weight: 500; display: none; }
 #unsaved-badge.visible { display: block; }
-.preview-action-btn {
-    font-size: 11px; padding: 4px 12px; border-radius: 20px; cursor: pointer;
-    border: 1px solid #e2e8f0; background: #fff; color: #475569; font-weight: 500;
-    transition: all 0.12s;
-}
+.preview-action-btn { font-size: 11px; padding: 4px 12px; border-radius: 20px; cursor: pointer; border: 1px solid #e2e8f0; background: #fff; color: #475569; font-weight: 500; transition: all 0.12s; }
 .preview-action-btn:hover { border-color: #004872; color: #004872; }
 .preview-action-btn.primary { background: #004872; color: #fff; border-color: #004872; }
 .preview-action-btn.primary:hover { background: #003a5c; }
 
 #preview-viewport { flex: 1; overflow: hidden; position: relative; }
-#preview-iframe {
-    width: 100%; height: 100%;
-    border: none; display: block;
-    background: #fff;
-    transition: width 0.3s ease;
-}
-#preview-viewport.mobile-view #preview-iframe {
-    width: 390px; margin: 0 auto;
-    box-shadow: 0 0 0 1px #e2e8f0, 0 8px 40px rgba(0,0,0,0.12);
-    border-radius: 0 0 8px 8px;
-    height: calc(100% - 12px);
-    margin-top: 12px;
-}
+#preview-iframe { width: 100%; height: 100%; border: none; display: block; background: #fff; transition: width 0.3s ease; }
+#preview-viewport.mobile-view #preview-iframe { width: 390px; margin: 0 auto; box-shadow: 0 0 0 1px #e2e8f0, 0 8px 40px rgba(0,0,0,0.12); border-radius: 0 0 8px 8px; height: calc(100% - 12px); margin-top: 12px; }
 
-/* ── Right panel ── */
-#right-panel {
-    width: 248px; min-width: 248px;
-    background: #fff;
-    border-left: 1px solid #e2e8f0;
-    display: flex; flex-direction: column;
-    overflow: hidden;
-}
+#right-panel { width: 248px; min-width: 248px; background: #fff; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
 #rp-header { padding: 14px 16px 12px; border-bottom: 1px solid #e2e8f0; }
 #rp-header h3 { font-size: 13px; font-weight: 700; color: #0f172a; font-family: 'Manrope', sans-serif; }
 #rp-header p { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 #rp-body { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
 
-.rp-empty {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 8px;
-    color: #94a3b8; text-align: center; padding: 24px;
-}
+.rp-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #94a3b8; text-align: center; padding: 24px; }
 .rp-empty .rp-empty-icon { font-size: 32px; opacity: 0.4; }
 .rp-empty p { font-size: 12px; line-height: 1.6; }
 
 .rp-field { display: flex; flex-direction: column; gap: 5px; }
 .rp-field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; font-weight: 600; }
-.rp-field input, .rp-field textarea, .rp-field select {
-    font-size: 12px; padding: 7px 10px;
-    border: 1px solid #e2e8f0; border-radius: 7px;
-    background: #f8fafc; color: #1e293b; width: 100%;
-    font-family: 'Inter', sans-serif; resize: vertical;
-    transition: border-color 0.12s;
-}
-.rp-field input:focus, .rp-field textarea:focus, .rp-field select:focus {
-    outline: none; border-color: #3b82f6; background: #fff;
-}
-.rp-field textarea { min-height: 72px; }
-
-.rp-divider { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 600; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+.rp-field input, .rp-field textarea { font-size: 12px; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 7px; background: #f8fafc; color: #1e293b; width: 100%; font-family: 'Inter', sans-serif; }
+.rp-field input:focus, .rp-field textarea:focus { outline: none; border-color: #3b82f6; background: #fff; }
+.rp-field textarea { min-height: 72px; resize: vertical; }
 
 .color-swatches { display: flex; gap: 7px; flex-wrap: wrap; padding: 4px 0; }
-.color-swatch {
-    width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
-    border: 2px solid transparent; transition: transform 0.12s;
-}
+.color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.12s; }
 .color-swatch:hover { transform: scale(1.15); }
 .color-swatch.selected { outline: 2px solid #1e293b; outline-offset: 2px; }
 
 .toggle-row { display: flex; align-items: center; justify-content: space-between; }
 .toggle-label { font-size: 12px; color: #1e293b; }
-.toggle-switch {
-    width: 36px; height: 20px; background: #e2e8f0; border-radius: 10px;
-    cursor: pointer; position: relative; transition: background 0.2s;
-    border: none; flex-shrink: 0;
-}
+.toggle-switch { width: 36px; height: 20px; background: #e2e8f0; border-radius: 10px; cursor: pointer; position: relative; transition: background 0.2s; border: none; }
 .toggle-switch.on { background: #004872; }
-.toggle-switch::after {
-    content: ''; position: absolute; top: 2px; left: 2px;
-    width: 16px; height: 16px; border-radius: 50%; background: #fff;
-    transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
+.toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
 .toggle-switch.on::after { left: 18px; }
 
-.apply-btn {
-    margin: 0 14px 14px; padding: 9px; border: none; border-radius: 8px;
-    background: #004872; color: #fff; font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: all 0.15s; font-family: 'Manrope', sans-serif;
-}
+.apply-btn { margin: 0 14px 14px; padding: 9px; border: none; border-radius: 8px; background: #004872; color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: 'Manrope', sans-serif; }
 .apply-btn:hover { background: #003a5c; }
 
-/* ── Editable zone overlays inside iframe ── */
-/* (injected via postMessage into iframe's parent doc) */
-
-/* ── Toast ── */
-#toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px);
-    background: #1e293b; color: #fff; font-size: 13px; font-weight: 500;
-    padding: 10px 20px; border-radius: 8px; opacity: 0;
-    pointer-events: none; z-index: 999; transition: all 0.25s;
-    display: flex; align-items: center; gap: 6px;
-}
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1e293b; color: #fff; font-size: 13px; font-weight: 500; padding: 10px 20px; border-radius: 8px; opacity: 0; pointer-events: none; z-index: 999; transition: all 0.25s; display: flex; align-items: center; gap: 6px; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 #toast.error { background: #b91c1c; }
 </style>
@@ -364,96 +260,66 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
 <body>
 
 <div id="editor-shell">
-
-    <!-- ══════════════════════════════════════════════════════ LEFT PANEL -->
     <div id="sidebar">
         <div id="sidebar-header">
             <div class="editor-title">Page Editor</div>
-            <div class="tenant-label"><?= e($c['clinic_name']) ?></div>
+            <div class="tenant-label"><?= php_e($c['clinic_name']) ?></div>
         </div>
-
         <div class="sidebar-tabs">
             <button class="sidebar-tab active" data-tab="content">Content</button>
             <button class="sidebar-tab" data-tab="colors">Colors</button>
             <button class="sidebar-tab" data-tab="team">Team</button>
         </div>
-
         <div id="field-list">
-            <!-- ─ Navigation ─ -->
             <div class="field-section-label">Navigation</div>
             <div class="field-item" data-field="clinic_name">
-                <div class="fi-label">Clinic Name / Logo</div>
-                <div class="fi-preview"><?= e($c['clinic_name']) ?></div>
+                <div class="fi-label">Clinic Name</div>
+                <div class="fi-preview"><?= php_e($c['clinic_name']) ?></div>
             </div>
             <div class="field-item" data-field="cta_primary">
-                <div class="fi-label">Book Button Label</div>
-                <div class="fi-preview"><?= e($c['cta_primary']) ?></div>
+                <div class="fi-label">Book Button</div>
+                <div class="fi-preview"><?= php_e($c['cta_primary']) ?></div>
             </div>
-
-            <!-- ─ Hero ─ -->
             <div class="field-section-label">Hero Section</div>
             <div class="field-item" data-field="badge">
                 <div class="fi-label">Badge</div>
-                <div class="fi-preview"><?= e($c['badge_text']) ?></div>
+                <div class="fi-preview"><?= php_e($c['badge_text']) ?></div>
             </div>
             <div class="field-item" data-field="hero_title">
-                <div class="fi-label">Hero Headline</div>
-                <div class="fi-preview"><?= e($c['hero_title']) ?></div>
+                <div class="fi-label">Headline</div>
+                <div class="fi-preview"><?= php_e($c['hero_title']) ?></div>
             </div>
-            <div class="field-item" data-field="hero_description">
-                <div class="fi-label">Hero Description</div>
-                <div class="fi-preview"><?= e($c['hero_description']) ?></div>
-            </div>
-
-
             <div class="field-item" data-field="hero_image">
                 <div class="fi-label">Hero Image</div>
-                <div class="fi-preview">Update Image URL</div>
+                <div class="fi-preview">Update Image</div>
             </div>
-            
-            <!-- ─ About ─ -->
             <div class="field-section-label">About Section</div>
             <div class="field-item" data-field="about_description">
-                <div class="fi-label">About Body Text</div>
-                <div class="fi-preview"><?= e($c['about_description']) ?></div>
+                <div class="fi-label">About Text</div>
+                <div class="fi-preview"><?= php_e($c['about_description']) ?></div>
             </div>
             <div class="field-item" data-field="about_images">
-                <div class="fi-label">Gallery Images</div>
-                <div class="fi-preview">Update URLs</div>
+                <div class="fi-label">Gallery</div>
+                <div class="fi-preview">Update Images</div>
             </div>
             <div class="field-item" data-field="checklist">
-                <div class="fi-label">Feature Checklist (3 items)</div>
-                <div class="fi-preview"><?= e($c['checklist_1']) ?> …</div>
+                <div class="fi-label">Checklist</div>
+                <div class="fi-preview"><?= php_e($c['checklist_1']) ?>...</div>
             </div>
-            <div class="field-item" data-field="stat">
-                <div class="fi-label">Stat Highlight</div>
-                <div class="fi-preview"><?= e($c['stat_number']) ?> · <?= e($c['stat_label']) ?></div>
-            </div>
-
-            <!-- ─ Announcements ─ -->
             <div class="field-section-label">Announcements</div>
             <div class="field-item" data-field="announcements">
-                <div class="fi-label">Latest Pulse Posts</div>
-                <div class="fi-preview">Edit Announcements</div>
+                <div class="fi-label">Pulse Posts</div>
+                <div class="fi-preview">Edit Posts</div>
             </div>
-
-
-
-            <!-- ─ Footer ─ -->
             <div class="field-section-label">Footer</div>
             <div class="field-item" data-field="footer_copyright">
-                <div class="fi-label">Copyright Line</div>
-                <div class="fi-preview"><?= e($c['footer_copyright']) ?></div>
+                <div class="fi-label">Copyright</div>
+                <div class="fi-preview"><?= php_e($c['footer_copyright']) ?></div>
             </div>
         </div>
-
-        <button id="sync-btn">
-            <span class="material-symbols-outlined sync-icon">sync</span>
-            Sync to Live Site
-        </button>
+        <button id="sync-btn"><span class="material-symbols-outlined sync-icon">sync</span>Sync to Live Site</button>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════ CENTER PREVIEW -->
     <div id="preview-wrap">
         <div id="preview-topbar">
             <div class="view-tabs">
@@ -462,45 +328,30 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
             </div>
             <div class="topbar-right">
                 <span id="unsaved-badge">● Unsaved changes</span>
-                <button class="preview-action-btn" onclick="window.close()">Back to Settings</button>
+                <button class="preview-action-btn" onclick="window.close()">Back</button>
                 <button class="preview-action-btn" id="undo-btn">Undo</button>
-                <button class="preview-action-btn primary" onclick="window.open('tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>', '_blank')">
-                    View Live ↗
-                </button>
+                <button class="preview-action-btn primary" onclick="window.open('tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>', '_blank')">View Live</button>
             </div>
         </div>
-
         <div id="preview-viewport">
             <iframe id="preview-iframe" src="tenant_homepage.php?tenant=<?= urlencode($tenantSlug) ?>" sandbox="allow-same-origin allow-scripts"></iframe>
         </div>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════ RIGHT PANEL -->
     <div id="right-panel">
-        <div id="rp-header">
-            <h3 id="rp-title">Select a field</h3>
-            <p id="rp-subtitle">Click any field in the left panel or in the preview</p>
-        </div>
+        <div id="rp-header"><h3 id="rp-title">Select a field</h3><p id="rp-subtitle">Click anywhere to start</p></div>
         <div id="rp-body">
-            <div class="rp-empty" id="rp-empty-state">
-                <span class="material-symbols-outlined rp-empty-icon">edit_note</span>
-                <p>Click a field on the left or tap directly on the preview to start editing.</p>
-            </div>
-            <!-- field panels injected by JS -->
+            <div class="rp-empty" id="rp-empty-state"><span class="material-symbols-outlined rp-empty-icon">edit_note</span><p>Select a field to begin editing.</p></div>
         </div>
         <button class="apply-btn" id="apply-btn" style="display:none">Apply Changes</button>
     </div>
-
 </div>
 
-<div id="toast">
-    <span class="material-symbols-outlined" style="font-size:16px;">check_circle</span>
-    <span id="toast-msg">Saved successfully.</span>
-</div>
+<div id="toast"><span class="material-symbols-outlined" style="font-size:16px;">check_circle</span><span id="toast-msg">Saved.</span></div>
 
 <script>
 // ════════════════════════════════════════════════════════════════════════
-//  EDITOR STATE
+//  STATE & HELPERS
 // ════════════════════════════════════════════════════════════════════════
 const INITIAL = <?= json_encode($c) ?>;
 let state = { ...INITIAL };
@@ -508,8 +359,8 @@ let history = [{ ...INITIAL }];
 let historyIdx = 0;
 let activeField = null;
 let unsaved = false;
+let toastTimer;
 
-// ── DOM refs ──
 const iframe    = document.getElementById('preview-iframe');
 const rpBody    = document.getElementById('rp-body');
 const rpTitle   = document.getElementById('rp-title');
@@ -521,228 +372,112 @@ const toast     = document.getElementById('toast');
 const toastMsg  = document.getElementById('toast-msg');
 const viewport  = document.getElementById('preview-viewport');
 
+function e(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function field(key, label, type, value) {
+    const tag = type === 'textarea' ? 'textarea' : 'input';
+    return `<div class="rp-field"><label>${label}</label><${tag} data-key="${key}">${tag==='textarea'?e(value):''}</${tag}></div>`;
+}
+
+function toggleRow(key, label, checked) {
+    return `<div class="rp-field"><div class="toggle-row"><span class="toggle-label">${label}</span><button class="toggle-switch ${checked ? 'on' : ''}" data-toggle="${key}"></button></div></div>`;
+}
+
 // ════════════════════════════════════════════════════════════════════════
-//  FIELD DEFINITIONS — what each field shows in the right panel
+//  FIELD DEFINITIONS
 // ════════════════════════════════════════════════════════════════════════
 const FIELDS = {
-    clinic_name: {
-        label: 'Clinic Name / Logo',
-        sub: 'Shown in nav and footer',
-        render() {
-            return field('clinic_name', 'Clinic Name', 'input', state.clinic_name);
-        }
-    },
-    cta_primary: {
-        label: 'Book Button',
-        sub: 'Navigation CTA',
-        render() {
-            return field('cta_primary', 'Button Label', 'input', state.cta_primary);
-        }
-    },
-    badge: {
-        label: 'Hero Badge',
-        sub: 'Small tag above the headline',
-        render() {
-            return `
-                ${toggleRow('badge_visible', 'Show badge', state.badge_visible === '1')}
-                ${field('badge_text', 'Badge text', 'input', state.badge_text)}
-            `;
-        }
-    },
-    hero_title: {
-        label: 'Hero Headline',
-        sub: 'Main heading · large display text',
-        render() {
-            return field('hero_title', 'Headline', 'textarea', state.hero_title);
-        }
-    },
-    hero_image: {
-        label: 'Hero Image',
-        sub: 'Large image in the hero section',
-        render() {
-            return field('hero_image', 'Image URL', 'input', state.hero_image);
-        }
-    },
-    hero_description: {
-        label: 'Hero Description',
-        sub: 'Paragraph below the headline',
-        render() {
-            return field('hero_description', 'Description', 'textarea', state.hero_description);
-        }
-    },
-
-    about_description: {
-        label: 'About Body Text',
-        sub: 'Paragraph in the About section',
-        render() {
-            return field('about_description', 'Body text', 'textarea', state.about_description);
-        }
-    },
-    checklist: {
-        label: 'Feature Checklist',
-        sub: '3 bullet points in About section',
-        render() {
-            return `
-                ${field('checklist_1', 'Item 1', 'input', state.checklist_1)}
-                ${field('checklist_2', 'Item 2', 'input', state.checklist_2)}
-                ${field('checklist_3', 'Item 3', 'input', state.checklist_3)}
-            `;
-        }
-    },
-    about_images: {
-        label: 'Gallery Images',
-        sub: 'Images in the about section',
-        render() {
-            return `
-                ${field('about_image_1', 'Image 1 (Square)', 'input', state.about_image_1)}
-                ${field('about_image_2', 'Image 2 (Tall)', 'input', state.about_image_2)}
-            `;
-        }
-    },
-    stat: {
-        label: 'Stat Highlight',
-        sub: 'Number + label on the about card',
-        render() {
-            return `
-                ${field('stat_number', 'Number', 'input', state.stat_number)}
-                ${field('stat_label', 'Label', 'input', state.stat_label)}
-            `;
-        }
-    },
+    clinic_name: { label: 'Clinic Name', sub: 'Nav & Footer', render: () => field('clinic_name', 'Name', 'input', state.clinic_name) },
+    cta_primary: { label: 'Book Button', sub: 'Primary CTA', render: () => field('cta_primary', 'Label', 'input', state.cta_primary) },
+    badge: { label: 'Hero Badge', sub: 'Tagline', render: () => toggleRow('badge_visible', 'Show', state.badge_visible==='1') + field('badge_text', 'Text', 'input', state.badge_text) },
+    hero_title: { label: 'Headline', sub: 'Hero main text', render: () => field('hero_title', 'Title', 'textarea', state.hero_title) },
+    hero_image: { label: 'Hero Image', sub: 'Main image', render: () => field('hero_image', 'URL', 'input', state.hero_image) },
+    about_description: { label: 'About Text', sub: 'Intro paragraph', render: () => field('about_description', 'Content', 'textarea', state.about_description) },
+    about_images: { label: 'Gallery', sub: 'Section images', render: () => field('about_image_1', 'Image 1', 'input', state.about_image_1) + field('about_image_2', 'Image 2', 'input', state.about_image_2) },
+    checklist: { label: 'Checklist', sub: '3 bullet points', render: () => field('checklist_1', 'Item 1', 'input', state.checklist_1) + field('checklist_2', 'Item 2', 'input', state.checklist_2) + field('checklist_3', 'Item 3', 'input', state.checklist_3) },
+    footer_copyright: { label: 'Copyright', sub: 'Bottom line', render: () => field('footer_copyright', 'Text', 'input', state.footer_copyright) },
     announcements: {
-        label: 'Announcements',
-        sub: 'Manage pulse posts',
-        render() {
-            let data = [];
-            try { data = JSON.parse(state.announcements_json || '[]'); } catch(e) {}
-            if (!Array.isArray(data)) data = [];
-            
-            return `
-                <div class="space-y-4" id="announcements-list">
-                    ${data.map((item, i) => `
-                        <div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 relative group">
-                            <button onclick="removeListItem('announcements_json', ${i})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all">
-                                <span class="material-symbols-outlined text-sm">delete</span>
-                            </button>
-                            ${field(`announcements_json.${i}.date`, 'Date', 'input', item.date)}
-                            ${field(`announcements_json.${i}.title`, 'Title', 'input', item.title)}
-                            ${field(`announcements_json.${i}.description`, 'Content', 'textarea', item.description)}
-                        </div>
-                    `).join('')}
-                    <button onclick="addListItem('announcements_json')" class="w-full py-3 border-2 border-dashed border-outline-variant/30 rounded-xl text-primary font-bold text-xs hover:border-primary/50 transition-all">
-                        + Add Announcement
-                    </button>
-                </div>
-            `;
+        label: 'Pulse Posts', sub: 'News feed',
+        render: () => {
+            let data = []; try { data = JSON.parse(state.announcements_json || '[]'); } catch(err){}
+            return `<div class="space-y-4">${data.map((it, i) => `
+                <div class="bg-slate-50 p-3 rounded-lg border relative">
+                    <button onclick="removeListItem('announcements_json', ${i})" class="absolute top-1 right-1 text-red-500"><span class="material-symbols-outlined text-xs">delete</span></button>
+                    ${field(`announcements_json.${i}.title`, 'Title', 'input', it.title)}
+                    ${field(`announcements_json.${i}.description`, 'Text', 'textarea', it.description)}
+                </div>`).join('')}
+                <button onclick="addListItem('announcements_json')" class="w-full py-2 border-2 border-dashed rounded">+ Add</button>
+            </div>`;
         }
-    },
-
-    footer_copyright: {
-        label: 'Copyright Line',
-        sub: 'Footer · bottom of the page',
-        render() {
-            return field('footer_copyright', 'Copyright text', 'input', state.footer_copyright);
-        }
-    },
+    }
 };
 
-// ── Color tab fields ──
 const COLOR_FIELDS = {
     accent_color: {
-        label: 'Brand Accent Color',
-        sub: 'Primary color used across the page',
-        render() {
-            const swatches = [
-                '#004872','#006a62','#7c3aed','#be185d',
-                '#b45309','#0f172a','#0369a1','#15803d',
-            ];
-            return `
-                <div class="rp-field">
-                    <label>Accent Color</label>
-                    <div class="color-swatches">
-                        ${swatches.map(c => `
-                            <div class="color-swatch ${state.accent_color === c ? 'selected' : ''}"
-                                 style="background:${c};"
-                                 data-color="${c}"
-                                 title="${c}"></div>
-                        `).join('')}
-                    </div>
-                </div>
-                <div class="rp-field">
-                    <label>Custom hex</label>
-                    <input type="text" data-key="accent_color" value="${e(state.accent_color)}" placeholder="#004872"/>
-                </div>
-            `;
+        label: 'Brand Color', sub: 'Primary accent',
+        render: () => {
+            const colors = ['#004872','#006a62','#7c3aed','#be185d','#b45309','#0f172a'];
+            return `<div class="color-swatches">${colors.map(c => `<div class="color-swatch ${state.accent_color===c?'selected':''}" style="background:${c}" data-color="${c}"></div>`).join('')}</div>` + field('accent_color', 'Hex', 'input', state.accent_color);
+        }
+    }
+};
+
+const TEAM_FIELDS = {
+    team: {
+        label: 'Team Members', sub: 'Staff profiles',
+        render: () => {
+            let data = []; try { data = JSON.parse(state.team_json || '[]'); } catch(err){}
+            return `<div class="space-y-4">${data.map((it, i) => `
+                <div class="bg-slate-50 p-3 rounded-lg border relative">
+                    <button onclick="removeListItem('team_json', ${i})" class="absolute top-1 right-1 text-red-500"><span class="material-symbols-outlined text-xs">delete</span></button>
+                    ${field(`team_json.${i}.name`, 'Name', 'input', it.name)}
+                    ${field(`team_json.${i}.role`, 'Role', 'input', it.role)}
+                    ${field(`team_json.${i}.image`, 'Image URL', 'input', it.image)}
+                </div>`).join('')}
+                <button onclick="addListItem('team_json')" class="w-full py-2 border-2 border-dashed rounded">+ Add</button>
+            </div>`;
         }
     }
 };
 
 // ════════════════════════════════════════════════════════════════════════
-//  HTML HELPERS
-// ════════════════════════════════════════════════════════════════════════
-function field(key, label, type, value) {
-    const tag = type === 'textarea' ? 'textarea' : 'input';
-    const attrs = type === 'textarea' ? '' : `type="text"`;
-    return `<div class="rp-field">
-        <label>${label}</label>
-        ${tag === 'textarea'
-            ? `<textarea data-key="${key}">${e(value)}</textarea>`
-            : `<input ${attrs} data-key="${key}" value="${e(value)}"/>`
-        }
-    </div>`;
-}
-
-function toggleRow(key, label, checked) {
-    return `<div class="rp-field">
-        <div class="toggle-row">
-            <span class="toggle-label">${label}</span>
-            <button class="toggle-switch ${checked ? 'on' : ''}" data-toggle="${key}"></button>
-        </div>
-    </div>`;
-}
-
-function e(str) {
-    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  PANEL RENDERING
+//  CORE LOGIC
 // ════════════════════════════════════════════════════════════════════════
 function openField(key, tab = 'content') {
     activeField = key;
-
-    // highlight sidebar item
-    document.querySelectorAll('.field-item').forEach(el => el.classList.remove('active'));
-    const sidebarItem = document.querySelector(`.field-item[data-field="${key}"]`);
-    if (sidebarItem) sidebarItem.classList.add('active');
-
-    const def = tab === 'colors' ? COLOR_FIELDS[key] : FIELDS[key];
+    document.querySelectorAll('.field-item').forEach(el => el.classList.toggle('active', el.dataset.field === key));
+    
+    let def;
+    if (tab === 'colors' || key === 'accent_color') { def = COLOR_FIELDS.accent_color; tab = 'colors'; }
+    else if (tab === 'team' || key === 'team') { def = TEAM_FIELDS.team; tab = 'team'; }
+    else { def = FIELDS[key]; tab = 'content'; }
+    
     if (!def) return;
-
     rpTitle.textContent = def.label;
     rpSub.textContent = def.sub;
-
     rpBody.innerHTML = def.render();
     applyBtn.style.display = 'block';
 
-    // wire inputs
-    rpBody.querySelectorAll('[data-key]').forEach(el => {
-        el.addEventListener('focus', () => {
-            // Push history before starting to edit this field
-            pushToHistory();
-        });
+    // Wire inputs
+    rpBody.querySelectorAll('input, textarea').forEach(el => {
+        if (!el.dataset.key) return;
+        el.value = getVal(el.dataset.key);
+        el.addEventListener('focus', pushToHistory);
         el.addEventListener('input', () => {
-            const k = el.dataset.key;
-            state[k] = el.value;
+            setVal(el.dataset.key, el.value);
             markUnsaved();
-            updatePreview(k, el.value);
-            refreshSidebarItem(k);
+            updatePreview(el.dataset.key, el.value);
+            refreshSidebarItem(el.dataset.key);
         });
     });
 
-    // wire toggles
+    // Wire toggles
     rpBody.querySelectorAll('[data-toggle]').forEach(btn => {
         btn.addEventListener('click', () => {
+            pushToHistory();
             const k = btn.dataset.toggle;
             const isOn = btn.classList.toggle('on');
             state[k] = isOn ? '1' : '0';
@@ -751,609 +486,188 @@ function openField(key, tab = 'content') {
         });
     });
 
-    // wire color swatches
+    // Wire swatches
     rpBody.querySelectorAll('.color-swatch').forEach(sw => {
         sw.addEventListener('click', () => {
-            rpBody.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-            sw.classList.add('selected');
-            const color = sw.dataset.color;
-            state.accent_color = color;
-            const hex = rpBody.querySelector('[data-key="accent_color"]');
-            if (hex) hex.value = color;
+            pushToHistory();
+            const c = sw.dataset.color;
+            state.accent_color = c;
+            openField('accent_color', 'colors');
             markUnsaved();
-            updatePreview('accent_color', color);
+            updatePreview('accent_color', c);
         });
     });
 }
 
-// ════════════════════════════════════════════════════════════════════════
-//  LIVE PREVIEW UPDATE  (postMessage into iframe)
-// ════════════════════════════════════════════════════════════════════════
+function getVal(path) {
+    if (!path.includes('.')) return state[path];
+    const p = path.split('.');
+    let d = JSON.parse(state[p[0]] || '[]');
+    return d[p[1]]?.[p[2]] || '';
+}
+
+function setVal(path, val) {
+    if (!path.includes('.')) { state[path] = val; return; }
+    const p = path.split('.');
+    let d = JSON.parse(state[p[0]] || '[]');
+    if (!d[p[1]]) d[p[1]] = {};
+    d[p[1]][p[2]] = val;
+    state[p[0]] = JSON.stringify(d);
+}
+
+function addListItem(key) {
+    pushToHistory();
+    let d = JSON.parse(state[key] || '[]');
+    if (key === 'team_json') d.push({ name: 'New Member', role: 'Role', description: '', image: '', tags: [] });
+    else d.push({ date: new Date().toLocaleDateString(), title: 'New Post', description: '' });
+    state[key] = JSON.stringify(d);
+    openField(key === 'team_json' ? 'team' : 'announcements');
+    markUnsaved();
+    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+}
+
+function removeListItem(key, i) {
+    pushToHistory();
+    let d = JSON.parse(state[key] || '[]');
+    d.splice(i, 1);
+    state[key] = JSON.stringify(d);
+    openField(key === 'team_json' ? 'team' : 'announcements');
+    markUnsaved();
+    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+}
+
 function updatePreview(key, value) {
     iframe.contentWindow?.postMessage({ type: 'update', key, value }, '*');
 }
 
 function refreshAllPreview() {
-    Object.entries(state).forEach(([k, v]) => updatePreview(k, v));
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  INJECT LISTENER INTO IFRAME on load
-// ════════════════════════════════════════════════════════════════════════
-iframe.addEventListener('load', () => {
-    try {
-        const doc = iframe.contentDocument;
-        if (!doc) return;
-
-        // Inject the receiver script into the iframe's page
-        const script = doc.createElement('script');
-        script.textContent = `
-        (function() {
-            // Map of data-key → selector(s) in the tenant homepage
-            const MAP = {
-                clinic_name:       ['nav .text-2xl', 'footer .text-xl'],
-                hero_title:        ['section h1'],
-                hero_description:  ['section h1 ~ p'],
-                cta_primary:       ['nav button', 'section .flex button:first-child'],
-                cta_secondary:     ['section .flex button:last-child'],
-                badge_text:        ['.inline-flex .text-xs.uppercase'],
-                badge_visible:     ['.inline-flex[class*="bg-secondary-fixed"]'],
-                about_description: ['#about p.text-on-surface-variant'],
-                checklist_1:       ['#about .space-y-4 > div:nth-child(1) span:last-child'],
-                checklist_2:       ['#about .space-y-4 > div:nth-child(2) span:last-child'],
-                checklist_3:       ['#about .space-y-4 > div:nth-child(3) span:last-child'],
-                stat_number:       ['.text-4xl.font-black'],
-                stat_label:        ['.text-sm.uppercase.tracking-widest.opacity-80'],
-                contact_phone:     ['#location .text-on-surface-variant:first-of-type'],
-                contact_email:     ['#location .text-on-surface-variant'],
-                contact_address:   ['#location h4 + p:first-of-type'],
-                footer_copyright:  ['footer .text-slate-400'],
-                accent_color:      [], // handled via CSS variable
-            };
-
-            window.addEventListener('message', function(e) {
-                const { type, key, value } = e.data || {};
-                if (type !== 'update') return;
-
-                if (key === 'accent_color') {
-                    document.documentElement.style.setProperty('--accent', value);
-                    document.querySelectorAll('.text-primary, .bg-primary, .border-primary').forEach(el => {
-                        // light touch — just update inline so we don't break TW classes
-                    });
-                    return;
-                }
-
-                if (key === 'badge_visible') {
-                    const badge = document.querySelector('.inline-flex[class*="bg-secondary-fixed"]');
-                    if (badge) badge.style.display = value === '1' ? '' : 'none';
-                    return;
-                }
-
-                const selectors = MAP[key] || [];
-                selectors.forEach(sel => {
-                    document.querySelectorAll(sel).forEach(el => {
-                        el.textContent = value;
-                    });
-                });
-            });
-
-            // ── Editable hover outlines ──
-            const EDITABLE = [
-                { sel: 'nav .text-2xl',                                key: 'clinic_name' },
-                { sel: 'section h1',                                   key: 'hero_title' },
-                { sel: 'section h1 ~ p',                               key: 'hero_description' },
-                { sel: '.inline-flex[class*="bg-secondary-fixed"]',    key: 'badge' },
-                { sel: '#about p.text-on-surface-variant',             key: 'about_description' },
-                { sel: '#about .space-y-4',                            key: 'checklist' },
-                { sel: '.text-4xl.font-black',                         key: 'stat' },
-                { sel: '.announcement-item',                          key: 'announcements' },
-                { sel: '.team-member-card',                           key: 'team' },
-                { sel: '#location .text-on-surface-variant',           key: 'contact_phone' },
-                { sel: 'footer .text-slate-400',                       key: 'footer_copyright' },
-                { sel: '#schedule',                                     key: null }, // read-only
-            ];
-
-            const style = document.createElement('style');
-            style.textContent = \`
-                .ez-editable { cursor: pointer; position: relative; }
-                .ez-editable:hover { outline: 1.5px dashed #3b82f6 !important; border-radius: 3px; }
-                .ez-editable::before {
-                    content: attr(data-ez-label);
-                    display: none; position: absolute; top: -18px; left: 0;
-                    font-size: 10px; background: #3b82f6; color: #fff;
-                    padding: 1px 6px; border-radius: 3px;
-                    font-family: Inter, sans-serif; white-space: nowrap;
-                    pointer-events: none; z-index: 9999;
-                }
-                .ez-editable:hover::before { display: block; }
-                .ez-readonly { cursor: default; }
-                .ez-readonly:hover { outline: 1px dashed #94a3b8 !important; border-radius: 3px; }
-            \`;
-            document.head.appendChild(style);
-
-            EDITABLE.forEach(({ sel, key }) => {
-                document.querySelectorAll(sel).forEach(el => {
-                    if (key === null) {
-                        el.classList.add('ez-readonly');
-                        return;
-                    }
-                    el.classList.add('ez-editable');
-                    el.dataset.ezLabel = key.replace(/_/g,' ');
-                    el.addEventListener('click', () => {
-                        window.parent.postMessage({ type: 'field-click', key }, '*');
-                    });
-                });
-            });
-        })();
-        `;
-        doc.head.appendChild(script);
-
-        // Push current state into iframe on load
-        setTimeout(refreshAllPreview, 100);
-    } catch(err) {
-        // cross-origin guard (shouldn't happen on same origin)
-        console.warn('iframe inject skipped:', err);
-    }
-});
-
-// ── Receive field-click from iframe ──
-window.addEventListener('message', e => {
-    if (e.data?.type === 'field-click') {
-        openField(e.data.key);
-    }
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  SIDEBAR FIELD CLICK
-// ════════════════════════════════════════════════════════════════════════
-document.querySelectorAll('.field-item').forEach(item => {
-    item.addEventListener('click', () => openField(item.dataset.field));
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  SIDEBAR TABS
-// ════════════════════════════════════════════════════════════════════════
-document.querySelectorAll('.sidebar-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.sidebar-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const t = tab.dataset.tab;
-        if (t === 'colors') {
-            // Show color panel directly
-            rpBody.innerHTML = '';
-            applyBtn.style.display = 'block';
-            rpTitle.textContent = 'Brand Colors';
-            rpSub.textContent = 'Applied across the whole page';
-            openField('accent_color', 'colors');
-        } else if (t === 'team') {
-            rpTitle.textContent = 'Team Members';
-            rpSub.textContent = 'Manage your specialists';
-            openField('team', 'team');
-        } else {
-            // back to content
-            rpBody.innerHTML = `<div class="rp-empty" id="rp-empty-state">
-                <span class="material-symbols-outlined rp-empty-icon">edit_note</span>
-                <p>Click a field on the left or tap directly on the preview to start editing.</p>
-            </div>`;
-            applyBtn.style.display = 'none';
-            rpTitle.textContent = 'Select a field';
-            rpSub.textContent = 'Click any field in the left panel or in the preview';
-        }
-    });
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  HISTORY HELPERS
-// ════════════════════════════════════════════════════════════════════════
-function pushToHistory() {
-    // Only push if the state has actually changed from the last history entry
-    const last = history[historyIdx];
-    const hasChanged = Object.keys(state).some(k => state[k] !== last[k]);
-    
-    if (hasChanged) {
-        history = history.slice(0, historyIdx + 1);
-        history.push({ ...state });
-        historyIdx = history.length - 1;
-    }
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  VIEW TABS (desktop / mobile)
-// ════════════════════════════════════════════════════════════════════════
-document.querySelectorAll('.view-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.view-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        if (tab.dataset.view === 'mobile') {
-            viewport.classList.add('mobile-view');
-        } else {
-            viewport.classList.remove('mobile-view');
-        }
-    });
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  APPLY BUTTON
-// ════════════════════════════════════════════════════════════════════════
-applyBtn.addEventListener('click', () => {
-    pushToHistory();
-    refreshAllPreview();
-    showToast('Changes applied to preview.');
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  UNDO
-// ════════════════════════════════════════════════════════════════════════
-document.getElementById('undo-btn').addEventListener('click', () => {
-    if (historyIdx > 0) {
-        historyIdx--;
-        state = { ...history[historyIdx] };
-        refreshAllPreview();
-        if (activeField) openField(activeField);
-        showToast('Undone.');
-    }
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  SYNC TO LIVE (AJAX save)
-// ════════════════════════════════════════════════════════════════════════
-syncBtn.addEventListener('click', async () => {
-    syncBtn.classList.add('saving');
-    syncBtn.querySelector('.sync-icon').textContent = 'hourglass_empty';
-
-    const body = new URLSearchParams({ ajax_save: '1', ...state });
-    try {
-        const res = await fetch('', { method: 'POST', body });
-        const json = await res.json();
-        if (json.ok) {
-            markSaved();
-            showToast('Synced to live site!');
-        } else {
-            showToast('Save failed. Try again.', true);
-        }
-    } catch {
-        showToast('Network error. Try again.', true);
-    } finally {
-        syncBtn.classList.remove('saving');
-        syncBtn.querySelector('.sync-icon').textContent = 'sync';
-    }
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  UNSAVED STATE
-// ════════════════════════════════════════════════════════════════════════
-function markUnsaved() {
-    unsaved = true;
-    undoBadge.classList.add('visible');
-}
-function markSaved() {
-    unsaved = false;
-    undoBadge.classList.remove('visible');
-}
-
-// warn on nav away
-window.addEventListener('beforeunload', e => {
-    if (unsaved) { e.preventDefault(); e.returnValue = ''; }
-});
-
-// ════════════════════════════════════════════════════════════════════════
-//  SIDEBAR PREVIEW TEXT refresh
-// ════════════════════════════════════════════════════════════════════════
-function refreshSidebarItem(key) {
-    const map = {
-        clinic_name: 'clinic_name', hero_title: 'hero_title',
-        hero_description: 'hero_description', badge_text: 'badge',
-        about_description: 'about_description', contact_phone: 'contact_phone',
-        contact_email: 'contact_email', contact_address: 'contact_address',
-        footer_copyright: 'footer_copyright', cta_primary: 'cta_primary',
-        checklist_1: 'checklist',
-        stat_number: 'stat',
-    };
-    const field = map[key];
-    if (!field) return;
-    const el = document.querySelector(`.field-item[data-field="${field}"] .fi-preview`);
-    if (el) el.textContent = state[key];
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  TOAST
-// ════════════════════════════════════════════════════════════════════════
-let toastTimer;
-// ════════════════════════════════════════════════════════════════════════
-//  LIST HELPERS
-// ════════════════════════════════════════════════════════════════════════
-function addListItem(key) {
-    let data = [];
-    try { data = JSON.parse(state[key] || '[]'); } catch(e) {}
-    if (!Array.isArray(data)) data = [];
-    
-    if (key === 'announcements_json') {
-        data.push({ date: 'Date', title: 'New Announcement', description: 'Enter details here...' });
-    } else {
-        data.push({ name: 'New Member', role: 'Role', description: 'Short bio...', image: 'https://via.placeholder.com/400', tags: ['Tag'] });
-    }
-    
-    state[key] = JSON.stringify(data);
-    markUnsaved();
-    openField(key === 'announcements_json' ? 'announcements' : 'team', key === 'announcements_json' ? 'content' : 'team');
-    refreshAllPreview();
-}
-
-function removeListItem(key, index) {
-    let data = [];
-    try { data = JSON.parse(state[key] || '[]'); } catch(e) {}
-    if (!Array.isArray(data)) data = [];
-    
-    data.splice(index, 1);
-    state[key] = JSON.stringify(data);
-    markUnsaved();
-    openField(key === 'announcements_json' ? 'announcements' : 'team', key === 'announcements_json' ? 'content' : 'team');
-    refreshAllPreview();
-}
-
-// ════════════════════════════════════════════════════════════════════════
-//  TEAM FIELD DEFINITION
-// ════════════════════════════════════════════════════════════════════════
-const TEAM_FIELDS = {
-    team: {
-        label: 'Team Members',
-        sub: 'Profiles shown in Team section',
-        render() {
-            let data = [];
-            try { data = JSON.parse(state.team_json || '[]'); } catch(e) {}
-            if (!Array.isArray(data)) data = [];
-            
-            return `
-                <div class="space-y-6" id="team-list">
-                    ${data.map((item, i) => `
-                        <div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 relative group">
-                            <button onclick="removeListItem('team_json', ${i})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all">
-                                <span class="material-symbols-outlined text-sm">delete</span>
-                            </button>
-                            ${field(`team_json.${i}.name`, 'Name', 'input', item.name)}
-                            ${field(`team_json.${i}.role`, 'Role', 'input', item.role)}
-                            ${field(`team_json.${i}.image`, 'Image URL', 'input', item.image)}
-                            ${field(`team_json.${i}.description`, 'Bio', 'textarea', item.description)}
-                            ${field(`team_json.${i}.tags`, 'Tags (comma separated)', 'input', (item.tags || []).join(', '))}
-                        </div>
-                    `).join('')}
-                    <button onclick="addListItem('team_json')" class="w-full py-3 border-2 border-dashed border-outline-variant/30 rounded-xl text-primary font-bold text-xs hover:border-primary/50 transition-all">
-                        + Add Team Member
-                    </button>
-                </div>
-            `;
-        }
-    }
-};
-
-// ════════════════════════════════════════════════════════════════════════
-//  PANEL RENDERING (extended for deep keys)
-// ════════════════════════════════════════════════════════════════════════
-function openField(key, tab = 'content') {
-    activeField = key;
-
-    // highlight sidebar item
-    document.querySelectorAll('.field-item').forEach(el => el.classList.remove('active'));
-    const sidebarItem = document.querySelector(`.field-item[data-field="${key}"]`);
-    if (sidebarItem) sidebarItem.classList.add('active');
-
-    let def;
-    // Auto-detect tab based on key if not provided
-    if (tab === 'content' || !tab) {
-        if (key === 'accent_color') tab = 'colors';
-        else if (key === 'team') tab = 'team';
-        else tab = 'content';
-    }
-
-    if (tab === 'colors') def = COLOR_FIELDS[key];
-    else if (tab === 'team') def = TEAM_FIELDS[key];
-    else def = FIELDS[key];
-    
-    if (!def) return;
-
-    rpTitle.textContent = def.label;
-    rpSub.textContent = def.sub;
-
-    rpBody.innerHTML = def.render();
-    applyBtn.style.display = 'block';
-
-    // wire inputs
-    rpBody.querySelectorAll('[data-key]').forEach(el => {
-        el.addEventListener('input', () => {
-            const fullKey = el.dataset.key;
-            if (fullKey.includes('.')) {
-                // handle deep keys like team_json.0.name
-                const parts = fullKey.split('.');
-                const rootKey = parts[0];
-                const index = parseInt(parts[1]);
-                const field = parts[2];
-                
-                let data = JSON.parse(state[rootKey] || '[]');
-                if (field === 'tags') {
-                    data[index][field] = el.value.split(',').map(s => s.trim()).filter(Boolean);
-                } else {
-                    data[index][field] = el.value;
-                }
-                state[rootKey] = JSON.stringify(data);
-                refreshAllPreview();
-            } else {
-                state[fullKey] = el.value;
-                updatePreview(fullKey, el.value);
-            }
-            markUnsaved();
-            refreshSidebarItem(fullKey);
-        });
-    });
-
-    // wire toggles & color swatches (rest of the wiring same as before)
-    rpBody.querySelectorAll('[data-toggle]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const k = btn.dataset.toggle;
-            const isOn = btn.classList.toggle('on');
-            state[k] = isOn ? '1' : '0';
-            markUnsaved();
-            updatePreview(k, state[k]);
-        });
-    });
-    rpBody.querySelectorAll('.color-swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-            rpBody.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-            sw.classList.add('selected');
-            const color = sw.dataset.color;
-            state.accent_color = color;
-            const hex = rpBody.querySelector('[data-key="accent_color"]');
-            if (hex) hex.value = color;
-            markUnsaved();
-            updatePreview('accent_color', color);
-        });
-    });
-}
-
-function refreshAllPreview() {
-    // Standard fields
-    Object.entries(state).forEach(([k, v]) => {
-        if (!k.endsWith('_json')) updatePreview(k, v);
-    });
-    // Special lists
+    Object.entries(state).forEach(([k, v]) => { if (!k.endsWith('_json')) updatePreview(k, v); });
     iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
 }
 
-// Update the iframe refresh logic
+// ════════════════════════════════════════════════════════════════════════
+//  IFRAME INJECTION
+// ════════════════════════════════════════════════════════════════════════
 iframe.addEventListener('load', () => {
     try {
-        const doc = iframe.contentDocument;
-        if (!doc) return;
-
-        // Inject the receiver script into the iframe's page
+        const doc = iframe.contentDocument; if (!doc) return;
         const script = doc.createElement('script');
         script.textContent = `
         (function() {
             const MAP = {
-                clinic_name:       ['nav .text-2xl', 'footer .text-xl'],
-                hero_title:        ['section h1'],
-                hero_description:  ['section h1 ~ p'],
-                cta_primary:       ['nav button', 'section .flex button:first-child'],
-                badge_text:        ['.inline-flex .text-xs.uppercase'],
-                badge_visible:     ['.inline-flex[class*="bg-secondary-fixed"]'],
+                clinic_name: ['nav .text-2xl', 'footer .text-xl'],
+                hero_title: ['section h1'],
+                hero_description: ['section h1 ~ p'],
+                cta_primary: ['nav button', 'section .flex button:first-child'],
+                badge_text: ['.inline-flex .text-xs.uppercase'],
+                badge_visible: ['.inline-flex[class*="bg-secondary-fixed"]'],
                 about_description: ['#about p.text-on-surface-variant'],
-                checklist_1:       ['#about .space-y-4 > div:nth-child(1) span:last-child'],
-                checklist_2:       ['#about .space-y-4 > div:nth-child(2) span:last-child'],
-                checklist_3:       ['#about .space-y-4 > div:nth-child(3) span:last-child'],
-                stat_number:       ['.text-4xl.font-black'],
-                stat_label:        ['.text-sm.uppercase.tracking-widest.opacity-80'],
-                contact_phone:     ['#location .text-on-surface-variant:first-of-type'],
-                contact_email:     ['#location .text-on-surface-variant'],
-                contact_address:   ['#location h4 + p:first-of-type'],
-                footer_copyright:  ['footer .text-slate-400'],
-                hero_image:        ['#hero-image'],
-                about_image_1:     ['#about-image-1'],
-                about_image_2:     ['#about-image-2'],
+                checklist_1: ['#about .space-y-4 > div:nth-child(1) span:last-child'],
+                checklist_2: ['#about .space-y-4 > div:nth-child(2) span:last-child'],
+                checklist_3: ['#about .space-y-4 > div:nth-child(3) span:last-child'],
+                footer_copyright: ['footer .text-slate-400'],
+                hero_image: ['#hero-image'],
+                about_image_1: ['#about-image-1'],
+                about_image_2: ['#about-image-2']
             };
-
-            window.addEventListener('message', function(e) {
+            window.addEventListener('message', e => {
                 const { type, key, value } = e.data || {};
-                if (type === 'refresh') {
-                    location.reload(); 
-                    return;
-                }
+                if (type === 'refresh') { location.reload(); return; }
                 if (type !== 'update') return;
-
-                if (key === 'accent_color') {
-                    document.documentElement.style.setProperty('--accent', value);
+                if (key === 'accent_color') { document.documentElement.style.setProperty('--accent', value); return; }
+                if (key === 'badge_visible') { 
+                    const b = document.querySelector('.inline-flex[class*="bg-secondary-fixed"]');
+                    if (b) b.style.display = value === '1' ? '' : 'none';
                     return;
                 }
-
-                if (key === 'badge_visible') {
-                    const badge = document.querySelector('.inline-flex[class*="bg-secondary-fixed"]');
-                    if (badge) badge.style.display = value === '1' ? '' : 'none';
-                    return;
-                }
-
-                const selectors = MAP[key] || [];
-                selectors.forEach(sel => {
+                (MAP[key]||[]).forEach(sel => {
                     document.querySelectorAll(sel).forEach(el => {
-                        if (el.tagName === 'IMG') {
-                            el.src = value;
-                        } else {
-                            el.textContent = value;
-                        }
+                        if (el.tagName === 'IMG') el.src = value;
+                        else el.textContent = value;
                     });
                 });
             });
-
             const EDITABLE = [
-                { sel: 'nav .text-2xl',                                key: 'clinic_name' },
-                { sel: 'section h1',                                   key: 'hero_title' },
-                { sel: 'section h1 ~ p',                               key: 'hero_description' },
-                { sel: '.inline-flex[class*="bg-secondary-fixed"]',    key: 'badge' },
-                { sel: '#about p.text-on-surface-variant',             key: 'about_description' },
-                { sel: '#about .space-y-4',                            key: 'checklist' },
-                { sel: '.text-4xl.font-black',                         key: 'stat' },
-                { sel: '.announcement-item',                          key: 'announcements' },
-                { sel: '.team-member-card',                           key: 'team' },
-                { sel: '#about-image-1',                           key: 'about_images' },
-                { sel: '#about-image-2',                           key: 'about_images' },
-                { sel: '#hero-image',                              key: 'hero_image' },
-                { sel: '#location .text-on-surface-variant',           key: 'contact_phone' },
-                { sel: 'footer .text-slate-400',                       key: 'footer_copyright' },
-                { sel: '#schedule',                                     key: null }, 
+                { sel: 'nav .text-2xl', k: 'clinic_name' },
+                { sel: 'section h1', k: 'hero_title' },
+                { sel: 'section h1 ~ p', k: 'hero_description' },
+                { sel: '#about p.text-on-surface-variant', k: 'about_description' },
+                { sel: '#about-image-1', k: 'about_images' },
+                { sel: '#about-image-2', k: 'about_images' },
+                { sel: '#hero-image', k: 'hero_image' },
+                { sel: '.team-member-card', k: 'team' },
+                { sel: '.announcement-item', k: 'announcements' }
             ];
-
-            const style = document.createElement('style');
-            style.textContent = \`
-                .ez-editable { cursor: pointer; position: relative; transition: outline 0.1s; }
-                .ez-editable:hover { outline: 1.5px dashed #3b82f6 !important; outline-offset: 2px; }
-                .ez-editable::before {
-                    content: attr(data-ez-label);
-                    display: none; position: absolute; top: -18px; left: 0;
-                    font-size: 10px; background: #3b82f6; color: #fff;
-                    padding: 1px 6px; border-radius: 3px;
-                    font-family: Inter, sans-serif; white-space: nowrap;
-                    pointer-events: none; z-index: 9999;
-                }
-                .ez-editable:hover::before { display: block; }
-                .ez-readonly { cursor: default; }
-                .ez-readonly:hover { outline: 1px dashed #94a3b8 !important; }
-            \`;
-            document.head.appendChild(style);
-
-            EDITABLE.forEach(({ sel, key }) => {
-                document.querySelectorAll(sel).forEach(el => {
-                    if (key === null) {
-                        el.classList.add('ez-readonly');
-                        return;
-                    }
-                    el.classList.add('ez-editable');
-                    el.dataset.ezLabel = key.replace(/_/g,' ');
-                    el.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        window.parent.postMessage({ type: 'field-click', key }, '*');
+            const s = document.createElement('style');
+            s.textContent = '.ez-edit { cursor: pointer !important; outline: 2px dashed transparent; transition: 0.2s; position: relative; } .ez-edit:hover { outline-color: #3b82f6; outline-offset: 2px; z-index: 50; }';
+            document.head.appendChild(s);
+            EDITABLE.forEach(ed => {
+                document.querySelectorAll(ed.sel).forEach(el => {
+                    el.classList.add('ez-edit');
+                    if (el.tagName === 'IMG') el.style.display = 'block';
+                    el.addEventListener('click', e => {
+                        e.preventDefault(); e.stopPropagation();
+                        window.parent.postMessage({ type: 'field-click', key: ed.k }, '*');
                     });
                 });
             });
-        })();
-        \`;
+        })();`;
         doc.head.appendChild(script);
-        setTimeout(() => {
-             Object.entries(window.parent.state).forEach(([k, v]) => {
-                if (!k.endsWith('_json')) {
-                    iframe.contentWindow?.postMessage({ type: 'update', key: k, value: v }, '*');
-                }
-             });
-        }, 100);
-    } catch(err) {
-        console.warn('iframe inject skipped:', err);
+    } catch(err){}
+});
+
+window.addEventListener('message', e => { if (e.data?.type === 'field-click') openField(e.data.key); });
+
+// ════════════════════════════════════════════════════════════════════════
+//  UI EVENTS
+// ════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('.field-item').forEach(it => it.addEventListener('click', () => openField(it.dataset.field)));
+document.querySelectorAll('.sidebar-tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
+    t.classList.add('active');
+    openField(t.dataset.tab === 'colors' ? 'accent_color' : (t.dataset.tab === 'team' ? 'team' : 'clinic_name'), t.dataset.tab);
+}));
+
+document.querySelectorAll('.view-tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
+    t.classList.add('active');
+    viewport.classList.toggle('mobile-view', t.dataset.view === 'mobile');
+}));
+
+applyBtn.addEventListener('click', () => { pushToHistory(); refreshAllPreview(); showToast('Applied.'); });
+document.getElementById('undo-btn').addEventListener('click', () => {
+    if (historyIdx > 0) { historyIdx--; state = { ...history[historyIdx] }; refreshAllPreview(); if (activeField) openField(activeField); showToast('Undone.'); }
+});
+
+syncBtn.addEventListener('click', async () => {
+    syncBtn.classList.add('saving'); syncBtn.querySelector('.sync-icon').textContent = 'hourglass_empty';
+    try {
+        const res = await fetch('', { method: 'POST', body: new URLSearchParams({ ajax_save: '1', ...state }) });
+        const res_1 = await res.json();
+        if (res_1.ok) { markSaved(); showToast('Synced!'); } else showToast('Error', true);
+    } catch { showToast('Error', true); } finally {
+        syncBtn.classList.remove('saving'); syncBtn.querySelector('.sync-icon').textContent = 'sync';
     }
 });
 
-function showToast(msg, isError = false) {
-    clearTimeout(toastTimer);
-    toastMsg.textContent = msg;
-    toast.classList.toggle('error', isError);
-    toast.classList.add('show');
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+function pushToHistory() {
+    if (JSON.stringify(state) !== JSON.stringify(history[historyIdx])) {
+        history = history.slice(0, historyIdx + 1);
+        history.push({ ...state });
+        historyIdx++;
+    }
 }
+function markUnsaved() { unsaved = true; undoBadge.classList.add('visible'); }
+function markSaved() { unsaved = false; undoBadge.classList.remove('visible'); }
+function showToast(msg, err = false) {
+    clearTimeout(toastTimer); toastMsg.textContent = msg; toast.classList.toggle('error', err); toast.classList.add('show');
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+function refreshSidebarItem(key) {
+    const el = document.querySelector(`.field-item[data-field="${key}"] .fi-preview`);
+    if (el) el.textContent = state[key];
+}
+window.addEventListener('beforeunload', e => { if (unsaved) { e.preventDefault(); e.returnValue = ''; } });
 </script>
 </body>
 </html>
