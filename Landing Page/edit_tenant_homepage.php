@@ -27,14 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
     
     try {
         // Ensure all newer columns exist before any INSERT/UPDATE is attempted.
-        // errno 1060 = "Duplicate column name" — safe to ignore, means column already exists.
+        // Use SHOW COLUMNS to check first — avoids ALTER TABLE errors on any MySQL version.
+        $existingCols = [];
+        $colResult = $conn->query("SHOW COLUMNS FROM clinic_settings");
+        while ($colRow = $colResult->fetch_assoc()) {
+            $existingCols[] = $colRow['Field'];
+        }
         $newColumns = ['announcements_json' => 'TEXT', 'team_json' => 'TEXT', 'hero_image' => 'TEXT', 'about_image_1' => 'TEXT', 'about_image_2' => 'TEXT'];
         foreach ($newColumns as $col => $type) {
-            $conn->query("ALTER TABLE clinic_settings ADD COLUMN `$col` $type");
-            $errno = $conn->errno; // capture immediately — MySQLi resets errno on next call
-            $error = $conn->error;
-            if ($errno !== 0 && $errno !== 1060) {
-                throw new Exception("Migration failed for $col: " . $error);
+            if (!in_array($col, $existingCols)) {
+                if (!$conn->query("ALTER TABLE clinic_settings ADD COLUMN `$col` $type")) {
+                    throw new Exception("Migration failed for $col: " . $conn->error);
+                }
             }
         }
 
