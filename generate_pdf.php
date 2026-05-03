@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $query  = "SELECT r.*, r.amount, t.company_name AS tenant_name, t.subscription_tier AS plan
                        FROM payment r
                        JOIN tenants t ON r.tenant_id = t.tenant_id
-                       WHERE r.status = 'paid' $filter
+                       WHERE r.status = 'paid' AND r.appointment_id IS NULL $filter
                        ORDER BY r.payment_date DESC";
             $result = $conn->query($query);
 
@@ -125,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$tenantId && isset($_GET['tenant'])) {
                 // Try to resolve tenant_id from slug if provided
                 $slug = $_GET['tenant'];
-                $stmt = $conn->prepare("SELECT tenant_id FROM tenants WHERE slug = ?");
+                $stmt = $conn->prepare("SELECT tenant_id FROM tenants WHERE subdomain_slug = ?");
                 $stmt->bind_param('s', $slug);
                 $stmt->execute();
                 $tenantId = $stmt->get_result()->fetch_assoc()['tenant_id'] ?? null;
@@ -144,21 +144,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? str_replace('%s', $sqlDateCol, $dateFilter)
                 : '';
 
-            $query = "SELECT py.billing_id AS payment_id,
-                             py.amount_paid AS amount,
-                             py.payment_status AS status,
-                             py.billing_date AS payment_date,
-                             py.billing_date,
-                             p.first_name, p.last_name,
-                             COALESCE(s.service_name, 'General Service') AS service,
-                             COALESCE(s.service_name, 'General Service') AS service_name,
-                             a.appointment_date
-                      FROM billing py
-                      LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
-                      LEFT JOIN patient     p ON a.patient_id      = p.patient_id
-                      LEFT JOIN service     s ON a.service_id      = s.service_id
-                      WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') $filter
-                      ORDER BY py.billing_date DESC";
+            $query = "(SELECT py.billing_id AS payment_id,
+                              py.amount_paid AS amount,
+                              py.payment_status AS status,
+                              py.billing_date,
+                              py.billing_date AS payment_date,
+                              p.first_name, p.last_name,
+                              NULL AS payment_type,
+                              'web' AS source
+                       FROM billing py
+                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+                       WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') $filter)
+                       
+                       UNION ALL
+                       
+                       (SELECT r.payment_id,
+                              r.amount,
+                              r.status,
+                              r.payment_date AS billing_date,
+                              r.payment_date,
+                              p.first_name, p.last_name,
+                              r.payment_type,
+                              'mobile' AS source
+                       FROM payment r
+                       LEFT JOIN appointment a ON r.appointment_id = a.appointment_id
+                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+                       WHERE r.tenant_id = ? AND r.status = 'paid' AND r.appointment_id IS NOT NULL 
+                       AND (r.payment_type = 'deposit' OR r.payment_type = 'downpayment') " 
+                       . str_replace('billing_date', 'payment_date', $filter) . ")
+                       
+                       ORDER BY billing_date DESC";
 
             $stmt = $conn->prepare($query);
             if (!$stmt) {
@@ -168,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 echo 'Database preparation failed. Please check server logs.';
                 exit;
             }
-            $stmt->bind_param('i', $tenantId);
+            $stmt->bind_param('ii', $tenantId, $tenantId);
             $stmt->execute();
             $result = $stmt->get_result();
             while ($row = $result->fetch_assoc()) {

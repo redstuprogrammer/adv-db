@@ -705,7 +705,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             fetch(window.location.href, {
                 method: 'POST',
                 headers: {
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: formData
             })
@@ -734,8 +735,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 modal.style.display = 'none';
             }
         }
-    </script>
-
     </script>
     </main>
 </body>

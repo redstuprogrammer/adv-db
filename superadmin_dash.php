@@ -946,7 +946,8 @@ try {
             </div>
         </section>
     </main>
-</div>
+</body>
+</html>
 <div id="sa-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:100; align-items:center; justify-content:center;">
     <div class="sa-card" style="width: 100%; max-width: 500px; animation: modalSlide 0.3s ease;">
         <div class="sa-card-header">
@@ -994,7 +995,7 @@ try {
                         <input type="file" id="new-tenant-docs" multiple accept=".pdf,.doc,.docx,.jpg,.png" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; flex: 1;">
                         <button id="upload-docs-btn" class="sa-btn sa-btn-success" style="font-size: 0.8rem; padding: 10px 20px;">Upload</button>
                     </div>
-                    <p class="sa-note" style="margin-top: 5px;">PDF, Word, or Images (Max 5MB each)</p>
+                    <p class="sa-note" style="margin-top: 5px;">PDF, Word, or Images (Max 50MB each)</p>
                 </div>
             </div>
             <hr>
@@ -1521,6 +1522,10 @@ try {
 
             fetch('upload_tenant_documents.php', {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
                 body: formData
             })
             .then(res => res.json())
@@ -1540,7 +1545,7 @@ try {
                 btn.disabled = false;
                 btn.textContent = 'Upload';
                 console.error(err);
-                showToast('Upload failed due to a network error.');
+                showToast('Upload failed due to a network error. Ensure files are under 50MB and are PDF, Word, or Images.');
             });
         });
     });
@@ -1551,7 +1556,7 @@ try {
 
     function viewTenantProfile(tenantId) {
         window.activeTenantId = tenantId;
-        fetch(`/get_tenant_details.php?id=${tenantId}`)
+        fetch(`get_tenant_details.php?id=${tenantId}`)
             .then(res => res.json())
             .then(tenant => {
                 document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1851,7 +1856,7 @@ try {
             if (pollingInterval) clearInterval(pollingInterval);
             
             pollingInterval = setInterval(() => {
-                fetch(`get_tenant_status.php?slug=${encodeURIComponent(slug)}`)
+                fetch('get_tenant_status.php?slug=' + encodeURIComponent(slug))
                     .then(r => r.json())
                     .then(res => {
                         if (res.status === 'active') {

@@ -395,7 +395,9 @@ h1,h2,h3,h4 { font-family: 'Manrope', sans-serif; }
 // ════════════════════════════════════════════════════════════════════════
 //  STATE & HELPERS
 // ════════════════════════════════════════════════════════════════════════
+const tenantSlug = '<?= urlencode($tenantSlug) ?>';
 const INITIAL = <?= json_encode($c) ?>;
+
 let state = { ...INITIAL };
 let history = [{ ...INITIAL }];
 let historyIdx = 0;
@@ -570,7 +572,7 @@ document.getElementById('hidden-file-input').addEventListener('change', async (e
 
     showToast('Uploading image...');
     try {
-        const res = await fetch('upload_homepage_image.php', {
+        const res = await fetch(`upload_homepage_image.php?tenant=${encodeURIComponent(tenantSlug)}`, {
             method: 'POST',
             body: formData
         });

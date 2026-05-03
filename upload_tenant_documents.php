@@ -86,7 +86,7 @@ try {
                 'uploaded_count' => $validDocsCount
             ];
         } else {
-            throw new Exception("No valid documents were uploaded. Ensure files are under 5MB and are PDF, Word, or Images.");
+            throw new Exception("No valid documents were uploaded. Ensure files are under 50MB and are PDF, Word, or Images.");
         }
     } else {
         throw new Exception("Invalid request method.");

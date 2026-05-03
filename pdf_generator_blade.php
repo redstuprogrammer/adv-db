@@ -202,9 +202,9 @@ class OralSyncPDFGenerator {
         $chartSVGs    = $this->generateChartSVGs($data, $context);
         $tableHeaders = ($context === 'superadmin')
             ? ['Date', 'Tenant / Clinic', 'Plan', 'Amount (PHP)', 'Status']
-            : ['Date', 'Patient', 'Service', 'Amount (PHP)', 'Type'];
+            : ['Date', 'Patient', 'Amount (PHP)', 'Type'];
         $tableData    = $this->prepareTableData($data, $context);
-        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Clinic Revenue Transactions';
+        $tableTitle   = $context === 'superadmin' ? 'Subscription Transactions' : 'Clinic Transactions';
 
         $this->pdf->AddPage();
         $this->renderPageHeader($title, $context);
@@ -361,12 +361,15 @@ class OralSyncPDFGenerator {
 
         $this->renderSectionLabel($title);
 
-        // Column widths — make Amount column slightly wider
+        // Column widths
         $colW = array_fill(0, $n, $pw / $n);
-        // If there's an "Amount" column (index 3 for 5-col tables), give it more room
+        
         if ($n === 5) {
             $colW = [38, 45, 40, 35, 22];
-            // Scale to fill page width
+            $total = array_sum($colW);
+            $colW  = array_map(fn($c) => $c / $total * $pw, $colW);
+        } elseif ($n === 4) {
+            $colW = [40, 70, 45, 35];
             $total = array_sum($colW);
             $colW  = array_map(fn($c) => $c / $total * $pw, $colW);
         }
@@ -497,15 +500,10 @@ class OralSyncPDFGenerator {
                 'title' => 'Revenue by Subscription Plan',
                 'svg'   => $this->createBarChartSVG(array_values($planData), array_keys($planData)),
             ];
-        } else {
-            $serviceData = $this->aggregateByField($data, 'service');
-            $chart2      = [
-                'title' => 'Revenue by Service Type',
-                'svg'   => $this->createPieChartSVG(array_values($serviceData), array_keys($serviceData)),
-            ];
+            return [$chart1, $chart2];
         }
 
-        return [$chart1, $chart2];
+        return [$chart1];
     }
 
     private function aggregateByDate(array $data): array {
@@ -552,7 +550,6 @@ class OralSyncPDFGenerator {
         return [
             ['label' => 'Total Sales',     'value' => '₱' . number_format($totalRevenue, 2)],
             ['label' => 'Patient Visits',  'value' => $count],
-            ['label' => 'Avg per Patient', 'value' => '₱' . number_format($count > 0 ? $totalRevenue / $count : 0, 2)],
         ];
     }
 
@@ -577,9 +574,10 @@ class OralSyncPDFGenerator {
 
                 $type    = 'Full Payment';
                 $pType   = strtolower((string)($row['payment_type']   ?? ''));
-                $pStatus = strtolower((string)($row['payment_status'] ?? ''));
+                $pStatus = strtolower((string)($row['status'] ?? $row['payment_status'] ?? ''));
                 $pSource = strtolower((string)($row['source']         ?? ''));
-                if ($pType === 'deposit' || ($pSource === 'mobile' && $pStatus === 'paid')) {
+                
+                if ($pType === 'deposit' || $pType === 'downpayment' || ($pSource === 'mobile' && $pStatus === 'paid')) {
                     $type = 'Downpayment';
                 } elseif ($pStatus === 'partial') {
                     $type = 'Partial Payment';
@@ -588,7 +586,6 @@ class OralSyncPDFGenerator {
                 $prepared[] = [
                     $date,
                     $patient,
-                    $row['service'] ?? $row['service_name'] ?? 'General',
                     '₱' . number_format((float)($row['amount'] ?? $row['amount_paid'] ?? 0), 2),
                     $type,
                 ];
