@@ -553,34 +553,176 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return true;
         }
 
-function resetSettings() {
-            if (confirm('Are you sure you want to reset all settings to defaults?')) {
-                // Send reset request
-                const formData = new FormData();
-                formData.append('reset', 'true');
-                
-                fetch(window.location.href, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    // Update UI to show defaults
-                    document.getElementById('system_name').value = 'OralSync';
-                    document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+    <!-- Reset Confirmation Modal -->
+    <style>
+        .reset-modal {
+            display: none;
+            position: fixed;
+            z-index: 1100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            animation: saFadeIn 0.3s ease;
+        }
 
-                    // Clear file input
-                    document.getElementById('logo').value = '';
-                    // Reload to reflect changes
-                    setTimeout(() => {
-                        location.reload();
-                    }, 500);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+        .reset-modal-content {
+            background: white;
+            margin: 0;
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 450px;
+            animation: saModalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        @keyframes saFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes saModalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .reset-modal-header {
+            background: linear-gradient(135deg, #0d3b66, #0a2f52);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reset-modal-body {
+            padding: 24px;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .reset-modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f9fafb;
+        }
+
+        .reset-modal-footer button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-confirm-sa {
+            background: #0d3b66;
+            color: white;
+        }
+
+        .btn-confirm-sa:hover {
+            background: #0a2f52;
+        }
+
+        .btn-cancel-sa {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-cancel-sa:hover {
+            background: #d1d5db;
+        }
+
+        .reset-modal-close {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+    </style>
+
+    <div id="resetConfirmModal" class="reset-modal">
+        <div class="reset-modal-content">
+            <div class="reset-modal-header">
+                <span>Reset to Default Settings</span>
+                <button class="reset-modal-close" onclick="closeResetModal()">&times;</button>
+            </div>
+            <div class="reset-modal-body">
+                <p>Are you sure you want to reset all system settings to their default values?</p>
+                <p>This will restore the system name and remove the current logo.</p>
+            </div>
+            <div class="reset-modal-footer">
+                <button class="btn-cancel-sa" onclick="closeResetModal()">Cancel</button>
+                <button class="btn-confirm-sa" onclick="confirmReset()">Reset Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openResetModal() {
+            document.getElementById('resetConfirmModal').style.display = 'flex';
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetConfirmModal').style.display = 'none';
+        }
+
+        function resetSettings() {
+            openResetModal();
+        }
+
+        function confirmReset() {
+            closeResetModal();
+            // Send reset request
+            const formData = new FormData();
+            formData.append('reset', 'true');
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Update UI to show defaults
+                document.getElementById('system_name').value = 'OralSync';
+                document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+
+                // Clear file input
+                document.getElementById('logo').value = '';
+                // Reload to reflect changes
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('resetConfirmModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
             }
         }
+    </script>
 
     </script>
     </main>

@@ -385,7 +385,7 @@ if (!$hasBasicReporting) {
             <tbody id="revenue-tbody">
               <?php
               // Load initial data - Get all-time total first to match dashboard
-              $totalQuery = $conn->prepare("SELECT SUM(amount_paid) as total FROM billing WHERE tenant_id = ? AND payment_status = 'paid'");
+              $totalQuery = $conn->prepare("SELECT SUM(amount_paid) as total FROM billing WHERE tenant_id = ? AND payment_status IN ('paid', 'partial')");
               $totalQuery->bind_param('i', $tenantId);
               $totalQuery->execute();
               $totalResult = $totalQuery->get_result()->fetch_assoc();
@@ -441,7 +441,7 @@ if (!$hasBasicReporting) {
           for ($i = 11; $i >= 0; $i--) {
             $month = date('Y-m', strtotime("-$i months"));
             $chartLabels[] = date('M Y', strtotime($month . '-01'));
-            $stmt = $conn->prepare("SELECT SUM(p.amount_paid) as monthly_total FROM billing p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
+            $stmt = $conn->prepare("SELECT SUM(p.amount_paid) as monthly_total FROM billing p JOIN appointment a ON p.appointment_id = a.appointment_id WHERE a.tenant_id = ? AND p.payment_status IN ('paid', 'partial') AND DATE_FORMAT(a.appointment_date, '%Y-%m') = ?");
             $stmt->bind_param("is", $tenantId, $month);
             $stmt->execute();
             $result = $stmt->get_result();
@@ -626,7 +626,7 @@ if (!$hasBasicReporting) {
 
         .then(data => {
           if (data.success) {
-            renderRevenueTable(data.data);
+            renderRevenueTable(data.data, data.pagination ? data.pagination.grand_total : 0);
             renderPagination('revenue', data.pagination);
           } else {
             showCustomAlert('Error loading revenue data: ' + data.error);
@@ -635,12 +635,11 @@ if (!$hasBasicReporting) {
         .catch(err => console.error(err));
     }
 
-    function renderRevenueTable(data) {
+    function renderRevenueTable(data, grandTotal = 0) {
       const tbody = document.getElementById('revenue-tbody');
       tbody.innerHTML = '';
-      let total = 0;
+      
       data.forEach(row => {
-        total += parseFloat(row.amount);
         let typeLabel = 'Full Payment';
         const pType = String(row.payment_type || '').toLowerCase();
         const pStatus = String(row.payment_status || '').toLowerCase();
@@ -661,7 +660,7 @@ if (!$hasBasicReporting) {
           <td><span class="badge" style="background:rgba(13, 59, 102, 0.1); color:var(--accent);">${typeLabel}</span></td>
         </tr>`;
       });
-      document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱' + parseFloat(grandTotal).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
     function renderPagination(type, pagination) {

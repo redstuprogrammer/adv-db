@@ -45,7 +45,7 @@ try {
     $data = [];
 
     if ($type === 'tenant_activity') {
-        $query = "SELECT tal.activity_type, tal.activity_description, tal.activity_count, tal.log_date, t.company_name
+        $query = "SELECT tal.log_id, tal.log_time, tal.log_date, tal.activity_type, tal.activity_description, tal.activity_count, t.company_name
                   FROM tenant_activity_logs tal
                   LEFT JOIN tenants t ON tal.tenant_id = t.tenant_id
                   WHERE 1=1";
@@ -99,11 +99,12 @@ try {
 
         while ($row = $stmt->fetch()) {
             $data[] = [
-                'Date' => formatDateReadable($row['log_date']),
-                'Activity Type' => $row['activity_type'],
-                'Description' => $row['activity_description'],
-                'Count' => $row['activity_count'],
-                'Tenant' => $row['company_name'] ?? ($tenant_id ? 'Selected Tenant' : 'All Tenants')
+                'log_id' => $row['log_id'],
+                'log_time' => $row['log_time'],
+                'log_date' => $row['log_date'],
+                'activity_type' => $row['activity_type'],
+                'activity_description' => $row['activity_description'],
+                'activity_count' => $row['activity_count']
             ];
         }
     } elseif ($type === 'usage_statistics') {
@@ -253,6 +254,18 @@ try {
         $countStmt->execute($countParams);
         $total_count = $countStmt->fetchColumn();
 
+        // Also get grand total for the filtered period
+        $sumQuery = "SELECT SUM(py.amount_paid) FROM billing py LEFT JOIN appointment a ON py.appointment_id = a.appointment_id WHERE py.payment_status IN ('paid', 'partial')";
+        $sumParams = $countParams;
+        if ($date_from) { $sumQuery .= " AND a.appointment_date >= ?"; }
+        if ($date_to) { $sumQuery .= " AND a.appointment_date <= ?"; }
+        if (!$isSuperAdmin && $tenantSessionId > 0) { $sumQuery .= " AND py.tenant_id = ?"; }
+        elseif ($tenant_id) { $sumQuery .= " AND py.tenant_id = ?"; }
+
+        $sumStmt = $pdo->prepare($sumQuery);
+        $sumStmt->execute($sumParams);
+        $grand_total = $sumStmt->fetchColumn() ?: 0;
+
         $stmt = $pdo->prepare($query . ($page !== null ? " LIMIT ? OFFSET ?" : ""));
         foreach ($params as $i => $val) {
             $stmt->bindValue($i + 1, $val);
@@ -284,7 +297,8 @@ try {
             'total_count' => (int)$total_count,
             'total_pages' => ceil($total_count / $per_page),
             'current_page' => $page,
-            'per_page' => $per_page
+            'per_page' => $per_page,
+            'grand_total' => (float)($grand_total ?? 0)
         ] : null
     ]);
 } catch (Exception $e) {

@@ -1371,7 +1371,7 @@ HTML;
     }
 
     function openResetModal() {
-      document.getElementById('resetConfirmModal').style.display = 'block';
+      document.getElementById('resetConfirmModal').style.display = 'flex';
     }
 
     function closeResetModal() {
@@ -1415,17 +1415,32 @@ HTML;
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
       animation: fadeIn 0.3s ease;
     }
 
     .reset-modal-content {
       background: white;
-      margin: 20% auto;
+      margin: 0;
       padding: 0;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      max-width: 500px;
-      animation: slideIn 0.3s ease;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      width: 90%;
+      max-width: 450px;
+      animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalSlideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     .reset-modal-header {
