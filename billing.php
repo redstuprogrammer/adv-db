@@ -66,6 +66,7 @@ $query = "SELECT
             py.mode,
             py.payment_type,
             py.billing_date,
+            py.source,
             a.appointment_id,
             a.appointment_date
           FROM billing py
@@ -355,10 +356,18 @@ foreach ($payments as $payment) {
                   <td>
                     <?php 
                       $typeLabel = 'Full Payment';
-                      if (strtolower($payment['payment_type'] ?? '') === 'deposit') {
+                      $pType = strtolower(trim($payment['payment_type'] ?? ''));
+                      $pStatus = strtolower(trim($payment['status'] ?? ''));
+                      $pSource = strtolower(trim($payment['source'] ?? ''));
+
+                      if ($pType === 'deposit') {
                           $typeLabel = 'Downpayment';
-                      } elseif (strtolower($payment['status'] ?? '') === 'partial' || strtolower($payment['status'] ?? '') === 'installment') {
+                      } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
                           $typeLabel = 'Partial Payment';
+                      } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
+                          // Fallback: If it's from mobile and paid, and not explicitly marked 'full', 
+                          // it's likely a downpayment if it doesn't match service total
+                          $typeLabel = 'Downpayment';
                       }
                       echo '<span class="badge" style="background:rgba(13, 59, 102, 0.1); color:var(--accent);">' . h($typeLabel) . '</span>';
                     ?>

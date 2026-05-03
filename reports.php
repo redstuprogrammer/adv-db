@@ -332,6 +332,7 @@ if (!$hasBasicReporting) {
                 <th>Date</th>
                 <th>Patient Name</th>
                 <th>Amount Paid</th>
+                <th>Payment Type</th>
               </tr>
             </thead>
             <tbody id="revenue-tbody">
@@ -344,11 +345,11 @@ if (!$hasBasicReporting) {
               $allTimeTotal = $totalResult['total'] ?? 0;
               $totalQuery->close();
 
-              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.amount_paid as amount, a.appointment_date as appointment_date 
+              $stmt = $conn->prepare("SELECT p.first_name, p.last_name, py.amount_paid as amount, a.appointment_date as appointment_date, py.payment_type, py.payment_status, py.source 
                                       FROM billing py 
                                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id 
                                       LEFT JOIN patient p ON a.patient_id = p.patient_id 
-                                      WHERE py.tenant_id = ? AND py.payment_status = 'paid' 
+                                      WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') 
                                       ORDER BY a.appointment_date DESC LIMIT 10");
               $stmt->bind_param('i', $tenantId);
               $stmt->execute();
@@ -356,16 +357,30 @@ if (!$hasBasicReporting) {
               $revenueRowCount = 0;
               while ($row = $result->fetch_assoc()) {
                 $revenueRowCount++;
+                $typeLabel = 'Full Payment';
+                $pType = strtolower(trim($row['payment_type'] ?? ''));
+                $pStatus = strtolower(trim($row['payment_status'] ?? ''));
+                $pSource = strtolower(trim($row['source'] ?? ''));
+
+                if ($pType === 'deposit') {
+                    $typeLabel = 'Downpayment';
+                } elseif ($pStatus === 'partial') {
+                    $typeLabel = 'Partial Payment';
+                } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
+                    $typeLabel = 'Downpayment';
+                }
+                
                 echo "<tr>
                   <td>" . h($row['appointment_date']) . "</td>
                   <td>" . h($row['first_name']) . " " . h($row['last_name']) . "</td>
                   <td>₱" . number_format($row['amount'], 2) . "</td>
+                  <td><span class='badge' style='background:rgba(13, 59, 102, 0.1); color:var(--accent);'>" . h($typeLabel) . "</span></td>
                 </tr>";
               }
               $stmt->close();
               
               if ($revenueRowCount === 0) {
-                echo "<tr><td colspan='3' style='text-align:center; color:#64748b;'>No sales records are available yet.</td></tr>";
+                echo "<tr><td colspan='4' style='text-align:center; color:#64748b;'>No sales records are available yet.</td></tr>";
               }
               ?>
             </tbody>
@@ -570,10 +585,24 @@ function loadRevenueReport() {
       let total = 0;
       data.forEach(row => {
         total += parseFloat(row.amount);
+        let typeLabel = 'Full Payment';
+        const pType = String(row.payment_type || '').toLowerCase();
+        const pStatus = String(row.payment_status || '').toLowerCase();
+        const pSource = String(row.source || '').toLowerCase();
+
+        if (pType === 'deposit') {
+          typeLabel = 'Downpayment';
+        } else if (pStatus === 'partial') {
+          typeLabel = 'Partial Payment';
+        } else if (pSource === 'mobile' && pStatus === 'paid') {
+          typeLabel = 'Downpayment';
+        }
+        
         tbody.innerHTML += `<tr>
           <td>${row.appointment_date}</td>
           <td>${row.first_name} ${row.last_name}</td>
           <td>₱${parseFloat(row.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td><span class="badge" style="background:rgba(13, 59, 102, 0.1); color:var(--accent);">${typeLabel}</span></td>
         </tr>`;
       });
       document.getElementById('revenue-summary').innerHTML = 'Total Sales: ₱' + total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});

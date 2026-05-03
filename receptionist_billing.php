@@ -61,6 +61,7 @@ $query = "SELECT
             py.payment_status as status,
             py.payment_type,
             py.billing_date,
+            py.source,
             a.appointment_id,
             a.appointment_date,
             py.procedures_json
@@ -356,10 +357,16 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                                 <td>
                                     <?php 
                                         $typeLabel = 'Full Payment';
-                                        if (strtolower($row['payment_type'] ?? '') === 'deposit') {
+                                        $pType = strtolower(trim($row['payment_type'] ?? ''));
+                                        $pStatus = strtolower(trim($row['status'] ?? ''));
+                                        $pSource = strtolower(trim($row['source'] ?? ''));
+
+                                        if ($pType === 'deposit') {
                                             $typeLabel = 'Downpayment';
-                                        } elseif (strtolower($row['status'] ?? '') === 'partial' || strtolower($row['status'] ?? '') === 'installment') {
+                                        } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
                                             $typeLabel = 'Partial Payment';
+                                        } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
+                                            $typeLabel = 'Downpayment';
                                         }
                                         echo '<span class="status-pill" style="background:rgba(13, 59, 102, 0.1); color:#0d3b66;">' . h($typeLabel) . '</span>';
                                     ?>
