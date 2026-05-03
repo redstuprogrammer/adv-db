@@ -53,16 +53,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
             $exists = $check->get_result()->fetch_assoc();
             $check->close();
 
+            $sql = "";
             if ($exists) {
                 $params[] = $tenant_id;
                 $sql = "UPDATE clinic_settings SET " . implode(', ', $fields) . " WHERE tenant_id = ?";
-                $stmt = $conn->prepare($sql);
             } else {
                 $params[] = $tenant_id;
                 $colNames = array_map(fn($f) => str_replace('`', '', explode(' =', $f)[0]), $fields);
                 $colNames[] = 'tenant_id';
                 $placeholders = implode(', ', array_fill(0, count($params), '?'));
                 $sql = "INSERT INTO clinic_settings (" . implode(', ', array_map(fn($c) => "`$c`", $colNames)) . ") VALUES ($placeholders)";
+            }
+
+            $stmt = $conn->prepare($sql);
+            
+            // If prepare fails, it's likely due to missing columns
+            if (!$stmt && strpos($conn->error, 'Unknown column') !== false) {
+                $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
+                $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
+                $conn->query("ALTER TABLE clinic_settings ADD COLUMN hero_image TEXT");
+                $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
+                $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
+                // Retry prepare
                 $stmt = $conn->prepare($sql);
             }
 
@@ -77,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
                 $err = $stmt->error;
                 $stmt->close();
                 
-                // Try to add missing columns if that's the error
+                // Retry if execute failed due to unknown column (just in case)
                 if (strpos($err, 'Unknown column') !== false) {
                     $conn->query("ALTER TABLE clinic_settings ADD COLUMN announcements_json TEXT");
                     $conn->query("ALTER TABLE clinic_settings ADD COLUMN team_json TEXT");
@@ -85,12 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
                     $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_1 TEXT");
                     $conn->query("ALTER TABLE clinic_settings ADD COLUMN about_image_2 TEXT");
                     
-                    // Retry
-                    if ($exists) {
-                        $stmt = $conn->prepare($sql);
-                    } else {
-                        $stmt = $conn->prepare($sql);
-                    }
+                    // Re-prepare and execute
+                    $stmt = $conn->prepare($sql);
                     $stmt->bind_param($types, ...$params);
                     if (!$stmt->execute()) {
                         throw new Exception("Execute failed after alter: " . $stmt->error);
@@ -99,8 +107,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
                     throw new Exception("Execute failed: " . $err);
                 }
             }
-            $stmt->close();
+            if ($stmt) $stmt->close();
         }
+
 
         echo json_encode(['ok' => true]);
     } catch (Exception $e) {
