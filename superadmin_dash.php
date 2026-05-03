@@ -940,7 +940,7 @@ try {
         </div>
 
         <div class="sa-form-actions" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-            <button id="btn-close-payment" class="sa-btn sa-btn-outline">Close & Wait Offline</button>
+            <button id="btn-close-payment" class="sa-btn sa-btn-outline">Close</button>
         </div>
     </div>
 </div>
@@ -1517,8 +1517,23 @@ try {
 
             const formData = new FormData();
             formData.append('tenant_id', window.activeTenantId);
+            
+            let oversizedFiles = 0;
             for (let i = 0; i < files.length; i++) {
+                if (files[i].size > 50 * 1024 * 1024) {
+                    oversizedFiles++;
+                    continue;
+                }
                 formData.append('documents[]', files[i]);
+            }
+
+            if (oversizedFiles > 0) {
+                if (formData.getAll('documents[]').length === 0) {
+                    showToast('File size is too big. Max limit is 50MB per file.');
+                    return;
+                } else {
+                    showToast(oversizedFiles + ' file(s) skipped because they exceed 50MB.');
+                }
             }
 
             const btn = this;
@@ -1543,7 +1558,7 @@ try {
                     // Refresh details modal
                     viewTenantProfile(window.activeTenantId);
                 } else {
-                    showToast('Error: ' + data.message);
+                    showToast(data.message);
                 }
             })
             .catch(err => {
@@ -1800,6 +1815,13 @@ try {
             const docInput = document.getElementById('clinic-documents');
             if (docInput && docInput.files.length > 0) {
                 for (let i = 0; i < docInput.files.length; i++) {
+                    if (docInput.files[i].size > 50 * 1024 * 1024) {
+                        showToast('File size is too big. Max limit is 50MB per file.');
+                        modalConfirm.disabled = false;
+                        modalConfirm.textContent = 'Finalize & Save';
+                        modalOverlay.style.display = 'none';
+                        return;
+                    }
                     formData.append('documents[]', docInput.files[i]);
                 }
             }
@@ -1843,7 +1865,7 @@ try {
                     form.reset();
                     if (tierDetails) tierDetails.style.display = 'none';
                 } else {
-                    showToast('Error: ' + data.message);
+                    showToast(data.message);
                 }
             })
             .catch(error => {

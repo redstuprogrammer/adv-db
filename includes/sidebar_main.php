@@ -128,3 +128,4 @@ if (function_exists('printDateClockScript')) {
 } 
 ?>
 </script>
+<?php include_once __DIR__ . '/toast_notification.php'; ?>

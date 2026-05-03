@@ -59,3 +59,4 @@ if (function_exists('getAllSettings')) {
         <a href="logout.php" class="sign-out"><span>🚪</span> Sign Out</a>
     </div>
 </aside>
+<?php include_once __DIR__ . '/toast_notification.php'; ?>

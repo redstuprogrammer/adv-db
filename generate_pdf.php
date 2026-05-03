@@ -62,6 +62,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_once __DIR__ . '/pdf_generator_blade.php';
         require_once __DIR__ . '/includes/connect.php';
 
+        // Migration Check: Ensure payment.appointment_id exists for the UNION query
+        $checkCol = $conn->query("SHOW COLUMNS FROM payment LIKE 'appointment_id'");
+        if ($checkCol && $checkCol->num_rows == 0) {
+            $conn->query("ALTER TABLE payment ADD COLUMN appointment_id INT AFTER tenant_id");
+        }
+
         $generator  = new OralSyncPDFGenerator();
         $reportData = [];
         $period     = $data['period'] ?? 'all';
@@ -128,7 +134,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("SELECT tenant_id FROM tenants WHERE subdomain_slug = ?");
                 $stmt->bind_param('s', $slug);
                 $stmt->execute();
-                $tenantId = $stmt->get_result()->fetch_assoc()['tenant_id'] ?? null;
+                $res = $stmt->get_result();
+                if ($res) {
+                    $row = $res->fetch_assoc();
+                    $tenantId = $row['tenant_id'] ?? null;
+                }
             }
 
             if (!$tenantId) {
@@ -144,37 +154,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? str_replace('%s', $sqlDateCol, $dateFilter)
                 : '';
 
-            $query = "(SELECT py.billing_id AS payment_id,
-                              py.amount_paid AS amount,
-                              py.payment_status AS status,
-                              py.billing_date,
-                              py.billing_date AS payment_date,
-                              p.first_name, p.last_name,
-                              NULL AS payment_type,
-                              'web' AS source
-                       FROM billing py
-                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
-                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
-                       WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') $filter)
-                       
-                       UNION ALL
-                       
-                       (SELECT r.payment_id,
-                              r.amount,
-                              r.status,
-                              r.payment_date AS billing_date,
-                              r.payment_date,
-                              p.first_name, p.last_name,
-                              r.payment_type,
-                              'mobile' AS source
-                       FROM payment r
-                       LEFT JOIN appointment a ON r.appointment_id = a.appointment_id
-                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
-                       WHERE r.tenant_id = ? AND r.status = 'paid' AND r.appointment_id IS NOT NULL 
-                       AND (r.payment_type = 'deposit' OR r.payment_type = 'downpayment') " 
-                       . str_replace('py.billing_date', 'r.payment_date', $filter) . ")
-                       
-                       ORDER BY billing_date DESC";
+            $query = "SELECT py.billing_id AS payment_id,
+                             py.amount_paid AS amount,
+                             py.payment_status AS status,
+                             py.billing_date,
+                             py.billing_date AS payment_date,
+                               p.first_name, p.last_name,
+                               py.payment_type,
+                               'web' AS source
+                      FROM billing py
+                      LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+                      LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+                      WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial') $filter
+                      
+                      UNION ALL
+                      
+                      SELECT r.payment_id,
+                             r.amount,
+                             r.status,
+                             r.payment_date AS billing_date,
+                             r.payment_date,
+                             p.first_name, p.last_name,
+                             r.payment_type,
+                             'mobile' AS source
+                      FROM payment r
+                      LEFT JOIN appointment a ON r.appointment_id = a.appointment_id
+                      LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+                      WHERE r.tenant_id = ? AND r.status = 'paid' AND r.appointment_id IS NOT NULL 
+                      AND (r.payment_type = 'deposit' OR r.payment_type = 'downpayment') " 
+                      . str_replace('py.billing_date', 'r.payment_date', $filter) . "
+                      
+                      ORDER BY billing_date DESC";
 
             $stmt = $conn->prepare($query);
             if (!$stmt) {
@@ -185,10 +195,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit;
             }
             $stmt->bind_param('ii', $tenantId, $tenantId);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            while ($row = $result->fetch_assoc()) {
-                $reportData[] = $row;
+            if ($stmt->execute()) {
+                $result = $stmt->get_result();
+                if ($result) {
+                    while ($row = $result->fetch_assoc()) {
+                        $reportData[] = $row;
+                    }
+                }
+            } else {
+                error_log('Tenant PDF Execute failed: ' . $stmt->error);
             }
             $title = 'Clinic Sales Report - ' . $periodTitle;
         }
@@ -200,7 +215,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        $pdfContent = $generator->generateSalesReport($reportData, $title, $context, $period);
+        try {
+            $pdfContent = $generator->generateSalesReport($reportData, $title, $context, $period);
+        } catch (Exception $e) {
+            error_log('Tenant PDF Generation Error: ' . $e->getMessage());
+            while (ob_get_level() > 0) ob_end_clean();
+            http_response_code(500);
+            echo 'PDF generation failed: ' . $e->getMessage();
+            exit;
+        }
 
     } else {
         $pdfContent = generatePDF($reportData, $title, '', $type);

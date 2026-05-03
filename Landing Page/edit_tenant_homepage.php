@@ -465,8 +465,16 @@ const COLOR_FIELDS = {
     accent_color: {
         label: 'Brand Color', sub: 'Primary accent',
         render: () => {
-            const colors = ['#004872','#006a62','#7c3aed','#be185d','#b45309','#0f172a'];
-            return `<div class="color-swatches">${colors.map(c => `<div class="color-swatch ${state.accent_color===c?'selected':''}" style="background:${c}" data-color="${c}"></div>`).join('')}</div>` + field('accent_color', 'Hex', 'input', state.accent_color);
+            const presets = ['#004872','#006a62','#7c3aed','#be185d','#b45309','#0f172a','#0369a1','#059669','#dc2626','#d97706','#7e22ce','#0f766e'];
+            const cur = state.accent_color || '#004872';
+            return '<div class="rp-field"><label>Color Picker</label><div style="display:flex;align-items:center;gap:10px;">'
+                + '<input type="color" id="accent-color-picker" value="' + cur + '" style="width:48px;height:36px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;padding:2px;background:#f8fafc;">'
+                + '<input type="text" data-key="accent_color" value="' + cur + '" style="flex:1;font-size:12px;font-family:monospace;" placeholder="#000000" maxlength="7">'
+                + '<div style="width:36px;height:36px;border-radius:8px;border:1px solid #e2e8f0;flex-shrink:0;background:' + cur + '" id="accent-color-preview"></div>'
+                + '</div></div>'
+                + '<div class="rp-field"><label>Preset Colors</label><div class="color-swatches">'
+                + presets.map(c => '<div class="color-swatch ' + (cur===c?'selected':'') + '" style="background:' + c + '" data-color="' + c + '" title="' + c + '"></div>').join('')
+                + '</div></div>';
         }
     }
 };
@@ -507,9 +515,10 @@ function openField(key, tab = 'content') {
     rpBody.innerHTML = def.render();
     applyBtn.style.display = 'block';
 
-    // Wire inputs
+    // Wire inputs (skip accent_color — handled by the color picker block below)
     rpBody.querySelectorAll('input, textarea').forEach(el => {
         if (!el.dataset.key) return;
+        if (el.dataset.key === 'accent_color') return;
         el.value = getVal(el.dataset.key);
         el.addEventListener('focus', pushToHistory);
         el.addEventListener('input', () => {
@@ -532,16 +541,30 @@ function openField(key, tab = 'content') {
         });
     });
 
-    // Wire swatches
+    // Wire color picker + hex input + swatches
+    const colorPicker = rpBody.querySelector('#accent-color-picker');
+    const colorPreviewBox = rpBody.querySelector('#accent-color-preview');
+    function applyAccentColor(hex) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+        pushToHistory();
+        state.accent_color = hex;
+        if (colorPicker) colorPicker.value = hex;
+        const hexIn = rpBody.querySelector('[data-key="accent_color"]');
+        if (hexIn) hexIn.value = hex;
+        if (colorPreviewBox) colorPreviewBox.style.background = hex;
+        rpBody.querySelectorAll('.color-swatch').forEach(sw => sw.classList.toggle('selected', sw.dataset.color === hex));
+        markUnsaved();
+        updatePreview('accent_color', hex);
+    }
+    if (colorPicker) {
+        colorPicker.addEventListener('input', () => applyAccentColor(colorPicker.value));
+    }
+    const hexTextInput = rpBody.querySelector('[data-key="accent_color"]');
+    if (hexTextInput) {
+        hexTextInput.addEventListener('input', () => applyAccentColor(hexTextInput.value));
+    }
     rpBody.querySelectorAll('.color-swatch').forEach(sw => {
-        sw.addEventListener('click', () => {
-            pushToHistory();
-            const c = sw.dataset.color;
-            state.accent_color = c;
-            openField('accent_color', 'colors');
-            markUnsaved();
-            updatePreview('accent_color', c);
-        });
+        sw.addEventListener('click', () => applyAccentColor(sw.dataset.color));
     });
 }
 
@@ -662,7 +685,29 @@ iframe.addEventListener('load', () => {
                 const { type, key, value } = e.data || {};
                 if (type === 'refresh') { location.reload(); return; }
                 if (type !== 'update') return;
-                if (key === 'accent_color') { document.documentElement.style.setProperty('--accent', value); return; }
+                if (key === 'accent_color') {
+                    let styleTag = document.getElementById('__accent-override');
+                    if (!styleTag) { styleTag = document.createElement('style'); styleTag.id = '__accent-override'; document.head.appendChild(styleTag); }
+                    function darken(hex, pct) {
+                        let n = parseInt(hex.replace('#',''), 16);
+                        let r = Math.max(0, (n>>16) - Math.round(((n>>16)*pct)/100));
+                        let g = Math.max(0, ((n>>8)&0xff) - Math.round((((n>>8)&0xff)*pct)/100));
+                        let b = Math.max(0, (n&0xff) - Math.round(((n&0xff)*pct)/100));
+                        return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+                    }
+                    const dark = darken(value, 18);
+                    styleTag.textContent = [
+                        '.bg-primary { background-color: ' + value + ' !important; }',
+                        '.text-primary { color: ' + value + ' !important; }',
+                        '.border-primary { border-color: ' + value + ' !important; }',
+                        'nav button { background: linear-gradient(to right, ' + value + ', ' + dark + ') !important; }',
+                        'section .flex button:first-child { background-color: ' + value + ' !important; }',
+                        '.from-primary { --tw-gradient-from: ' + value + ' !important; }',
+                        '.to-primary-container { --tw-gradient-to: ' + dark + ' !important; }',
+                        '.hover\\:bg-on-primary-fixed-variant:hover { background-color: ' + dark + ' !important; }'
+                    ].join('\n');
+                    return;
+                }
                 if (key === 'badge_visible') { 
                     const b = document.querySelector('.inline-flex[class*="bg-secondary-fixed"]');
                     if (b) b.style.display = value === '1' ? '' : 'none';
@@ -763,5 +808,6 @@ function refreshSidebarItem(key) {
 }
 window.addEventListener('beforeunload', e => { if (unsaved) { e.preventDefault(); e.returnValue = ''; } });
 </script>
+<?php include_once '../includes/toast_notification.php'; ?>
 </body>
 </html>

@@ -525,6 +525,7 @@ if ($docsStmt) {
 <script>
     <?php printDateClockScript(); ?>
 </script>
+<?php include_once __DIR__ . '/includes/toast_notification.php'; ?>
 
 </body>
 </html>
