@@ -48,9 +48,9 @@ $todayDate = date('Y-m-d');
    RECEPTIONIST METRICS
 ========================= */
 
-// 1. Waiting/Pending (Appointments for today with pending status)
+// 1. Waiting/Pending (Pending appointments from today onwards)
 $pendingCount = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Pending'");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date >= ? AND status = 'Pending'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -58,9 +58,9 @@ if ($stmt) {
     $pendingCount = $res ? (int)($res->fetch_assoc()['total'] ?? 0) : 0;
 }
 
-// 2. Completed Today (Patients who finished their session today)
+// 2. Check-outs Done (Paid invoices today)
 $completedCount = 0;
-$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM appointment WHERE tenant_id = ? AND appointment_date = ? AND status = 'Completed'");
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM billing WHERE tenant_id = ? AND DATE(billing_date) = ? AND payment_status = 'paid'");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);
     mysqli_stmt_execute($stmt);
@@ -86,8 +86,8 @@ $stmt = mysqli_prepare($conn, "SELECT a.appointment_id, p.first_name, p.last_nam
                FROM appointment a 
                JOIN patient p ON a.patient_id = p.patient_id 
                JOIN users d ON a.dentist_id = d.user_id
-               WHERE a.tenant_id = ? AND a.appointment_date >= ? AND a.status NOT IN ('Completed', 'Cancelled', 'Disapproved')
-               ORDER BY a.appointment_date ASC, a.appointment_time ASC, a.appointment_id ASC
+               WHERE a.tenant_id = ? AND a.appointment_date = ? AND a.status NOT IN ('Completed', 'Cancelled', 'Disapproved')
+               ORDER BY a.appointment_time ASC, a.appointment_id ASC
                LIMIT 8");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "is", $tenantId, $todayDate);

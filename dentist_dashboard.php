@@ -30,6 +30,18 @@ function baseUrl(): string {
     return $scheme . '://' . $host;
 }
 
+function formatTime12Hour($time) {
+    if (empty($time)) return 'TBD';
+    $parts = explode(':', $time);
+    if (count($parts) < 2) return $time;
+    $hour = (int)$parts[0];
+    $minute = $parts[1];
+    $ampm = $hour >= 12 ? 'PM' : 'AM';
+    if ($hour > 12) $hour -= 12;
+    if ($hour === 0) $hour = 12;
+    return $hour . ':' . $minute . ' ' . $ampm;
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 // requireTenantLogin is now handled by session manager above
 
@@ -142,6 +154,23 @@ if ($stmt) {
 }
 
 /* =========================
+   UPCOMING APPOINTMENTS
+========================= */
+$upcomingResult = null;
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, a.appointment_time, p.first_name, p.last_name, a.status, s.service_name
+                  FROM appointment a
+                  JOIN patient p ON a.patient_id = p.patient_id
+                  LEFT JOIN service s ON a.service_id = s.service_id
+                  WHERE a.tenant_id = ? AND a.appointment_date > ? AND a.dentist_id = ? AND a.status != 'Cancelled'
+                  ORDER BY a.appointment_date ASC, a.appointment_time ASC
+                  LIMIT 10");
+if ($stmt) {
+    mysqli_stmt_bind_param($stmt, "isi", $tenantId, $todayDate, $dentistId);
+    mysqli_stmt_execute($stmt);
+    $upcomingResult = mysqli_stmt_get_result($stmt);
+}
+
+/* =========================
    CALENDAR LOGIC
 ========================= */
 $month = isset($_GET['m']) ? (int)$_GET['m'] : (int)date('m');
@@ -156,15 +185,29 @@ $prevYear = ($month == 1) ? $year - 1 : $year;
 $nextMonth = ($month == 12) ? 1 : $month + 1;
 $nextYear = ($month == 12) ? $year + 1 : $year;
 
-$calendarAppts = [];
-$stmt = mysqli_prepare($conn, "SELECT DISTINCT appointment_date FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND MONTH(appointment_date) = ? AND YEAR(appointment_date) = ? AND status != 'Cancelled'");
+$calendarDetails = [];
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_date, a.appointment_time, p.first_name, p.last_name, s.service_name, a.status 
+                  FROM appointment a 
+                  JOIN patient p ON a.patient_id = p.patient_id 
+                  LEFT JOIN service s ON a.service_id = s.service_id 
+                  WHERE a.tenant_id = ? AND a.dentist_id = ? AND MONTH(a.appointment_date) = ? AND YEAR(a.appointment_date) = ? AND a.status != 'Cancelled'
+                  ORDER BY a.appointment_time ASC");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "iiii", $tenantId, $dentistId, $month, $year);
     mysqli_stmt_execute($stmt);
     $res = mysqli_stmt_get_result($stmt);
     if ($res) {
         while ($row = mysqli_fetch_assoc($res)) {
-            $calendarAppts[] = $row['appointment_date'];
+            $date = $row['appointment_date'];
+            if (!isset($calendarDetails[$date])) {
+                $calendarDetails[$date] = [];
+            }
+            $calendarDetails[$date][] = [
+                'time' => formatTime12Hour($row['appointment_time']),
+                'patient' => ($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''),
+                'service' => $row['service_name'] ?? 'General Service',
+                'status' => $row['status']
+            ];
         }
     }
 }
@@ -313,6 +356,79 @@ if ($stmt) {
           grid-template-columns: 1fr;
         }
       }
+
+      /* Calendar Tooltip Styles */
+      .calendar-tooltip {
+        position: absolute;
+        background: white;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        z-index: 9999;
+        pointer-events: none;
+        font-size: 13px;
+        color: #1e293b;
+        min-width: 260px;
+        max-width: 320px;
+        display: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .tooltip-header {
+        font-weight: 800;
+        color: var(--dashboard-accent);
+        border-bottom: 1px solid #f1f5f9;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .tooltip-appt-item {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px dashed #e2e8f0;
+      }
+      .tooltip-appt-item:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+      .tooltip-time {
+        font-weight: 700;
+        color: #0369a1;
+        background: #f0f9ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+      .tooltip-patient {
+        font-weight: 600;
+        display: block;
+        margin: 4px 0;
+      }
+      .tooltip-service {
+        color: #64748b;
+        font-size: 12px;
+      }
+      .calendar-table td.has-appt {
+        cursor: pointer;
+        background: #f0f9ff44;
+      }
+      .calendar-table td.has-appt:hover {
+        background: #e0f2fe;
+      }
+
+      /* Upcoming Appointments Styles */
+      .queue-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      .queue-table th { background: var(--dashboard-bg); color: #64748b; padding: 12px 15px; text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--dashboard-border); }
+      .queue-table td { padding: 12px 15px; border-bottom: 1px solid var(--dashboard-border); font-size: 13px; }
+      .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
+      .status-pill.pending { background: #fff3cd; color: #856404; }
+      .status-pill.completed { background: #dcfce7; color: #166534; }
+      .status-pill.in-progress { background: #e0f2fe; color: #0369a1; }
+      .time-badge { background: rgba(13, 59, 102, 0.1); color: var(--dashboard-accent); padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 11px; }
     </style>
 </head>
 <body>
@@ -391,12 +507,16 @@ if ($stmt) {
 
                   $currentDate = sprintf('%04d-%02d-%02d', $year, $month, $day);
                   $isToday = ($currentDate == date('Y-m-d')) ? 'today-highlight' : '';
-                  $hasAppt = in_array($currentDate, $calendarAppts) ? '<div class="appt-dot"></div>' : '';
+                  $dayAppts = $calendarDetails[$currentDate] ?? null;
+                  $hasApptClass = $dayAppts ? 'has-appt' : '';
+                  $apptDot = $dayAppts ? '<div class="appt-dot"></div>' : '';
+                  $dataDetails = $dayAppts ? 'data-appts="'.h(json_encode($dayAppts)).'"' : '';
+                  $dataDateLabel = $dayAppts ? 'data-date-label="'.date('M d, Y', strtotime($currentDate)).'"' : '';
 
-                  echo "<td class='$isToday'>
+                  echo "<td class='$isToday $hasApptClass' $dataDetails $dataDateLabel>
                           <div class='day-container'>
                             <span class='day-num'>$day</span>
-                            $hasAppt
+                            $apptDot
                           </div>
                         </td>";
                 }
@@ -436,15 +556,117 @@ if ($stmt) {
             <?php endif; ?>
         </div>
       </div>
+
+      <!-- Upcoming Appointments Section -->
+      <div style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0; color: var(--dashboard-accent); font-size: 18px; font-weight: 800;">Upcoming Appointments</h2>
+          <span style="font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-weight: 600;">Next 10 Bookings</span>
+        </div>
+        <table class="queue-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Patient</th>
+              <th>Service</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if ($upcomingResult && $upcomingResult->num_rows > 0): ?>
+              <?php while($row = $upcomingResult->fetch_assoc()): ?>
+                <tr>
+                  <td><strong><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></strong></td>
+                  <td><span class="time-badge"><?php echo h(formatTime12Hour($row['appointment_time'])); ?></span></td>
+                  <td><span style="font-weight: 600; color: #1e293b;"><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></span></td>
+                  <td style="color: #64748b;"><?php echo h($row['service_name'] ?? 'General Service'); ?></td>
+                  <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>"><?php echo h($row['status'] ?? 'Pending'); ?></span></td>
+                  <td><a href="dentist_patient_view.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo (int)$row['appointment_id']; ?>" style="color: var(--dashboard-accent); text-decoration: none; font-weight: 700; font-size: 12px; border: 1px solid var(--dashboard-accent); padding: 4px 10px; border-radius: 6px; transition: 0.2s;">View Case</a></td>
+                </tr>
+              <?php endwhile; ?>
+            <?php else: ?>
+              <tr><td colspan="6" style="text-align:center; padding:40px; color: #94a3b8;">No upcoming appointments found.</td></tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
+
+  <div id="calendar-tooltip" class="calendar-tooltip"></div>
 
   <script>
   <?php printDateClockScript(); ?>
 
+  // Calendar Hover Interaction
+  document.addEventListener('DOMContentLoaded', function() {
+    const tooltip = document.getElementById('calendar-tooltip');
+    const calendarDays = document.querySelectorAll('.calendar-table td.has-appt');
+
+    calendarDays.forEach(day => {
+      day.addEventListener('mouseenter', function(e) {
+        const appts = JSON.parse(this.getAttribute('data-appts'));
+        const dateLabel = this.getAttribute('data-date-label');
+        
+        let html = `<div class="tooltip-header">
+                      <span>${dateLabel}</span>
+                      <span style="background: var(--dashboard-accent); color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px;">${appts.length} Appts</span>
+                    </div>`;
+        
+        appts.forEach(appt => {
+          html += `<div class="tooltip-appt-item">
+                     <span class="tooltip-time">${appt.time}</span>
+                     <span class="tooltip-patient">${appt.patient}</span>
+                     <span class="tooltip-service">${appt.service}</span>
+                     <div style="margin-top: 4px; font-size: 10px; font-weight: 700; color: ${appt.status === 'Completed' ? '#10b981' : '#f59e0b'}">
+                       ● ${appt.status}
+                     </div>
+                   </div>`;
+        });
+
+        tooltip.innerHTML = html;
+        tooltip.style.display = 'block';
+        
+        // Positioning
+        const rect = this.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let top = rect.top + window.scrollY - tooltipRect.height - 10;
+        let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipRect.width / 2);
+
+        // Boundary checks
+        if (top < window.scrollY) {
+          top = rect.bottom + window.scrollY + 10;
+        }
+        if (left < 10) left = 10;
+        if (left + tooltipRect.width > window.innerWidth - 10) {
+          left = window.innerWidth - tooltipRect.width - 10;
+        }
+
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
+        
+        // Fade in
+        setTimeout(() => tooltip.style.opacity = '1', 10);
+      });
+
+      day.addEventListener('mouseleave', function() {
+        tooltip.style.opacity = '0';
+        setTimeout(() => {
+          if (tooltip.style.opacity === '0') {
+            tooltip.style.display = 'none';
+          }
+        }, 200);
+      });
+    });
+  });
+
   // Verification log
   console.log('UI Parity Active - Version 2.0');
   console.log('Dentist Dashboard Initialized');
+  console.log('Calendar Tooltips Enabled');
   console.log('FINAL UI SYNC COMPLETE');
   console.log('Anti-Crash System Active - V2');
   </script>

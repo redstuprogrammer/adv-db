@@ -483,6 +483,7 @@ if ($stmtReq) {
             <thead>
               <tr>
                 <th>Date</th>
+                <th>Time</th>
                 <th>Patient</th>
                 <th>Dentist</th>
                 <th>Status</th>
@@ -494,6 +495,7 @@ if ($stmtReq) {
                 <?php while($row = $appointmentsResult->fetch_assoc()): ?>
                   <tr>
                     <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
+                    <td><span class="time-badge"><?php echo h(formatTime12Hour($row['appointment_time'])); ?></span></td>
                     <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
                     <td>Dr. <?php echo h($row['d_last'] ?? ''); ?></td>
                     <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? '')); ?>"><?php echo h($row['status'] ?? ''); ?></span></td>
@@ -503,7 +505,7 @@ if ($stmtReq) {
                   </tr>
                 <?php endwhile; ?>
               <?php else: ?>
-                <tr><td colspan="5" style="text-align:center; padding:30px;">No appointments found.</td></tr>
+                <tr><td colspan="6" style="text-align:center; padding:30px;">No appointments found.</td></tr>
               <?php endif; ?>
             </tbody>
           </table>
