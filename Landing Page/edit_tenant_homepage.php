@@ -31,8 +31,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
         $newColumns = ['announcements_json' => 'TEXT', 'team_json' => 'TEXT', 'hero_image' => 'TEXT', 'about_image_1' => 'TEXT', 'about_image_2' => 'TEXT'];
         foreach ($newColumns as $col => $type) {
             $conn->query("ALTER TABLE clinic_settings ADD COLUMN `$col` $type");
-            if ($conn->errno !== 0 && $conn->errno !== 1060) {
-                throw new Exception("Migration failed for $col: " . $conn->error);
+            $errno = $conn->errno; // capture immediately — MySQLi resets errno on next call
+            $error = $conn->error;
+            if ($errno !== 0 && $errno !== 1060) {
+                throw new Exception("Migration failed for $col: " . $error);
             }
         }
 

@@ -24,7 +24,8 @@ if ($tenant) {
     // Map tenant fields and settings to the $clinic array
     // Core details (name, phone, email, address) always come from 'tenants' table
     $clinic = [
-        'name' => $tenant['company_name'],
+        'clinic_name' => $settings['clinic_name'] ?? $tenant['company_name'],
+        'name' => $settings['clinic_name'] ?? $tenant['company_name'],
         'hero_title' => $settings['hero_title'] ?? $tenant['company_name'], 
         'hero_description' => $settings['hero_description'] ?? ("Welcome to " . $tenant['company_name'] . ". Professional care for your dental health."),
         'about_description' => $settings['about_description'] ?? ("Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . "."),
@@ -76,6 +77,7 @@ if ($tenant) {
     // Fallback if tenant not found
     $clinic = [
         'name' => 'Professional Dental Care',
+        'clinic_name' => 'Professional Dental Care',
         'hero_title' => 'Exhale the Ordinary.',
         'hero_description' => 'Experience a new standard of dental care where precision engineering meets a curated, calming environment.',
         'about_description' => 'At our clinic, we believe that world-class dentistry should never feel clinical.',

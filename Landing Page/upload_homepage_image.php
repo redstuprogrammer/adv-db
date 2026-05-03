@@ -39,10 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['image'])) {
     $dest_path = $upload_dir . $safe_name;
 
     if (move_uploaded_file($file['tmp_name'], $dest_path)) {
-        // Return relative path from 'Landing Page' directory
-        // Since 'Landing Page' is one level down, and 'uploads' is in root
-        $relative_url = '../uploads/homepage/' . $safe_name;
-        echo json_encode(['success' => true, 'url' => $relative_url]);
+        // Build an absolute URL so it works from any page depth
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'];
+        $absolute_url = $protocol . '://' . $host . '/uploads/homepage/' . $safe_name;
+        echo json_encode(['success' => true, 'url' => $absolute_url]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to move uploaded file']);
     }
