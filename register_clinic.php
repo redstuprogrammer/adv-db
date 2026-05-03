@@ -111,7 +111,7 @@ try {
         $homepage_url = "Landing Page/tenant_homepage.php?tenant=" . $slug;
 
         // 4. Insert clinic into database
-        $initial_status = ($tier === 'trial') ? 'active' : 'pending_payment';
+        $initial_status = ($tier === 'trial') ? 'active' : 'inactive';
         
         $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";

@@ -31,6 +31,30 @@ if ($event_type === 'checkout_session.payment.paid') {
 
         if ($stmt->affected_rows > 0) {
             error_log("SUCCESS: OralSync Payment updated for Session: $session_id");
+            
+            // NEW: Automatically activate tenant if this was an initial registration payment
+            $tenantQuery = "SELECT tenant_id, procedures_json FROM payment WHERE paymongo_link_id = ? LIMIT 1";
+            $tStmt = $conn->prepare($tenantQuery);
+            $tStmt->bind_param("s", $session_id);
+            $tStmt->execute();
+            $tResult = $tStmt->get_result();
+            if ($tRow = $tResult->fetch_assoc()) {
+                $pJson = json_decode($tRow['procedures_json'] ?? '{}', true);
+                $isInitial = (isset($pJson['item']) && $pJson['item'] === 'Initial Subscription');
+                
+                if ($isInitial) {
+                    $tId = $tRow['tenant_id'];
+                    $activateSql = "UPDATE tenants SET status = 'active' WHERE tenant_id = ? AND status = 'inactive'";
+                    $aStmt = $conn->prepare($activateSql);
+                    $aStmt->bind_param("i", $tId);
+                    $aStmt->execute();
+                    if ($aStmt->affected_rows > 0) {
+                        error_log("SUCCESS: Tenant $tId activated after successful initial payment.");
+                    }
+                    $aStmt->close();
+                }
+            }
+            $tStmt->close();
         } else {
             // This tells you if the 'cs_' ID from PayMongo doesn't exist in your table
             error_log("WARNING: Webhook received for $session_id but no matching row found in SQL.");
