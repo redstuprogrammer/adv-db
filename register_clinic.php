@@ -296,7 +296,6 @@ try {
             'checkout_url' => $paymongo_url,
             'email_sent' => $email_sent
         ];
-        }
     }
 } catch (Exception $e) {
     $response['message'] = $e->getMessage();
