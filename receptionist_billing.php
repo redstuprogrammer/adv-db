@@ -455,19 +455,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                         <label>Payment Mode</label>
                         <select name="mode" id="mode">
                             <option value="Cash">Cash</option>
-                            <option value="GCash">GCash</option>
-                            <option value="Bank Transfer">Bank Transfer</option>
-                            <option value="Credit Card">Credit Card</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Payment Status</label>
-                        <select name="status" id="status">
-                            <option value="unpaid">Unpaid (Invoice Only)</option>
-                            <option value="paid">Paid</option>
-                            <option value="partial">Partial Payment</option>
-                            <option value="installment">Installment</option>
+                            <option value="Mobile App">Payment via mobile app</option>
                         </select>
                     </div>
                     

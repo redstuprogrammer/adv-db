@@ -57,7 +57,8 @@ $patient_id = (int)($_POST['patient_id'] ?? 0);
 $appointment_id = (int)($_POST['appointment_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $mode = trim($_POST['mode'] ?? '');
-$status = trim($_POST['status'] ?? 'unpaid');
+// Deriving status from mode as the field was removed from the UI
+$status = ($mode === 'Mobile App') ? 'unpaid' : 'paid';
 $procedures_json = trim($_POST['procedures_json'] ?? '');
 $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 
@@ -71,10 +72,8 @@ if (!tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn)) {
     $errors[] = "Payment tracking is not available on your current plan.";
 }
 
+// Tier feature check for multiple payment methods is now handled by the UI restricting to Cash and Mobile App
 $allowMultiplePaymentMethods = tenantHasTierFeature((int)$tenantId, 'multiple_payment_methods', $conn);
-if (!$allowMultiplePaymentMethods) {
-    $mode = 'Cash';
-}
 
 $procedures = parse_procedures_json($procedures_json);
 if (empty($procedures)) {
