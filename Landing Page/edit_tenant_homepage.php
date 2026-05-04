@@ -653,7 +653,9 @@ function updatePreview(key, value) {
 }
 
 function refreshAllPreview() {
-    Object.entries(state).forEach(([k, v]) => updatePreview(k, v));
+    // Send accent_color first so element overrides are applied before other updates
+    if (state.accent_color) updatePreview('accent_color', state.accent_color);
+    Object.entries(state).forEach(([k, v]) => { if (k !== 'accent_color') updatePreview(k, v); });
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -686,8 +688,6 @@ iframe.addEventListener('load', () => {
                 if (type === 'refresh') { location.reload(); return; }
                 if (type !== 'update') return;
                 if (key === 'accent_color') {
-                    let styleTag = document.getElementById('__accent-override');
-                    if (!styleTag) { styleTag = document.createElement('style'); styleTag.id = '__accent-override'; document.head.appendChild(styleTag); }
                     function darken(hex, pct) {
                         let n = parseInt(hex.replace('#',''), 16);
                         let r = Math.max(0, (n>>16) - Math.round(((n>>16)*pct)/100));
@@ -696,16 +696,18 @@ iframe.addEventListener('load', () => {
                         return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
                     }
                     const dark = darken(value, 18);
-                    styleTag.textContent = [
-                        '.bg-primary { background-color: ' + value + ' !important; }',
-                        '.text-primary { color: ' + value + ' !important; }',
-                        '.border-primary { border-color: ' + value + ' !important; }',
-                        'nav button { background: linear-gradient(to right, ' + value + ', ' + dark + ') !important; }',
-                        'section .flex button:first-child { background-color: ' + value + ' !important; }',
-                        '.from-primary { --tw-gradient-from: ' + value + ' !important; }',
-                        '.to-primary-container { --tw-gradient-to: ' + dark + ' !important; }',
-                        '.hover\\:bg-on-primary-fixed-variant:hover { background-color: ' + dark + ' !important; }'
-                    ].join('\n');
+                    // Apply color directly to elements — Tailwind gradient classes can't be overridden via CSS vars at runtime
+                    document.querySelectorAll('.bg-primary').forEach(el => { el.style.backgroundColor = value; });
+                    document.querySelectorAll('.text-primary').forEach(el => { el.style.color = value; });
+                    document.querySelectorAll('.border-primary').forEach(el => { el.style.borderColor = value; });
+                    // Nav CTA button uses bg-gradient-to-r from-primary to-primary-container
+                    document.querySelectorAll('nav button').forEach(el => { el.style.background = 'linear-gradient(to right, ' + value + ', ' + dark + ')'; });
+                    // Hero CTA button
+                    document.querySelectorAll('section .flex button:first-child').forEach(el => { el.style.backgroundColor = value; });
+                    // About stat block
+                    document.querySelectorAll('#about .bg-primary').forEach(el => { el.style.backgroundColor = value; });
+                    // Announcements panel
+                    document.querySelectorAll('.bg-primary.text-on-primary').forEach(el => { el.style.backgroundColor = value; });
                     return;
                 }
                 if (key === 'badge_visible') { 
@@ -808,6 +810,5 @@ function refreshSidebarItem(key) {
 }
 window.addEventListener('beforeunload', e => { if (unsaved) { e.preventDefault(); e.returnValue = ''; } });
 </script>
-<?php include_once '../includes/toast_notification.php'; ?>
 </body>
 </html>
