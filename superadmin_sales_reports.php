@@ -162,6 +162,107 @@ try {
             line-height: 1.5;
         }
 
+        /* Transaction Table Styles */
+        .audit-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--sa-border);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .table-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--sa-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            color: var(--sa-primary);
+        }
+
+        .module-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .module-table th {
+            background: #f8fafc;
+            padding: 14px 24px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--sa-border);
+        }
+
+        .module-table td {
+            padding: 18px 24px;
+            border-bottom: 1px solid var(--sa-border);
+            font-size: 14px;
+            color: #1e293b;
+        }
+
+        .module-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .module-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .clinic-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .clinic-name {
+            font-weight: 600;
+            color: var(--sa-primary);
+        }
+
+        .tier-badge {
+            font-size: 11px;
+            color: var(--sa-muted);
+            margin-top: 2px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-paid { background-color: #dcfce7; color: #15803d; }
+        .status-pending { background-color: #fef9c3; color: #a16207; }
+        .status-failed { background-color: #fee2e2; color: #b91c1c; }
+
+        .amount-cell {
+            font-weight: 700;
+            color: #0d3b66;
+        }
+
+        .ref-id {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 3px 7px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
         .sa-table {
             width: 100%;
             border-collapse: collapse;
@@ -330,6 +431,52 @@ try {
         .menu-dropdown-item:hover {
             background-color: rgba(255, 255, 255, 0.15);
         }
+
+        /* Pagination Styles */
+        .sa-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            padding: 20px;
+            border-top: 1px solid var(--sa-border);
+            background: #fff;
+        }
+
+        .sa-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border-radius: 8px;
+            border: 1px solid var(--sa-border);
+            background: white;
+            color: #475569;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .sa-page-link:hover:not(.disabled) {
+            border-color: var(--sa-primary);
+            color: var(--sa-primary);
+            background: #f8fafc;
+        }
+
+        .sa-page-link.active {
+            background: var(--sa-primary);
+            color: white;
+            border-color: var(--sa-primary);
+        }
+
+        .sa-page-link.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f1f5f9;
+        }
     </style>
 </head>
 <body>
@@ -357,57 +504,51 @@ try {
                     <div class="sa-card-subtitle">Generate professional reports with charts and data</div>
                 </div>
             </div>
-            <div style="padding: 20px;">
+            <div style="padding: 20px; display: flex; gap: 10px; align-items: center;">
+                <select id="reportPeriod" class="sa-form-group" style="padding: 8px 12px; border: 1px solid var(--sa-border); border-radius: 6px; font-size: 0.875rem;">
+                    <option value="all">All Time</option>
+                    <option value="daily">Today's Sales</option>
+                    <option value="weekly">This Week's Sales</option>
+                    <option value="monthly">This Month's Sales</option>
+                    <option value="yearly">This Year's Sales</option>
+                </select>
                 <button class="sa-btn" onclick="exportSalesPDF()">Export PDF Report</button>
-                <button class="sa-btn" onclick="exportSalesCSV()">Export CSV Data</button>
             </div>
         </div>
 
         <!-- Sales Summary -->
+
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
-                    <div class="sa-card-title">Revenue Overview</div>
+                    <div class="sa-card-title">Sales Overview</div>
                     <div class="sa-card-subtitle">Total sales and active subscriptions</div>
                 </div>
             </div>
 
             <div class="sa-grid">
                 <?php
+require_once __DIR__ . '/includes/revenue_queries.php';
                 try {
-                    // Total revenue
-                    $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid'");
-                    $total_revenue = $stmt->fetch()['total'] ?? 0;
-
-                    // This month revenue
-                    $stmt = $pdo->query("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND MONTH(payment_date) = MONTH(CURDATE()) AND YEAR(payment_date) = YEAR(CURDATE())");
-                    $month_revenue = $stmt->fetch()['total'] ?? 0;
-
-                    // Active subscriptions
+                    $total_revenue = getTotalRevenue($conn);
+                    $month_revenue = getMonthlyRevenue($conn); 
                     $stmt = $pdo->query("SELECT COUNT(DISTINCT tenant_id) as count FROM tenants WHERE status = 'active'");
                     $active_subscriptions = $stmt->fetch()['count'] ?? 0;
-
-                    // Average revenue per tenant
-                    $avg_revenue = $active_subscriptions > 0 ? $total_revenue / $active_subscriptions : 0;
                 } catch (Exception $e) {
-                    $total_revenue = $month_revenue = $active_subscriptions = $avg_revenue = 0;
+                    $total_revenue = $month_revenue = $active_subscriptions = 0;
                 }
                 ?>
                 <div class="sa-metric">
                     <div class="sa-metric-value currency">₱<?php echo number_format($total_revenue, 2); ?></div>
-                    <div class="sa-metric-label">Total Revenue (All Time)</div>
+                    <div class="sa-metric-label">Total Sales (All Time)</div>
                 </div>
                 <div class="sa-metric">
                     <div class="sa-metric-value currency">₱<?php echo number_format($month_revenue, 2); ?></div>
-                    <div class="sa-metric-label">This Month Revenue</div>
+                    <div class="sa-metric-label">This Month Sales</div>
                 </div>
                 <div class="sa-metric">
                     <div class="sa-metric-value"><?php echo $active_subscriptions; ?></div>
                     <div class="sa-metric-label">Active Subscriptions</div>
-                </div>
-                <div class="sa-metric">
-                    <div class="sa-metric-value currency">₱<?php echo number_format($avg_revenue, 2); ?></div>
-                    <div class="sa-metric-label">Average Revenue per Tenant</div>
                 </div>
             </div>
         </div>
@@ -416,8 +557,8 @@ try {
         <div class="sa-card">
             <div class="sa-card-header">
                 <div>
-                    <div class="sa-card-title">Revenue Trends</div>
-                    <div class="sa-card-subtitle">Monthly revenue over time</div>
+                    <div class="sa-card-title">Sales Trends</div>
+                    <div class="sa-card-subtitle">Monthly sales over time</div>
                 </div>
             </div>
             <div class="chart-container">
@@ -430,12 +571,132 @@ try {
             <div class="sa-card-header">
                 <div>
                     <div class="sa-card-title">Sales by Subscription Tier</div>
-                    <div class="sa-card-subtitle">Revenue breakdown by tier</div>
+                    <div class="sa-card-subtitle">Sales breakdown by tier</div>
                 </div>
             </div>
             <div class="chart-container">
                 <canvas id="tierChart"></canvas>
             </div>
+        <!-- Subscription Transactions Audit -->
+        <div class="audit-card">
+            <div class="table-header">
+                <div>
+                    <h2>Transaction Audit Log</h2>
+                    <p style="font-size: 13px; color: var(--sa-muted); margin-top: 4px;">Real-time history of platform payments and onboarding attempts.</p>
+                </div>
+                <div style="font-size: 13px; color: var(--sa-muted); font-weight: 500;">
+                    <?php echo date('F j, Y'); ?>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="module-table">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Clinic / Tenant</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Reference / Session ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        // Pagination logic for Transaction Audit Log
+                        $itemsPerPage = 10;
+                        $currentPage = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+                        $offset = ($currentPage - 1) * $itemsPerPage;
+
+                        // Count total records
+                        $count_query = "SELECT COUNT(*) as total FROM payment p JOIN tenants t ON p.tenant_id = t.tenant_id";
+                        $count_res = mysqli_query($conn, $count_query);
+                        $total_records = mysqli_fetch_assoc($count_res)['total'] ?? 0;
+                        $totalPages = ceil($total_records / $itemsPerPage);
+
+                        $audit_query = "SELECT p.*, t.company_name, t.subscription_tier as current_tier 
+                                       FROM payment p 
+                                       JOIN tenants t ON p.tenant_id = t.tenant_id 
+                                       ORDER BY p.payment_date DESC 
+                                       LIMIT ? OFFSET ?";
+                        
+                        $stmt = mysqli_prepare($conn, $audit_query);
+                        mysqli_stmt_bind_param($stmt, "ii", $itemsPerPage, $offset);
+                        mysqli_stmt_execute($stmt);
+                        $audit_res = mysqli_stmt_get_result($stmt);
+                        
+                        if ($audit_res && mysqli_num_rows($audit_res) > 0):
+                            while ($row = mysqli_fetch_assoc($audit_res)):
+                                $status = strtolower($row['status']);
+                        ?>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 500;"><?php echo date('M d, Y', strtotime($row['payment_date'])); ?></div>
+                                <div style="font-size: 12px; color: var(--sa-muted);"><?php echo date('h:i A', strtotime($row['payment_date'])); ?></div>
+                            </td>
+                            <td>
+                                <div class="clinic-info">
+                                    <span class="clinic-name"><?php echo htmlspecialchars($row['company_name']); ?></span>
+                                    <span class="tier-badge">Plan: <?php echo ucfirst($row['current_tier']); ?></span>
+                                </div>
+                            </td>
+                            <td class="amount-cell">₱<?php echo number_format($row['amount'], 2); ?></td>
+                            <td>
+                                <span class="status-pill status-<?php echo $status; ?>">
+                                    <?php echo ucfirst($status); ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="ref-id"><?php echo htmlspecialchars($row['paymongo_link_id'] ?: 'N/A'); ?></span>
+                            </td>
+                        </tr>
+                        <?php 
+                            endwhile;
+                        else: 
+                        ?>
+                        <tr>
+                            <td colspan="5" style="text-align: center; padding: 40px; color: var(--sa-muted);">
+                                No transaction history found.
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            
+            <?php if ($totalPages > 1): ?>
+            <div class="sa-pagination">
+                <a href="?page=<?php echo max(1, $currentPage - 1); ?>" 
+                   class="sa-page-link <?php echo ($currentPage <= 1) ? 'disabled' : ''; ?>"
+                   aria-label="Previous page">
+                    &laquo; Prev
+                </a>
+
+                <?php
+                $startRange = max(1, $currentPage - 2);
+                $endRange = min($totalPages, $currentPage + 2);
+
+                if ($startRange > 1) {
+                    echo '<a href="?page=1" class="sa-page-link">1</a>';
+                    if ($startRange > 2) echo '<span style="color: var(--sa-muted); padding: 0 8px;">...</span>';
+                }
+
+                for ($i = $startRange; $i <= $endRange; $i++) {
+                    $activeClass = ($i == $currentPage) ? 'active' : '';
+                    echo "<a href=\"?page=$i\" class=\"sa-page-link $activeClass\">$i</a>";
+                }
+
+                if ($endRange < $totalPages) {
+                    if ($endRange < $totalPages - 1) echo '<span style="color: var(--sa-muted); padding: 0 8px;">...</span>';
+                    echo "<a href=\"?page=$totalPages\" class=\"sa-page-link\">$totalPages</a>";
+                }
+                ?>
+
+                <a href="?page=<?php echo min($totalPages, $currentPage + 1); ?>" 
+                   class="sa-page-link <?php echo ($currentPage >= $totalPages) ? 'disabled' : ''; ?>"
+                   aria-label="Next page">
+                    Next &raquo;
+                </a>
+            </div>
+            <?php endif; ?>
         </div>
 
     </main>
@@ -483,39 +744,29 @@ try {
 
     // Revenue trends chart
     const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    
+    const phCurrency = new Intl.NumberFormat('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    });
+
     new Chart(revenueCtx, {
         type: 'line',
         data: {
             labels: [
                 <?php
-                // Generate last 12 months
-                for ($i = 0; $i <= 11; $i++) {
+                // Generate last 12 months in ASCENDING order (oldest first)
+                for ($i = 11; $i >= 0; $i--) {
                     $date = date('M Y', strtotime("-{$i} months"));
                     echo "'" . $date . "',";
                 }
                 ?>
             ],
             datasets: [{
-                label: 'Monthly Revenue',
-                data: [
-                    <?php
-                    $revenueData = [];
-                    try {
-                        for ($i = 0; $i <= 11; $i++) {
-                            $month = date('Y-m', strtotime("-{$i} months"));
-                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND DATE_FORMAT(payment_date, '%Y-%m') = ?");
-                            $stmt->execute([$month]);
-                            $result = $stmt->fetch();
-                            $revenueData[] = (int)$result['total'];
-                        }
-                        
-                    } catch (Exception $e) {
-                        $revenueData = array_fill(0, 12, 0);
-                    }
-                    
-                    echo implode(',', $revenueData);
-                    ?>
-                ],
+                label: 'Monthly Sales',
+                data: <?php echo json_encode(getRevenueTrendData($conn, 12)); ?>,
                 borderColor: '#0d3b66',
                 backgroundColor: 'rgba(13, 59, 102, 0.1)',
                 tension: 0.3,
@@ -529,6 +780,13 @@ try {
                 legend: {
                     display: true,
                     position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return phCurrency.format(context.parsed.y);
+                        }
+                    }
                 }
             },
             scales: {
@@ -536,7 +794,7 @@ try {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '₱' + value.toFixed(0);
+                            return phCurrency.format(value);
                         }
                     }
                 }
@@ -568,7 +826,12 @@ try {
                     $tiers = getAllTiers();
                     try {
                         foreach ($tiers as $tierKey => $tier) {
-                            $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount), 0) as total FROM tenant_subscription_revenue WHERE status = 'paid' AND subscription_tier = ?");
+                            $stmt = $pdo->prepare("
+                                SELECT COALESCE(SUM(p.amount), 0) as total 
+                                FROM payment p
+                                JOIN tenants t ON p.tenant_id = t.tenant_id
+                                WHERE p.status = 'paid' AND t.subscription_tier = ?
+                            ");
                             $stmt->execute([$tierKey]);
                             $row = $stmt->fetch();
                             $total = $row['total'] ?? 0;
@@ -595,51 +858,53 @@ try {
         }
     });
 
-    function exportSalesPDF() {
-        // Enhanced professional report with charts and detailed data
-        const salesData = [
-            ['OralSync Professional Sales Report'],
-            ['Generated on: <?php echo date('F j, Y'); ?>'],
-            [''],
-            ['Key Metrics'],
-            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
-            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
-            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>'],
-            ['']
-        ];
+    window.exportSalesPDF = function() {
+        const btn = event.target;
+        const period = document.getElementById('reportPeriod').value;
+        const originalText = btn.textContent;
+        btn.textContent = 'Generating...';
+        btn.disabled = true;
 
         fetch('generate_pdf.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: salesData, title: 'OralSync Professional Sales Report', type: 'professional' })
+            body: JSON.stringify({ 
+                type: 'professional', 
+                title: 'OralSync Professional Sales Report',
+                period: period
+            })
         }).then(response => {
-            if (!response.ok) throw new Error('PDF generation failed');
+            if (!response.ok) {
+                if (response.status === 404) throw new Error('No data found for the selected period');
+                throw new Error('PDF generation failed');
+            }
             return response.blob();
         }).then(blob => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'oralsync_professional_sales_report.pdf';
+            a.download = `oralsync_sales_report_${period}_${new Date().toISOString().split('T')[0]}.pdf`;
             a.click();
             URL.revokeObjectURL(url);
         }).catch(error => {
             console.error(error);
-            alert('Failed to export PDF');
+            alert(error.message || 'Failed to export PDF');
+        }).finally(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
         });
-    }
+    };
 
-    function exportSalesCSV() {
+    window.exportSalesCSV = function() {
         const csvData = [
             ['OralSync Sales Data Export'],
             ['Generated on: <?php echo date('F j, Y'); ?>'],
             [''],
             ['Key Metrics'],
             ['Metric', 'Value'],
-            ['Total Revenue (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
-            ['Revenue This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
-            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>'],
-            ['Average Revenue per Tenant', '₱<?php echo number_format($avg_revenue, 2); ?>']
+            ['Total Sales (All Time)', '₱<?php echo number_format($total_revenue, 2); ?>'],
+            ['Sales This Month', '₱<?php echo number_format($month_revenue, 2); ?>'],
+            ['Active Subscriptions', '<?php echo $active_subscriptions; ?>']
         ];
 
         const csv = csvData.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
@@ -650,7 +915,7 @@ try {
         a.download = 'oralsync_professional_sales_data.csv';
         a.click();
         URL.revokeObjectURL(url);
-    }
+    };
 </script>
 </body>
 </html>

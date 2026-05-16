@@ -39,7 +39,7 @@ $tenantId = getCurrentTenantId();
 
 // Fetch all patients for this tenant
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.first_name ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.patient_id ASC');
 if ($stmt) {
     $stmt->bind_param('i', $tenantId);
     $stmt->execute();
@@ -109,13 +109,19 @@ if (isset($_GET['view_patient_id'])) {
         margin-bottom: 20px;
       }
 
-      .search-bar input {
+.search-bar input {
         flex: 1;
         padding: 10px 12px;
-        border: 1px solid var(--border);
+        border: 2px solid #d1d5db !important;
         border-radius: 8px;
         font-size: 13px;
       }
+
+      .search-bar input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
 
       .patient-table {
         width: 100%;
@@ -540,11 +546,11 @@ if (isset($_GET['view_patient_id'])) {
 
   <script>
     <?php printDateClockScript(); ?>
-
     // Verification logs
     console.log('UI Parity Active - Version 2.0');
     console.log('Patients Page Initialized');
     console.log('FINAL UI SYNC COMPLETE');
+
 
     function closeViewPatientModal() {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';

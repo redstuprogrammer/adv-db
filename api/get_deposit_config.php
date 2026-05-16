@@ -3,11 +3,14 @@
 // FILE TYPE: API ENDPOINT — deploy to server
 // PATH on server: /api/get_deposit_config.php
 // ============================================================
-// GET params:
-//   tenant_id  (int, required)
+// GET ?tenant_id=X
 //
-// Returns the booking_deposit_amount set by the clinic.
-// If NULL or not set → no deposit required for this clinic.
+// Returns the deposit setting for a clinic from tenant_configs.
+// booking_deposit_amount = NULL  → no deposit required
+// booking_deposit_amount = 200   → ₱200 deposit required at booking
+//
+// Returns:
+//   { success, deposit_required: bool, deposit_amount: float|null }
 // ============================================================
 
 header('Content-Type: application/json');
@@ -23,10 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$tenant_id = $_GET['tenant_id'] ?? '';
+$tenant_id = $_GET['tenant_id'] ?? null;
 
-if (empty($tenant_id) || !is_numeric($tenant_id)) {
-    echo json_encode(['success' => false, 'message' => 'Valid tenant_id is required']);
+if (!$tenant_id || !is_numeric($tenant_id)) {
+    echo json_encode(['success' => false, 'message' => 'A valid tenant_id is required.']);
     exit;
 }
 
@@ -38,15 +41,24 @@ $stmt = $conn->prepare("
 ");
 $stmt->bind_param("i", $tenant_id);
 $stmt->execute();
-$row = $stmt->get_result()->fetch_assoc();
+$stmt->bind_result($deposit_amount);
+$found = $stmt->fetch();
 $stmt->close();
 $conn->close();
 
-$amount = $row ? $row['booking_deposit_amount'] : null;
+if (!$found) {
+    // No config row found — treat as no deposit required
+    echo json_encode([
+        'success'          => true,
+        'deposit_required' => false,
+        'deposit_amount'   => null,
+    ]);
+    exit;
+}
 
 echo json_encode([
-    'success'         => true,
-    'deposit_required' => !is_null($amount) && $amount > 0,
-    'deposit_amount'  => $amount ? (float)$amount : null,
+    'success'          => true,
+    'deposit_required' => $deposit_amount !== null,
+    'deposit_amount'   => $deposit_amount !== null ? (float) $deposit_amount : null,
 ]);
 ?>

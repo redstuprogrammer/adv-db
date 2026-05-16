@@ -68,6 +68,7 @@ $loginSettings = [
     'brand_text_color' => '#ffffff',
     'primary_btn_color' => '#22c55e',
     'link_color' => '#2563eb',
+    'card_bg_color' => '#ffffff',
     'login_title' => 'Clinic Login',
     'login_description' => 'Please sign in to access your clinic portal.',
     'brand_subtitle' => 'Powered by OralSync',
@@ -102,7 +103,7 @@ $tenant = null;
 
 if ($tenantSlug !== '') {
     try {
-        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, password, status, subdomain_slug FROM tenants WHERE subdomain_slug = ? LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT tenant_id, company_name, owner_name, contact_email, username, password, status, subdomain_slug, tenant_code FROM tenants WHERE subdomain_slug = ? LIMIT 1");
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, "s", $tenantSlug);
             if (mysqli_stmt_execute($stmt)) {
@@ -126,21 +127,13 @@ if ($tenantSlug !== '') {
 if ($tenant && isset($tenant['tenant_id'])) {
     $tenant_id = (int)$tenant['tenant_id'];
     try {
-        $stmt = $conn->prepare("SELECT brand_bg_color, brand_text_color, primary_btn_color, link_color, login_title, login_description, brand_subtitle, brand_logo_path, brand_bg_image_path FROM tenant_configs WHERE tenant_id = ? LIMIT 1");
-        if ($stmt) {
-            $stmt->bind_param('i', $tenant_id);
-            if ($stmt->execute()) {
-                $result = $stmt->get_result();
-                $config = $result ? $result->fetch_assoc() : null;
-                if ($config) {
-                    foreach ($config as $key => $value) {
-                        if ($value !== null && $value !== '') {
-                            $loginSettings[$key] = $value;
-                        }
-                    }
+        $config = getTenantConfig($tenant_id);
+        if ($config) {
+            foreach ($config as $key => $value) {
+                if ($value !== null && $value !== '' && array_key_exists($key, $loginSettings)) {
+                    $loginSettings[$key] = $value;
                 }
             }
-            $stmt->close();
         }
     } catch (Exception $e) {
         error_log("Error loading tenant config: " . $e->getMessage());
@@ -165,8 +158,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userRole = '';
         $userData = null;
 
+
         // First, try tenant owner login using email or username.
-        if ((strcasecmp($username, (string)$tenant['contact_email']) === 0 || strcasecmp($username, (string)$tenant['username']) === 0) && password_verify($password, (string)$tenant['password'])) {
+        if ((strcasecmp($username, (string)$tenant['contact_email']) === 0 || ($tenant['username'] !== null && strcasecmp($username, (string)$tenant['username']) === 0)) && password_verify($password, (string)$tenant['password'])) {
             $authenticated = true;
             $userRole = 'Admin';
             $userData = [
@@ -176,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'role' => 'Admin'
             ];
         } else {
+
             // Fallback: check users table for receptionist/dentist
             $isEmailInput = strpos($username, '@') !== false;
             try {
@@ -220,6 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sessionUserData = [
                 'tenant_id' => (int)$tenant['tenant_id'],
                 'tenant_name' => (string)$tenant['company_name'],
+                'tenant_code' => (string)($tenant['tenant_code'] ?? ''),
                 'role' => $userRole,
                 'user_id' => $userData['user_id'],
                 'username' => $userData['username'],
@@ -263,16 +259,9 @@ $clinicName = $tenant ? (string)$tenant['company_name'] : 'Clinic Portal';
 $ownerName = $tenant ? (string)$tenant['owner_name'] : '';
 $base = getAppBasePath();
 $loginAction = ($base !== '' ? $base : '') . '/tenant_login.php?tenant=' . rawurlencode($tenantSlug ?: 'unknown');
+$hasCustomBgImage = !empty($loginSettings['brand_bg_image_path']);
+$hasCustomLogo = !empty($loginSettings['brand_logo_path']);
 
-// Check if login settings have been customized from defaults
-$hasCustomization = !empty($loginSettings['brand_bg_image_path']) || 
-                   $loginSettings['brand_bg_color'] !== '#001f3f' ||
-                   $loginSettings['brand_text_color'] !== '#ffffff' ||
-                   $loginSettings['primary_btn_color'] !== '#22c55e' ||
-                   $loginSettings['link_color'] !== '#2563eb' ||
-                   $loginSettings['login_title'] !== 'Clinic Login' ||
-                   $loginSettings['login_description'] !== 'Please sign in to access your clinic portal.' ||
-                   $loginSettings['brand_subtitle'] !== 'Powered by OralSync';
 ?>
 <!doctype html>
 <html lang="en">
@@ -282,28 +271,64 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
     <link rel="stylesheet" href="/tenant_style.css">
     <style>
+        :root {
+            --tenant-custom-bg: <?php echo h($loginSettings['brand_bg_color']); ?>;
+            --tenant-custom-text: <?php echo h($loginSettings['brand_text_color']); ?>;
+            --tenant-custom-primary: <?php echo h($loginSettings['primary_btn_color']); ?>;
+            --tenant-custom-link: <?php echo h($loginSettings['link_color']); ?>;
+            --tenant-custom-card-bg: <?php echo h($loginSettings['card_bg_color']); ?>;
+        }
+
         body {
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
+            background: <?php echo $loginSettings['brand_bg_image_path'] ? "linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('" . h($loginSettings['brand_bg_image_path']) . "') center/cover no-repeat fixed" : "radial-gradient(900px 400px at 12% 10%, rgba(13,59,102,0.10), transparent 60%), radial-gradient(700px 400px at 90% 30%, rgba(34,197,94,0.10), transparent 55%), var(--tenant-bg)"; ?>;
             color: #0f172a;
+            min-height: 100vh;
         }
 
-        <?php if ($hasCustomization): ?>
-        .t-brandPanel {
-            display: none;
+        .t-wrap {
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .t-pageLogo {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: transparent;
+            border: none;
+            backdrop-filter: none;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .t-pageLogo img {
+            width: 44px;
+            height: 44px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .t-pageLogoText {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+            max-width: 250px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .t-shell {
-            grid-template-columns: 1fr;
-            justify-items: center;
+            padding-top: 88px;
         }
-
-        .t-card {
-            width: 100%;
-            max-width: 420px;
-        }
-        <?php endif; ?>
 
         .t-brandPanel {
             color: <?php echo h($loginSettings['brand_text_color']); ?>;
@@ -313,7 +338,7 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
             background-position: center;
         }
         .t-brandPanel, .t-brandPanel * {
-            color: <?php echo h($loginSettings['brand_text_color']); ?> !important;
+            color: <?php echo h($loginSettings['brand_text_color'] ?? '#ffffff'); ?> !important;
         }
         .t-logo img {
             display: block;
@@ -324,14 +349,69 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
         .t-btnPrimary {
             background: <?php echo h($loginSettings['primary_btn_color']); ?> !important;
         }
+        .t-cardTitle {
+            color: var(--tenant-custom-bg);
+        }
+        .t-field label {
+            color: var(--tenant-custom-bg);
+        }
+        .t-field input:focus {
+            border-color: color-mix(in srgb, var(--tenant-custom-primary) 60%, white 40%);
+            box-shadow: 0 0 0 4px color-mix(in srgb, var(--tenant-custom-primary) 18%, transparent);
+        }
         .t-card a[href*="forgot_password"] {
             color: <?php echo h($loginSettings['link_color']); ?> !important;
+        }
+        .t-pageLogo {
+            background: transparent;
+            border: none;
+        }
+        .t-foot {
+            border-top: 1px solid color-mix(in srgb, var(--tenant-custom-primary) 30%, #e2e8f0 70%);
+            padding-top: 10px;
+        }
+
+        .t-shell.t-shell-custom-bg {
+            max-width: 460px;
+            grid-template-columns: 1fr;
+        }
+
+        .t-shell.t-shell-custom-bg .t-brandPanel {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .t-pageLogo {
+                top: 12px;
+                left: 12px;
+                padding: 8px 10px;
+            }
+
+            .t-pageLogo img {
+                width: 36px;
+                height: 36px;
+            }
+
+            .t-pageLogoText {
+                font-size: 12px;
+                max-width: 180px;
+            }
+
+            .t-shell {
+                padding-top: 76px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="t-wrap">
-        <div class="t-shell">
+        <?php if ($hasCustomLogo): ?>
+            <div class="t-pageLogo" aria-label="Clinic branding">
+                <img src="<?php echo h($loginSettings['brand_logo_path']); ?>" alt="Clinic logo">
+                <div class="t-pageLogoText"><?php echo h($clinicName); ?></div>
+            </div>
+        <?php endif; ?>
+        <div class="t-shell <?php echo ($hasCustomBgImage || $hasCustomLogo) ? 't-shell-custom-bg' : ''; ?>">
             <section class="t-brandPanel">
                 <div class="t-brandTop">
                     <div class="t-logo">
@@ -355,12 +435,10 @@ $hasCustomization = !empty($loginSettings['brand_bg_image_path']) ||
                     <strong>Customization spots (coming soon)</strong><br>
                     - Clinic logo upload<br>
                     - Accent color / theme<br>
-                    - Welcome message / announcements<br>
-                    - Support contact details
                 </div>
             </section>
 
-            <section class="t-card">
+            <section class="t-card" style="background-color: var(--tenant-custom-card-bg);">
                 <h1 class="t-cardTitle"><?php echo h($loginSettings['login_title']); ?></h1>
                 <div class="t-cardSub">
                     <?php echo h($loginSettings['login_description']); ?>

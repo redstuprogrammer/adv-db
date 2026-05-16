@@ -37,12 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         SELECT
             a.appointment_id,
             a.appointment_date,
+            a.appointment_time,
             a.status,
             a.procedure_name,
             a.requested_by
         FROM appointment a
-        WHERE a.patient_id = ? AND a.tenant_id = ?
-        ORDER BY a.appointment_date DESC
+        WHERE a.patient_id = ? AND a.tenant_id = ? AND a.status = 'In Progress'
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ");
 
     $stmt->bind_param("ii", $patient_id, $tenant_id);

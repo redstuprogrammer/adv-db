@@ -24,6 +24,7 @@ require_once __DIR__ . '/../includes/security_headers.php';
 require_once __DIR__ . '/../includes/connect.php';
 require_once __DIR__ . '/../includes/tenant_utils.php';
 require_once __DIR__ . '/../includes/session_utils.php';
+require_once __DIR__ . '/../includes/tenant_tier_helper.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -35,6 +36,11 @@ $tenantId = getCurrentTenantId();
 
 if (!$tenantId || $tenantId <= 0) {
     echo json_encode(['success' => false, 'message' => 'Tenant context is required.']);
+    exit;
+}
+
+if (!tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn)) {
+    echo json_encode(['success' => false, 'message' => 'Payment settings are not available on your current plan.']);
     exit;
 }
 

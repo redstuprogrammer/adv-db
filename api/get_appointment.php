@@ -83,18 +83,10 @@ $stmt = $conn->prepare("
         a.status,
         a.notes,
         a.tenant_id,
-        CONCAT(d.first_name, ' ', d.last_name) AS doctor,
-        dep.payment_id      AS deposit_payment_id,
-        dep.amount          AS deposit_amount,
-        dep.status          AS deposit_status,
-        dep.reference_number AS deposit_reference,
-        dep.payment_type    AS deposit_payment_type
+        CONCAT(d.first_name, ' ', d.last_name) AS doctor
     FROM appointment a
     JOIN tenants t       ON a.tenant_id  = t.tenant_id
     LEFT JOIN dentist d  ON a.dentist_id = d.dentist_id
-    LEFT JOIN payment dep
-        ON  dep.appointment_id = a.appointment_id
-        AND dep.payment_type   = 'deposit'
     WHERE a.patient_id = ?
       AND t.status = 'active'
     ORDER BY a.appointment_date ASC, a.appointment_time ASC

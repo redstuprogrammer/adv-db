@@ -29,13 +29,10 @@ function redirect($path) {
 $isSettingsPage = (basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'settings.php');
 
 if ($isSettingsPage) {
-    // Role Check Implementation - Ensure user is logged in
-    if (!isset($_SESSION['role'])) {
-        redirect('tenant_login.php');
-    }
-
-    // Role Check Implementation - Ensure user is an Admin or Superadmin
-    $userRole = strtolower($_SESSION['role'] ?? '');
+    // Ensure user is logged in as Admin or Superadmin
+    $sessionManager = SessionManager::getInstance();
+    $userRole = strtolower($sessionManager->getRole() ?? '');
+    
     if ($userRole !== 'admin' && $userRole !== 'superadmin') {
         redirect('tenant_login.php');
     }
@@ -110,7 +107,6 @@ if ($isSettingsPage) {
         <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
           <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
           <div style="opacity:0.9;margin-top:4px;font-size:13px;">Password change verification</div>
-        </div>
         <div style="padding:22px;">
           <div style="font-size:14px;color:#0f172a;line-height:1.6;">
             Hi <strong>{$safeName}</strong>,<br />
@@ -123,13 +119,10 @@ if ($isSettingsPage) {
             <div style="margin-top:14px;">
               <a href="{$safeUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Verify Password Change</a>
             </div>
-          </div>
           <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
             If you did not request this change, please contact your clinic administrator immediately.
           </div>
-        </div>
         <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">This message was sent by OralSync.</div>
-      </div>
     </div>
   </body>
 </html>
@@ -183,168 +176,169 @@ HTML;
     $message = '';
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (isset($_POST['change_password'])) {
+        if (isset($_POST['change_account_settings'])) {
+            $newUsername = trim($_POST['username'] ?? '');
             $currentPassword = $_POST['current_password'] ?? '';
             $newPassword = $_POST['new_password'] ?? '';
             $confirmPassword = $_POST['confirm_password'] ?? '';
 
-            if ($newPassword !== $confirmPassword) {
-                $message = 'New passwords do not match.';
-            } elseif (strlen($newPassword) < 8) {
-                $message = 'Password must be at least 8 characters long.';
+            // Fetch current tenant data
+            $stmt = $conn->prepare("SELECT password, contact_email, company_name, username FROM tenants WHERE tenant_id = ?");
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $tenant = $result->fetch_assoc();
+            $stmt->close();
+
+            if (!$tenant) {
+                $message = 'Error fetching account details.';
             } else {
-                // Verify current password and send a verification email before applying the change
-                $stmt = $conn->prepare("SELECT password, contact_email, company_name FROM tenants WHERE tenant_id = ?");
-                $stmt->bind_param('i', $tenantId);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $tenant = $result->fetch_assoc();
+                $updatesMade = false;
+                $passwordChangeRequested = !empty($newPassword);
 
-                if ($tenant && password_verify($currentPassword, $tenant['password'])) {
-                    $token = bin2hex(random_bytes(32));
-                    $tokenHash = password_hash($token, PASSWORD_DEFAULT);
-                    $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
-
-                    $updateTokenStmt = $conn->prepare("UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
-                    if ($updateTokenStmt) {
-                        $updateTokenStmt->bind_param('ssi', $tokenHash, $expiresAt, $tenantId);
-                        if ($updateTokenStmt->execute()) {
-                            $resetUrl = getAbsoluteBaseUrl() . '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
-                            $emailResult = sendTenantPasswordVerificationEmail(
-                                $tenant['contact_email'],
-                                $tenant['company_name'],
-                                $resetUrl
-                            );
-
-                            if ($emailResult['sent'] ?? false) {
-                                $message = 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
-                            } else {
-                                $message = 'Unable to send verification email. Please try again later.';
-                                $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
-                                if ($clearStmt) {
-                                    $clearStmt->bind_param('i', $tenantId);
-                                    $clearStmt->execute();
-                                    $clearStmt->close();
-                                }
+                // Handle Username Update
+                if ($newUsername !== $tenant['username']) {
+                    if (empty($newUsername)) {
+                        $message = 'Username cannot be empty.';
+                    } else {
+                        $updateUsernameStmt = $conn->prepare("UPDATE tenants SET username = ? WHERE tenant_id = ?");
+                        $updateUsernameStmt->bind_param('si', $newUsername, $tenantId);
+                        if ($updateUsernameStmt->execute()) {
+                            $updatesMade = true;
+                            $message = 'Username updated successfully. ';
+                            // Sync session with new username
+                            $tenantData = $sessionManager->getTenantData();
+                            if ($tenantData) {
+                                $tenantData['username'] = $newUsername;
+                                $sessionManager->loginTenantUser($tenantSlug, $tenantData);
                             }
                         } else {
-                            $message = 'Unable to initialize password verification. Please try again later.';
+                            $message = 'Error updating username. ';
                         }
-                        $updateTokenStmt->close();
-                    } else {
-                        $message = 'Unable to initialize password verification. Please try again later.';
+                        $updateUsernameStmt->close();
                     }
-                } else {
-                    $message = 'Current password is incorrect.';
                 }
-                $stmt->close();
+
+                // Handle Password Update
+                if ($passwordChangeRequested) {
+                    if ($newPassword !== $confirmPassword) {
+                        $message .= 'New passwords do not match.';
+                    } elseif (strlen($newPassword) < 8) {
+                        $message .= 'Password must be at least 8 characters long.';
+                    } elseif (!password_verify($currentPassword, $tenant['password'])) {
+                        $message .= 'Current password is incorrect.';
+                    } else {
+                        // Verify current password and send a verification email
+                        $token = bin2hex(random_bytes(32));
+                        $tokenHash = password_hash($token, PASSWORD_DEFAULT);
+                        $expiresAt = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
+                        $updateTokenStmt = $conn->prepare("UPDATE tenants SET password_reset_token = ?, password_reset_expires = ? WHERE tenant_id = ?");
+                        if ($updateTokenStmt) {
+                            $updateTokenStmt->bind_param('ssi', $tokenHash, $expiresAt, $tenantId);
+                            if ($updateTokenStmt->execute()) {
+                                $resetUrl = getAbsoluteBaseUrl() . '/reset_password_tenant.php?token=' . urlencode($token) . '&id=' . urlencode((string)$tenantId);
+                                $emailResult = sendTenantPasswordVerificationEmail(
+                                    $tenant['contact_email'],
+                                    $tenant['company_name'],
+                                    $resetUrl
+                                );
+
+                                if ($emailResult['sent'] ?? false) {
+                                    $message .= 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
+                                } else {
+                                    $message .= 'Unable to send verification email. Please try again later.';
+                                    $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+                                    if ($clearStmt) {
+                                        $clearStmt->bind_param('i', $tenantId);
+                                        $clearStmt->execute();
+                                        $clearStmt->close();
+                                    }
+                                }
+                            } else {
+                                $message .= 'Unable to initialize password verification. Please try again later.';
+                            }
+                            $updateTokenStmt->close();
+                        }
+                    }
+                } elseif ($updatesMade && empty($message)) {
+                    $message = 'Account settings updated successfully.';
+                } elseif (!$updatesMade && !$passwordChangeRequested) {
+                    $message = 'No changes were made.';
+                }
             }
         } elseif (isset($_POST['save_login_settings'])) {
-            // Save login customization settings into tenant_configs
-            $brandBgColor = trim($_POST['brand_bg_color'] ?? '#001f3f');
-            $brandTextColor = trim($_POST['brand_text_color'] ?? '#ffffff');
-            $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
-            $linkColor = trim($_POST['link_color'] ?? '#2563eb');
-
-            $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
-            $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
-
-            // Validate uploaded images
-            $errors = [];
-            if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['brand_logo_image'];
-                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
-                    $errors[] = 'Brand logo image must be smaller than 5MB.';
-                }
-                $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
-                    $errors[] = 'Brand logo image must be at least 100x100 pixels.';
-                }
-            }
-            if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
-                $file = $_FILES['brand_bg_image'];
-                if ($file['size'] > 5 * 1024 * 1024) { // 5MB
-                    $errors[] = 'Brand background image must be smaller than 5MB.';
-                }
-                $imageInfo = getimagesize($file['tmp_name']);
-                if ($imageInfo === false || $imageInfo[0] < 100 || $imageInfo[1] < 100) {
-                    $errors[] = 'Brand background image must be at least 100x100 pixels.';
-                }
-            }
-
-            if (!empty($errors)) {
-                $message = implode(' ', $errors);
-            } else {
-                $configValues = [
-                    'brand_bg_color' => $brandBgColor,
-                    'brand_text_color' => $brandTextColor,
-                    'primary_btn_color' => $primaryBtnColor,
-                    'link_color' => $linkColor,
+            // Check if this is a full reset to defaults
+            if (!empty($_POST['reset_to_default'])) {
+                $resetDefaults = [
+                    'brand_bg_color'      => '#001f3f',
+                    'brand_text_color'    => '#ffffff',
+                    'primary_btn_color'   => '#22c55e',
+                    'link_color'          => '#2563eb',
+                    'card_bg_color'       => '#ffffff',
+                    'brand_logo_path'     => '',
+                    'brand_bg_image_path' => '',
                 ];
-
-                if ($brandLogoPath !== null) {
-                    $configValues['brand_logo_path'] = $brandLogoPath;
-                }
-
-                if ($brandBgImagePath !== null) {
-                    $configValues['brand_bg_image_path'] = $brandBgImagePath;
-                }
-
-                if (saveTenantConfig($tenantId, $configValues)) {
-                    $message = 'Login customization settings saved successfully!';
+                if (saveTenantConfig($tenantId, $resetDefaults)) {
+                    $message = 'Login customization settings reset to defaults successfully!';
                 } else {
-                    $message = 'Unable to save login customization settings. Please try again.';
+                    $message = 'Unable to reset settings. Please try again.';
                 }
-            }
-        } elseif (isset($_POST['change_password'])) {
-            // Change password with email verification
-            $currentPassword = $_POST['current_password'] ?? '';
-            $newPassword = $_POST['new_password'] ?? '';
-            $confirmPassword = $_POST['confirm_password'] ?? '';
-
-            if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
-                $message = 'All fields are required.';
-            } elseif ($newPassword !== $confirmPassword) {
-                $message = 'New passwords do not match.';
-            } elseif (strlen($newPassword) < 8) {
-                $message = 'New password must be at least 8 characters.';
             } else {
-                // Get current tenant data
-                $stmt = $conn->prepare("SELECT password_hash, email FROM tenants WHERE tenant_id = ?");
-                $stmt->bind_param("i", $tenantId);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                if ($result->num_rows === 1) {
-                    $tenant = $result->fetch_assoc();
-                    if (password_verify($currentPassword, $tenant['password_hash'])) {
-                        // Generate token
-                        $token = bin2hex(random_bytes(32));
-                        $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                // Save login customization settings into tenant_configs
+                $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
+                $linkColor = trim($_POST['link_color'] ?? '#2563eb');
+                $cardBgColor = trim($_POST['card_bg_color'] ?? '#ffffff');
 
-                        // Save token
-                        $stmt = $conn->prepare("INSERT INTO password_resets (email, token, expires_at, created_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE token = ?, expires_at = ?");
-                        $stmt->bind_param("sssss", $tenant['email'], $token, $expires, $token, $expires);
-                        if ($stmt->execute()) {
-                            // Send email
-                            $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/reset_password.php?token=" . $token;
-                            $subject = "Password Change Verification";
-                            $body = "Click the link to confirm your password change: " . $resetLink;
-                            if (mail($tenant['email'], $subject, $body)) {
-                                $message = 'A verification email has been sent to your email address. Please check your email and click the link to confirm the password change.';
-                            } else {
-                                $message = 'Failed to send verification email. Please try again.';
-                            }
-                        } else {
-                            $message = 'Failed to generate reset token. Please try again.';
-                        }
-                    } else {
-                        $message = 'Current password is incorrect.';
+                // Validate uploaded images
+                $errors = [];
+                if (isset($_FILES['brand_logo_image']) && $_FILES['brand_logo_image']['error'] === UPLOAD_ERR_OK) {
+                    $file = $_FILES['brand_logo_image'];
+                    if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                        $errors[] = 'Brand logo image must be smaller than 5MB.';
                     }
-                } else {
-                    $message = 'Tenant not found.';
+                    $imageInfo = getimagesize($file['tmp_name']);
+                    if ($imageInfo === false) {
+                        $errors[] = 'Brand logo image must be a valid image file.';
+                    }
                 }
-                $stmt->close();
-            }
+                if (isset($_FILES['brand_bg_image']) && $_FILES['brand_bg_image']['error'] === UPLOAD_ERR_OK) {
+                    $file = $_FILES['brand_bg_image'];
+                    if ($file['size'] > 5 * 1024 * 1024) { // 5MB
+                        $errors[] = 'Brand background image must be smaller than 5MB.';
+                    }
+                    $imageInfo = getimagesize($file['tmp_name']);
+                    if ($imageInfo === false) {
+                        $errors[] = 'Brand background image must be a valid image file.';
+                    }
+                }
+
+                if (!empty($errors)) {
+                    $message = implode(' ', $errors);
+                } else {
+                    $brandLogoPath = saveTenantUploadImage($tenantId, 'brand_logo_image', 'brand_logo') ?: null;
+                    $brandBgImagePath = saveTenantUploadImage($tenantId, 'brand_bg_image', 'brand_bg_image') ?: null;
+                    $configValues = [
+                        'primary_btn_color' => $primaryBtnColor,
+                        'link_color' => $linkColor,
+                        'card_bg_color' => $cardBgColor,
+                    ];
+
+                    if ($brandLogoPath !== null) {
+                        $configValues['brand_logo_path'] = $brandLogoPath;
+                    }
+
+                    if ($brandBgImagePath !== null) {
+                        $configValues['brand_bg_image_path'] = $brandBgImagePath;
+                    }
+
+                    if (saveTenantConfig($tenantId, $configValues)) {
+                        $message = 'Login customization settings saved successfully!';
+                    } else {
+                        $message = 'Unable to save login customization settings. Please try again.';
+                    }
+                }
+            } // end else (not reset_to_default)
         }
     }
     ?>
@@ -356,6 +350,13 @@ HTML;
         <title><?php echo h($tenantName); ?> | Settings</title>
         <link rel="stylesheet" href="tenant_style.css">
         <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden; /* Prevent double scrollbars */
+          }
+
           :root {
             --accent: #0d3b66;
             --border: #e2e8f0;
@@ -409,41 +410,70 @@ HTML;
           .color-swatch-wrap {
             display: flex;
             align-items: center;
-            gap: 10px;
+            width: 100%;
+            position: relative;
           }
 
           .color-swatch {
-            display: inline-flex;
+            flex: 1;
+            display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 10px 12px;
+            gap: 12px;
+            padding: 0 16px;
             border: 1px solid var(--border);
-            border-radius: 10px;
-            background: white;
+            border-radius: 12px;
+            background: #ffffff;
             cursor: pointer;
-            width: 100%;
-            text-align: left;
+            height: 48px;
+            box-sizing: border-box;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+            min-width: 0; /* Prevent flex-item from overflowing */
+          }
+
+          .color-swatch:hover {
+            border-color: #94a3b8;
+            background: #f8fafc;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
           }
 
           .swatch-box {
             width: 24px;
             height: 24px;
-            border-radius: 6px;
-            border: 1px solid rgba(15, 23, 42, 0.12);
+            min-width: 24px;
+            min-height: 24px;
+            border-radius: 8px;
+            border: 1.5px solid rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+            display: block;
+            background-color: transparent; /* Fallback */
           }
 
           .swatch-label {
             font-size: 14px;
-            color: #475569;
-            font-weight: 600;
+            color: #334155;
+            font-weight: 700;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            letter-spacing: -0.2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .color-input {
-            width: 0;
-            height: 0;
-            opacity: 0;
             position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            cursor: pointer;
             pointer-events: none;
+            border: none;
+            padding: 0;
+            margin: 0;
+            z-index: -1;
           }
 
           .file-input {
@@ -494,6 +524,46 @@ HTML;
         margin-top: 16px;
       }
 
+      .theme-preset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .theme-preset-btn {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fff;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .theme-preset-btn:hover {
+        border-color: #94a3b8;
+      }
+
+      .theme-preset-btn.is-active {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(13, 59, 102, 0.14);
+      }
+
+      .theme-preview-dots {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+
+      .theme-dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+      }
+
       .login-preview {
         background: #f8fafc;
         border: 1px solid var(--border);
@@ -534,7 +604,7 @@ HTML;
 
       /* High-Fidelity Preview Styles */
       .login-preview-container {
-        background: #f8fafc;
+        background: #e8ecf0;
         border: 2px solid var(--border);
         border-radius: 12px;
         padding: 0;
@@ -551,96 +621,192 @@ HTML;
         font-size: 13px;
       }
 
-      .preview-split-layout {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        min-height: 400px;
+      /* Full-page chrome simulating the actual login page background */
+      .preview-page-chrome {
+        background: linear-gradient(135deg, #e8ecf0 0%, #d1dbe8 50%, #c8e6d0 100%);
+        padding: 30px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 420px;
+        position: relative;
       }
 
+      /* Top-left logo that appears on the full page (not inside the card) */
+      .preview-topleft-logo {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        position: absolute;
+        top: 18px;
+        left: 18px;
+        z-index: 5;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        backdrop-filter: blur(6px);
+        color: #fff;
+      }
+
+      .preview-page-chrome.has-custom-bg {
+        align-items: center;
+        justify-content: center;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-card-wrap {
+        max-width: 400px;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-split-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-page-chrome.has-custom-bg .preview-topleft-logo {
+        display: inline-flex;
+      }
+
+      /* The two-panel card wrapper */
+      .preview-card-wrap {
+        width: 100%;
+        max-width: 680px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(15,23,42,0.18), 0 4px 16px rgba(15,23,42,0.08);
+      }
+
+      .preview-split-layout {
+        display: grid;
+        grid-template-columns: 55% 45%;
+        min-height: 340px;
+      }
+
+      /* Left dark navy panel */
       .preview-left-panel {
+        background-color: #0d2340;
         background-size: cover;
         background-position: center;
+        background-repeat: no-repeat;
         position: relative;
-        padding: 40px 30px;
+        padding: 24px 20px;
         color: white;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        image-rendering: high-quality;
       }
 
-      .preview-left-panel::before {
-        content: '';
+      .preview-left-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0, 0, 0, 0.4);
+        background: rgba(0, 0, 0, 0.35);
         z-index: 1;
       }
 
       .preview-left-content {
         position: relative;
         z-index: 2;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
       }
 
-      .preview-clinic-logo {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.2);
+      /* Brand row: logo box + clinic name + subtitle */
+      .preview-left-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+      }
+
+      .preview-left-logo-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 900;
-        font-size: 24px;
-        margin-bottom: 20px;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .preview-left-logo-box img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        image-rendering: high-quality;
       }
 
       .preview-clinic-name {
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 700;
-        margin-bottom: 8px;
+        line-height: 1.2;
       }
 
       .preview-subtitle {
-        font-size: 13px;
-        opacity: 0.9;
+        font-size: 10px;
+        opacity: 0.75;
       }
 
+      .preview-left-body {
+        flex: 1;
+      }
+
+      .preview-coming-soon-box {
+        border: 1px dashed rgba(255,255,255,0.35);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-top: 8px;
+      }
+
+      /* Right white login panel */
       .preview-right-panel {
         background: white;
-        padding: 40px 30px;
+        padding: 28px 24px;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
 
       .preview-login-title {
-        font-size: 24px;
+        font-size: 18px;
         font-weight: 900;
-        color: var(--accent);
-        margin-bottom: 8px;
+        color: #0d2340;
+        margin-bottom: 4px;
       }
 
       .preview-description {
-        font-size: 13px;
+        font-size: 11px;
         color: #64748b;
-        margin-bottom: 24px;
+        margin-bottom: 16px;
         line-height: 1.5;
       }
 
+      .preview-field-group {
+        margin-bottom: 10px;
+      }
+
+      .preview-field-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 4px;
+      }
+
       .preview-signin-btn {
-        display: inline-block;
-        padding: 12px 24px;
+        display: block;
+        width: 100%;
+        padding: 10px 20px;
         border-radius: 8px;
-        background: var(--accent);
         color: white;
         text-decoration: none;
-        font-weight: 600;
-        font-size: 14px;
+        font-weight: 700;
+        font-size: 13px;
         border: none;
         cursor: pointer;
-        margin-bottom: 16px;
+        margin-bottom: 12px;
         transition: opacity 0.2s ease;
-        width: 100%;
         text-align: center;
       }
 
@@ -649,25 +815,36 @@ HTML;
       }
 
       .preview-forgot-link {
-        color: #2563eb;
         text-decoration: none;
-        font-size: 13px;
+        font-size: 11px;
         font-weight: 500;
         cursor: pointer;
+        display: block;
+        margin-bottom: 8px;
       }
 
       .preview-forgot-link:hover {
         text-decoration: underline;
       }
 
+      .preview-no-account {
+        font-size: 10px;
+        color: #94a3b8;
+      }
+
       .preview-input {
         width: 100%;
-        padding: 12px;
-        margin-bottom: 10px;
+        padding: 8px 10px;
+        margin-bottom: 0;
         border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
+        border-radius: 6px;
+        font-size: 12px;
         box-sizing: border-box;
+        background: #fafafa;
+      }
+
+      .preview-clinic-logo {
+        /* legacy - kept for reset function reference */
       }
 
       .form-actions {
@@ -722,24 +899,52 @@ HTML;
           </div>
         <?php endif; ?>
 
+        <?php
+        // Fetch current username for pre-filling
+        $stmt = $conn->prepare("SELECT username FROM tenants WHERE tenant_id = ?");
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $usernameResult = $stmt->get_result();
+        $currentUsername = $usernameResult->fetch_assoc()['username'] ?? '';
+        $stmt->close();
+        ?>
+
         <form method="POST">
+          <input type="hidden" name="change_account_settings" value="1">
+          
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" placeholder="Enter username to update">
+            <div class="helper">Your unique login name within this clinic.</div>
+          </div>
+
+          <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid var(--accent);">
+            <p style="margin: 0; font-size: 13px; color: #475569;">To change your password, fill out the fields below. Leave them empty if you only want to change your username.</p>
+          </div>
+
           <div class="form-group">
             <label for="current_password">Current Password</label>
-            <input type="password" id="current_password" name="current_password" required>
+            <input type="password" id="current_password" name="current_password">
           </div>
 
           <div class="form-group">
             <label for="new_password">New Password</label>
-            <input type="password" id="new_password" name="new_password" required>
+            <input type="password" id="new_password" name="new_password">
           </div>
 
           <div class="form-group">
             <label for="confirm_password">Confirm New Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
+            <input type="password" id="confirm_password" name="confirm_password">
           </div>
 
-          <button type="submit" class="btn-primary">Change Password</button>
+          <button type="submit" class="btn-primary">Save Account Settings</button>
         </form>
+      </div>
+
+      <div class="module-card" style="margin-bottom: 32px;">
+        <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
+        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
       </div>
 
       <div class="login-customizer">
@@ -749,10 +954,9 @@ HTML;
         <?php
         // Load current login customization settings from tenant_configs
         $tenantSettings = array_merge([
-            'brand_bg_color' => '#001f3f',
-            'brand_text_color' => '#ffffff',
             'primary_btn_color' => '#22c55e',
             'link_color' => '#2563eb',
+            'card_bg_color' => '#ffffff',
             'login_title' => 'Clinic Login',
             'login_description' => 'Please sign in to access your clinic portal.',
             'username_placeholder' => 'Username or Email',
@@ -767,36 +971,63 @@ HTML;
           <input type="hidden" name="save_login_settings" value="1">
           
           <div class="customizer-grid">
-            <div class="form-group">
-              <label for="brand_bg_color">Brand Card Background</label>
-              <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_bg_color">
-                  <span class="swatch-box" id="swatch-brand-bg" style="background: <?php echo h($tenantSettings['brand_bg_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-bg"><?php echo h($tenantSettings['brand_bg_color']); ?></span>
+            <div class="form-group" style="grid-column: 1 / -1;">
+              <label>Color Theme Presets</label>
+              <div class="theme-preset-grid">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#22c55e" data-theme-link="#2563eb" data-theme-card="#ffffff">
+                  Classic OralSync
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#001f3f;"></span>
+                    <span class="theme-dot" style="background:#22c55e;"></span>
+                    <span class="theme-dot" style="background:#2563eb;"></span>
+                  </div>
                 </button>
-                <input type="color" id="brand_bg_color" name="brand_bg_color" class="live-update color-input" data-target="preview-left-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['brand_bg_color']); ?>">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#3b82f6" data-theme-link="#38bdf8" data-theme-card="#ffffff">
+                  Midnight Blue
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#0f172a;"></span>
+                    <span class="theme-dot" style="background:#3b82f6;"></span>
+                    <span class="theme-dot" style="background:#38bdf8;"></span>
+                  </div>
+                </button>
+                <button type="button" class="theme-preset-btn" data-theme-btn="#22c55e" data-theme-link="#16a34a" data-theme-card="#ffffff">
+                  Fresh Green
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#14532d;"></span>
+                    <span class="theme-dot" style="background:#22c55e;"></span>
+                    <span class="theme-dot" style="background:#16a34a;"></span>
+                  </div>
+                </button>
+                <button type="button" class="theme-preset-btn" data-theme-btn="#8b5cf6" data-theme-link="#a78bfa" data-theme-card="#ffffff">
+                  Purple Care
+                  <div class="theme-preview-dots">
+                    <span class="theme-dot" style="background:#4c1d95;"></span>
+                    <span class="theme-dot" style="background:#8b5cf6;"></span>
+                    <span class="theme-dot" style="background:#a78bfa;"></span>
+                  </div>
+                </button>
               </div>
-              <div class="hint-text">Select the main brand panel background.</div>
+              <div class="hint-text">Pick a preset or fully customize every color below.</div>
             </div>
 
             <div class="form-group">
-              <label for="brand_text_color">Brand Text Color</label>
+              <label for="card_bg_color">Login Card Background Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="brand_text_color">
-                  <span class="swatch-box" id="swatch-brand-text" style="background: <?php echo h($tenantSettings['brand_text_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-brand-text-color"><?php echo h($tenantSettings['brand_text_color']); ?></span>
-                </button>
-                <input type="color" id="brand_text_color" name="brand_text_color" class="live-update color-input" data-target="preview-left-panel" data-style="color" value="<?php echo h($tenantSettings['brand_text_color']); ?>">
+                <label for="card_bg_color" class="color-swatch">
+                  <span class="swatch-box" id="swatch-card-bg-color" style="background: <?php echo h($tenantSettings['card_bg_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-card-bg-color"><?php echo h($tenantSettings['card_bg_color']); ?></span>
+                </label>
+                <input type="color" id="card_bg_color" name="card_bg_color" class="live-update color-input" data-target="preview-right-panel" data-style="backgroundColor" value="<?php echo h($tenantSettings['card_bg_color']); ?>">
               </div>
             </div>
 
             <div class="form-group">
               <label for="primary_btn_color">Sign In Button Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="primary_btn_color">
-                  <span class="swatch-box" id="swatch-button-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
-                  <span class="swatch-label" id="label-button-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
-                </button>
+                <label for="primary_btn_color" class="color-swatch">
+                  <span class="swatch-box" id="swatch-primary-btn-color" style="background: <?php echo h($tenantSettings['primary_btn_color']); ?>;"></span>
+                  <span class="swatch-label" id="label-primary-btn-color"><?php echo h($tenantSettings['primary_btn_color']); ?></span>
+                </label>
                 <input type="color" id="primary_btn_color" name="primary_btn_color" class="live-update color-input" data-target="preview-signin-btn" data-style="backgroundColor" value="<?php echo h($tenantSettings['primary_btn_color']); ?>">
               </div>
             </div>
@@ -804,10 +1035,10 @@ HTML;
             <div class="form-group">
               <label for="link_color">Text Link Color</label>
               <div class="color-swatch-wrap">
-                <button type="button" class="color-swatch" data-input="link_color">
+                <label for="link_color" class="color-swatch">
                   <span class="swatch-box" id="swatch-link-color" style="background: <?php echo h($tenantSettings['link_color']); ?>;"></span>
                   <span class="swatch-label" id="label-link-color"><?php echo h($tenantSettings['link_color']); ?></span>
-                </button>
+                </label>
                 <input type="color" id="link_color" name="link_color" class="live-update color-input" data-target="preview-forgot-link" data-style="color" value="<?php echo h($tenantSettings['link_color']); ?>">
               </div>
             </div>
@@ -817,6 +1048,7 @@ HTML;
             <div class="form-group">
               <label for="brand_bg_image">Background Image Upload</label>
               <input type="file" id="brand_bg_image" name="brand_bg_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-left-panel" data-style="backgroundImage">
+              <div class="hint-text">Any image dimension is allowed. Best quality: landscape images (e.g. 1600x900+).</div>
               <?php if (!empty($tenantSettings['brand_bg_image_path'])): ?>
                 <div class="hint-text">Current image: <?php echo h($tenantSettings['brand_bg_image_path']); ?></div>
               <?php endif; ?>
@@ -824,6 +1056,7 @@ HTML;
             <div class="form-group">
               <label for="brand_logo_image">Clinic Logo Upload</label>
               <input type="file" id="brand_logo_image" name="brand_logo_image" accept=".jpg,.jpeg,.png" class="file-input" data-target="preview-clinic-logo" data-property="logoPreview">
+              <div class="hint-text">Any image dimension is allowed. Transparent PNG logos look best.</div>
               <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
                 <div class="hint-text">Current logo: <?php echo h($tenantSettings['brand_logo_path']); ?></div>
               <?php endif; ?>
@@ -838,29 +1071,66 @@ HTML;
 
         <!-- WYSIWYG Login Preview -->
         <div class="login-preview-container">
-          <div class="preview-label">📱 Live Preview - How Your Login Will Look</div>
-          <div class="preview-split-layout">
-            <div class="preview-left-panel" id="preview-left-panel" style="background-color: <?php echo h($tenantSettings['brand_bg_color']); ?>; color: <?php echo h($tenantSettings['brand_text_color']); ?>; background-image: <?php echo $tenantSettings['brand_bg_image_path'] ? "url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>;">
-              <div class="preview-left-content">
-                <div class="preview-clinic-logo" id="preview-clinic-logo" style="font-size: 3rem; font-weight: 700;">
-                  <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
-                    <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="max-height: 80px; max-width: 80px;">
-                  <?php else: ?>
-                    OS
-                  <?php endif; ?>
-                </div>
-                <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
-              </div>
-              <div class="preview-subtitle">Powered by OralSync</div>
+          <div class="preview-label">📱 Live Preview — How Your Login Page Will Look</div>
+          <!-- Outer chrome simulating browser/full page -->
+          <div class="preview-page-chrome <?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'has-custom-bg' : ''; ?>" id="preview-page-chrome" style="background-image: <?php echo !empty($tenantSettings['brand_bg_image_path']) ? "linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('" . h($tenantSettings['brand_bg_image_path']) . "')" : 'none'; ?>; background-size: cover; background-position: center;">
+            <!-- Top-left corner logo overlay (outside the card) -->
+            <div class="preview-topleft-logo" id="preview-topleft-logo" style="display: <?php echo !empty($tenantSettings['brand_logo_path']) ? 'inline-flex' : 'none'; ?>; background: transparent; border: none; backdrop-filter: none;">
+              <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                <img id="preview-logo-img" src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">
+                <div class="preview-clinic-name" id="preview-top-name" style="color: #fff; margin-left: 10px;"><?php echo h($tenantName); ?></div>
+              <?php else: ?>
+                <span id="preview-logo-initials" style="font-weight:800;font-size:15px;color:#fff;letter-spacing:0.5px;">OS</span>
+              <?php endif; ?>
             </div>
 
-            <div class="preview-right-panel">
-              <div class="preview-login-title">Clinic Login</div>
-              <div class="preview-description">Please sign in to access your clinic portal.</div>
-              <input type="text" class="preview-input" placeholder="Username or Email" readonly>
-              <input type="password" class="preview-input" placeholder="Password" readonly>
-              <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
-              <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
+            <!-- Centered two-panel card (matches actual tenant_login.php layout) -->
+            <div class="preview-card-wrap" id="preview-card-wrap">
+              <div class="preview-split-layout">
+                <!-- Left dark panel -->
+                <div class="preview-left-panel" id="preview-left-panel" style="display: <?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'none' : 'flex'; ?>;">
+                  <div class="preview-left-overlay"></div>
+                  <div class="preview-left-content" id="preview-left-content">
+                    <div class="preview-left-brand">
+                      <div class="preview-left-logo-box" id="preview-clinic-logo">
+                        <?php if (!empty($tenantSettings['brand_logo_path'])): ?>
+                          <img src="<?php echo h($tenantSettings['brand_logo_path']); ?>" alt="Clinic Logo" style="max-height:38px;max-width:60px;object-fit:contain;">
+                        <?php else: ?>
+                          <span style="font-weight:800;font-size:13px;color:#fff;">OS</span>
+                        <?php endif; ?>
+                      </div>
+                      <div>
+                        <div class="preview-clinic-name"><?php echo h($tenantName); ?></div>
+                        <div class="preview-subtitle">Powered by OralSync</div>
+                      </div>
+                    </div>
+                    <div class="preview-left-body">
+                      <p style="margin:0 0 10px;font-size:12px;opacity:0.9;line-height:1.5;">Sign in to manage appointments, patients, and clinic operations. Your clinic can customize this portal soon.</p>
+                      <div class="preview-coming-soon-box">
+                        <div style="font-size:10px;font-weight:700;margin-bottom:5px;opacity:0.8;">Customization spots (coming soon)</div>
+                        <div style="font-size:10px;opacity:0.7;line-height:1.6;">- Clinic logo upload<br>- Accent color / theme</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right white panel (login form) -->
+                <div class="preview-right-panel" id="preview-right-panel" style="background-color: <?php echo h($tenantSettings['card_bg_color']); ?>;">
+                  <div class="preview-login-title">Clinic Login</div>
+                  <div class="preview-description">Please sign in to access your clinic portal.</div>
+                  <div class="preview-field-group">
+                    <label class="preview-field-label">Email / Username</label>
+                    <input type="text" class="preview-input" placeholder="" readonly>
+                  </div>
+                  <div class="preview-field-group">
+                    <label class="preview-field-label">Password</label>
+                    <input type="password" class="preview-input" placeholder="" readonly>
+                  </div>
+                  <button type="button" class="preview-signin-btn" id="preview-signin-btn" style="background-color: <?php echo h($tenantSettings['primary_btn_color']); ?>;">Sign in</button>
+                  <a href="#" class="preview-forgot-link" id="preview-forgot-link" style="color: <?php echo h($tenantSettings['link_color']); ?>;">Forgot password?</a>
+                  <div class="preview-no-account">Don't have an account? Contact your clinic for access.</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -883,14 +1153,16 @@ HTML;
     setInterval(updateClock, 1000);
 
     function updateSwatch(input) {
+      if (!input || !input.id) return;
       const swatchId = input.id.replace(/_/g, '-');
       const label = document.getElementById(`label-${swatchId}`);
       const swatch = document.getElementById(`swatch-${swatchId}`);
+      
       if (label) {
         label.textContent = input.value;
       }
       if (swatch) {
-        swatch.style.background = input.value;
+        swatch.style.backgroundColor = input.value;
       }
     }
 
@@ -907,31 +1179,74 @@ HTML;
       return luminance > 0.5 ? '#000000' : '#ffffff';
     }
 
+    function applyThemePreset(theme) {
+      const bgColorInput = document.querySelector('input[name="brand_bg_color"]');
+      const textColorInput = document.querySelector('input[name="brand_text_color"]');
+      const btnInput = document.getElementById('primary_btn_color');
+      const linkInput = document.getElementById('link_color');
+      const cardInput = document.getElementById('card_bg_color');
+
+      if (bgColorInput) {
+        bgColorInput.value = theme.bg;
+        bgColorInput.dispatchEvent(new Event('input'));
+      }
+      if (textColorInput) {
+        textColorInput.value = theme.text;
+        textColorInput.dispatchEvent(new Event('input'));
+      }
+      if (btnInput) {
+        btnInput.value = theme.btn;
+        btnInput.dispatchEvent(new Event('input'));
+      }
+      if (linkInput) {
+        linkInput.value = theme.link;
+        linkInput.dispatchEvent(new Event('input'));
+      }
+      if (cardInput) {
+        cardInput.value = theme.card || '#ffffff';
+        cardInput.dispatchEvent(new Event('input'));
+      }
+    }
+
+    document.querySelectorAll('.theme-preset-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        document.querySelectorAll('.theme-preset-btn').forEach(btn => btn.classList.remove('is-active'));
+        this.classList.add('is-active');
+        applyThemePreset({
+          btn: this.dataset.themeBtn,
+          link: this.dataset.themeLink,
+          card: this.dataset.themeCard
+        });
+      });
+    });
+
+    function syncPreviewLayoutBasedOnBackground(hasCustom) {
+      const pageChrome = document.getElementById('preview-page-chrome');
+      if (!pageChrome) return;
+      pageChrome.classList.toggle('has-custom-bg', !!hasCustom);
+      
+      const leftPanel = document.getElementById('preview-left-panel');
+      if (leftPanel) {
+        leftPanel.style.display = hasCustom ? 'none' : 'flex';
+      }
+
+      const topLeftLogo = document.getElementById('preview-topleft-logo');
+      if (topLeftLogo) {
+        topLeftLogo.style.display = hasCustom ? 'inline-flex' : 'none';
+      }
+    }
+
     document.querySelectorAll('.live-update').forEach(input => {
-      input.addEventListener('input', function() {
+      input.addEventListener('input', function(e) {
         const targetId = this.dataset.target;
         const target = document.getElementById(targetId);
         if (!target) return;
 
         const style = this.dataset.style;
-        const property = this.dataset.property;
         const value = this.value;
 
-        if (style === 'backgroundImage') {
-          if (value.trim()) {
-            target.style.backgroundImage = `url('${value}')`;
-            target.style.backgroundSize = 'cover';
-            target.style.backgroundPosition = 'center';
-          } else {
-            target.style.backgroundImage = 'none';
-          }
-        } else if (style) {
+        if (style && style !== 'backgroundImage') {
           target.style[style] = value;
-          if (style === 'backgroundColor' && targetId === 'preview-left-panel') {
-            target.style.color = getContrastingColor(value);
-          }
-        } else if (property) {
-          target[property] = value;
         }
 
         if (this.type === 'color') {
@@ -939,37 +1254,60 @@ HTML;
         }
       });
 
-      input.dispatchEvent(new Event('input'));
+      // Avoid focus shifting on color picker trigger
+      if (input.type === 'color') {
+        input.addEventListener('click', (e) => {
+          // If the browser tries to focus the hidden input, prevent defaults that might cause scroll
+          // However, we want the color picker to open, so we don't preventDefault() here.
+        });
+      }
+
+      // Trigger initial state for visible color pickers only
+      if (input.type === 'color' && document.getElementById(input.id)) {
+        updateSwatch(input);
+      }
     });
 
-    document.querySelectorAll('.color-swatch').forEach(button => {
-      button.addEventListener('click', function() {
-        const inputId = this.dataset.input;
-        const colorInput = document.getElementById(inputId);
-        if (colorInput) {
-          colorInput.click();
-        }
-      });
-    });
+
 
     document.querySelectorAll('.file-input').forEach(input => {
       input.addEventListener('change', function() {
-        const targetId = this.dataset.target;
-        const target = document.getElementById(targetId);
-        if (!target || !this.files.length) {
-          return;
-        }
-
         const file = this.files[0];
+        if (!file) return;
+
         const reader = new FileReader();
         reader.onload = function(event) {
-          const value = event.target.result;
-          if (input.dataset.property === 'logoPreview') {
-            target.innerHTML = `<img src="${value}" alt="Logo preview">`;
-          } else {
-            target.style.backgroundImage = `url('${value}')`;
-            target.style.backgroundSize = 'cover';
-            target.style.backgroundPosition = 'center';
+          const dataUrl = event.target.result;
+
+          if (input.id === 'brand_bg_image') {
+            // Update background of full chrome
+            const pageChrome = document.getElementById('preview-page-chrome');
+            if (pageChrome) {
+              pageChrome.style.backgroundImage = `linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)), url('${dataUrl}')`;
+              pageChrome.style.backgroundSize = 'cover';
+              pageChrome.style.backgroundPosition = 'center';
+            }
+            syncPreviewLayoutBasedOnBackground(true);
+          } else if (input.id === 'brand_logo_image') {
+            // Update logo inside the left panel card brand area
+            const logoBox = document.getElementById('preview-clinic-logo');
+            if (logoBox) {
+              logoBox.innerHTML = `<img src="${dataUrl}" alt="Logo" style="max-height:38px;max-width:60px;object-fit:contain;image-rendering:high-quality;">`;
+            }
+            const topLeftLogoImage = document.getElementById('preview-logo-img');
+            if (topLeftLogoImage) {
+              topLeftLogoImage.src = dataUrl;
+            } else {
+              const topLeftLogo = document.getElementById('preview-topleft-logo');
+              if (topLeftLogo) {
+                const clinicName = document.querySelector('.preview-clinic-name')?.textContent || '';
+                topLeftLogo.innerHTML = `
+                  <img id="preview-logo-img" src="${dataUrl}" alt="Clinic Logo" style="height:38px;width:auto;object-fit:contain;display:block;">
+                  <div class="preview-clinic-name" id="preview-top-name" style="color: #fff; margin-left: 10px;">${clinicName}</div>
+                `;
+              }
+            }
+            syncPreviewLayoutBasedOnBackground(true);
           }
         };
         reader.readAsDataURL(file);
@@ -977,21 +1315,17 @@ HTML;
     });
 
     function resetLoginPreview() {
-      if (!confirm('Reset all login settings to defaults?')) return;
-
       const defaults = {
-        brand_bg_color: '#001f3f',
-        brand_text_color: '#ffffff',
         primary_btn_color: '#22c55e',
         link_color: '#2563eb',
       };
 
+      // Reset color pickers and swatches
       Object.keys(defaults).forEach(key => {
         const input = document.getElementById(key);
         if (input) {
           input.value = defaults[key];
           input.dispatchEvent(new Event('input'));
-          // Update swatches
           const swatchId = key.replace(/_/g, '-');
           const label = document.getElementById(`label-${swatchId}`);
           const swatch = document.getElementById(`swatch-${swatchId}`);
@@ -1000,16 +1334,44 @@ HTML;
         }
       });
 
-      document.getElementById('brand_bg_image').value = '';
-      document.getElementById('brand_logo_image').value = '';
-      const logoPreview = document.getElementById('preview-clinic-logo');
-      if (logoPreview) {
-        logoPreview.textContent = 'OS';
+      const cardBgInput = document.getElementById('card_bg_color');
+      if (cardBgInput) {
+        cardBgInput.value = '#ffffff';
+        cardBgInput.dispatchEvent(new Event('input'));
       }
+
+      // Reset file inputs
+      const bgFileInput = document.getElementById('brand_bg_image');
+      if (bgFileInput) bgFileInput.value = '';
+      const logoFileInput = document.getElementById('brand_logo_image');
+      if (logoFileInput) logoFileInput.value = '';
+
+      // Reset preview background
+      const pageChrome = document.getElementById('preview-page-chrome');
+      if (pageChrome) {
+        pageChrome.style.backgroundImage = 'none';
+      }
+      syncPreviewLayoutBasedOnBackground(false);
+
+      // Reset logo inside the card brand area
+      const logoBox = document.getElementById('preview-clinic-logo');
+      if (logoBox) {
+        logoBox.innerHTML = '<span style="font-weight:800;font-size:13px;color:#fff;">OS</span>';
+      }
+      const topLeftLogo = document.getElementById('preview-topleft-logo');
+      if (topLeftLogo) {
+        topLeftLogo.innerHTML = '<span id="preview-logo-initials" style="font-weight:800;font-size:15px;color:#fff;letter-spacing:0.5px;">OS</span>';
+      }
+
+      // Reset sign-in button and forgot link colors in preview
+      const signinBtn = document.getElementById('preview-signin-btn');
+      if (signinBtn) signinBtn.style.backgroundColor = '#22c55e';
+      const forgotLink = document.getElementById('preview-forgot-link');
+      if (forgotLink) forgotLink.style.color = '#2563eb';
     }
 
     function openResetModal() {
-      document.getElementById('resetConfirmModal').style.display = 'block';
+      document.getElementById('resetConfirmModal').style.display = 'flex';
     }
 
     function closeResetModal() {
@@ -1019,27 +1381,27 @@ HTML;
     function confirmReset() {
       resetLoginPreview();
       closeResetModal();
-      // Auto-submit the form
-      const form = document.querySelector('form[method="post"]');
+      // Add a hidden field to tell the server this is a full reset
+      const form = document.getElementById('loginSettingsForm');
       if (form) {
+        let resetFlag = form.querySelector('input[name="reset_to_default"]');
+        if (!resetFlag) {
+          resetFlag = document.createElement('input');
+          resetFlag.type = 'hidden';
+          resetFlag.name = 'reset_to_default';
+          form.appendChild(resetFlag);
+        }
+        resetFlag.value = '1';
         form.submit();
       }
     }
 
-    // Live color swatch updates
-    document.querySelectorAll('.color-input').forEach(input => {
-      input.addEventListener('input', function() {
-        const swatchId = this.id.replace(/_/g, '-');
-        const label = document.getElementById(`label-${swatchId}`);
-        const swatch = document.getElementById(`swatch-${swatchId}`);
-        if (label) label.textContent = this.value;
-        if (swatch) swatch.style.backgroundColor = this.value;
-      });
-    });
 
     function validateForm() {
       return true;
     }
+
+    syncPreviewLayoutBasedOnBackground(<?php echo (!empty($tenantSettings['brand_bg_image_path']) || !empty($tenantSettings['brand_logo_path'])) ? 'true' : 'false'; ?>);
   </script>
 
   <!-- Reset Confirmation Modal -->
@@ -1053,21 +1415,36 @@ HTML;
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
       animation: fadeIn 0.3s ease;
     }
 
     .reset-modal-content {
       background: white;
-      margin: 20% auto;
+      margin: 0;
       padding: 0;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-      max-width: 500px;
-      animation: slideIn 0.3s ease;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      width: 90%;
+      max-width: 450px;
+      animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modalSlideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
     .reset-modal-header {
-      background: #ef4444;
+      background: linear-gradient(135deg, #0d3b66, #0a2f52);
       color: white;
       padding: 20px;
       border-radius: 12px 12px 0 0;
@@ -1077,6 +1454,7 @@ HTML;
       justify-content: space-between;
       align-items: center;
     }
+
 
     .reset-modal-body {
       padding: 24px;
@@ -1106,13 +1484,14 @@ HTML;
     }
 
     .reset-modal-footer .btn-confirm {
-      background: #ef4444;
+      background: linear-gradient(135deg, #0d3b66, #0a2f52);
       color: white;
     }
 
     .reset-modal-footer .btn-confirm:hover {
-      background: #dc2626;
+      background: #0a2f52;
     }
+
 
     .reset-modal-footer .btn-cancel {
       background: #e5e7eb;

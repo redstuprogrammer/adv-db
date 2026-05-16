@@ -1,13 +1,10 @@
 <?php
-// Force redeployment - version 1.1
-session_start();
-require_once __DIR__ . '/includes/security_headers.php';
-if (empty($_SESSION['superadmin_authed'])) {
-    header('Location: superadmin_login.php');
-    exit;
-}
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireSuperAdmin();
 
 // Load current settings
 require_once __DIR__ . '/settings.php';
@@ -25,22 +22,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($_POST['reset'])) {
             // Reset to defaults
             setSetting('system_name', 'OralSync');
+            
             // Delete existing logo file if exists
             $currentLogo = $currentSettings['logo_path'] ?? '';
             if ($currentLogo && file_exists(__DIR__ . '/' . ltrim($currentLogo, '/'))) {
-                unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
+                @unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
             setSetting('logo_path', '');
-            setSetting('max_tenants', '');
-            setSetting('max_users_per_tenant', '');
-            setSetting('storage_limit', '');
+
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest' || isset($_POST['reset'])) {
+                // If it's the fetch request from JS
+                if (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+                     echo json_encode(['success' => true]);
+                     exit;
+                }
+            }
+
             $message = "Settings reset to defaults!";
-        } else {
+        }
+ else {
             // Save settings
             setSetting('system_name', $_POST['system_name'] ?? 'OralSync');
-            setSetting('max_tenants', $_POST['max_tenants'] ?? '');
-            setSetting('max_users_per_tenant', $_POST['max_users_per_tenant'] ?? '');
-            setSetting('storage_limit', $_POST['storage_limit'] ?? '');
+
+
 
             // Handle logo upload
             if (isset($_FILES['logo']) && $_FILES['logo']['error'] === UPLOAD_ERR_OK) {
@@ -345,8 +349,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <th>Max Receptionists</th>
                                 <th>Max Patients</th>
                                 <th>Storage (GB)</th>
-                                <th>Dental Chart</th>
-                                <th>SMS Reminders</th>
+                                <th>Payment Tracking</th>
+                                <th>Basic Reporting</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -363,8 +367,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     <td>" . ($tier['features']['max_receptionists'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_patients'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_storage_gb'] ?? 0) . "</td>
-                                    <td>" . (($tier['features']['dental_chart_tracking'] ?? false) ? '✓' : '✗') . "</td>
-                                    <td>" . (($tier['features']['sms_reminders'] ?? false) ? '✓' : '✗') . "</td>
+                                    <td>" . (($tier['features']['payment_tracking'] ?? false) ? '✓' : '✗') . "</td>
+                                    <td>" . (($tier['features']['basic_reporting'] ?? false) ? '✓' : '✗') . "</td>
                                 </tr>";
                             }
                             ?>
@@ -372,28 +376,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </table>
                 </div>
                 
-                <!-- Platform-wide Settings -->
-                <div style="border-top: 1px solid var(--sa-border); padding-top: 20px;">
-                    <h4 style="color: #0d3b66; margin-bottom: 15px;">Platform-wide Constraints</h4>
-                    <div class="sa-form-grid">
-                        <div class="sa-form-group">
-                            <label for="max_tenants">Maximum Active Tenants</label>
-                            <input type="number" id="max_tenants" name="max_tenants" value="<?php echo htmlspecialchars($currentSettings['max_tenants'] ?? ''); ?>" placeholder="Leave empty for unlimited">
-                            <div class="sa-note">Limits the total number of active tenant subscriptions on the platform</div>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="max_users_per_tenant">Maximum Users per Tenant (Override)</label>
-                            <input type="number" id="max_users_per_tenant" name="max_users_per_tenant" value="<?php echo htmlspecialchars($currentSettings['max_users_per_tenant'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
-                            <div class="sa-note">If set, overrides tier limits for all tenants</div>
-                        </div>
-                        <div class="sa-form-group">
-                            <label for="storage_limit">Storage Limit Override (GB)</label>
-                            <input type="number" id="storage_limit" name="storage_limit" value="<?php echo htmlspecialchars($currentSettings['storage_limit'] ?? ''); ?>" placeholder="Leave empty for tier-based limits">
-                            <div class="sa-note">If set, overrides tier-based storage limits</div>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
+
 
             <!-- User Roles and Permissions -->
             <div class="sa-card settings-section">
@@ -576,38 +561,179 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function validateForm() {
             return true;
         }
+    </script>
+
+    <!-- Reset Confirmation Modal -->
+    <style>
+        .reset-modal {
+            display: none;
+            position: fixed;
+            z-index: 1100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            align-items: center;
+            justify-content: center;
+            animation: saFadeIn 0.3s ease;
+        }
+
+        .reset-modal-content {
+            background: white;
+            margin: 0;
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 450px;
+            animation: saModalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        @keyframes saFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes saModalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .reset-modal-header {
+            background: linear-gradient(135deg, #0d3b66, #0a2f52);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reset-modal-body {
+            padding: 24px;
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .reset-modal-footer {
+            padding: 20px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f9fafb;
+        }
+
+        .reset-modal-footer button {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-confirm-sa {
+            background: #0d3b66;
+            color: white;
+        }
+
+        .btn-confirm-sa:hover {
+            background: #0a2f52;
+        }
+
+        .btn-cancel-sa {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-cancel-sa:hover {
+            background: #d1d5db;
+        }
+
+        .reset-modal-close {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
+    </style>
+
+    <div id="resetConfirmModal" class="reset-modal">
+        <div class="reset-modal-content">
+            <div class="reset-modal-header">
+                <span>Reset to Default Settings</span>
+                <button class="reset-modal-close" onclick="closeResetModal()">&times;</button>
+            </div>
+            <div class="reset-modal-body">
+                <p>Are you sure you want to reset all system settings to their default values?</p>
+                <p>This will restore the system name and remove the current logo.</p>
+            </div>
+            <div class="reset-modal-footer">
+                <button class="btn-cancel-sa" onclick="closeResetModal()">Cancel</button>
+                <button class="btn-confirm-sa" onclick="confirmReset()">Reset Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openResetModal() {
+            document.getElementById('resetConfirmModal').style.display = 'flex';
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetConfirmModal').style.display = 'none';
+        }
 
         function resetSettings() {
-            if (confirm('Are you sure you want to reset all settings to defaults?')) {
-                // Send reset request
-                const formData = new FormData();
-                formData.append('reset', 'true');
-                
-                fetch(window.location.href, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(data => {
-                    // Update UI to show defaults
-                    document.getElementById('system_name').value = 'OralSync';
-                    document.getElementById('max_tenants').value = '';
-                    document.getElementById('max_users_per_tenant').value = '';
-                    document.getElementById('storage_limit').value = '';
-                    document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
-                    // Clear file input
-                    document.getElementById('logo').value = '';
-                    // Show success message if needed, but since page reloads, maybe not
-                    alert('Settings reset to defaults!');
-                    // Reload to reflect changes
-                    setTimeout(() => {
-                        location.reload();
-                    }, 500);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error resetting settings');
-                });
+            openResetModal();
+        }
+
+        function confirmReset() {
+            closeResetModal();
+            // Send reset request
+            const formData = new FormData();
+            formData.append('reset', 'true');
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update UI to show defaults
+                document.getElementById('system_name').value = 'OralSync';
+                document.getElementById('logo-preview').innerHTML = '<span id="logo-placeholder" style="font-size: 48px;">🏥</span>';
+
+                // Clear file input
+                document.getElementById('logo').value = '';
+                // Reload to reflect changes
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('resetConfirmModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
             }
         }
     </script>

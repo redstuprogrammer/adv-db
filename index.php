@@ -1,4 +1,5 @@
 <?php
+if (!ob_get_level()) ob_start();
 define('ROOT_PATH', __DIR__ . '/');
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.cookie_httponly', 1);
@@ -43,3 +44,4 @@ if (!empty($tenantParam)) {
 // Default to superadmin login
 header('Location: superadmin_login.php');
 exit();
+

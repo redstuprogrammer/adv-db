@@ -179,7 +179,7 @@ try {
             width: 100%;
             padding: 11px 40px 11px 36px;
             border-radius: 999px;
-            border: 1px solid var(--sa-border);
+            border: 2px solid #cbd5e1;
             font-size: 0.9rem;
             outline: none;
             transition: all 0.2s ease;
@@ -574,7 +574,12 @@ try {
         <header class="sa-main-header">
             <div>
                 <h1>Super Admin Control</h1>
-                <span>Manage clinics and onboard new tenants for OralSync.</span>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 4px;">
+                    <span>Manage clinics and onboard new tenants for OralSync.</span>
+                    <a href="https://oralsync3-g6hpg2fhdyfuagdy.eastasia-01.azurewebsites.net/Landing%20Page/code.html" target="_blank" class="sa-pill sa-pill-active" style="text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                        <span style="font-size: 14px;">🌐</span> View Homepage
+                    </a>
+                </div>
             </div>
             <div class="sa-profile">
                 <span>Welcome, <strong>Super Admin</strong></span>
@@ -641,8 +646,8 @@ try {
             <div class="sa-card" style="margin-bottom: 20px;">
                 <div class="sa-card-header">
                     <div>
-                        <div class="sa-card-title">Revenue Trends</div>
-                        <div class="sa-card-subtitle">Monthly subscription revenue</div>
+                        <div class="sa-card-title">Sales Trends</div>
+                        <div class="sa-card-subtitle">Monthly subscription sales</div>
                     </div>
                 </div>
                 <div style="position: relative; height: 250px;">
@@ -847,6 +852,7 @@ try {
                                 <option>Abra</option>
                             </select>
                         </div>
+
                         <div class="sa-form-group">
                             <label for="clinic-tier">Subscription Tier <span class="sa-badge-required">*</span></label>
                             <select id="clinic-tier" required>
@@ -869,6 +875,11 @@ try {
                             <label for="clinic-duration">Subscription Duration (Months) <span class="sa-badge-required">*</span></label>
                             <input type="number" id="clinic-duration" required min="1" max="120" value="12">
                         </div>
+                        <div class="sa-form-group">
+                            <label for="clinic-documents">Upload Documents</label>
+                            <input type="file" id="clinic-documents" multiple accept=".pdf,.doc,.docx,.jpg,.png">
+                            <p style="margin: 6px 0 0; font-size: 12px; color: #64748b;">PDF, Word, or Images (Max 5MB each)</p>
+                        </div>
                         <div class="sa-form-group" style="grid-column: 1 / -1;">
                             <label for="clinic-notes">Notes / Special Instructions</label>
                             <textarea id="clinic-notes" placeholder="Optional notes about billing, onboarding preferences, or setup requirements."></textarea>
@@ -887,25 +898,10 @@ try {
         Clinic Registered Successfully!
     </div>
     <div id="success-message-body" style="margin-top: 12px; font-size: 0.9rem; color: var(--sa-text-muted);">
-        The clinic has been added to the database. Provide the credentials below to the owner.
+        The clinic has been successfully registered. An onboarding email containing the login credentials and portal URL has been sent to the owner's email address.
     </div>
 
-    <div class="sa-credential-box">
-        <div class="sa-credential-item">
-            <span class="sa-label">Temporary Password:</span>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <code id="display-temp-password" class="sa-temp-pass">Generating...</code>
-                <button type="button" class="sa-copy-btn" onclick="copyTemporaryPassword()" aria-label="Copy temporary password">📋</button>
-            </div>
-        </div>
-        <div class="sa-credential-item">
-            <span class="sa-label">Login URL:</span>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <a id="display-login-url" class="sa-link-sample" target="_blank" rel="noopener noreferrer" href="#">Loading...</a>
-                <button type="button" class="sa-copy-btn" onclick="copyLoginUrl()" aria-label="Copy login URL">📋</button>
-            </div>
-        </div>
-    </div>
+
 
     <div class="sa-success-actions">
         <button id="btn-resend-email" class="sa-btn sa-btn-outline">Resend Email</button>
@@ -913,10 +909,50 @@ try {
     </div>
     <div id="resend-note" class="sa-note" style="display:none;">A resend has been simulated for this clinic's login email.</div>
 </div>
+
+<!-- New: Payment Link Modal -->
+<div id="sa-payment-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.85); z-index:1000; align-items:center; justify-content:center; backdrop-filter: blur(4px);">
+    <div class="sa-card" style="width: 100%; max-width: 550px; border: 2px solid #0d3b66; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <div style="background: #e0f2fe; width: 60px; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0d3b66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            </div>
+            <h2 style="color: #0d3b66; margin: 0; font-size: 1.5rem;">Payment Required</h2>
+            <p style="color: #64748b; font-size: 0.95rem; margin-top: 8px;">Please share this link with the client to finalize registration.</p>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
+            <div id="pm-link-display" style="font-family: monospace; font-size: 0.85rem; color: #0d3b66; word-break: break-all; margin-bottom: 15px; padding: 10px; background: white; border-radius: 8px; border: 1px solid #e2e8f0;"></div>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="btn-copy-link" class="sa-btn sa-btn-outline" style="font-size: 0.8rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                    Copy Link
+                </button>
+                <a id="btn-open-link" href="#" target="_blank" class="sa-btn sa-btn-success" style="font-size: 0.8rem;">
+                    Open Link
+                </a>
+            </div>
+        </div>
+
+        <div id="payment-polling-status" style="display: flex; align-items: center; justify-content: center; gap: 12px; color: #64748b; font-size: 0.9rem;">
+            <div class="polling-spinner" style="width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #0d3b66; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span>Waiting for client to complete payment...</span>
+        </div>
+
+        <div class="sa-form-actions" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <button id="btn-close-payment" class="sa-btn sa-btn-outline">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
             </div>
         </section>
     </main>
-</div>
+</body>
+</html>
 <div id="sa-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:100; align-items:center; justify-content:center;">
     <div class="sa-card" style="width: 100%; max-width: 500px; animation: modalSlide 0.3s ease;">
         <div class="sa-card-header">
@@ -947,8 +983,24 @@ try {
                 <div class="detail-item"><strong>Phone:</strong> <span id="dt-phone"></span></div>
                 <div class="detail-item"><strong>Status:</strong> <span id="dt-status"></span></div>
                 <div class="detail-item"><strong>Tier:</strong> <span id="dt-tier"></span></div>
+                <div class="detail-item"><strong>Homepage:</strong> <span id="dt-homepage"></span></div>
                 <div class="detail-item" style="grid-column: 1 / -1;">
                     <strong>Address:</strong> <span id="dt-address"></span>
+                </div>
+                <div class="detail-item" style="grid-column: 1 / -1; margin-top: 10px;">
+                    <strong>Clinic Documents:</strong>
+                    <button id="toggle-docs-btn" class="sa-btn sa-btn-outline" style="margin-left: 10px; font-size: 0.8rem; padding: 4px 12px;">📁 Show Documents</button>
+                    <div id="dt-documents" style="margin-top: 10px; display: none;">
+                        <span class="sa-note">No documents uploaded.</span>
+                    </div>
+                </div>
+                <div class="detail-item" style="grid-column: 1 / -1; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                    <strong>Upload New Documents:</strong>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="new-tenant-docs" multiple accept=".pdf,.doc,.docx,.jpg,.png" style="padding: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.8rem; flex: 1;">
+                        <button id="upload-docs-btn" class="sa-btn sa-btn-success" style="font-size: 0.8rem; padding: 10px 20px;">Upload</button>
+                    </div>
+                    <p class="sa-note" style="margin-top: 5px;">PDF, Word, or Images (Max 50MB each)</p>
                 </div>
             </div>
             <hr>
@@ -1091,9 +1143,13 @@ try {
         const totals = data.length;
         const active = data.filter(t => (t.status || '').toLowerCase() === 'active').length;
         const inactive = totals - active;
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const newMonth = data.filter(t => new Date(t.created_at) >= monthAgo).length;
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        const newMonth = data.filter(t => {
+            const d = new Date(t.created_at);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        }).length;
 
         document.getElementById('kpi-total').textContent = totals;
         document.getElementById('kpi-active').textContent = active;
@@ -1101,7 +1157,7 @@ try {
         document.getElementById('kpi-new-month').textContent = newMonth;
 
         // Fetch analytics for trend bars
-        fetch('superadmin/superadmin_analytics_api.php')
+        fetch('superadmin_analytics_api.php')
             .then(response => response.ok ? response.json() : Promise.reject())
             .then(analytics => {
                 const last7d = analytics.last_7_days_superadmin_logs || 0;
@@ -1117,9 +1173,9 @@ try {
 
                 // Render charts
                 const growthLabels = [];
+                const now = new Date();
                 for (let i = 11; i >= 0; i--) {
-                    const date = new Date();
-                    date.setMonth(date.getMonth() - i);
+                    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
                     growthLabels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
                 }
                 const ctxGrowth = document.getElementById('growthChart');
@@ -1148,9 +1204,10 @@ try {
                 }
 
                 const activityLabels = [];
+                const todayDate = new Date();
                 for (let i = 6; i >= 0; i--) {
-                    const date = new Date();
-                    date.setDate(date.getDate() - i);
+                    const date = new Date(todayDate);
+                    date.setDate(todayDate.getDate() - i);
                     activityLabels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
                 }
                 const ctxActivity = document.getElementById('activityChart');
@@ -1394,8 +1451,9 @@ try {
 
             const tenantId = row.getAttribute('data-id');
             if (!tenantId) return;
+            window.activeTenantId = tenantId;
 
-            fetch(`/get_tenant_details.php?id=${tenantId}`)
+            fetch(`get_tenant_details.php?id=${tenantId}`)
                 .then(res => res.json())
                 .then(tenant => {
                     document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1404,15 +1462,111 @@ try {
                     document.getElementById('dt-phone').textContent = tenant.phone;
                     document.getElementById('dt-status').textContent = tenant.status;
                     document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
+                    const homepageEl = document.getElementById('dt-homepage');
+                    if (tenant.homepage_url && tenant.homepage_url.trim()) {
+                        homepageEl.innerHTML = `<a href="${tenant.homepage_url}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; font-weight: 500;">${tenant.homepage_url}</a>`;
+                    } else {
+                        homepageEl.textContent = 'Not set';
+                    }
                     document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                     const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                     document.getElementById('dt-date').textContent = date;
+
+// Documents toggle functionality
+                    const toggleBtn = document.getElementById('toggle-docs-btn');
+                    const docsContainer = document.getElementById('dt-documents');
+                    if (toggleBtn && docsContainer) {
+                        toggleBtn.onclick = () => {
+                            const isVisible = docsContainer.style.display !== 'none';
+                            docsContainer.style.display = isVisible ? 'none' : 'block';
+                            toggleBtn.textContent = isVisible ? '📁 Show Documents' : '🙈 Hide Documents';
+                            toggleBtn.classList.toggle('sa-btn-success', !isVisible);
+                        };
+                        
+                        // Initialize documents content
+                        if (tenant.documents && tenant.documents.length > 0) {
+                            docsContainer.innerHTML = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 8px;">' + 
+                                tenant.documents.map(doc => `
+                                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc;">
+                                        <div style="font-weight: 600; color: #0d3b66; margin-bottom: 6px; word-break: break-all;">${doc.document_name}</div>
+                                        <div style="font-size: 0.8rem; color: var(--sa-muted); margin-bottom: 8px;">${(doc.file_size / 1024 / 1024).toFixed(1)} MB</div>
+                                        <a href="${doc.file_path}" target="_blank" class="sa-btn sa-btn-success" style="width: 100%; justify-content: center; font-size: 0.8rem;">View</a>
+                                    </div>
+                                `).join('') + '</div>';
+                        } else {
+                            docsContainer.innerHTML = '<span class="sa-note">No documents uploaded.</span>';
+                        }
+                    }
+
                     document.getElementById('details-modal').style.display = 'flex';
                 })
                 .catch(err => {
                     console.error('Fetch error:', err);
                     showToast('Error loading clinic details.');
                 });
+        });
+
+        // Handle upload button in details modal
+        document.getElementById('upload-docs-btn')?.addEventListener('click', function() {
+            const fileInput = document.getElementById('new-tenant-docs');
+            const files = fileInput.files;
+            if (files.length === 0) {
+                showToast('Please select documents to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('tenant_id', window.activeTenantId);
+            
+            let oversizedFiles = 0;
+            for (let i = 0; i < files.length; i++) {
+                if (files[i].size > 50 * 1024 * 1024) {
+                    oversizedFiles++;
+                    continue;
+                }
+                formData.append('documents[]', files[i]);
+            }
+
+            if (oversizedFiles > 0) {
+                if (formData.getAll('documents[]').length === 0) {
+                    showToast('File size is too big. Max limit is 50MB per file.');
+                    return;
+                } else {
+                    showToast(oversizedFiles + ' file(s) skipped because they exceed 50MB.');
+                }
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+
+            fetch('upload_tenant_documents.php', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.textContent = 'Upload';
+                if (data.success) {
+                    showToast(data.message);
+                    fileInput.value = '';
+                    // Refresh details modal
+                    viewTenantProfile(window.activeTenantId);
+                } else {
+                    showToast(data.message);
+                }
+            })
+            .catch(err => {
+                btn.disabled = false;
+                btn.textContent = 'Upload';
+                console.error(err);
+                showToast('Upload failed due to a network error. Ensure files are under 50MB and are PDF, Word, or Images.');
+            });
         });
     });
 
@@ -1421,7 +1575,8 @@ try {
     }
 
     function viewTenantProfile(tenantId) {
-        fetch(`/get_tenant_details.php?id=${tenantId}`)
+        window.activeTenantId = tenantId;
+        fetch(`get_tenant_details.php?id=${tenantId}`)
             .then(res => res.json())
             .then(tenant => {
                 document.getElementById('modal-clinic-name').textContent = tenant.company_name;
@@ -1430,9 +1585,28 @@ try {
                 document.getElementById('dt-phone').textContent = tenant.phone;
                 document.getElementById('dt-status').textContent = tenant.status;
                 document.getElementById('dt-tier').textContent = tenant.subscription_tier ? tenant.subscription_tier.toUpperCase() : 'Not Set';
+                const homepageEl = document.getElementById('dt-homepage');
+                if (tenant.homepage_url && tenant.homepage_url.trim()) {
+                    homepageEl.innerHTML = `<a href="${tenant.homepage_url}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; font-weight: 500;">${tenant.homepage_url}</a>`;
+                } else {
+                    homepageEl.textContent = 'Not set';
+                }
                 document.getElementById('dt-address').textContent = `${tenant.address}, ${tenant.city}, ${tenant.province}`;
                 const date = new Date(tenant.created_at).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' });
                 document.getElementById('dt-date').textContent = date;
+
+                // Display documents
+                const docsContainer = document.getElementById('dt-documents');
+                if (docsContainer) {
+                    if (tenant.documents && tenant.documents.length > 0) {
+                        docsContainer.innerHTML = '<ul style="margin: 0; padding-left: 20px;">' + 
+                            tenant.documents.map(doc => `<li><a href="${doc.file_path}" target="_blank" class="sa-tenant-link" style="color: #0d3b66; text-decoration: underline;">${doc.document_name}</a></li>`).join('') + 
+                            '</ul>';
+                    } else {
+                        docsContainer.innerHTML = '<span class="sa-note">No documents uploaded.</span>';
+                    }
+                }
+
                 document.getElementById('details-modal').style.display = 'flex';
             })
             .catch(err => {
@@ -1517,8 +1691,8 @@ try {
                     detailsHTML += '<li>Max Receptionists: ' + features['max_receptionists'] + '</li>';
                     detailsHTML += '<li>Max Patients: ' + features['max_patients'] + '</li>';
                     detailsHTML += '<li>Storage: ' + features['max_storage_gb'] + ' GB</li>';
-                    detailsHTML += '<li>Dental Chart: ' + (features['dental_chart_tracking'] ? '✓ Yes' : '✗ No') + '</li>';
-                    detailsHTML += '<li>SMS Notifications: ' + (features['sms_notifications'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '<li>Payment Tracking: ' + (features['payment_tracking'] ? '✓ Yes' : '✗ No') + '</li>';
+                    detailsHTML += '<li>Basic Reporting: ' + (features['basic_reporting'] ? '✓ Yes' : '✗ No') + '</li>';
                     detailsHTML += '</ul>';
                     
                     tierDetails.innerHTML = detailsHTML;
@@ -1570,6 +1744,15 @@ try {
         form.addEventListener('submit', function (e) {
             e.preventDefault();
 
+            // NEW: Require at least one document
+            const docInput = document.getElementById('clinic-documents');
+            const validDocsCount = docInput && docInput.files ? Array.from(docInput.files).filter(f => f.size > 0).length : 0;
+            if (validDocsCount === 0) {
+                showToast('Please upload at least one clinic document before registering the tenant.');
+                docInput?.focus();
+                return;
+            }
+
             // Block submission if there are visible field errors
             const emailErr = document.getElementById('owner-email-error');
             const usernameErr = document.getElementById('clinic-username-error');
@@ -1582,6 +1765,7 @@ try {
             const tierValue = document.getElementById('clinic-tier').value;
             const tierName = tierValue && tierDefinitions[tierValue] ? tierDefinitions[tierValue]['display_name'] : 'Not selected';
             
+            const docNames = Array.from(docInput.files).map(f => f.name).join(', ');
             const reviewData = {
                 'Clinic Name': document.getElementById('clinic-name').value,
                 'Clinic Username': document.getElementById('clinic-username').value,
@@ -1591,7 +1775,8 @@ try {
                 'Location': `${document.getElementById('clinic-city').value}, ${document.getElementById('clinic-province').value}`,
                 'Subscription Tier': tierName,
                 'Start Date': document.getElementById('clinic-start-date').value,
-                'Duration': document.getElementById('clinic-duration').value + ' months'
+                'Duration': document.getElementById('clinic-duration').value + ' months',
+                'Documents': docNames ? docNames : '<span style="color:#b91c1c;font-weight:bold;">NONE - REQUIRED!</span>'
             };
 
             // Build the review list inside the modal
@@ -1627,6 +1812,20 @@ try {
             formData.append('start_date', document.getElementById('clinic-start-date').value);
             formData.append('duration', document.getElementById('clinic-duration').value);
 
+            const docInput = document.getElementById('clinic-documents');
+            if (docInput && docInput.files.length > 0) {
+                for (let i = 0; i < docInput.files.length; i++) {
+                    if (docInput.files[i].size > 50 * 1024 * 1024) {
+                        showToast('File size is too big. Max limit is 50MB per file.');
+                        modalConfirm.disabled = false;
+                        modalConfirm.textContent = 'Finalize & Save';
+                        modalOverlay.style.display = 'none';
+                        return;
+                    }
+                    formData.append('documents[]', docInput.files[i]);
+                }
+            }
+
             fetch('register_clinic.php', {
                 method: 'POST',
                 body: formData
@@ -1636,34 +1835,37 @@ try {
                 if (data.success) {
                     refreshTenantList();
 
-                    if (sampleLinkEl) {
-                        const loginUrl = data.login_url || `${window.location.origin}/tenant/${encodeURIComponent(data.slug)}/login`;
-                        sampleLinkEl.innerHTML = `
-                            <a id="display-login-url" class="sa-link-sample" href="${loginUrl}" target="_blank" rel="noopener noreferrer">${loginUrl}</a>
-                        `;
-                    }
+                    if (data.checkout_url) {
+                        // Payment required flow
+                        modalOverlay.style.display = 'none';
+                        document.getElementById('sa-payment-modal').style.display = 'flex';
+                        document.getElementById('pm-link-display').textContent = data.checkout_url;
+                        document.getElementById('btn-open-link').href = data.checkout_url;
+                        
+                        document.getElementById('btn-copy-link').onclick = () => {
+                            copyToClipboard(data.checkout_url, 'Payment link copied!');
+                        };
 
-                    const passField = document.getElementById('display-temp-password');
-                    if (passField) {
-                        passField.textContent = data.temp_password;
-                    }
-
-                    if (successPanel) {
-                        successPanel.style.display = 'block';
-                        if (resendNote) resendNote.style.display = 'none';
-                    }
-
-                    if (data.email_sent === false) {
-                        showToast('Clinic saved, but email failed to send. Check console for error.', 6500);
-                        if (data.email_error) console.warn('Email error:', data.email_error);
+                        // Start polling for payment success
+                        startPaymentPolling(data.slug);
                     } else {
-                        showToast('Clinic saved! Email sent.');
+                        // Direct success flow (trial or free)
+                        if (successPanel) {
+                            successPanel.style.display = 'block';
+                            if (resendNote) resendNote.style.display = 'none';
+                        }
+
+                        if (data.email_sent === false) {
+                            showToast('Clinic saved, but email failed to send.', 6500);
+                        } else {
+                            showToast('Clinic saved! Email sent.');
+                        }
+                        modalOverlay.style.display = 'none';
                     }
                     form.reset();
                     if (tierDetails) tierDetails.style.display = 'none';
-                    modalOverlay.style.display = 'none'; // Close modal on success
                 } else {
-                    showToast('Database Error: ' + data.message);
+                    showToast(data.message);
                 }
             })
             .catch(error => {
@@ -1671,11 +1873,42 @@ try {
                 showToast('Failed to connect to the server.');
             })
             .finally(() => {
-                // Re-enable buttons for the next time
                 modalConfirm.disabled = false;
                 modalConfirm.textContent = 'Finalize & Save';
             });
         });
+
+        let pollingInterval = null;
+        function startPaymentPolling(slug) {
+            if (pollingInterval) clearInterval(pollingInterval);
+            
+            pollingInterval = setInterval(() => {
+                fetch('get_tenant_status.php?slug=' + encodeURIComponent(slug))
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'active') {
+                            clearInterval(pollingInterval);
+                            document.getElementById('payment-polling-status').innerHTML = `
+                                <div style="color: #16a34a; display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    Payment Confirmed! Account Activated.
+                                </div>
+                            `;
+                            showToast('Payment received! Tenant is now active.', 5000);
+                            refreshTenantList();
+                        }
+                    })
+                    .catch(() => {});
+            }, 3000); // Check every 3 seconds
+        }
+
+        document.getElementById('btn-close-payment').onclick = () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+            document.getElementById('sa-payment-modal').style.display = 'none';
+            // Switch to tenant section to show it's there but pending
+            document.querySelectorAll('.sa-section').forEach(s => s.classList.remove('active-section'));
+            document.getElementById('tenant-section').classList.add('active-section');
+        };
     })();
 
     function copyToClipboard(text, successText = 'Copied to clipboard') {
@@ -1706,47 +1939,40 @@ try {
         }
     }
 
-    function copyTemporaryPassword() {
-        const passwordElement = document.getElementById('display-temp-password');
-        if (!passwordElement) return;
-        copyToClipboard(passwordElement.textContent.trim(), 'Temporary password copied.');
-    }
 
-    function copyLoginUrl() {
-        const linkElement = document.getElementById('display-login-url');
-        if (!linkElement) return;
-        const url = linkElement.getAttribute('href') || linkElement.textContent.trim();
-        if (!url || url === '#') {
-            showToast?.('No login URL available yet.');
-            return;
-        }
-        copyToClipboard(url, 'Login URL copied.');
-    }
 
     // Initialize Sales Trends Chart
     (function() {
         const chartCanvas = document.getElementById('dashboardSalesChart');
         if (!chartCanvas) return;
 
-        // Generate last 12 months labels
+        // Generate last 12 months labels (oldest first)
         const labels = [];
-        for (let i = 0; i <= 11; i++) {
-            const date = new Date();
-            date.setMonth(date.getMonth() - i);
+        const now = new Date();
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
             labels.push(date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }));
         }
+
+        const phCurrency = new Intl.NumberFormat('en-PH', {
+            style: 'currency',
+            currency: 'PHP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
 
         // Fetch sales data
         fetch('get_sales_data.php')
             .then(response => response.json())
             .then(data => {
+                const revenueData = (data.monthlyRevenue || []).map(val => parseFloat(val) || 0);
                 new Chart(chartCanvas, {
                     type: 'line',
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: 'Monthly Revenue',
-                            data: data.monthlyRevenue || [],
+                            label: 'Monthly Sales',
+                            data: revenueData,
                             borderColor: '#0d3b66',
                             backgroundColor: 'rgba(13, 59, 102, 0.1)',
                             tension: 0.3,
@@ -1762,6 +1988,13 @@ try {
                             legend: {
                                 display: true,
                                 position: 'top'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return phCurrency.format(context.parsed.y);
+                                    }
+                                }
                             }
                         },
                         scales: {
@@ -1769,8 +2002,13 @@ try {
                                 beginAtZero: true,
                                 ticks: {
                                     callback: function(value) {
-                                        return '₱' + value.toFixed(0);
+                                        return phCurrency.format(value);
                                     }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
                                 }
                             }
                         }
@@ -1778,6 +2016,7 @@ try {
                 });
             })
             .catch(error => console.error('Error loading sales data:', error));
+
     })();
 </script>
 

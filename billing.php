@@ -16,6 +16,8 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -37,54 +39,97 @@ if ($_SESSION['role'] !== 'Admin') {
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$hasPaymentTracking = tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn);
+$hasInvoiceGeneration = tenantHasTierFeature((int)$tenantId, 'invoice_generation', $conn);
+
+if (!$hasPaymentTracking) {
+    http_response_code(403);
+    die('Billing and payment tracking are not available on your current subscription plan.');
+}
 $tenantConfig = getTenantConfig($tenantId);
 $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)$tenantConfig['booking_deposit_amount'] : 0.0;
 
-// Fetch payment records with patient and appointment info
-$payments = [];
+// Ensure appointment_id exists (critical migration fix for Azure)
+$checkColumn = $conn->query("SHOW COLUMNS FROM payment LIKE 'appointment_id'");
+if ($checkColumn && $checkColumn->num_rows == 0) {
+    $conn->query("ALTER TABLE payment ADD COLUMN appointment_id INT AFTER tenant_id");
+}
+
+// Pagination Logic
+$records_per_page = 10;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $records_per_page;
+
+// Get total records for pagination
+$total_records = 0;
+$count_query = "SELECT COUNT(*) FROM billing WHERE tenant_id = ?";
+$count_stmt = mysqli_prepare($conn, $count_query);
+if ($count_stmt) {
+    mysqli_stmt_bind_param($count_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($count_stmt);
+    mysqli_stmt_bind_result($count_stmt, $total_records);
+    mysqli_stmt_fetch($count_stmt);
+    mysqli_stmt_close($count_stmt);
+}
+$total_pages = ceil($total_records / $records_per_page);
+
 $query = "SELECT 
-            py.payment_id, 
+            py.billing_id as payment_id, 
             p.patient_id,
             p.first_name, 
             p.last_name, 
             COALESCE(s.service_name, 'General Service') AS service_name, 
-            py.amount, 
-            py.status,
+            py.total_amount as amount, 
+            py.amount_paid,
+            py.payment_status as status, 
             py.mode,
+            py.payment_type,
+            py.billing_date,
+            py.source,
             a.appointment_id,
             a.appointment_date
-          FROM payment py
-          LEFT JOIN appointment a ON py.appointment_id = a.appointment_id AND a.tenant_id = py.tenant_id
-          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = py.tenant_id
-          LEFT JOIN service s ON a.service_id = s.service_id AND s.tenant_id = py.tenant_id
+          FROM billing py
+          LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+          LEFT JOIN patient p ON a.patient_id = p.patient_id
+          LEFT JOIN service s ON a.service_id = s.service_id
           WHERE py.tenant_id = ?
-          ORDER BY py.payment_id DESC";
+          ORDER BY py.billing_id DESC
+          LIMIT ? OFFSET ?";
 
-$stmt = $conn->prepare($query);
+$payments = [];
+$stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
-    $stmt->bind_param('i', $tenantId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
+    mysqli_stmt_bind_param($stmt, 'iii', $tenantId, $records_per_page, $offset);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    while ($row = mysqli_fetch_assoc($result)) {
         $payments[] = $row;
     }
-    $stmt->close();
+    mysqli_stmt_close($stmt);
 }
 
-// Calculate summary statistics
+// Calculate summary statistics (for ALL records, not just the paginated page)
 $totalRevenue = 0;
 $pendingAmount = 0;
 $paidCount = 0;
 $pendingCount = 0;
 
-foreach ($payments as $payment) {
-    $totalRevenue += (float)$payment['amount'];
-    if (strtolower($payment['status']) === 'paid') {
-        $paidCount++;
-    } else {
-        $pendingAmount += (float)$payment['amount'];
-        $pendingCount++;
+$stats_query = "SELECT amount_paid, payment_status FROM billing WHERE tenant_id = ?";
+$stats_stmt = mysqli_prepare($conn, $stats_query);
+if ($stats_stmt) {
+    mysqli_stmt_bind_param($stats_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($stats_stmt);
+    $stats_result = mysqli_stmt_get_result($stats_stmt);
+    while ($row = mysqli_fetch_assoc($stats_result)) {
+        $totalRevenue += (float)$row['amount_paid'];
+        if (strtolower($row['payment_status'] ?? '') === 'paid') {
+            $paidCount++;
+        } else {
+            $pendingAmount += (float)$row['amount_paid'];
+            $pendingCount++;
+        }
     }
+    mysqli_stmt_close($stats_stmt);
 }
 ?>
 <!doctype html>
@@ -284,6 +329,42 @@ foreach ($payments as $payment) {
       .form-group { margin-bottom: 16px; }
       .form-group label { display: block; margin-bottom: 6px; font-weight: 600; color: #0d3b66; }
       .form-group input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #e2e8f0; }
+      
+      /* Pagination Styles */
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 30px;
+        padding: 20px 0;
+      }
+      .page-link {
+        padding: 8px 16px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
+      }
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+      .page-link.disabled {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
     </style>
 </head>
 <body>
@@ -294,10 +375,7 @@ foreach ($payments as $payment) {
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
         <div class="tenant-header-title">💳 Billing & Payments</div>
-        <div style="display: flex; align-items: center; gap: 16px;">
-          <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
-          <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>
-        </div>
+        <?php renderDateClock(); ?>
       </div>
 
 
@@ -320,8 +398,9 @@ foreach ($payments as $payment) {
             <tr>
               <th>Invoice</th>
               <th>Patient Name</th>
-              <th>Treatment</th>
               <th>Amount</th>
+              <th>Type</th>
+              <th>Date & Time</th>
               <th>Mode</th>
               <th>Status</th>
               <th style="text-align: right;">Action</th>
@@ -337,21 +416,87 @@ foreach ($payments as $payment) {
                 <tr>
                   <td style="font-family: monospace; font-weight: bold; color: var(--accent);">#<?php echo str_pad($payment['payment_id'], 4, '0', STR_PAD_LEFT); ?></td>
                   <td><strong><?php echo h($payment['first_name'] . " " . $payment['last_name']); ?></strong></td>
-                  <td>
-                    <div style="font-weight: 500;"><?php echo h($payment['service_name']); ?></div>
-                    <div style="font-size: 11px; color: #94a3b8;"><?php echo $payment['appointment_date'] ? date('M d, Y', strtotime($payment['appointment_date'])) : 'N/A'; ?></div>
-                  </td>
                   <td style="font-weight:700; color: var(--accent);">₱<?php echo number_format($payment['amount'], 2); ?></td>
+                  <td>
+                    <?php 
+                      $typeLabel = 'Full Payment';
+                      $pType = strtolower(trim($payment['payment_type'] ?? ''));
+                      $pStatus = strtolower(trim($payment['status'] ?? ''));
+                      $pSource = strtolower(trim($payment['source'] ?? ''));
+
+                      if ($pStatus === 'unpaid') {
+                          $typeLabel = 'Unpaid Invoice';
+                      } elseif ($pType === 'deposit') {
+                          $typeLabel = 'Downpayment';
+                      } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
+                          $typeLabel = 'Partial Payment';
+                      } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
+                          // Fallback: If it's from mobile and paid, and not explicitly marked 'full', 
+                          // it's likely a downpayment if it doesn't match service total
+                          $typeLabel = 'Downpayment';
+                      }
+                      echo '<span class="badge" style="background:rgba(13, 59, 102, 0.1); color:var(--accent);">' . h($typeLabel) . '</span>';
+                    ?>
+                  </td>
+                  <td style="font-size: 12px; color: #64748b;">
+                    <?php 
+                      if (!empty($payment['billing_date'])) {
+                          echo date('M d, Y', strtotime($payment['billing_date'])) . '<br>';
+                          echo '<small>' . date('h:i A', strtotime($payment['billing_date'])) . '</small>';
+                      } else {
+                          echo 'N/A';
+                      }
+                    ?>
+                  </td>
                   <td><?php echo h(ucfirst($payment['mode'] ?: 'N/A')); ?></td>
                   <td><span class="status-pill status-<?php echo strtolower($payment['status']); ?>"><?php echo ucfirst($payment['status']); ?></span></td>
                   <td style="text-align: right;">
-                    <a href="generate_pdf.php?id=<?php echo $payment['payment_id']; ?>&tenant=<?php echo urlencode($tenantSlug); ?>" class="action-btn" target="_blank">View PDF</a>
+                    <?php if ($hasInvoiceGeneration): ?>
+                      <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $payment['payment_id']; ?>" class="action-btn" target="_blank">Print</a>
+                    <?php else: ?>
+                      <span style="color:#64748b;font-size:12px;">Invoice print unavailable on current plan</span>
+                    <?php endif; ?>
                   </td>
                 </tr>
               <?php endforeach; ?>
             <?php endif; ?>
           </tbody>
         </table>
+
+        <!-- Pagination Navigation -->
+        <?php if ($total_pages > 1): ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" 
+               class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
+               &laquo; Previous
+            </a>
+
+            <?php
+            $start = max(1, $page - 2);
+            $end = min($total_pages, $page + 2);
+
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $page) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+
+            if ($end < $total_pages) {
+                if ($end < $total_pages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $total_pages . '" class="page-link">' . $total_pages . '</a>';
+            }
+            ?>
+
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($total_pages, $page + 1); ?>" 
+               class="page-link <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
+               Next &raquo;
+            </a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -422,22 +567,7 @@ foreach ($payments as $payment) {
       }
     }
 
-    // Live Clock Update Function
-    function updateClock() {
-      const now = new Date();
-      const timeString = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
-      const clockElement = document.getElementById('liveClock');
-      if (clockElement) {
-        clockElement.textContent = timeString;
-      }
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
+    <?php printDateClockScript(); ?>
     
     function filterPayments() {
       const query = document.getElementById('paymentSearch').value.toLowerCase();

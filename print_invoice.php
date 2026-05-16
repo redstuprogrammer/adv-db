@@ -8,26 +8,24 @@ if (!isset($_GET['id'])) {
 
 $id = $_GET['id'];
 
-// Fetch detailed billing info
-// Revised Query in print_invoice.php
+// Fetch detailed billing info using the billing table
 $query = "SELECT 
-            py.payment_id, 
-            py.amount, 
+            py.billing_id, 
+            py.total_amount AS amount, 
             py.mode, 
-            py.status, 
-            py.date_created,
+            py.payment_status AS status, 
+            py.billing_date AS date_created,
+            py.procedures_json,
             p.first_name, 
             p.last_name, 
             p.address, 
-            p.contact_number, -- Fixed name
-            s.service_name,
+            p.contact_number,
             d.last_name AS dentist_name
-          FROM payment py
+          FROM billing py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
-          LEFT JOIN service s ON a.service_id = s.service_id
-          LEFT JOIN dentist d ON a.dentist_id = d.dentist_id
-          WHERE py.payment_id = ?";
+          LEFT JOIN users d ON a.dentist_id = d.user_id
+          WHERE py.billing_id = ?";
 
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $id);
@@ -38,13 +36,18 @@ $data = $result->fetch_assoc();
 if (!$data) {
     die("Invoice not found.");
 }
+
+$procedures = json_decode($data['procedures_json'], true);
+if (json_last_error() !== JSON_ERROR_NONE || !is_array($procedures)) {
+    $procedures = [['name' => 'General Dental Service', 'price' => $data['amount']]];
+}
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Invoice_#<?= $data['payment_id'] ?></title>
+    <title>Invoice_#<?= $data['billing_id'] ?></title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; padding: 40px; }
         .invoice-box { max-width: 800px; margin: auto; padding: 30px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0, 0, 0, 0.15); }
@@ -91,13 +94,14 @@ if (!$data) {
 
         <div class="details-grid">
             <div>
-    <div class="section-title">Patient Information</div>
-    <strong><?= htmlspecialchars($data['first_name'] . " " . $data['last_name']) ?></strong><br>
-    <?= htmlspecialchars($data['address']) ?><br>
-    <?= htmlspecialchars($data['contact_number']) ?> </div>
+                <div class="section-title">Patient Information</div>
+                <strong><?= htmlspecialchars(($data['first_name'] ?? '') . " " . ($data['last_name'] ?? '')) ?></strong><br>
+                <?= htmlspecialchars($data['address'] ?? 'N/A') ?><br>
+                <?= htmlspecialchars($data['contact_number'] ?? 'N/A') ?>
+            </div>
             <div style="text-align: right;">
                 <div class="section-title">Invoice Details</div>
-                Invoice #: <strong>INV-<?= str_pad($data['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong><br>
+                Invoice #: <strong>INV-<?= str_pad($data['billing_id'], 4, '0', STR_PAD_LEFT) ?></strong><br>
                 Date: <?= date('M d, Y', strtotime($data['date_created'])) ?><br>
                 Status: <strong><?= strtoupper($data['status']) ?></strong>
             </div>
@@ -112,18 +116,20 @@ if (!$data) {
                 </tr>
             </thead>
             <tbody>
+                <?php foreach ($procedures as $proc): ?>
                 <tr>
-                    <td><?= htmlspecialchars($data['service_name']) ?></td>
-                    <td>Dr. <?= htmlspecialchars($data['dentist_name']) ?></td>
-                    <td style="text-align: right;">₱<?= number_format($data['amount'], 2) ?></td>
+                    <td><?= htmlspecialchars($proc['name'] ?? 'Service') ?></td>
+                    <td>Dr. <?= htmlspecialchars($data['dentist_name'] ?? 'Dentist') ?></td>
+                    <td style="text-align: right;">₱<?= number_format($proc['price'] ?? 0, 2) ?></td>
                 </tr>
+                <?php endforeach; ?>
             </tbody>
         </table>
 
         <div class="totals">
             <p>Subtotal: ₱<?= number_format($data['amount'], 2) ?></p>
-            <p>Payment Method: <?= $data['mode'] ?></p>
-            <div class="total-amount">Total Paid: ₱<?= number_format($data['amount'], 2) ?></div>
+            <p>Payment Method: <?= htmlspecialchars($data['mode']) ?></p>
+            <div class="total-amount">Total Payable: ₱<?= number_format($data['amount'], 2) ?></div>
         </div>
 
         <div class="footer">

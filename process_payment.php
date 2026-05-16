@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Role Check Implementation - Ensure user is a Receptionist
 if (!isset($_SESSION['role'])) {
@@ -56,7 +57,8 @@ $patient_id = (int)($_POST['patient_id'] ?? 0);
 $appointment_id = (int)($_POST['appointment_id'] ?? 0);
 $amount = (float)($_POST['amount'] ?? 0);
 $mode = trim($_POST['mode'] ?? '');
-$status = trim($_POST['status'] ?? 'Pending');
+// Deriving status from mode as the field was removed from the UI
+$status = ($mode === 'Mobile App') ? 'unpaid' : 'paid';
 $procedures_json = trim($_POST['procedures_json'] ?? '');
 $payment_id = (int)($_POST['payment_id'] ?? 0); // For future editing
 
@@ -65,6 +67,13 @@ $errors = [];
 if ($patient_id <= 0) $errors[] = "Invalid patient selected";
 if ($appointment_id <= 0) $errors[] = "Invalid appointment selected";
 if (empty($procedures_json)) $errors[] = "No procedures selected";
+
+if (!tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn)) {
+    $errors[] = "Payment tracking is not available on your current plan.";
+}
+
+// Tier feature check for multiple payment methods is now handled by the UI restricting to Cash and Mobile App
+$allowMultiplePaymentMethods = tenantHasTierFeature((int)$tenantId, 'multiple_payment_methods', $conn);
 
 $procedures = parse_procedures_json($procedures_json);
 if (empty($procedures)) {
@@ -108,7 +117,7 @@ if ($totalProcedureAmount <= 0) {
     if ($depositApplied > 0) {
         $amount = round(max($amount - $depositApplied, 0), 2);
         if ($amount === 0.0 && strtolower($status) !== 'paid') {
-            $status = 'Paid';
+            $status = 'paid';
         }
     }
 }
@@ -129,19 +138,28 @@ $procedure_name_concat = implode(', ', $procedure_names);
 // Begin transaction
 $conn->begin_transaction();
 
+// Final amount and status determination
+$total_amount_final = $amount;
+$amount_paid_final = ($status === 'paid') ? $total_amount_final : 0.0;
+
+// For "Mobile App" mode, we store the mode as NULL initially so the mobile app 
+// doesn't display "MOBILE APP" as the payment method before it's actually paid.
+$db_mode = ($mode === 'Mobile App' && $status === 'unpaid') ? null : $mode;
+
 try {
     // Insert payment record
-    $insert_sql = "INSERT INTO payment (
-        tenant_id, appointment_id, amount, mode, status,
-        procedures_json, source, reference_number, payment_date
-    ) VALUES (?, ?, ?, ?, ?, ?, 'web', ?, NOW())";
+    $insert_sql = "INSERT INTO billing (
+        tenant_id, patient_id, appointment_id, amount_paid, total_amount, mode, payment_status,
+        procedures_json, source, reference_number, billing_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'web', ?, NOW())";
 
     $stmt = mysqli_prepare($conn, $insert_sql);
     if (!$stmt) {
         throw new Exception("Failed to prepare payment insert: " . mysqli_error($conn));
     }
 
-    mysqli_stmt_bind_param($stmt, "iidssss", $tenantId, $appointment_id, $amount, $mode, $status, $procedures_json, $reference_number);
+    // Use amount_paid_final and total_amount_final instead of just amount twice
+    mysqli_stmt_bind_param($stmt, "iiiddssss", $tenantId, $patient_id, $appointment_id, $amount_paid_final, $total_amount_final, $db_mode, $status, $procedures_json, $reference_number);
 
     if (!mysqli_stmt_execute($stmt)) {
         throw new Exception("Failed to insert payment: " . mysqli_stmt_error($stmt));
@@ -149,21 +167,16 @@ try {
 
     mysqli_stmt_close($stmt);
 
-    // If payment status is 'Paid', update appointment status to 'Completed'
-    if (strtolower($status) === 'paid') {
-        $update_status_sql = "UPDATE appointment SET status = 'Completed' WHERE appointment_id = ? AND tenant_id = ?";
+    // If manual status update is requested
+    $target_appt_status = trim($_POST['update_appt_status'] ?? '');
+    if ($target_appt_status !== '' && $appointment_id > 0) {
+        $update_status_sql = "UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?";
         $stmt3 = mysqli_prepare($conn, $update_status_sql);
-        if (!$stmt3) {
-            throw new Exception("Failed to prepare status update: " . mysqli_error($conn));
+        if ($stmt3) {
+            mysqli_stmt_bind_param($stmt3, "sii", $target_appt_status, $appointment_id, $tenantId);
+            mysqli_stmt_execute($stmt3);
+            mysqli_stmt_close($stmt3);
         }
-
-        mysqli_stmt_bind_param($stmt3, "ii", $appointment_id, $tenantId);
-
-        if (!mysqli_stmt_execute($stmt3)) {
-            throw new Exception("Failed to update appointment status: " . mysqli_stmt_error($stmt3));
-        }
-
-        mysqli_stmt_close($stmt3);
     }
 
     // Commit transaction

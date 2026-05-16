@@ -14,6 +14,7 @@ $sessionManager->requireTenantUser('receptionist');
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -38,32 +39,62 @@ $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 $receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
+$hasPaymentTracking = tenantHasTierFeature((int)$tenantId, 'payment_tracking', $conn);
+$hasInvoiceGeneration = tenantHasTierFeature((int)$tenantId, 'invoice_generation', $conn);
+
+if (!$hasPaymentTracking) {
+    http_response_code(403);
+    die('Billing and payment tracking are not available on your current subscription plan.');
+}
 
 /* =========================================
    2. DATA FETCHING (Billing List)
 ========================================= */
 
+// Pagination Logic
+$records_per_page = 10;
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$offset = ($page - 1) * $records_per_page;
+
+// Get total records for pagination
+$total_records = 0;
+$count_query = "SELECT COUNT(*) FROM billing WHERE tenant_id = ?";
+$count_stmt = mysqli_prepare($conn, $count_query);
+if ($count_stmt) {
+    mysqli_stmt_bind_param($count_stmt, 'i', $tenantId);
+    mysqli_stmt_execute($count_stmt);
+    mysqli_stmt_bind_result($count_stmt, $total_records);
+    mysqli_stmt_fetch($count_stmt);
+    mysqli_stmt_close($count_stmt);
+}
+$total_pages = ceil($total_records / $records_per_page);
+
 $query = "SELECT 
-            py.payment_id, 
+            py.billing_id, 
             p.patient_id,
             p.first_name, 
             p.last_name, 
-            py.amount, 
+            py.total_amount as amount, 
+            py.amount_paid,
             py.mode, 
-            py.status,
+            py.payment_status as status,
+            py.payment_type,
+            py.billing_date,
+            py.source,
             a.appointment_id,
             a.appointment_date,
             py.procedures_json
-          FROM payment py
+          FROM billing py
           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
           LEFT JOIN patient p ON a.patient_id = p.patient_id
           WHERE py.tenant_id = ?
-          ORDER BY py.payment_id DESC";
+          ORDER BY py.billing_id DESC
+          LIMIT ? OFFSET ?";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, "i", $tenantId);
+    mysqli_stmt_bind_param($stmt, "iii", $tenantId, $records_per_page, $offset);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
 }
@@ -100,23 +131,60 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         /* Status Pills */
         .status-pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
         .paid { background: #dcfce7; color: #166534; }
+        .unpaid { background: #fee2e2; color: #991b1b; }
+        .partial { background: #fef9c3; color: #854d0e; }
         .installment { background: #fef9c3; color: #854d0e; }
 
         /* Buttons */
         .btn-action { text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
-        .btn-print { background: #f8fafc; color: #0d3b66; border-color: #0d3b66; }
-        .btn-print:hover { background: #0d3b66; color: #fff; }
+        .btn-print { background: #0d3b66; color: white; border-color: #0d3b66; }
+        .btn-print:hover { background: #0a2d4f; color: #fff; }
         .btn-edit { background: #ecfdf5; color: #059669; border-color: #059669; margin-left: 5px; }
         .btn-edit:hover { background: #059669; color: #fff; }
         .add-btn-main { background: #0d3b66; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
         /* Modal Logic */
-        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; backdrop-filter: blur(2px); }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; width: 450px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
-        .close-x { position: absolute; right: 20px; top: 15px; cursor: pointer; font-size: 24px; color: #64748b; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 13px; color: #0d3b66; }
-        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; }
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
+        .modal-content { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            width: 100%; 
+            max-width: 900px; 
+            position: relative; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .close-x { position: absolute; right: 25px; top: 20px; cursor: pointer; font-size: 28px; color: #64748b; transition: 0.2s; }
+        .close-x:hover { color: #0d3b66; transform: rotate(90deg); }
+        
+        .billing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .billing-grid { grid-template-columns: 1fr; }
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #0d3b66; }
+        .form-group input, .form-group select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 10px; 
+            box-sizing: border-box;
+            transition: 0.2s;
+            font-size: 14px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #0d3b66;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(13, 59, 102, 0.1);
+        }
 
         .live-clock-badge {
             background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
@@ -129,6 +197,153 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             font-family: 'Courier New', monospace;
             letter-spacing: 1px;
             white-space: nowrap;
+        }
+
+        .service-multi-input {
+            position: relative;
+        }
+        .service-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .service-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            min-height: 40px;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: #f8fafc;
+        }
+        .service-tag {
+            background: #0d3b66;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 16px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .tag-remove {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0 2px;
+        }
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ef4444;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 10000;
+            max-width: 300px;
+        }
+        #toast.show {
+            transform: translateX(0);
+        }
+        .floor-info {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        /* Service Selection Redesign */
+        .service-selection-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-top: 8px;
+            padding: 5px;
+            background: #fff;
+        }
+        .service-item {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid transparent;
+            background: #f8fafc;
+        }
+        .service-item:hover {
+            background: #f1f5f9;
+        }
+        .service-item.selected {
+            background: #e0f2fe;
+            border-color: #0ea5e9;
+            color: #0369a1;
+            font-weight: 600;
+        }
+        .add-selected-btn {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+        }
+        .add-selected-btn:hover {
+            background: #0284c7;
+        }
+        
+        /* Pagination Styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 30px;
+            padding: 20px 0;
+        }
+        .page-link {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            color: #0d3b66;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+        .page-link:hover {
+            background: #f8fafc;
+            border-color: #0d3b66;
+        }
+        .page-link.active {
+            background: #0d3b66;
+            color: white;
+            border-color: #0d3b66;
+        }
+        .page-link.disabled {
+            color: #94a3b8;
+            pointer-events: none;
+            background: #f1f5f9;
+            border-color: #e2e8f0;
         }
     </style>
 </head>
@@ -181,8 +396,9 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                     <tr>
                         <th>Inv #</th>
                         <th>Patient Name</th>
-                        <th>Service</th>
                         <th>Amount</th>
+                        <th>Type</th>
+                        <th>Date & Time</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -191,21 +407,88 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                             <?php if($result && $result->num_rows > 0): ?>
                             <?php while($row = $result->fetch_assoc()): ?>
                             <tr>
-                                <td><strong>#<?= str_pad($row['payment_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
+                                <td><strong>#<?= str_pad($row['billing_id'], 4, '0', STR_PAD_LEFT) ?></strong></td>
                                 <td><?= h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')) ?></td>
-                                <td><?= h(getServiceNamesFromJson($row['procedures_json'] ?? '')) ?></td>
                                 <td style="font-weight: 600;">₱<?= number_format($row['amount'], 2) ?></td>
+                                <td>
+                                    <?php 
+                                        $typeLabel = 'Full Payment';
+                                        $pType = strtolower(trim($row['payment_type'] ?? ''));
+                                        $pStatus = strtolower(trim($row['status'] ?? ''));
+                                        $pSource = strtolower(trim($row['source'] ?? ''));
+
+                                        if ($pStatus === 'unpaid') {
+                                            $typeLabel = 'Unpaid Invoice';
+                                        } elseif ($pType === 'deposit') {
+                                            $typeLabel = 'Downpayment';
+                                        } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
+                                            $typeLabel = 'Partial Payment';
+                                        } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
+                                            $typeLabel = 'Downpayment';
+                                        }
+                                        echo '<span class="status-pill" style="background:rgba(13, 59, 102, 0.1); color:#0d3b66;">' . h($typeLabel) . '</span>';
+                                    ?>
+                                </td>
+                                <td style="font-size: 13px; color: #64748b;">
+                                    <?php 
+                                        if (!empty($row['billing_date'])) {
+                                            echo date('M d, Y', strtotime($row['billing_date'])) . '<br>';
+                                            echo '<small>' . date('h:i A', strtotime($row['billing_date'])) . '</small>';
+                                        } else {
+                                            echo 'N/A';
+                                        }
+                                    ?>
+                                </td>
                                 <td><span class="status-pill <?= strtolower(str_replace(' ', '', $row['status'] ?? '')) ?>"><?= h($row['status'] ?? '') ?></span></td>
                                 <td>
-                                    <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['payment_id'] ?>" class="action-link" target="_blank">Print</a>
+                                    <?php if ($hasInvoiceGeneration): ?>
+                                        <a href="print_invoice.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?= $row['billing_id'] ?>" class="btn-action btn-print" target="_blank">Print</a>
+                                    <?php else: ?>
+                                        <span style="color:#64748b;font-size:12px;">Invoice print unavailable</span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="6" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
                         <?php endif; ?>
                 </tbody>
             </table>
+
+            <!-- Pagination Navigation -->
+            <?php if ($total_pages > 1): ?>
+                <div class="pagination">
+                    <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" 
+                       class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
+                       &laquo; Previous
+                    </a>
+
+                    <?php
+                    $start = max(1, $page - 2);
+                    $end = min($total_pages, $page + 2);
+
+                    if ($start > 1) {
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                        if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+                    }
+
+                    for ($i = $start; $i <= $end; $i++) {
+                        $activeClass = ($i === $page) ? 'active' : '';
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+                    }
+
+                    if ($end < $total_pages) {
+                        if ($end < $total_pages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                        echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $total_pages . '" class="page-link">' . $total_pages . '</a>';
+                    }
+                    ?>
+
+                    <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($total_pages, $page + 1); ?>" 
+                       class="page-link <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
+                       Next &raquo;
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -219,67 +502,101 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             <input type="hidden" name="tenant_id" value="<?php echo $tenantId; ?>">
             <input type="hidden" name="payment_id" id="payment_id">
             
-            <div class="form-group">
-                <label>Patient <span style="color: red;">*</span></label>
-                <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
-                    <option value="">-- Select Patient --</option>
-                    <?php 
-                    $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
-                    if ($pStmt) {
-                        mysqli_stmt_bind_param($pStmt, "i", $tenantId);
-                        mysqli_stmt_execute($pStmt);
-                        $pResult = mysqli_stmt_get_result($pStmt);
-                        while($p = mysqli_fetch_assoc($pResult)) {
-                            echo "<option value='".$p['patient_id']."'>".h(formatTenantPatientId($p['tenant_patient_id']) . ' - ' . ($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
-                        }
-                        mysqli_stmt_close($pStmt);
-                    }
-                    ?>
-                </select>
-            </div>
+            <div class="billing-grid">
+                <div class="billing-left">
+                    <div class="form-group">
+                        <label>Patient <span style="color: red;">*</span></label>
+                        <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
+                            <option value="">-- Select Patient --</option>
+                            <?php 
+                            $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                            if ($pStmt) {
+                                mysqli_stmt_bind_param($pStmt, "i", $tenantId);
+                                mysqli_stmt_execute($pStmt);
+                                $pResult = mysqli_stmt_get_result($pStmt);
+                                while($p = mysqli_fetch_assoc($pResult)) {
+                                    echo "<option value='".$p['patient_id']."'>".h(formatTenantPatientId($p['tenant_patient_id']) . ' - ' . ($p['first_name'] ?? '')." ".($p['last_name'] ?? ''))."</option>";
+                                }
+                                mysqli_stmt_close($pStmt);
+                            }
+                            ?>
+                        </select>
+                    </div>
 
-            <div class="form-group">
-                <label>Add Services to Cart</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <select id="service_dropdown">
-                        <option value="">-- Select Service --</option>
-                        <?php foreach ($services as $service): ?>
-                            <option value="<?php echo (int)$service['service_id']; ?>" data-name="<?php echo h($service['service_name']); ?>" data-price="<?php echo number_format((float)$service['price'], 2, '.', ''); ?>"><?php echo h($service['service_name']); ?> — ₱<?php echo number_format((float)$service['price'], 2); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                    <button type="button" onclick="addToCart()" style="padding: 8px 16px; background: #0d3b66; color: white; border: none; border-radius: 6px; cursor: pointer;">Add to Cart</button>
+                    <div class="form-group">
+                        <label>Related Appointment <span style="color: red;">*</span></label>
+                        <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
+                            <option value="">-- Choose Patient First --</option>
+                        </select>
+                        <p id="appt-auto-select-msg" style="font-size: 11px; color: #166534; margin-top: 4px; display: none;">✅ Automatically selected the most recent appointment.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Downpayment Applied</label>
+                        <input type="text" id="deposit_info" readonly style="background: #f8fafc;" value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit: ₱' . number_format($bookingDepositAmount, 2) : 'No deposit configured'; ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Total Amount (₱) <span style="color: red;">*</span></label>
+                        <input type="number" name="amount" id="amount_input" step="0.01" min="0" required oninput="validateTotal()" style="font-size: 1.2rem; font-weight: 700; color: #0d3b66;">
+                        <div id="floor-info" class="floor-info"></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label>Selected Services</label>
-                <div id="cart-list" style="border: 1px solid #e2e8f0; border-radius: 8px; min-height: 100px; padding: 10px; background: #f8fafc;">
-                    <p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>
+                <div class="billing-right">
+                    <div class="form-group">
+                        <label>Payment Mode</label>
+                        <select name="mode" id="mode">
+                            <option value="Cash">Cash</option>
+                            <option value="Mobile App">Payment via mobile app</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Update Appointment Status?</label>
+                        <select name="update_appt_status" id="update_appt_status">
+                            <option value="">No Change (Keep In Progress)</option>
+                            <option value="Completed">Mark as Completed</option>
+                        </select>
+                        <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Choose if this appointment should be finished after billing.</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Services (search & select)</label>
+                        <div class="service-multi-input">
+                            <input type="text" id="service_search" class="service-input" placeholder="Search services..." oninput="filterServices(this.value)" />
+                            
+                            <div id="service_list_container" class="service-selection-list" style="max-height: 150px;">
+                                <?php foreach ($services as $service): ?>
+                                    <div class="service-item" 
+                                         data-id="<?php echo (int)$service['service_id']; ?>" 
+                                         data-name="<?php echo h($service['service_name']); ?>" 
+                                         data-price="<?php echo (float)$service['price']; ?>"
+                                         onclick="toggleServiceSelection(this)">
+                                        <span><?php echo h($service['service_name']); ?></span>
+                                        <span style="color: #64748b;">₱<?php echo number_format($service['price'], 2); ?></span>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <button type="button" class="add-selected-btn" onclick="addSelectedToCart()">Add Selected Services</button>
+
+                            <div id="service-tags" class="service-tags" style="margin-top: 15px; max-height: 120px; overflow-y: auto;">
+                                <p id="cart-empty" style="color: #64748b; margin: 0;">No services added to invoice yet.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label>Related Appointment <span style="color: red;">*</span></label>
-                <select name="appointment_id" id="appointment_dropdown" required onchange="updateTotal()">
-                    <option value="">-- Choose Patient First --</option>
-                </select>
             </div>
 
             <input type="hidden" name="procedures_json" id="procedures_json">
 
-            <div class="form-group">
-                <label>Booking Downpayment Applied</label>
-                <input type="text" id="deposit_info" readonly value="<?php echo $bookingDepositAmount > 0 ? 'Clinic deposit configured: ₱' . number_format($bookingDepositAmount, 2) : 'No clinic downpayment configured'; ?>">
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" class="btn-action" onclick="closeModal()" style="background: #f1f5f9; color: #475569; padding: 12px 24px; border-radius: 8px;">Cancel</button>
+                <button type="submit" class="add-btn-main" style="padding: 12px 40px;">Save Transaction & Generate Invoice</button>
             </div>
-
-            <div class="form-group">
-                <label>Amount Due After Deposit (₱) <span style="color: red;">*</span></label>
-                <input type="number" name="amount" id="amount_input" step="0.01" min="0.00" required oninput="validateAmount()">
-            </div>
-
-            <input type="hidden" name="status" id="status" value="Pending">
-
-            <button type="submit" class="add-btn-main" style="width:100%; margin-top:10px;">Save Transaction</button>
+            
+            <div id="toast"></div>
         </form>
     </div>
 </div>
@@ -298,199 +615,269 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     </div>
 </div>
 
-<script>
-    <?php printDateClockScript(); ?>
-</script>
+
 
 <script>
     let bookingDepositAmount = <?php echo json_encode($bookingDepositAmount); ?>;
     let cart = [];
 
-    function getSelectedAppointmentDeposit() {
-        const apptSelect = document.getElementById('appointment_dropdown');
-        const selectedOption = apptSelect.selectedOptions[0];
-        if (!selectedOption || !selectedOption.value) return 0;
-        const requestedBy = selectedOption.dataset.requestedBy || '';
-        return requestedBy.toLowerCase() === 'patient' ? Number(bookingDepositAmount || 0) : 0;
+    const proceduresJson = document.getElementById('procedures_json');
+    const amountInput = document.getElementById('amount_input');
+    const floorInfo = document.getElementById('floor-info');
+    const depositInfo = document.getElementById('deposit_info');
+
+    // Service Selection Logic
+    function toggleServiceSelection(el) {
+        el.classList.toggle('selected');
     }
 
-    function addToCart() {
-        const serviceSelect = document.getElementById('service_dropdown');
-        const selectedOption = serviceSelect.selectedOptions[0];
-        if (!selectedOption || !selectedOption.value) return;
-
-        const serviceId = selectedOption.value;
-        const serviceName = selectedOption.dataset.name;
-        const price = parseFloat(selectedOption.dataset.price);
-
-        // Check if already in cart
-        if (cart.some(item => item.service_id == serviceId)) {
-            alert('Service already in cart.');
-            return;
-        }
-
-        cart.push({ service_id: serviceId, name: serviceName, price: price });
-        updateCartDisplay();
-        updateTotal();
-        serviceSelect.value = '';
-    }
-
-    function removeFromCart(serviceId) {
-        cart = cart.filter(item => item.service_id != serviceId);
-        updateCartDisplay();
-        updateTotal();
-    }
-
-    function updateCartDisplay() {
-        const cartList = document.getElementById('cart-list');
-        cartList.innerHTML = '';
-
-        if (cart.length === 0) {
-            cartList.innerHTML = '<p id="cart-empty" style="color: #64748b; margin: 0;">No services added yet.</p>';
-            return;
-        }
-
-        cart.forEach(item => {
-            const div = document.createElement('div');
-            div.style.display = 'flex';
-            div.style.justifyContent = 'space-between';
-            div.style.alignItems = 'center';
-            div.style.padding = '5px 0';
-            div.innerHTML = `
-                <span>${item.name} - ₱${item.price.toFixed(2)}</span>
-                <button type="button" onclick="removeFromCart(${item.service_id})" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 2px 6px; cursor: pointer;">Remove</button>
-            `;
-            cartList.appendChild(div);
+    function filterServices(query) {
+        const q = query.toLowerCase();
+        const items = document.querySelectorAll('.service-item');
+        items.forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            item.style.display = name.includes(q) ? 'flex' : 'none';
         });
     }
 
+    function addSelectedToCart() {
+        const selectedItems = document.querySelectorAll('.service-item.selected');
+        if (selectedItems.length === 0) {
+            showToast('Please select at least one service');
+            return;
+        }
+
+        selectedItems.forEach(item => {
+            const id = item.dataset.id;
+            const name = item.dataset.name;
+            const price = parseFloat(item.dataset.price);
+
+            if (!cart.some(c => c.service_id == id)) {
+                cart.push({ service_id: id, name: name, price: price });
+            }
+            // Reset selection after adding
+            item.classList.remove('selected');
+        });
+
+        renderTags();
+        updateTotal();
+        document.getElementById('service_search').value = '';
+        filterServices('');
+        showToast('Services added to invoice');
+    }
+
+    function renderTags() {
+        const serviceTags = document.getElementById('service-tags');
+        if (!serviceTags) return;
+        if (cart.length === 0) {
+            serviceTags.innerHTML = '<p style="color: #64748b; margin: 0;">No services added</p>';
+            return;
+        }
+        serviceTags.innerHTML = cart.map(item => `
+            <span class="service-tag">
+                ${item.name} <small>₱${item.price.toFixed(2)}</small>
+                <button type="button" class="tag-remove" onclick="removeFromCart(${item.service_id})">&times;</button>
+            </span>
+        `).join('');
+    }
+
+    window.removeFromCart = (id) => {
+        cart = cart.filter(item => item.service_id != id);
+        renderTags();
+        updateTotal();
+    };
+
+    function getSelectedAppointmentDeposit() {
+        const apptSelect = document.getElementById('appointment_dropdown');
+        if (!apptSelect) return 0;
+        const opt = apptSelect.selectedOptions[0];
+        if (!opt || !opt.value) return 0;
+        const requestedBy = opt.dataset.requestedBy || '';
+        return (requestedBy.toLowerCase() === 'patient') ? Number(bookingDepositAmount || 0) : 0;
+    }
+
     function updateTotal() {
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const depositAmount = getSelectedAppointmentDeposit();
-        const amountInput = document.getElementById('amount_input');
-        const depositInfo = document.getElementById('deposit_info');
-        const amountDue = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
+        if (!amountInput) return;
+        const subtotal = cart.reduce((sum, item) => sum + item.price, 0);
+        const deposit = getSelectedAppointmentDeposit();
+        const floor = Math.max(subtotal - deposit, 0);
+        
+        amountInput.min = floor.toFixed(2);
+        if (parseFloat(amountInput.value || 0) < floor) {
+            amountInput.value = floor.toFixed(2);
+        }
+        if (proceduresJson) proceduresJson.value = JSON.stringify(cart);
 
-        amountInput.min = amountDue.toFixed(2);
-        amountInput.value = amountDue.toFixed(2);
-        document.getElementById('procedures_json').value = JSON.stringify(cart);
-
-        if (depositAmount > 0) {
-            depositInfo.value = `Deposit available: ₱${depositAmount.toFixed(2)} will be applied to this invoice.`;
-        } else if (bookingDepositAmount > 0) {
-            depositInfo.value = 'Deposit configured but not applicable to the selected appointment.';
-        } else {
-            depositInfo.value = 'No clinic downpayment configured';
+        if (floorInfo) {
+            floorInfo.textContent = `Floor: ₱${floor.toFixed(2)} (${subtotal.toFixed(2)} services - ${deposit.toFixed(2)} deposit)`;
+        }
+        if (depositInfo) {
+            depositInfo.value = deposit > 0 ? `Deducted: ₱${deposit.toFixed(2)} (patient appt deposit)` : 'No deduction applied';
         }
     }
 
-    function validateAmount() {
-        const amountInput = document.getElementById('amount_input');
-        const total = cart.reduce((sum, item) => sum + item.price, 0);
-        const depositAmount = getSelectedAppointmentDeposit();
-        const minAmount = parseFloat(Math.max(total - depositAmount, 0).toFixed(2));
-        let value = parseFloat(amountInput.value);
-        if (isNaN(value) || value < minAmount) {
-            amountInput.value = minAmount.toFixed(2);
+    function validateTotal() {
+        const floor = parseFloat(amountInput.min || 0);
+        const value = parseFloat(amountInput.value || 0);
+        if (value < floor) {
+            amountInput.value = floor.toFixed(2);
+            showToast('Price cannot be lower than the base service total (floor protected).');
         }
     }
 
-    // Verification log
-    console.log('UI Parity Active - Version 2.0');
-    console.log('Receptionist Billing Page Initialized');
-    console.log('FINAL UI SYNC COMPLETE');
-    console.log('Anti-Crash System Active - V2');
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        if (!toast) {
+            alert(msg);
+            return;
+        }
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 4000);
+    }
 
-    // 2. Modal Toggle
+     function formatTimeJS(timeStr) {
+        if (!timeStr) return 'TBD';
+        let [hours, minutes] = timeStr.split(':');
+        let hour = parseInt(hours);
+        let ampm = hour >= 12 ? 'PM' : 'AM';
+        hour = hour % 12;
+        hour = hour ? hour : 12;
+        return `${hour}:${minutes} ${ampm}`;
+    }
+
+    function formatDateJS(dateStr) {
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const d = new Date(dateStr);
+        return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    }
+
+    function loadPatientAppointments(patient_id, selectedApptId = null) {
+        const apptSelect = document.getElementById('appointment_dropdown');
+        const autoMsg = document.getElementById('appt-auto-select-msg');
+        if (!apptSelect) return;
+        
+        apptSelect.innerHTML = '<option value="">-- Loading active appointments... --</option>';
+        if (autoMsg) autoMsg.style.display = 'none';
+        
+        if (!patient_id) {
+            apptSelect.innerHTML = '<option value="">-- Choose Patient First --</option>';
+            return;
+        }
+
+        const params = new URLSearchParams({
+            patient_id: patient_id,
+            tenant_id: <?php echo $tenantId; ?>
+        });
+        
+        fetch('get_patient_services.php?' + params)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) {
+                    apptSelect.innerHTML = '<option value="">No "In Progress" appointments found</option>';
+                    updateTotal();
+                    return;
+                }
+
+                apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
+                
+                data.forEach((item, index) => {
+                    let opt = document.createElement('option');
+                    opt.value = item.appointment_id;
+                    const formattedDate = formatDateJS(item.appointment_date);
+                    const formattedTime = formatTimeJS(item.appointment_time);
+                    opt.textContent = `${formattedDate} at ${formattedTime} (${item.status})`;
+                    opt.dataset.requestedBy = item.requested_by || '';
+                    
+                    if (selectedApptId) {
+                        if (item.appointment_id == selectedApptId) opt.selected = true;
+                    } else if (index === 0) {
+                        opt.selected = true;
+                        if (autoMsg) autoMsg.style.display = 'block';
+                    }
+                    
+                    apptSelect.appendChild(opt);
+                });
+                updateTotal();
+            })
+            .catch(err => {
+                console.error('Error loading appointments:', err);
+                apptSelect.innerHTML = '<option value="">-- Error loading appointments --</option>';
+            });
+    }
+
     function openAddModal() {
-      document.getElementById('paymentForm').reset();
-      document.getElementById('payment_id').value = "";
-      document.getElementById('modalTitle').innerText = "Create New Invoice";
-      cart = [];
-      updateCartDisplay();
-      updateTotal();
-      document.getElementById("paymentModal").style.display = "flex";
+        const form = document.getElementById('paymentForm');
+        if (form) form.reset();
+        document.getElementById('payment_id').value = "";
+        document.getElementById('modalTitle').innerText = "Create New Invoice";
+        const autoMsg = document.getElementById('appt-auto-select-msg');
+        if (autoMsg) autoMsg.style.display = 'none';
+        cart = [];
+        // Reset selections in the list
+        document.querySelectorAll('.service-item').forEach(el => el.classList.remove('selected'));
+        renderTags();
+        updateTotal();
+        document.getElementById("paymentModal").style.display = "flex";
     }
 
     function closeModal() {
-      document.getElementById("paymentModal").style.display = "none";
+        document.getElementById("paymentModal").style.display = "none";
     }
 
     function openDepositModal() {
-      document.getElementById('booking_deposit_amount').value = bookingDepositAmount.toFixed(2);
-      document.getElementById('depositModalMessage').textContent = '';
-      document.getElementById('depositModal').style.display = 'flex';
+        const depInput = document.getElementById('booking_deposit_amount');
+        if (depInput) depInput.value = Number(bookingDepositAmount || 0).toFixed(2);
+        const msg = document.getElementById('depositModalMessage');
+        if (msg) msg.textContent = '';
+        document.getElementById('depositModal').style.display = 'flex';
     }
 
     function closeDepositModal() {
-      document.getElementById('depositModal').style.display = 'none';
+        document.getElementById('depositModal').style.display = 'none';
     }
 
     async function saveDepositConfig() {
-      const amountField = document.getElementById('booking_deposit_amount');
-      const rawAmount = amountField.value;
-      const amount = parseFloat(rawAmount);
+        const amountField = document.getElementById('booking_deposit_amount');
+        const rawAmount = amountField.value;
+        const amount = parseFloat(rawAmount);
 
-      if (isNaN(amount) || amount < 0) {
-        document.getElementById('depositModalMessage').textContent = 'Please enter a valid non-negative amount.';
-        return;
-      }
+        if (isNaN(amount) || amount < 0) {
+            const msg = document.getElementById('depositModalMessage');
+            if (msg) msg.textContent = 'Please enter a valid non-negative amount.';
+            return;
+        }
 
-      const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ booking_deposit_amount: amount })
-      });
+        try {
+            const response = await fetch('api/save_deposit_config.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ booking_deposit_amount: amount })
+            });
 
-      const result = await response.json();
-      if (result.success) {
-        document.getElementById('depositModalMessage').textContent = result.message;
-        document.getElementById('deposit_info').value = amount > 0 ? `Clinic deposit configured: ₱${amount.toFixed(2)}` : 'No clinic downpayment configured';
-        document.getElementById('depositModalMessage').style.color = '#166534';
-        document.getElementById('depositModal').style.display = 'none';
-        window.bookingDepositAmount = amount;
-      } else {
-        document.getElementById('depositModalMessage').textContent = result.message || 'Unable to save deposit config.';
-        document.getElementById('depositModalMessage').style.color = '#b91c1c';
-      }
+            const result = await response.json();
+            const msg = document.getElementById('depositModalMessage');
+            if (result.success) {
+                if (msg) {
+                    msg.textContent = result.message;
+                    msg.style.color = '#166534';
+                }
+                bookingDepositAmount = amount;
+                updateTotal();
+                setTimeout(closeDepositModal, 1500);
+            } else {
+                if (msg) {
+                    msg.textContent = result.message || 'Unable to save deposit config.';
+                    msg.style.color = '#b91c1c';
+                }
+            }
+        } catch (err) {
+            console.error('Save config error:', err);
+        }
     }
 
-    // 3. Edit Modal Trigger - Simplified for now
-    function openEditModal(data) {
-        alert('Editing existing invoices with cart system is not yet implemented. Please create a new invoice.');
-        return;
-        // Future: Load cart from procedures_json
-    }
 
-    // 4. Dynamic Appointment Loading
-    function loadPatientAppointments(patientId, selectedApptId = null) {
-      const apptSelect = document.getElementById('appointment_dropdown');
-      apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
-      
-      if (!patientId) return;
 
-      const params = new URLSearchParams({
-        patient_id: patientId,
-        tenant_id: <?php echo $tenantId; ?>
-      });
-      
-      fetch('get_patient_services.php?' + params)
-        .then(res => res.json())
-        .then(data => {
-          data.forEach(item => {
-            let opt = document.createElement('option');
-            opt.value = item.appointment_id;
-            opt.textContent = "Appt: " + new Date(item.appointment_date).toLocaleDateString();
-            opt.dataset.requestedBy = item.requested_by || '';
-            if(selectedApptId && item.appointment_id == selectedApptId) opt.selected = true;
-            apptSelect.appendChild(opt);
-          });
-          updateTotal();
-        })
-        .catch(err => console.error('Error loading appointments:', err));
-    }
-
-    // 5. Search Filter
     function filterMainTable() {
         let q = document.getElementById('tableSearch').value.toLowerCase();
         let rows = document.querySelectorAll('#paymentTable tbody tr');
@@ -499,11 +886,12 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         });
     }
 
-    // Close modal if clicking outside
     window.onclick = function(e) {
         if (e.target.id === 'paymentModal') closeModal();
         if (e.target.id === 'depositModal') closeDepositModal();
     }
+
+    console.log('Billing Management Initialized');
 </script>
 </body>
 </html>

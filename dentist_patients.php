@@ -40,7 +40,7 @@ $stmt = mysqli_prepare($conn,
      WHERE p.tenant_id = ?
      GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name,
               p.contact_number, p.email, p.birthdate, p.gender
-     ORDER BY p.first_name ASC');
+     ORDER BY p.patient_id ASC');
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, 'i', $tenantId);
     mysqli_stmt_execute($stmt);
@@ -81,7 +81,13 @@ if (isset($_GET['view_patient_id'])) {
       .module-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(15,23,42,0.08); }
 
       .search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
-      .search-bar input { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+      .search-bar input { flex: 1; padding: 10px 12px; border: 2px solid #d1d5db !important; border-radius: 8px; font-size: 13px; }
+
+      .search-bar input:focus {
+        border-color: var(--accent) !important;
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+      }
+
 
       .patient-table { width: 100%; border-collapse: collapse; }
       .patient-table th, .patient-table td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; text-align: left; color: #334155; }

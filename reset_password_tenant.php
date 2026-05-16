@@ -8,23 +8,102 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function tableHasColumns(mysqli $conn, string $table, array $columns): bool {
+    $tableSafe = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+    if ($tableSafe === '') {
+        return false;
+    }
+
+    try {
+        $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$tableSafe}`");
+        if (!$result) {
+            return false;
+        }
+    } catch (mysqli_sql_exception $e) {
+        return false;
+    }
+
+    $present = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        $field = $row['Field'] ?? '';
+        if ($field !== '') {
+            $present[$field] = true;
+        }
+    }
+    mysqli_free_result($result);
+
+    foreach ($columns as $column) {
+        if (!isset($present[$column])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 $token = trim((string)($_GET['token'] ?? ''));
-$tenantId = (int)($_GET['id'] ?? 0);
+$id = (int)($_GET['id'] ?? 0);
+$type = trim((string)($_GET['type'] ?? 'tenant')); // 'tenant' or 'user'
 $message = '';
 $isError = false;
 $tokenValid = false;
+$resetSuccess = false;
 
 // Verify token
-if ($token && $tenantId) {
-    $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM tenants WHERE tenant_id = ? AND password_reset_expires > NOW()");
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $tenantId);
-        mysqli_stmt_execute($stmt);
-        $res = mysqli_stmt_get_result($stmt);
-        $tenant = mysqli_fetch_assoc($res);
+if ($token && $id) {
+    $hasNativeColumns = (
+        ($type === 'tenant' && tableHasColumns($conn, 'tenants', ['password_reset_token', 'password_reset_expires'])) ||
+        ($type !== 'tenant' && tableHasColumns($conn, 'users', ['password_reset_token', 'password_reset_expires']))
+    );
+
+    if ($hasNativeColumns) {
+        if ($type === 'tenant') {
+            $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM tenants WHERE tenant_id = ? AND password_reset_expires > NOW()");
+        } else {
+            $stmt = mysqli_prepare($conn, "SELECT password_reset_token, password_reset_expires FROM users WHERE user_id = ? AND password_reset_expires > NOW()");
+        }
         
-        if ($tenant && password_verify($token, (string)$tenant['password_reset_token'])) {
-            $tokenValid = true;
+        if ($stmt) {
+            mysqli_stmt_bind_param($stmt, "i", $id);
+            mysqli_stmt_execute($stmt);
+            $res = mysqli_stmt_get_result($stmt);
+            $account = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($stmt);
+            
+            if ($account && password_verify($token, (string)$account['password_reset_token'])) {
+                $tokenValid = true;
+            }
+        }
+    } elseif (tableHasColumns($conn, 'password_resets', ['email', 'token', 'expires_at'])) {
+        // Fallback flow: resolve email from account id, then validate against password_resets.
+        $emailStmt = null;
+        if ($type === 'tenant') {
+            $emailStmt = mysqli_prepare($conn, "SELECT contact_email AS email FROM tenants WHERE tenant_id = ? LIMIT 1");
+        } else {
+            $emailStmt = mysqli_prepare($conn, "SELECT email FROM users WHERE user_id = ? LIMIT 1");
+        }
+
+        if ($emailStmt) {
+            mysqli_stmt_bind_param($emailStmt, "i", $id);
+            mysqli_stmt_execute($emailStmt);
+            $emailRes = mysqli_stmt_get_result($emailStmt);
+            $emailRow = mysqli_fetch_assoc($emailRes);
+            mysqli_stmt_close($emailStmt);
+
+            $accountEmail = trim((string)($emailRow['email'] ?? ''));
+            if ($accountEmail !== '') {
+                $tokenStmt = mysqli_prepare($conn, "SELECT token FROM password_resets WHERE email = ? AND expires_at > NOW() LIMIT 1");
+                if ($tokenStmt) {
+                    mysqli_stmt_bind_param($tokenStmt, "s", $accountEmail);
+                    mysqli_stmt_execute($tokenStmt);
+                    $tokenRes = mysqli_stmt_get_result($tokenStmt);
+                    $resetRow = mysqli_fetch_assoc($tokenRes);
+                    mysqli_stmt_close($tokenStmt);
+
+                    if ($resetRow && password_verify($token, (string)$resetRow['token'])) {
+                        $tokenValid = true;
+                    }
+                }
+            }
         }
     }
 }
@@ -45,20 +124,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
     } else {
         // Hash and update password
         $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-        $updateStmt = mysqli_prepare($conn, "UPDATE tenants SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
+        
+        if ($type === 'tenant') {
+            $hasNativeColumns = tableHasColumns($conn, 'tenants', ['password_reset_token', 'password_reset_expires']);
+            $updateSql = $hasNativeColumns
+                ? "UPDATE tenants SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?"
+                : "UPDATE tenants SET password = ? WHERE tenant_id = ?";
+            $updateStmt = mysqli_prepare($conn, $updateSql);
+        } else {
+            $hasNativeColumns = tableHasColumns($conn, 'users', ['password_reset_token', 'password_reset_expires']);
+            $updateSql = $hasNativeColumns
+                ? "UPDATE users SET password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE user_id = ?"
+                : "UPDATE users SET password = ? WHERE user_id = ?";
+            $updateStmt = mysqli_prepare($conn, $updateSql);
+        }
+        
         if ($updateStmt) {
-            mysqli_stmt_bind_param($updateStmt, "si", $hashedPassword, $tenantId);
+            mysqli_stmt_bind_param($updateStmt, "si", $hashedPassword, $id);
             if (mysqli_stmt_execute($updateStmt)) {
-                $message = 'Password reset successfully! You can now log in with your new password.';
+                if (tableHasColumns($conn, 'password_resets', ['email'])) {
+                    $emailStmt = null;
+                    if ($type === 'tenant') {
+                        $emailStmt = mysqli_prepare($conn, "SELECT contact_email AS email FROM tenants WHERE tenant_id = ? LIMIT 1");
+                    } else {
+                        $emailStmt = mysqli_prepare($conn, "SELECT email FROM users WHERE user_id = ? LIMIT 1");
+                    }
+                    if ($emailStmt) {
+                        mysqli_stmt_bind_param($emailStmt, "i", $id);
+                        mysqli_stmt_execute($emailStmt);
+                        $emailRes = mysqli_stmt_get_result($emailStmt);
+                        $emailRow = mysqli_fetch_assoc($emailRes);
+                        mysqli_stmt_close($emailStmt);
+                        $accountEmail = trim((string)($emailRow['email'] ?? ''));
+                        if ($accountEmail !== '') {
+                            $deleteStmt = mysqli_prepare($conn, "DELETE FROM password_resets WHERE email = ?");
+                            if ($deleteStmt) {
+                                mysqli_stmt_bind_param($deleteStmt, "s", $accountEmail);
+                                mysqli_stmt_execute($deleteStmt);
+                                mysqli_stmt_close($deleteStmt);
+                            }
+                        }
+                    }
+                }
+
+                // Get tenant slug for better redirect
+                $redirectSlug = '';
+                if ($type === 'tenant') {
+                    $slugStmt = mysqli_prepare($conn, "SELECT subdomain_slug FROM tenants WHERE tenant_id = ? LIMIT 1");
+                } else {
+                    $slugStmt = mysqli_prepare($conn, "SELECT t.subdomain_slug FROM tenants t JOIN users u ON t.tenant_id = u.tenant_id WHERE u.user_id = ? LIMIT 1");
+                }
+                
+                if ($slugStmt) {
+                    mysqli_stmt_bind_param($slugStmt, "i", $id);
+                    mysqli_stmt_execute($slugStmt);
+                    $slugRes = mysqli_stmt_get_result($slugStmt);
+                    $slugRow = mysqli_fetch_assoc($slugRes);
+                    $redirectSlug = $slugRow['subdomain_slug'] ?? '';
+                    mysqli_stmt_close($slugStmt);
+                }
+
+                $message = 'Password reset successfully! Redirecting you to the login page...';
                 $isError = false;
                 $tokenValid = false; // Prevent further resets
+                $resetSuccess = true;
                 
-                // Redirect to login after 3 seconds
-                header('Refresh: 3; url=tenant_login.php');
+                // Redirect to login
+                $loginUrl = 'tenant_login.php' . ($redirectSlug ? '?tenant=' . urlencode($redirectSlug) : '');
+                header("Refresh: 3; url=$loginUrl");
             } else {
                 $message = 'An error occurred. Please try again.';
                 $isError = true;
             }
+            mysqli_stmt_close($updateStmt);
         }
     }
 }
@@ -78,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
                 <h1 class="t-cardTitle">Reset Password</h1>
                 <div class="t-cardSub">Create a new password for your clinic account.</div>
 
-                <?php if (!$tokenValid): ?>
+                <?php if (!$tokenValid && !$resetSuccess): ?>
                     <div style="padding: 12px; border-radius: 8px; margin-top: 12px; background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; font-size: 13px;">
                         This password reset link is invalid or has expired. Please request a new one.
                     </div>
@@ -107,5 +245,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
             </section>
         </div>
     </div>
+    <?php if ($resetSuccess): ?>
+    <script>
+        alert("Password reset successfully! You will be redirected to the login page.");
+        window.location.href = "<?php echo $loginUrl; ?>";
+    </script>
+    <?php endif; ?>
 </body>
 </html>

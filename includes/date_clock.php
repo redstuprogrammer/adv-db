@@ -7,8 +7,8 @@ function renderDateClock(): void {
 }
 
 function printDateClockScript(): void {
-    echo '<script>
-        function initializeLiveClock(clockElementId = "liveClock") {
+    echo '
+        document.addEventListener("DOMContentLoaded", function() {
             const updateClock = () => {
                 const now = new Date();
                 const timeString = now.toLocaleTimeString("en-US", {
@@ -17,26 +17,15 @@ function printDateClockScript(): void {
                     second: "2-digit",
                     hour12: true
                 });
-                const element = document.getElementById(clockElementId);
+                const element = document.getElementById("liveClock");
                 if (element) {
                     element.textContent = timeString;
                 }
             };
-            
-            // Update immediately
             updateClock();
-            
-            // Update every second
             setInterval(updateClock, 1000);
-        }
-
-        // Run immediately if DOM is ready, or on load
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", function() {
-                initializeLiveClock();
-            });
-        } else {
-            initializeLiveClock();
-        }
-    </script>';
+            console.log("Live clock initialized");
+        });
+    ';
 }
+

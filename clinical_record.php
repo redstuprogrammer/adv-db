@@ -7,39 +7,41 @@
  * ============================================
  */
 
-session_start();
+require_once __DIR__ . '/includes/session_config.php';
 require_once __DIR__ . '/includes/security_headers.php';
+require_once __DIR__ . '/includes/session_utils.php';
+
+$sessionManager = SessionManager::getInstance();
+$sessionManager->requireTenantUser('dentist');
+
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
-
-// Security Check
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'Dentist') {
-    header("Location: tenant_login.php");
-    exit();
-}
+require_once __DIR__ . '/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
-requireTenantLogin($tenantSlug);
 
-$tenantName = $_SESSION['tenant_name'];
-$tenantId = $_SESSION['tenant_id'];
-$dentistId = $_SESSION['user_id'] ?? 0;
-if (!$dentistId) {
-    echo "<script>showCustomAlert('Access denied: Invalid session.'); window.history.back();</script>";
+$tenantData  = $sessionManager->getTenantData();
+$tenantName  = $tenantData['tenant_name'] ?? '';
+$tenantId    = $sessionManager->getTenantId();
+$dentistId   = $sessionManager->getUserId() ?? 0;
+$dentistName = $sessionManager->getUsername() ?? 'Dentist';
+
+if (!$tenantId || !$dentistId) {
+    echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
     exit();
 }
-$dentistName = $_SESSION['username'] ?? 'Dentist';
 
-// Get patient_id from URL
-$patient_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+// Get patient_id from URL - checking both 'patient_id' and 'id' for compatibility
+$patient_id = isset($_GET['patient_id']) ? (int)$_GET['patient_id'] : (isset($_GET['id']) ? (int)$_GET['id'] : 0);
+
 if (!$patient_id) {
-    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
+    echo "<script>alert('Patient not found.'); window.history.back();</script>";
     exit();
 }
 
@@ -54,8 +56,20 @@ if ($patientStmt) {
 }
 
 if (!$patient) {
-    echo "<script>showCustomAlert('Patient not found.'); window.history.back();</script>";
+    echo "<script>alert('Patient not found or access denied.'); window.history.back();</script>";
     exit();
+}
+
+// Calculate age
+$age = 'N/A';
+if (!empty($patient['birthdate'])) {
+    try {
+        $birthDate = new DateTime($patient['birthdate']);
+        $today = new DateTime('today');
+        $age = $birthDate->diff($today)->y;
+    } catch (Exception $e) {
+        $age = 'N/A';
+    }
 }
 
 // Handle treatment note submission
@@ -69,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note'])
         $noteStmt = $conn->prepare("INSERT INTO clinical_notes (tenant_id, patient_id, dentist_id, treatment_notes) VALUES (?, ?, ?, ?)");
         if ($noteStmt) {
             $combined_notes = "Diagnosis: $diagnosis\nTreatment: $treatment\nNotes: $notes";
-            $noteStmt->bind_param('iis', $tenantId, $patient_id, $dentistId, $combined_notes);
+            $noteStmt->bind_param('iiis', $tenantId, $patient_id, $dentistId, $combined_notes);
             if ($noteStmt->execute()) {
                 $successMsg = '✓ Clinical note saved successfully.';
             }
@@ -89,6 +103,61 @@ if ($historyStmt) {
         $clinicalHistory[] = $row;
     }
     $historyStmt->close();
+}
+
+// Handle file uploads
+$errorMsg = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
+    $upload_dir = __DIR__ . '/uploads/patient_docs/';
+    if (!is_dir($upload_dir)) {
+        mkdir($upload_dir, 0777, true);
+    }
+    
+    foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
+        if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
+            $original_name = mysqli_real_escape_string($conn, $_FILES['patient_docs']['name'][$key]);
+            $file_type = $_FILES['patient_docs']['type'][$key];
+            $file_size = $_FILES['patient_docs']['size'][$key];
+            $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+            
+            // Check storage limit
+            if (!isTenantWithinStorageLimit($tenantId, (int)$file_size, $conn)) {
+                $errorMsg = "❌ Storage limit reached. Cannot upload $original_name.";
+                continue;
+            }
+            
+            $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+            if (in_array($ext, $allowed)) {
+                $safe_name = uniqid('pat_' . $patient_id . '_') . '.' . $ext;
+                $dest_path = $upload_dir . $safe_name;
+                
+                if (move_uploaded_file($tmp_name, $dest_path)) {
+                    $db_path = 'uploads/patient_docs/' . $safe_name;
+                    $doc_sql = "INSERT INTO patient_documents (tenant_id, patient_id, document_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?, ?)";
+                    $doc_stmt = mysqli_prepare($conn, $doc_sql);
+                    if ($doc_stmt) {
+                        mysqli_stmt_bind_param($doc_stmt, "iisssi", $tenantId, $patient_id, $original_name, $db_path, $file_type, $file_size);
+                        mysqli_stmt_execute($doc_stmt);
+                        mysqli_stmt_close($doc_stmt);
+                        $successMsg = '✓ Document(s) uploaded successfully.';
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Fetch patient documents
+$patientDocs = [];
+$docsStmt = $conn->prepare("SELECT * FROM patient_documents WHERE tenant_id = ? AND patient_id = ? ORDER BY doc_id DESC");
+if ($docsStmt) {
+    $docsStmt->bind_param('ii', $tenantId, $patient_id);
+    $docsStmt->execute();
+    $docsResult = $docsStmt->get_result();
+    while ($row = $docsResult->fetch_assoc()) {
+        $patientDocs[] = $row;
+    }
+    $docsStmt->close();
 }
 ?>
 
@@ -338,11 +407,17 @@ if ($historyStmt) {
 <div class="clinical-container">
     <div class="header-section">
         <h1>Clinical Record</h1>
-        <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Back to Appointments</a>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <?php renderDateClock(); ?>
+            <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Back to Appointments</a>
+        </div>
     </div>
 
     <?php if ($successMsg): ?>
         <div class="success-message"><?php echo $successMsg; ?></div>
+    <?php endif; ?>
+    <?php if ($errorMsg): ?>
+        <div class="success-message" style="background: #fee2e2; color: #b91c1c; border-color: #fecaca;"><?php echo $errorMsg; ?></div>
     <?php endif; ?>
 
     <div class="patient-summary">
@@ -356,7 +431,7 @@ if ($historyStmt) {
         <div class="patient-grid">
             <div class="patient-field">
                 <label>Date of Birth</label>
-                <p><?php echo h($patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'); ?></p>
+                <p><?php echo h($patient['birthdate'] ? date('M d, Y', strtotime($patient['birthdate'])) : 'N/A'); ?> <?php if($age !== 'N/A') echo " (Age: " . h($age) . ")"; ?></p>
             </div>
             <div class="patient-field">
                 <label>Gender</label>
@@ -375,7 +450,7 @@ if ($historyStmt) {
 
     <div class="entry-form">
         <h3>📝 Add Clinical Note</h3>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label>Diagnosis</label>
                 <textarea name="diagnosis" placeholder="Enter patient diagnosis..."></textarea>
@@ -391,8 +466,14 @@ if ($historyStmt) {
                 <textarea name="clinical_notes" placeholder="Additional observations and notes..." required></textarea>
             </div>
 
+            <div class="form-group">
+                <label>Attachments (X-Rays, Lab results, etc.)</label>
+                <input type="file" name="patient_docs[]" multiple style="width: 100%; padding: 10px; border: 1px dashed var(--border); border-radius: 8px;">
+                <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">Allowed: PDF, JPG, PNG, DOCX (Max total size per plan applies)</p>
+            </div>
+
             <div class="form-actions">
-                <button type="submit" name="save_clinical_note" class="btn-save">Save Note</button>
+                <button type="submit" name="save_clinical_note" class="btn-save">Save Note & Upload</button>
                 <button type="reset" class="btn-clear">Clear</button>
             </div>
         </form>
@@ -417,9 +498,34 @@ if ($historyStmt) {
             </div>
         </div>
     <?php endif; ?>
+
+    <?php if (!empty($patientDocs)): ?>
+        <div class="history-section" style="margin-top: 30px;">
+            <h3>📎 Patient Documents</h3>
+            <div style="display: grid; gap: 10px;">
+                <?php foreach ($patientDocs as $doc): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border: 1px solid var(--border); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">📄</span>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--primary);"><?php echo h($doc['document_name']); ?></div>
+                                <div style="font-size: 11px; color: var(--text-muted);"><?php echo strtoupper(h($doc['file_type'])); ?> • <?php echo round($doc['file_size'] / 1024, 2); ?> KB</div>
+                            </div>
+                        </div>
+                        <a href="<?php echo h($doc['file_path']); ?>" target="_blank" style="font-size: 13px; color: var(--primary); font-weight: 700; text-decoration: none;">View</a>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php renderCustomModal(); ?>
+
+<script>
+    <?php printDateClockScript(); ?>
+</script>
+<?php include_once __DIR__ . '/includes/toast_notification.php'; ?>
 
 </body>
 </html>

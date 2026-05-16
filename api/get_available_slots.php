@@ -10,8 +10,10 @@
 //
 // Returns 30-min slots within the dentist's schedule for that day,
 // marking each slot available or unavailable (booked/past/too-soon).
-// "Too soon" = same-day slots within 2 hours of now (matches book_appointment.php).
+// "Too soon" = same-day slots within 1 hour of now (matches book_appointment.php).
 // ============================================================
+
+date_default_timezone_set('Asia/Manila');
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -86,8 +88,8 @@ $slots    = [];
 $current  = strtotime($schedule['start_time']);
 $end      = strtotime($schedule['end_time']);
 $is_today = ($date === date('Y-m-d'));
-// 2-hour buffer for same-day bookings — matches book_appointment.php
-$min_allowed = time() + (2 * 60 * 60);
+// 1-hour buffer for same-day bookings — matches book_appointment.php
+$min_allowed = time() + (1 * 60 * 60);
 
 while ($current < $end) {
     $slot_time  = date('H:i', $current);

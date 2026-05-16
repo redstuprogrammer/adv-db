@@ -207,4 +207,71 @@ function getTrialExpirationDate(int $tenantId, $conn): ?string {
     $expirationTime = strtotime('+14 days', strtotime($created));
     return date('Y-m-d H:i:s', $expirationTime);
 }
-?>
+
+/**
+ * Get current storage usage for a tenant in bytes
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return int Total bytes used
+ */
+function getTenantStorageUsage(int $tenantId, $conn): int {
+    if (!$conn || $tenantId <= 0) {
+        return 0;
+    }
+    
+    // Sum from tenant_documents
+    $total = 0;
+    $stmt = $conn->prepare('SELECT SUM(file_size) as total_size FROM tenant_documents WHERE tenant_id = ?');
+    if ($stmt) {
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $total += (int)($row['total_size'] ?? 0);
+        $stmt->close();
+    }
+    
+    // Sum from patient_documents
+    $stmt2 = $conn->prepare('SELECT SUM(file_size) as total_size FROM patient_documents WHERE tenant_id = ?');
+    if ($stmt2) {
+        $stmt2->bind_param('i', $tenantId);
+        $stmt2->execute();
+        $result2 = $stmt2->get_result();
+        $row2 = $result2->fetch_assoc();
+        $total += (int)($row2['total_size'] ?? 0);
+        $stmt2->close();
+    }
+    
+    return $total;
+}
+
+/**
+ * Check if a tenant has enough storage space for a new file
+ * @param int $tenantId The tenant ID
+ * @param int $newFileSizeBytes Size of the file to be uploaded in bytes
+ * @param mysqli $conn Database connection
+ * @return bool True if within limits
+ */
+function isTenantWithinStorageLimit(int $tenantId, int $newFileSizeBytes, $conn): bool {
+    $limitGb = getTenantTierLimit($tenantId, 'max_storage_gb', $conn);
+    
+    if ($limitGb === null) {
+        return true; // No limit defined
+    }
+    
+    $limitBytes = (float)$limitGb * 1024 * 1024 * 1024;
+    $currentUsage = getTenantStorageUsage($tenantId, $conn);
+    
+    return ($currentUsage + $newFileSizeBytes) <= $limitBytes;
+}
+/**
+ * Check if a tenant has mobile access and exit if not
+ * Used for API gating for mobile-specific requests
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ */
+function requireMobileAccess(int $tenantId, $conn): void {
+    // Mobile Dashboard is now available for all subscription plans
+    // No restriction check needed
+    return;
+}

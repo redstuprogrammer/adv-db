@@ -31,9 +31,8 @@ function baseUrl(): string {
     return $scheme . '://' . $host;
 }
 
-$tenantSlug = trim((string)($_GET['tenant'] ?? ''));
+$tenantSlug = trim((string)($_GET['tenant'] ?? $sessionManager->getCurrentTenantSlug() ?? ''));
 error_log("tenant_dashboard.php accessed with tenant: " . $tenantSlug);
-// requireTenantLogin is now handled by session manager above
 
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
@@ -44,7 +43,7 @@ $appointmentCount = getTenantUpcomingAppointmentCount($tenantId) ?? 0;
 
 // Calculate total revenue from all payments
 $totalRevenue = 0.00;
-$stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ?");
+$stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ? AND payment_status IN ('paid', 'partial')");
 if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
@@ -71,22 +70,28 @@ if ($stmt) {
 // Fetch sales data for the last 6 months
 $salesData = [];
 $salesLabels = [];
+$hasSalesData = false;
 for ($i = 5; $i >= 0; $i--) {
     $monthStart = date('Y-m-01', strtotime("-$i months"));
     $monthEnd = date('Y-m-t', strtotime("-$i months"));
     $monthLabel = date('M', strtotime("-$i months"));
+    $monthTotal = 0.00;
     
-    $stmt = mysqli_prepare($conn, "SELECT SUM(amount) AS total FROM payment WHERE tenant_id = ? AND payment_date BETWEEN ? AND ?");
+    $stmt = mysqli_prepare($conn, "SELECT SUM(amount_paid) AS total FROM billing WHERE tenant_id = ? AND payment_status IN ('paid', 'partial') AND billing_date BETWEEN ? AND ?");
     if ($stmt) {
         mysqli_stmt_bind_param($stmt, "iss", $tenantId, $monthStart, $monthEnd);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
         if ($result) {
             $row = mysqli_fetch_assoc($result);
-            $salesData[] = (float)($row['total'] ?? 0);
+            $monthTotal = (float)($row['total'] ?? 0);
         }
         mysqli_stmt_close($stmt);
     }
+    if ($monthTotal > 0) {
+        $hasSalesData = true;
+    }
+    $salesData[] = $monthTotal;
     $salesLabels[] = $monthLabel;
 }
 
@@ -291,11 +296,19 @@ if ($stmt) {
         max-height: 360px;
         height: 320px;
         margin-bottom: 32px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .sales-overview-card .sales-chart-wrapper {
+        flex: 1 1 auto;
+        position: relative;
+        min-height: 0;
       }
 
       .sales-overview-card canvas {
-        width: 100%;
-        height: 100%;
+        width: 100% !important;
+        height: 100% !important;
       }
 
       .footer-action {
@@ -365,16 +378,14 @@ if ($stmt) {
         width: 100%;
         max-width: 400px;
         padding: 12px 16px;
-        border: 1px solid var(--dashboard-border);
+        border: 2px solid #d1d5db !important;
         border-radius: 25px;
         outline: none;
         font-size: 14px;
-      }
-
-      .search-input:focus {
-        border-color: var(--dashboard-accent);
+        border-color: var(--dashboard-accent) !important;
         box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
       }
+
 
       .patient-table {
         width: 100%;
@@ -435,13 +446,14 @@ if ($stmt) {
         color: #64748b;
       }
 
-      .last-visit {
+.last-visit {
         color: #64748b;
         font-size: 13px;
       }
 
       .no-visits {
         color: #cbd5e1;
+        font-size: 13px;
         font-style: italic;
       }
     </style>
@@ -454,7 +466,13 @@ if ($stmt) {
     <div class="tenant-main-content">
       <!-- Header Bar -->
       <div class="tenant-header-bar">
-        <div class="tenant-header-title"><?php echo h($tenantName); ?> Dashboard</div>
+        <div class="tenant-header-title">
+            <?php echo h($tenantName); ?> Dashboard 
+            <span style="margin-left: 10px; font-size: 14px; background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;">
+                Code: <?php echo h($sessionManager->getTenantData()['tenant_code'] ?? 'N/A'); ?>
+            </span>
+            <a href="Landing Page/tenant_homepage.php?tenant=<?php echo urlencode($tenantSlug); ?>" target="_blank" style="margin-left: 15px; font-size: 13px; color: #2563eb; font-weight: 600; text-decoration: none; border-bottom: 1px solid transparent; transition: border 0.2s;" onmouseover="this.style.borderBottom='1px solid #2563eb'" onmouseout="this.style.borderBottom='1px solid transparent'">View Public Homepage →</a>
+        </div>
         <?php renderDateClock(); ?>
       </div>
 
@@ -482,7 +500,7 @@ if ($stmt) {
 
         <div class="stat-card">
           <div class="stat-icon icon-red">💵</div>
-          <div class="stat-label">Total Revenue</div>
+          <div class="stat-label">Total Sales</div>
           <div class="stat-value">₱<?php echo number_format($totalRevenue, 2); ?></div>
         </div>
       </div>
@@ -558,9 +576,11 @@ if ($stmt) {
 
       <div class="sales-overview-card">
           <div style="padding: 20px;">
-            <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
+            <h3 style="margin-top: 0; margin-bottom: 0; font-size: 16px; font-weight: 700; color: var(--dashboard-accent);">Sales Overview</h3>
           </div>
-          <canvas id="salesChart"></canvas>
+          <div class="sales-chart-wrapper">
+            <canvas id="salesChart"></canvas>
+          </div>
       </div>
 
       </div>
@@ -573,6 +593,8 @@ if ($stmt) {
     // ✓ FLAG TEST: Tenant dashboard logic active
     console.log("Tenant Logic Active - ENHANCED DASHBOARD LOADED");
     console.log("Features: Patient Directory, Appointment Management, Billing Audit");
+
+    <?php printDateClockScript(); ?>
     
     let currentDate = new Date(); // Use live current date
 
@@ -702,7 +724,6 @@ if ($stmt) {
       });
     }
 
-    <?php printDateClockScript(); ?>
   </script>
 </body>
 </html>

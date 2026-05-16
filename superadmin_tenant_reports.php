@@ -369,6 +369,52 @@ try {
         .menu-dropdown-item:hover {
             background-color: rgba(255, 255, 255, 0.15);
         }
+
+        /* Pagination Styles */
+        .sa-pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px 0;
+            border-top: 1px solid var(--sa-border);
+        }
+
+        .sa-pagination-info {
+            font-size: 0.875rem;
+            color: var(--sa-muted);
+        }
+
+        .sa-pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+
+        .sa-pagination-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--sa-border);
+            background: white;
+            color: var(--sa-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .sa-pagination-btn:hover:not(:disabled) {
+            background: #f1f5f9;
+        }
+
+        .sa-pagination-btn.active {
+            background: var(--sa-primary);
+            color: white;
+            border-color: var(--sa-primary);
+        }
+
+        .sa-pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -388,178 +434,7 @@ try {
             </div>
         </header>
 
-        <!-- Reports Dashboard with Tabs -->
-        <div class="sa-card">
-            <div class="sa-card-header">
-                <div>
-                    <div class="sa-card-title">Reports Dashboard</div>
-                    <div class="sa-card-subtitle">Visual summary of system activities and statistics</div>
-                </div>
-            </div>
-
-            <!-- Tabs -->
-            <div class="sa-tabs">
-                <button class="sa-tab active" data-tab="tenant-activities">Tenant Activities</button>
-                <button class="sa-tab" data-tab="user-registrations">User Registrations</button>
-                <button class="sa-tab" data-tab="usage-statistics">Usage Statistics</button>
-            </div>
-
-            <!-- Tab Content: Tenant Activities -->
-            <div class="sa-tab-content active" id="tenant-activities">
-                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent Tenant Activities</h3>
-                        <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">Latest activities across all tenants</p>
-                    </div>
-                </div>
-                <table class="sa-table">
-                    <thead>
-                        <tr>
-                            <th>Date & Time</th>
-                            <th>Tenant</th>
-                            <th>Activity</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tenant-activities-table-body">
-                        <?php
-                        try {
-                            $tenantActivities = [];
-                            $stmt = $pdo->query("SELECT tal.log_date, t.company_name, tal.activity_type, tal.details 
-                                               FROM tenant_activity_logs tal 
-                                               JOIN tenants t ON tal.tenant_id = t.tenant_id 
-                                               ORDER BY tal.log_date DESC LIMIT 10");
-                            while ($activity = $stmt->fetch()) {
-                                $tenantActivities[] = $activity;
-                            }
-
-                            if (count($tenantActivities) === 0) {
-                                $tenantActivities = [
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-1 hour')),'company_name' => 'SeaSmile Dental','activity_type' => 'Appointment Scheduled','details' => 'New appointment booked for patient Maria Cruz'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-2 hours')),'company_name' => 'BrightHope Clinic','activity_type' => 'Payment Received','details' => 'Invoice payment of ₱2,500 received from patient'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-3 hours')),'company_name' => 'PearlCare Dental','activity_type' => 'Patient Created','details' => 'New patient profile added for John Reyes'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-4 hours')),'company_name' => 'SmileBright Clinic','activity_type' => 'Staff Login','details' => 'Receptionist Sarah logged in'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-5 hours')),'company_name' => 'DentalCare Plus','activity_type' => 'Invoice Generated','details' => 'Invoice #INV-2026-001 generated for treatment'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-6 hours')),'company_name' => 'HealthyTeeth Co','activity_type' => 'Appointment Completed','details' => 'Appointment completed for patient Anna Santos'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-7 hours')),'company_name' => 'BrightSmile Dental','activity_type' => 'Patient Updated','details' => 'Patient contact information updated'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-8 hours')),'company_name' => 'PearlWhite Clinic','activity_type' => 'Dentist Login','details' => 'Dr. Michael Chen logged in'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-9 hours')),'company_name' => 'CareDental','activity_type' => 'Subscription Renewed','details' => 'Monthly subscription payment processed'],
-                                    ['log_date' => date('Y-m-d H:i:s', strtotime('-10 hours')),'company_name' => 'OralHealth Pro','activity_type' => 'Report Generated','details' => 'Monthly revenue report exported'],
-                                ];
-                            }
-
-                            foreach ($tenantActivities as $activity) {
-                                echo "<tr>
-                                        <td>" . formatDateTimeReadable($activity['log_date']) . "</td>
-                                        <td>" . htmlspecialchars($activity['company_name']) . "</td>
-                                        <td>" . htmlspecialchars($activity['activity_type']) . "</td>
-                                        <td>" . htmlspecialchars($activity['details']) . "</td>
-                                      </tr>";
-                            }
-                        } catch (Exception $e) {
-                            echo "<tr><td colspan='4' style='text-align: center; color: var(--sa-muted);'>No activities found</td></tr>";
-                        }
-                        ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Tab Content: User Registrations -->
-            <div class="sa-tab-content" id="user-registrations">
-                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Recent User Registrations</h3>
-                        <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">New tenant registrations and account creations</p>
-                    </div>
-                </div>
-                <table class="sa-table">
-                    <thead>
-                        <tr>
-                            <th>Registration Date</th>
-                            <th>Company Name</th>
-                            <th>Owner</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="user-registrations-table-body">
-                        <?php
-                        try {
-                            $stmt = $pdo->query("SELECT created_at, company_name, owner_name, contact_email, status 
-                                               FROM tenants 
-                                               ORDER BY created_at DESC LIMIT 10");
-                            while ($tenant = $stmt->fetch()) {
-                                echo "<tr>
-                                        <td>" . formatDateReadable($tenant['created_at']) . "</td>
-                                        <td>{$tenant['company_name']}</td>
-                                        <td>{$tenant['owner_name']}</td>
-                                        <td>{$tenant['contact_email']}</td>
-                                        <td><span class='sa-pill " . ($tenant['status'] == 'active' ? 'sa-pill-active' : 'sa-pill-inactive') . "'>{$tenant['status']}</span></td>
-                                      </tr>";
-                            }
-                        } catch (Exception $e) {
-                            echo "<tr><td colspan='5' style='text-align: center; color: var(--sa-muted);'>No registrations found</td></tr>";
-                        }
-                        ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Tab Content: Usage Statistics -->
-            <div class="sa-tab-content" id="usage-statistics">
-                <div style="margin-bottom: 16px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; color: var(--sa-primary); margin: 0 0 8px 0;">Usage Statistics</h3>
-                    <p style="font-size: 0.875rem; color: var(--sa-muted); margin: 0;">System usage metrics and tenant activity overview</p>
-                </div>
-                <div class="sa-grid">
-                    <?php
-                    try {
-                        // Total tenants
-                        $stmt = $pdo->query("SELECT COUNT(*) as total FROM tenants");
-                        $total_tenants = $stmt->fetch()['total'];
-
-                        // Active tenants
-                        $stmt = $pdo->query("SELECT COUNT(*) as active FROM tenants WHERE status = 'active'");
-                        $active_tenants = $stmt->fetch()['active'];
-
-                        // Today's activities
-                        $stmt = $pdo->query("SELECT COUNT(*) as today FROM tenant_activity_logs WHERE DATE(log_date) = CURDATE()");
-                        $today_activities = $stmt->fetch()['today'];
-
-                        // This month's new tenants
-                        $stmt = $pdo->query("SELECT COUNT(*) as new_month FROM tenants WHERE MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())");
-                        $new_month = $stmt->fetch()['new_month'];
-
-                        // This week's activities
-                        $stmt = $pdo->query("SELECT COUNT(*) as week FROM tenant_activity_logs WHERE log_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)");
-                        $week_activities = $stmt->fetch()['week'];
-                    } catch (Exception $e) {
-                        $total_tenants = $active_tenants = $today_activities = $new_month = $week_activities = 0;
-                    }
-                    ?>
-                    <div class="sa-metric">
-                        <div class="sa-metric-value"><?php echo $total_tenants; ?></div>
-                        <div class="sa-metric-label">Total Tenants</div>
-                    </div>
-                    <div class="sa-metric">
-                        <div class="sa-metric-value"><?php echo $active_tenants; ?></div>
-                        <div class="sa-metric-label">Active Tenants</div>
-                    </div>
-                    <div class="sa-metric">
-                        <div class="sa-metric-value"><?php echo $today_activities; ?></div>
-                        <div class="sa-metric-label">Today's Activities</div>
-                    </div>
-                    <div class="sa-metric">
-                        <div class="sa-metric-value"><?php echo $new_month; ?></div>
-                        <div class="sa-metric-label">New This Month</div>
-                    </div>
-                    <div class="sa-metric">
-                        <div class="sa-metric-value"><?php echo $week_activities; ?></div>
-                        <div class="sa-metric-label">Activities This Week</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- Report Generation Section -->
 
         <!-- Report Generation Section -->
         <div class="sa-card reports-section">
@@ -716,6 +591,8 @@ try {
 
         let currentReportData = [];
         let selectedReportType = 'tenant_activity';
+        let currentPage = 1;
+        const perPage = 10;
 
         function isValidDateRange() {
             const dateFrom = document.getElementById('date_from').value;
@@ -741,25 +618,27 @@ try {
                 activeBtn.classList.add('active');
                 activeBtn.style.opacity = '1';
             }
-            generateReport(type);
+            currentPage = 1;
+            generateReport(type, 1);
         }
 
-        function generateReport(type) {
+        function generateReport(type, page = 1) {
             if (!isValidDateRange()) {
                 return;
             }
 
+            currentPage = page;
             const dateFrom = document.getElementById('date_from').value;
             const dateTo = document.getElementById('date_to').value;
             const tenantId = document.getElementById('tenant_filter').value;
             const activityType = document.getElementById('activity_type').value;
 
-            fetch(`/get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
+            fetch(`/get_filtered_reports.php?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}&page=${page}&per_page=${perPage}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         currentReportData = data.data;
-                        displayReportResults(data.data, type);
+                        displayReportResults(data.data, type, data.pagination);
                     } else {
                         alert('Error: ' + data.error);
                     }
@@ -770,7 +649,7 @@ try {
                 });
         }
 
-        function displayReportResults(data, type) {
+        function displayReportResults(data, type, pagination = null) {
             const resultsDiv = document.getElementById('report-results');
             if (data.length === 0) {
                 resultsDiv.innerHTML = '<p>No data found for the selected filters.</p>';
@@ -794,6 +673,35 @@ try {
             });
             html += '</tbody></table>';
 
+            // Pagination Controls
+            if (pagination && pagination.total_pages > 1) {
+                html += `
+                <div class="sa-pagination">
+                    <div class="sa-pagination-info">
+                        Showing ${(pagination.current_page - 1) * pagination.per_page + 1} to ${Math.min(pagination.current_page * pagination.per_page, pagination.total_count)} of ${pagination.total_count} records
+                    </div>
+                    <div class="sa-pagination-controls">
+                        <button class="sa-pagination-btn" ${pagination.current_page <= 1 ? 'disabled' : ''} onclick="generateReport('${selectedReportType}', ${pagination.current_page - 1})">Previous</button>
+                `;
+
+                // Page numbers
+                let startPage = Math.max(1, pagination.current_page - 2);
+                let endPage = Math.min(pagination.total_pages, startPage + 4);
+                if (endPage - startPage < 4) {
+                    startPage = Math.max(1, endPage - 4);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    html += `<button class="sa-pagination-btn ${i === pagination.current_page ? 'active' : ''}" onclick="generateReport('${selectedReportType}', ${i})">${i}</button>`;
+                }
+
+                html += `
+                        <button class="sa-pagination-btn" ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} onclick="generateReport('${selectedReportType}', ${pagination.current_page + 1})">Next</button>
+                    </div>
+                </div>
+                `;
+            }
+
             resultsDiv.innerHTML = html;
         }
 
@@ -813,56 +721,68 @@ try {
                 'tenant_activity': 'Tenant Activity Report',
                 'user_registration': 'User Registration Report',
                 'usage_statistics': 'Usage Statistics Report',
-                'revenue': 'Sales Revenue Report'
+                'revenue': 'Sales Report'
             };
             return titles[type] || 'OralSync System Report';
         }
 
         function exportPDF() {
-            if (currentReportData.length === 0) {
-                alert('Please generate a report first');
-                return;
-            }
+            const dateFrom = document.getElementById('date_from').value;
+            const dateTo = document.getElementById('date_to').value;
+            const tenantId = document.getElementById('tenant_filter').value;
+            const activityType = document.getElementById('activity_type').value;
 
-            // Determine PDF type based on report type
-            let pdfType = 'standard';
-            if (selectedReportType === 'revenue') {
-                pdfType = 'sales';
-            }
+            // Fetch ALL data for export (omit page parameter)
+            fetch(`/get_filtered_reports.php?type=${selectedReportType}&date_from=${dateFrom}&date_to=${dateTo}&tenant_id=${tenantId}&activity_type=${activityType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const allData = data.data;
+                        
+                        // Determine PDF type based on report type
+                        let pdfType = 'standard';
+                        if (selectedReportType === 'revenue') {
+                            pdfType = 'sales';
+                        }
 
-            // Send data to PDF generator
-            fetch('generate_pdf.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    data: currentReportData,
-                    title: getReportTitle(selectedReportType),
-                    type: pdfType
+                        // Send all data to PDF generator
+                        return fetch('generate_pdf.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                data: allData,
+                                title: getReportTitle(selectedReportType),
+                                type: pdfType
+                            })
+                        });
+                    } else {
+                        throw new Error(data.error || 'Failed to fetch data for export');
+                    }
                 })
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                } else {
-                    throw new Error('PDF generation failed');
-                }
-            })
-            .then(blob => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'oralsync_report.pdf';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to export PDF');
-            });
+                .then(response => {
+                    if (response && response.ok) {
+                        return response.blob();
+                    } else if (response) {
+                        throw new Error('PDF generation failed');
+                    }
+                })
+                .then(blob => {
+                    if (!blob) return;
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `oralsync_${selectedReportType}_report.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to export PDF: ' + error.message);
+                });
         }
 
         function exportCSV() {

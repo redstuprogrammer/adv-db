@@ -17,6 +17,8 @@
 // service_id is intentionally NULL — assigned by staff on web portal.
 // ============================================================
 
+date_default_timezone_set('Asia/Manila');
+
 // Catch fatal errors (e.g. calling method on false from a failed prepare())
 register_shutdown_function(function () {
     $error = error_get_last();
@@ -90,11 +92,11 @@ if (strtotime($appointment_date) < strtotime(date('Y-m-d'))) {
 // Validate time is at least 2 hours from now if booking same day
 if ($appointment_date === date('Y-m-d')) {
     $slot_timestamp = strtotime($appointment_date . ' ' . $appointment_time);
-    $min_allowed    = time() + (2 * 60 * 60);
+    $min_allowed    = time() + (1 * 60 * 60);
     if ($slot_timestamp < $min_allowed) {
         echo json_encode([
             'success' => false,
-            'message' => 'Same-day bookings must be at least 2 hours from now.'
+            'message' => 'Same-day bookings must be at least 1 hour from now.'
         ]);
         exit;
     }

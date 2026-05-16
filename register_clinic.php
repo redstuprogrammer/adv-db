@@ -4,179 +4,27 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/includes/connect.php'; 
 require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/tenant_tier_helper.php';
 
 $response = [
     'success' => false, 
     'message' => 'An unexpected error occurred.'
 ];
 
-function envOrNull(string $key): ?string {
-    $val = getenv($key);
-    if ($val === false || $val === null || $val === '') {
-        if (isset($_ENV[$key])) $val = (string)$_ENV[$key];
-        else if (isset($_SERVER[$key])) $val = (string)$_SERVER[$key];
-        else $val = null;
-    }
-    if ($val === null) return null;
-    $val = trim((string)$val);
-    return $val === '' ? null : $val;
-}
+require_once __DIR__ . '/includes/onboarding_utils.php';
 
-function buildTenantLoginUrl(string $slug): string {
-    $forwardedProto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '';
-    $scheme = (strtolower($forwardedProto) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')) ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    
-    // Get base path
-    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-    $scriptName = str_replace('\\', '/', $scriptName);
-    $dir = rtrim(pathinfo($scriptName, PATHINFO_DIRNAME), '/');
-    $base = ($dir === '' || $dir === '.') ? '' : $dir;
-    
-    // Build full URL
-    $url = $scheme . '://' . $host;
-    if ($base !== '') {
-        $url .= $base;
-    }
-    $url .= '/tenant_login.php?tenant=' . rawurlencode($slug);
-    
-    return $url;
-}
-
-function sendTenantOnboardingEmail(array $params): array {
-    $smtpHost = envOrNull('SMTP_HOST');
-    $smtpPort = envOrNull('SMTP_PORT');
-    $smtpUser = envOrNull('SMTP_USERNAME');
-    $smtpPass = envOrNull('SMTP_PASSWORD');
-    $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
-    $fromName = envOrNull('SMTP_FROM_NAME') ?? 'OralSync';
-
-    // TEMPORARY FIX: Skip email sending if SMTP not configured
-    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass || !$fromEmail) {
-        return ['sent' => true, 'error' => 'SMTP settings are missing - email skipped for now.'];
-    }
-
-    $autoloadPath = __DIR__ . '/vendor/autoload.php';
-    if (!file_exists($autoloadPath)) {
-        return ['sent' => true, 'error' => 'PHPMailer is not installed - email skipped for now.'];
-    }
-
-    require_once $autoloadPath;
-
-    $clinicName = (string)($params['clinic_name'] ?? '');
-    $ownerName = (string)($params['owner_name'] ?? '');
-    $clinicUsername = (string)($params['clinic_username'] ?? '');
-    $ownerEmail = (string)($params['owner_email'] ?? '');
-    $tempPassword = (string)($params['temp_password'] ?? '');
-    $loginUrl = (string)($params['login_url'] ?? '');
-
-    if ($clinicName === '' || $ownerEmail === '' || $tempPassword === '' || $loginUrl === '') {
-        return ['sent' => false, 'error' => 'Email parameters are incomplete.'];
-    }
-
-    $safeClinic = htmlspecialchars($clinicName, ENT_QUOTES, 'UTF-8');
-    $safeOwner = htmlspecialchars($ownerName ?: 'Clinic Owner', ENT_QUOTES, 'UTF-8');
-    $safeLoginUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
-    $safeTempPass = htmlspecialchars($tempPassword, ENT_QUOTES, 'UTF-8');
-    $safeUsername = htmlspecialchars($clinicUsername, ENT_QUOTES, 'UTF-8');
-
-    $subject = "Your OralSync login for {$clinicName}";
-
-    $html = <<<HTML
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>OralSync Onboarding</title>
-  </head>
-  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-    <div style="padding:24px 12px;">
-      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
-        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
-          <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
-          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Clinic onboarding details</div>
-        </div>
-
-        <div style="padding:22px;">
-          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
-            Hi <strong>{$safeOwner}</strong>,<br />
-            Your clinic <strong>{$safeClinic}</strong> has been set up in OralSync.
-          </div>
-
-          <div style="margin-top:16px;padding:14px 14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
-            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Your clinic login link</div>
-            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:13px;color:#0f172a;word-break:break-all;">{$safeLoginUrl}</div>
-            <div style="margin-top:8px;color:#64748b;font-size:12px;">
-              Tip: to copy, highlight the link and press <strong>Ctrl+C</strong> (or tap-and-hold on mobile).
-            </div>
-            <div style="margin-top:14px;">
-              <a href="{$safeLoginUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Open your OralSync Portal</a>
-            </div>
-          </div>
-
-          <div style="margin-top:14px;padding:14px 14px;border:1px solid #bbf7d0;border-radius:14px;background:#ecfdf3;">
-            <div style="font-size:12px;color:#166534;margin-bottom:8px;font-weight:700;">Temporary password</div>
-            <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:18px;color:#0f172a;letter-spacing:0.8px;"><strong>{$safeTempPass}</strong></div>
-          </div>
-
-          <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
-            <div style="font-weight:800;color:#0d3b66;margin-bottom:6px;">Next steps</div>
-            <ul style="margin:0;padding-left:18px;">
-              <li>Open the link above and log in using this email address: <strong>{$ownerEmail}</strong></li>
-              <li>Use the temporary password, then change it immediately after you sign in.</li>
-              <li>Bookmark your clinic’s login link for quick access.</li>
-            </ul>
-            <div style="margin-top:10px;color:#64748b;font-size:12px;">
-              If the button doesn’t work, copy & paste the URL into your browser.
-            </div>
-          </div>
-        </div>
-
-        <div style="padding:14px 22px;border-top:1px solid #e2e8f0;background:#f9fafb;color:#64748b;font-size:12px;line-height:1.4;">
-          This is an automated message from OralSync. If you didn’t expect this email, you can ignore it.
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
-HTML;
-
-    try {
-        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
-        $mail->isSMTP();
-        $mail->Host = $smtpHost;
-        $mail->SMTPAuth = true;
-        $mail->Username = $smtpUser;
-        $mail->Password = $smtpPass;
-        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port = (int)$smtpPort;
-
-        $mail->setFrom($fromEmail, $fromName);
-        $mail->addAddress($ownerEmail, $ownerName ?: $ownerEmail);
-
-        $mail->isHTML(true);
-        $mail->Subject = $subject;
-        $mail->Body = $html;
-        $mail->AltBody = "OralSync login for {$clinicName}\n\nLogin URL: {$loginUrl}\nUsername: {$clinicUsername}\nTemporary password: {$tempPassword}\n\nNext steps:\n- Log in using your username\n- Change your password after signing in\n- Bookmark your clinic link\n";
-
-        $mail->send();
-        return ['sent' => true];
-    } catch (Throwable $e) {
-        return ['sent' => false, 'error' => $e->getMessage()];
-    }
-}
 
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $clinic = mysqli_real_escape_string($conn, $_POST['clinicName']);
-        $owner  = mysqli_real_escape_string($conn, $_POST['ownerName']);
+        $clinicName = mysqli_real_escape_string($conn, $_POST['clinicName'] ?? '');
+        $ownerName = mysqli_real_escape_string($conn, $_POST['ownerName'] ?? '');
         $username = mysqli_real_escape_string($conn, $_POST['username'] ?? '');
-        $email  = mysqli_real_escape_string($conn, $_POST['email']);
-        $phone  = mysqli_real_escape_string($conn, $_POST['phone']);
-        $addr   = mysqli_real_escape_string($conn, $_POST['address']);
-        $city   = mysqli_real_escape_string($conn, $_POST['city']);
-        $prov   = mysqli_real_escape_string($conn, $_POST['province']);
+        $email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
+        $phone = mysqli_real_escape_string($conn, $_POST['phone'] ?? '');
+        $address = mysqli_real_escape_string($conn, $_POST['address'] ?? '');
+        $city = mysqli_real_escape_string($conn, $_POST['city'] ?? '');
+        $province = mysqli_real_escape_string($conn, $_POST['province'] ?? '');
+        $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         $start_date = trim((string)($_POST['start_date'] ?? ''));
         $duration = (int)($_POST['duration'] ?? 12);
@@ -209,101 +57,273 @@ try {
         if ($duration < 1 || $duration > 120) {
             throw new Exception("Duration must be between 1 and 120 months.");
         }
+
+        // REQUIRED: Validate at least one clinic document uploaded
+        $validDocsCount = 0;
+        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+        $maxSizeMB = 50; // Increased to 50MB
+        $maxSizeBytes = $maxSizeMB * 1024 * 1024;
+
+        if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
+            foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
+                if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK &&
+                    $_FILES['documents']['size'][$key] <= $maxSizeBytes) {
+                    $ext = strtolower(pathinfo($_FILES['documents']['name'][$key], PATHINFO_EXTENSION));
+                    if (in_array($ext, $allowed)) {
+                        $validDocsCount++;
+                    }
+                }
+            }
+        }
+
+        if ($validDocsCount === 0) {
+            throw new Exception("Please upload at least one valid clinic document (PDF, DOC, DOCX, JPG, PNG; max " . $maxSizeMB . "MB each) before registering the tenant.");
+        }
         
         // 1. Generate Auto-Password
         $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
         $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
 
         // 2. Duplicate Check (clinic name, username, email)
-        $checkQuery = "SELECT company_name, username, email FROM tenants WHERE company_name = ? OR username = ? OR email = ? LIMIT 1";
+        $checkQuery = "SELECT company_name, username, contact_email FROM tenants WHERE company_name = ? OR username = ? OR contact_email = ? LIMIT 1";
         $stmtCheck = mysqli_prepare($conn, $checkQuery);
-        mysqli_stmt_bind_param($stmtCheck, "sss", $clinic, $username, $email);
+        mysqli_stmt_bind_param($stmtCheck, "sss", $clinicName, $username, $email);
         mysqli_stmt_execute($stmtCheck);
         $resultCheck = mysqli_stmt_get_result($stmtCheck);
 
         if ($row = mysqli_fetch_assoc($resultCheck)) {
-            if ($row['company_name'] === $clinic) {
+            mysqli_stmt_close($stmtCheck);
+            if ($row['company_name'] === $clinicName) {
                 throw new Exception("Clinic name already exists.");
             }
             if ($row['username'] === $username) {
                 throw new Exception("Clinic username is already taken. Please choose a different username.");
             }
-            if ($row['email'] === $email) {
+            if ($row['contact_email'] === $email) {
                 throw new Exception("Email address is already registered. Please use a different email.");
             }
         }
+        mysqli_stmt_close($stmtCheck);
 
-        // 3. Generate Slug
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinic))) . '-' . substr(uniqid(), -4);
+        // 3. Generate Slug and Tenant Code
+        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $clinicName))) . '-' . substr(uniqid(), -4);
+        $tenant_code = generateUniqueTenantCode($conn);
+        $homepage_url = "Landing Page/tenant_homepage.php?tenant=" . $slug;
 
         // 4. Insert clinic into database
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, status, subscription_tier, subscription_start_date, subscription_duration) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)";
+        $initial_status = ($tier === 'trial') ? 'active' : 'inactive';
+        
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssssssi", $clinic, $owner, $username, $email, $hashed_password, $phone, $addr, $city, $prov, $slug, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
             
+            // Log activity (single instance)
+            logSuperAdminActivity($conn, 'Registration', "Registered: $clinicName (Tier: $tier, Status: $initial_status)", $email, 'Super Admin');
+            
             // Record initial subscription payment for the tenant
-            $tier_prices = [
-                'startup' => 124.00,
-                'professional' => 249.00,
-                'enterprise' => 499.00
-            ];
-            $monthly_amount = $tier_prices[$tier] ?? 124.00;
-            $amount = $monthly_amount;
+            $tier_data = getTierByKey($tier);
+            $monthly_amount = $tier_data['price_min'] ?? 0;
+            $total_amount = $monthly_amount * $duration;
+            
             $billing_period_start = $start_date . ' 00:00:00';
             $billing_period_end = date('Y-m-d 23:59:59', strtotime('+' . max(1, $duration) . ' months -1 day', strtotime($start_date)));
             $payment_date = date('Y-m-d H:i:s');
             
-            $revenue_sql = "INSERT INTO tenant_subscription_revenue (tenant_id, subscription_tier, amount, billing_period_start, billing_period_end, status, payment_date) 
-                           VALUES (?, ?, ?, ?, ?, 'paid', ?)";
+            $procedures_json = json_encode([
+                'item' => 'Initial Subscription',
+                'tier' => $tier,
+                'billing_period_start' => $billing_period_start,
+                'billing_period_end' => $billing_period_end,
+                'duration' => $duration
+            ]);
+
+            $paymongo_url = null;
+            $paymongo_session_id = null;
+            $payment_status = ($tier === 'trial' || $total_amount <= 0) ? 'paid' : 'pending';
+
+            // Generate PayMongo link if it's a paid tier
+            if ($payment_status === 'pending') {
+                $pm_config = null;
+                $config_candidates = [
+                    __DIR__ . '/config/paymongo.php',
+                    $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
+                ];
+
+                foreach ($config_candidates as $path) {
+                    if (file_exists($path)) {
+                        $pm_config = require $path;
+                        break;
+                    }
+                }
+
+                $secret = ($pm_config && isset($pm_config['secret_key'])) ? $pm_config['secret_key'] : (getenv('PAYMONGO_SECRET_KEY') ?: '');
+                
+                if ($secret) {
+                    $auth = base64_encode($secret . ':');
+                    $amount_centavos = (int) round($total_amount * 100);
+                    $description = "OralSync Subscription: " . ucfirst($tier) . " ($duration months)";
+                    
+                    $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+                    $base_url = rtrim($base_url, '/') . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+                    
+                    $payload = json_encode([
+                        'data' => [
+                            'attributes' => [
+                                'payment_method_types' => ['gcash', 'card', 'paymaya', 'grab_pay'],
+                                'line_items' => [[
+                                    'currency'    => 'PHP',
+                                    'amount'      => $amount_centavos,
+                                    'description' => $description,
+                                    'name'        => 'OralSync - ' . ucfirst($tier) . ' Plan',
+                                    'quantity'    => 1,
+                                ]],
+                                'description' => $description,
+                                'send_email_receipt' => true,
+                                'metadata' => [
+                                    'tenant_id' => (string)$new_id,
+                                    'tier_key' => $tier,
+                                    'type' => 'initial_registration',
+                                    'duration' => (string)$duration
+                                ]
+                            ],
+                        ],
+                    ]);
+
+                    $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
+                    curl_setopt_array($ch, [
+                        CURLOPT_POST           => true,
+                        CURLOPT_POSTFIELDS     => $payload,
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_HTTPHEADER     => [
+                            'Authorization: Basic ' . $auth,
+                            'Content-Type: application/json',
+                            'Accept: application/json',
+                        ],
+                    ]);
+
+                    $pm_response = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+
+                    if ($http_code === 200) {
+                        $pm_data = json_decode($pm_response, true);
+                        $paymongo_url = $pm_data['data']['attributes']['checkout_url'] ?? null;
+                        $paymongo_session_id = $pm_data['data']['id'] ?? null;
+                    } else {
+                        error_log("PayMongo API Error (HTTP $http_code): " . $pm_response);
+                    }
+                } else {
+                    error_log("PayMongo Secret Key is missing. Skipping checkout session creation.");
+                }
+            }
+
+            $revenue_sql = "INSERT INTO payment (tenant_id, amount, status, payment_date, procedures_json, paymongo_link_id) 
+                           VALUES (?, ?, ?, ?, ?, ?)";
             $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
             if ($revenue_stmt) {
-                mysqli_stmt_bind_param($revenue_stmt, "isdsss", $new_id, $tier, $amount, $billing_period_start, $billing_period_end, $payment_date);
+                mysqli_stmt_bind_param($revenue_stmt, "idssss", $new_id, $total_amount, $payment_status, $payment_date, $procedures_json, $paymongo_session_id);
                 mysqli_stmt_execute($revenue_stmt);
                 mysqli_stmt_close($revenue_stmt);
             }
-            
-            if (function_exists('logActivity')) {
-                logActivity($conn, (int)$new_id, 'Registration', "Registered: $clinic (Tier: $tier)", $email, 'superadmin', 'Super Admin');
+
+            // Handle file uploads
+            if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
+                $upload_dir = __DIR__ . '/uploads/tenant_docs/';
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
+                    if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK) {
+                        $original_name = mysqli_real_escape_string($conn, $_FILES['documents']['name'][$key]);
+                        $file_type = $_FILES['documents']['type'][$key];
+                        $file_size = $_FILES['documents']['size'][$key];
+                        $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+                        
+                        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+                        if (in_array($ext, $allowed)) {
+                            $safe_name = uniqid('doc_' . $new_id . '_') . '.' . $ext;
+                            $dest_path = $upload_dir . $safe_name;
+                            
+                            if (move_uploaded_file($tmp_name, $dest_path)) {
+                                $db_path = 'uploads/tenant_docs/' . $safe_name;
+                                $doc_sql = "INSERT INTO tenant_documents (tenant_id, document_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?)";
+                                $doc_stmt = mysqli_prepare($conn, $doc_sql);
+                                mysqli_stmt_bind_param($doc_stmt, "isssi", $new_id, $original_name, $db_path, $file_type, $file_size);
+                                mysqli_stmt_execute($doc_stmt);
+                                mysqli_stmt_close($doc_stmt);
+                            }
+                        }
+                    }
+                }
             }
             
-            $login_url = buildTenantLoginUrl($slug);
-            $emailResult = sendTenantOnboardingEmail([
-                'clinic_name' => $clinic,
-                'owner_name' => $owner,
-                'owner_email' => $email,
-                'temp_password' => $temp_password,
-                'login_url' => $login_url
-            ]);
-
-            $response = [
-                'success' => true, 
-                'message' => 'Clinic registered successfully!',
-                'temp_password' => $temp_password, 
-                'slug' => $slug,
-                'login_url' => $login_url,
-                'email_sent' => (bool)($emailResult['sent'] ?? false)
+            // 5. Initialize Default Clinic Schedule
+            $defaultScheds = [
+                ['Monday', '09:00:00', '17:00:00', 0],
+                ['Tuesday', '09:00:00', '17:00:00', 0],
+                ['Wednesday', '09:00:00', '17:00:00', 0],
+                ['Thursday', '09:00:00', '17:00:00', 0],
+                ['Friday', '09:00:00', '17:00:00', 0],
+                ['Saturday', '09:00:00', '13:00:00', 0],
+                ['Sunday', '09:00:00', '17:00:00', 1]
             ];
-
-            // TEMPORARY FIX: Add note if email was skipped due to missing SMTP
-            if (!empty($emailResult['error']) && strpos($emailResult['error'], 'skipped for now') !== false) {
-                $response['message'] .= ' (Email sending temporarily disabled - check SMTP settings)';
-                $response['email_skipped'] = true;
-            } elseif (!($emailResult['sent'] ?? false) && !empty($emailResult['error'])) {
-                $response['email_error'] = $emailResult['error'];
+            $schedSql = "INSERT INTO clinic_schedules (tenant_id, day_of_week, opening_time, closing_time, is_closed) VALUES (?, ?, ?, ?, ?)";
+            $schedStmt = mysqli_prepare($conn, $schedSql);
+            if ($schedStmt) {
+                foreach ($defaultScheds as $ds) {
+                    mysqli_stmt_bind_param($schedStmt, "isssi", $new_id, $ds[0], $ds[1], $ds[2], $ds[3]);
+                    mysqli_stmt_execute($schedStmt);
+                }
+                mysqli_stmt_close($schedStmt);
             }
+            mysqli_stmt_close($stmt);
         } else {
             throw new Exception("Database error: " . mysqli_error($conn));
         }
+
+        // 6. Conditional Onboarding Email
+        $email_sent = false;
+        $login_url = buildTenantLoginUrl($slug);
+        
+        // Send onboarding email so the user has their credentials
+        $emailResult = sendTenantOnboardingEmail([
+            'clinic_name' => $clinicName,
+            'owner_name' => $ownerName,
+            'owner_email' => $email,
+            'temp_password' => $temp_password,
+            'login_url' => $login_url
+        ]);
+        $email_sent = (bool)($emailResult['sent'] ?? false);
+        if (!$email_sent) {
+            error_log("Failed to send onboarding email to $email: " . ($emailResult['error'] ?? 'Unknown error'));
+        }
+
+        $response = [
+            'success' => true, 
+            'message' => ($initial_status === 'active') ? 'Clinic registered successfully!' : 'Clinic registered. Waiting for payment.',
+            'slug' => $slug,
+            'tenant_code' => $tenant_code,
+            'status' => $initial_status,
+            'checkout_url' => $paymongo_url,
+            'email_sent' => $email_sent
+        ];
     }
-} catch (Exception $e) {
-    $response['message'] = $e->getMessage();
+} catch (Throwable $e) {
+    if (ob_get_level()) ob_end_clean();
+    $response['message'] = "Error: " . $e->getMessage();
+    $response['success'] = false;
+    echo json_encode($response);
+    exit;
 }
 
-ob_end_clean();
+if (ob_get_level()) ob_end_clean();
 echo json_encode($response);
 exit;
+?>
+

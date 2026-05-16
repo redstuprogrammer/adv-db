@@ -1,0 +1,63 @@
+<?php
+require_once __DIR__ . '/../includes/connect.php';
+require_once __DIR__ . '/../pdf_generator_blade.php';
+
+$tenantId = 1; // Change to a valid tenant ID for testing
+$period = 'all';
+$title = 'Test Report';
+$context = 'tenant';
+
+$query = "(SELECT py.billing_id AS payment_id,
+                  py.amount_paid AS amount,
+                  py.payment_status AS status,
+                  py.billing_date,
+                  py.billing_date AS payment_date,
+                  p.first_name, p.last_name,
+                  NULL AS payment_type,
+                  'web' AS source
+           FROM billing py
+           LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
+           LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+           WHERE py.tenant_id = ? AND py.payment_status IN ('paid', 'partial'))
+           
+           UNION ALL
+           
+           (SELECT r.payment_id,
+                  r.amount,
+                  r.status,
+                  r.payment_date AS billing_date,
+                  r.payment_date,
+                  p.first_name, p.last_name,
+                  r.payment_type,
+                  'mobile' AS source
+           FROM payment r
+           LEFT JOIN appointment a ON r.appointment_id = a.appointment_id
+           LEFT JOIN patient     p ON a.patient_id      = p.patient_id
+           WHERE r.tenant_id = ? AND r.status = 'paid' AND r.appointment_id IS NOT NULL 
+           AND (r.payment_type = 'deposit' OR r.payment_type = 'downpayment'))
+           
+           ORDER BY billing_date DESC";
+
+$stmt = $conn->prepare($query);
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
+$stmt->bind_param('ii', $tenantId, $tenantId);
+$stmt->execute();
+$result = $stmt->get_result();
+$reportData = [];
+while ($row = $result->fetch_assoc()) {
+    $reportData[] = $row;
+}
+
+echo "Rows fetched: " . count($reportData) . "\n";
+
+$generator = new OralSyncPDFGenerator();
+try {
+    $pdfContent = $generator->generateSalesReport($reportData, $title, $context, $period);
+    echo "PDF generated successfully. Length: " . strlen($pdfContent) . " bytes\n";
+} catch (Exception $e) {
+    echo "PDF generation failed: " . $e->getMessage() . "\n";
+    echo $e->getTraceAsString() . "\n";
+}
+?>
