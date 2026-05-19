@@ -84,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OralSync | Super Admin Registration</title>
-    <link rel="stylesheet" href="/tenant_style.css" />
+    <link rel="stylesheet" href="tenant_style.css" />
 </head>
 <body>
     <div class="t-wrap">

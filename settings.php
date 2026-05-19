@@ -182,7 +182,7 @@ HTML;
       `category` varchar(255) DEFAULT 'General',
       `image_path` varchar(511) DEFAULT NULL,
       `status` enum('active','archived') DEFAULT 'active',
-      `publish_date` date NOT NULL,
+      `publish_date` datetime NOT NULL,
       `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (`id`),
       KEY `fk_tenant_announcement` (`tenant_id`)
@@ -190,6 +190,7 @@ HTML;
 
     $conn->query("ALTER TABLE announcements MODIFY COLUMN tenant_id int NULL");
     $conn->query("ALTER TABLE announcements MODIFY COLUMN category varchar(255) DEFAULT 'General'");
+    $conn->query("ALTER TABLE announcements MODIFY COLUMN publish_date datetime NOT NULL");
 
     $message = '';
 
@@ -362,7 +363,8 @@ HTML;
             $title = trim($_POST['title'] ?? '');
             $content = trim($_POST['content'] ?? '');
             $category = trim($_POST['category'] ?? 'Clinical Update');
-            $publishDate = trim($_POST['publish_date'] ?? date('Y-m-d'));
+            $rawPublishDate = trim($_POST['publish_date'] ?? date('Y-m-d H:i:s'));
+            $publishDate = date('Y-m-d H:i:s', strtotime($rawPublishDate));
             $status = trim($_POST['status'] ?? 'active');
             $annId = isset($_POST['announcement_id']) ? (int)$_POST['announcement_id'] : 0;
 
@@ -1004,6 +1006,17 @@ HTML;
         border-color: #fca5a5;
         color: #b91c1c;
       }
+      .ann-preview-split-layout {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+        align-items: start;
+      }
+      @media (max-width: 991px) {
+        .ann-preview-split-layout {
+          grid-template-columns: 1fr;
+        }
+      }
       @media (max-width: 768px) {
         .preview-split-layout {
           grid-template-columns: 1fr;
@@ -1038,48 +1051,75 @@ HTML;
 
         <!-- Announcement Form Section (hidden by default) -->
         <div id="announcementFormSection" style="display:none; border: 1.5px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #f8fafc;">
-          <h3 id="formTitle" style="margin-top:0; color: var(--accent);">Add Announcement</h3>
-          <form method="POST">
-            <input type="hidden" name="announcement_action" id="announcementAction" value="add">
-            <input type="hidden" name="announcement_id" id="announcementId" value="">
-            
-            <div class="form-group">
-              <label for="ann_title">Title</label>
-              <input type="text" id="ann_title" name="title" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
+          <h3 id="formTitle" style="margin-top:0; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px;">Add Announcement</h3>
+          
+          <div class="ann-preview-split-layout">
+            <!-- Left Column: Edit Form -->
+            <form method="POST" style="margin: 0;">
+              <input type="hidden" name="announcement_action" id="announcementAction" value="add">
+              <input type="hidden" name="announcement_id" id="announcementId" value="">
+              
+              <div class="form-group">
+                <label for="ann_title" style="font-weight:600;">Title</label>
+                <input type="text" id="ann_title" name="title" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;" onkeyup="updateAnnouncementPreview()">
+              </div>
+              
+              <div class="form-group">
+                <label for="ann_category" style="font-weight:600;">Category / Tag</label>
+                <select id="ann_category" name="category" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;" onchange="updateAnnouncementPreview()">
+                  <option value="System Maintenance">System Maintenance</option>
+                  <option value="System Update">System Update</option>
+                  <option value="System Alert">System Alert</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="ann_content" style="font-weight:600;">Content</label>
+                <textarea id="ann_content" name="content" required style="width:100%; height:120px; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-family:inherit; font-size:14px; box-sizing:border-box; background:white; resize:vertical;" onkeyup="updateAnnouncementPreview()"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label for="ann_publish_date" style="font-weight:600;">Publish Date & Time</label>
+                <input type="datetime-local" id="ann_publish_date" name="publish_date" required value="<?php echo date('Y-m-d\TH:i'); ?>" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;" onchange="updateAnnouncementPreview()">
+              </div>
+              
+              <div class="form-group">
+                <label for="ann_status" style="font-weight:600;">Status</label>
+                <select id="ann_status" name="status" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;" onchange="updateAnnouncementPreview()">
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+              
+              <div style="display:flex; gap:10px; margin-top:25px;">
+                <button type="submit" class="btn-primary">Save Announcement</button>
+                <button type="button" class="btn-primary btn-secondary" onclick="hideAnnouncementForm()">Cancel</button>
+              </div>
+            </form>
+
+            <!-- Right Column: Live Real-Time Card Preview -->
+            <div style="background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(15,23,42,0.06); position: sticky; top: 20px;">
+              <h4 style="margin: 0 0 16px 0; font-size: 11px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                <span style="display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);"></span> Live Dashboard Preview
+              </h4>
+              
+              <div id="previewCardContainer" style="padding: 16px; border-radius: 10px; background: #f8fafc; border-left: 4px solid #d97706; transition: all 0.2s;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <span id="previewCategoryBadge" style="font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: #fef3c7; color: #d97706;">
+                      System Maintenance
+                    </span>
+                    <span id="previewOriginBadge" style="font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: #ffe4e6; color: #be123c;">
+                      Clinic Announcement
+                    </span>
+                  </div>
+                  <span id="previewDate" style="font-size: 12px; color: #64748b; font-weight: 500;">Today</span>
+                </div>
+                <strong id="previewTitle" style="color: var(--accent); font-size: 15px; display: block; margin-bottom: 6px; word-break: break-word;">Untitled Announcement</strong>
+                <p id="previewContent" style="margin: 0; color: #475569; font-size: 13.5px; line-height: 1.5; white-space: pre-line; word-break: break-word;">Announcement details will appear here...</p>
+              </div>
             </div>
-            
-            <div class="form-group">
-              <label for="ann_category">Category / Tag</label>
-              <select id="ann_category" name="category" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
-                <option value="System Maintenance">System Maintenance</option>
-                <option value="System Update">System Update</option>
-                <option value="System Alert">System Alert</option>
-              </select>
-            </div>
-            
-            <div class="form-group">
-              <label for="ann_content">Content</label>
-              <textarea id="ann_content" name="content" required style="width:100%; height:120px; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-family:inherit; font-size:14px; box-sizing:border-box; background:white; resize:vertical;"></textarea>
-            </div>
-            
-            <div class="form-group">
-              <label for="ann_publish_date">Publish Date</label>
-              <input type="date" id="ann_publish_date" name="publish_date" required value="<?php echo date('Y-m-d'); ?>" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
-            </div>
-            
-            <div class="form-group">
-              <label for="ann_status">Status</label>
-              <select id="ann_status" name="status" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
-            
-            <div style="display:flex; gap:10px; margin-top:20px;">
-              <button type="submit" class="btn-primary">Save Announcement</button>
-              <button type="button" class="btn-primary btn-secondary" onclick="hideAnnouncementForm()">Cancel</button>
-            </div>
-          </form>
+          </div>
         </div>
         
         <!-- Announcements Table/List -->
@@ -1128,7 +1168,7 @@ HTML;
                       <p style="margin: 6px 0 0 0; color:#475569; font-size:13px; line-height:1.4; white-space:pre-line;"><?php echo h($ann['content']); ?></p>
                     </td>
                     <td>
-                      <span style="color:#64748b; font-size:13px; font-weight:500;"><?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                      <span style="color:#64748b; font-size:13px; font-weight:500;"><?php echo date('M d, Y g:i A', strtotime($ann['publish_date'])); ?></span>
                     </td>
                     <td>
                       <span class="status-badge <?php echo h($ann['status']); ?>">
@@ -1802,12 +1842,81 @@ HTML;
     </div>
   </div>
 
-  <!-- Close modal when clicking outside -->
-  <script>
+  <!-- Custom Modal for Clinic Announcement Deletion -->
+  <div id="deleteConfirmModal" class="reset-modal" style="display:none;">
+    <div class="reset-modal-content">
+      <div class="reset-modal-header" style="background: linear-gradient(135deg, #be123c, #9f1239); color: white;">
+        <span>Delete Clinic Announcement</span>
+        <button class="reset-modal-close" onclick="closeDeleteModal()">&times;</button>
+      </div>
+      <div class="reset-modal-body">
+        <p>Are you sure you want to delete this clinic announcement?</p>
+        <p style="color: #be123c; font-weight: 600; margin-top: 8px;">This will remove it from your staff dashboards immediately and cannot be undone.</p>
+      </div>
+      <div class="reset-modal-footer">
+        <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn-confirm" id="btn-confirm-delete" style="background: linear-gradient(135deg, #be123c, #9f1239);" onclick="executeDeleteAnnouncement()">Delete</button>
+      </div>
+    </div>
+  </div>
+
     window.onclick = function(event) {
-      const modal = document.getElementById('resetConfirmModal');
-      if (event.target == modal) {
-        modal.style.display = 'none';
+      const resetModal = document.getElementById('resetConfirmModal');
+      const deleteModal = document.getElementById('deleteConfirmModal');
+      if (event.target == resetModal) {
+        resetModal.style.display = 'none';
+      }
+      if (event.target == deleteModal) {
+        deleteModal.style.display = 'none';
+      }
+    }
+
+    // Live Real-Time Announcement Preview Function
+    function updateAnnouncementPreview() {
+      const titleVal = document.getElementById('ann_title').value.trim() || 'Untitled Announcement';
+      const contentVal = document.getElementById('ann_content').value.trim() || 'Announcement details will appear here...';
+      const categoryVal = document.getElementById('ann_category').value;
+      const dateVal = document.getElementById('ann_publish_date').value;
+      
+      // Format date and time nicely: "M d, Y g:i AM/PM"
+      let formattedDate = 'Today';
+      if (dateVal) {
+        const d = new Date(dateVal);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        let hours = d.getHours();
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // convert 0 to 12
+        formattedDate = months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2, '0') + ', ' + d.getFullYear() + ' ' + hours + ':' + minutes + ' ' + ampm;
+      }
+      
+      document.getElementById('previewTitle').innerText = titleVal;
+      document.getElementById('previewContent').innerText = contentVal;
+      document.getElementById('previewDate').innerText = formattedDate;
+      document.getElementById('previewCategoryBadge').innerText = categoryVal;
+      
+      // Category color coding matching dashboard exactly
+      const cat = categoryVal.toLowerCase();
+      const badge = document.getElementById('previewCategoryBadge');
+      const container = document.getElementById('previewCardContainer');
+      
+      if (cat.includes('maintenance')) {
+        badge.style.background = '#fef3c7'; // Amber
+        badge.style.color = '#b45309';
+        container.style.borderLeftColor = '#d97706';
+      } else if (cat.includes('update')) {
+        badge.style.background = '#e0f2fe'; // Sky Blue
+        badge.style.color = '#0369a1';
+        container.style.borderLeftColor = '#0369a1';
+      } else if (cat.includes('alert')) {
+        badge.style.background = '#fee2e2'; // Light Crimson Red
+        badge.style.color = '#b91c1c';
+        container.style.borderLeftColor = '#be123c';
+      } else {
+        badge.style.background = '#f3e8ff'; // Default Purple
+        badge.style.color = '#7e22ce';
+        container.style.borderLeftColor = '#7e22ce';
       }
     }
 
@@ -1820,8 +1929,18 @@ HTML;
       document.getElementById('ann_title').value = '';
       document.getElementById('ann_category').value = 'System Maintenance';
       document.getElementById('ann_content').value = '';
-      document.getElementById('ann_publish_date').value = new Date().toISOString().split('T')[0];
+      
+      // Set default selection to the current date and time in local timezone
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(now - offset)).toISOString().slice(0, 16);
+      document.getElementById('ann_publish_date').value = localISOTime;
+      
       document.getElementById('ann_status').value = 'active';
+      
+      // Trigger Live Preview Update
+      updateAnnouncementPreview();
+      
       document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -1833,8 +1952,18 @@ HTML;
       document.getElementById('ann_title').value = ann.title;
       document.getElementById('ann_category').value = ann.category;
       document.getElementById('ann_content').value = ann.content;
-      document.getElementById('ann_publish_date').value = ann.publish_date;
+      
+      // Format "YYYY-MM-DD HH:MM:SS" database string into "YYYY-MM-DDTHH:MM" format
+      if (ann.publish_date) {
+        const formattedDate = ann.publish_date.replace(' ', 'T').substring(0, 16);
+        document.getElementById('ann_publish_date').value = formattedDate;
+      }
+      
       document.getElementById('ann_status').value = ann.status;
+      
+      // Trigger Live Preview Update
+      updateAnnouncementPreview();
+      
       document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -1842,13 +1971,27 @@ HTML;
       document.getElementById('announcementFormSection').style.display = 'none';
     }
 
+    // Custom Modal Confirmation for Deletion
+    let deleteAnnouncementId = null;
+
     function confirmDeleteAnnouncement(id) {
-      if (confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) {
+      deleteAnnouncementId = id;
+      document.getElementById('deleteConfirmModal').style.display = 'flex';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteConfirmModal').style.display = 'none';
+      deleteAnnouncementId = null;
+    }
+
+    // Execution deletion
+    function executeDeleteAnnouncement() {
+      if (deleteAnnouncementId) {
         const form = document.createElement('form');
         form.method = 'POST';
         form.innerHTML = `
           <input type="hidden" name="announcement_action" value="delete">
-          <input type="hidden" name="announcement_id" value="${id}">
+          <input type="hidden" name="announcement_id" value="${deleteAnnouncementId}">
         `;
         document.body.appendChild(form);
         form.submit();

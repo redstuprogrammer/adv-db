@@ -743,7 +743,7 @@ try {
                 
                 <?php
                 $dashboardSystemAnnouncements = [];
-                $stmt = $conn->prepare("SELECT * FROM announcements WHERE tenant_id IS NULL AND status = 'active' ORDER BY publish_date DESC, id DESC LIMIT 5");
+                $stmt = $conn->prepare("SELECT * FROM announcements WHERE tenant_id IS NULL AND status = 'active' AND publish_date <= NOW() ORDER BY publish_date DESC, id DESC LIMIT 5");
                 if ($stmt) {
                     $stmt->execute();
                     $res = $stmt->get_result();
@@ -788,7 +788,7 @@ try {
                                 </div>
                                 <p style="margin: 0 0 10px 0; font-size: 0.85rem; color: #475569; line-height: 1.5; white-space: pre-line;"><?php echo htmlspecialchars($ann['content']); ?></p>
                                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--sa-muted); border-top: 1px solid #f1f5f9; padding-top: 8px;">
-                                    <span>📅 Published: <?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                                    <span>📅 Published: <?php echo date('M d, Y g:i A', strtotime($ann['publish_date'])); ?></span>
                                     <span style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: #0284c7;">
                                         <span style="display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span> Active Feed
                                     </span>

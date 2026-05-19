@@ -269,7 +269,7 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($clinicName); ?> | OralSync Login</title>
-    <link rel="stylesheet" href="/tenant_style.css">
+    <link rel="stylesheet" href="tenant_style.css">
     <style>
         :root {
             --tenant-custom-bg: <?php echo h($loginSettings['brand_bg_color']); ?>;

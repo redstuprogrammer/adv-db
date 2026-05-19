@@ -476,7 +476,7 @@ if ($stmt) {
       <!-- Announcements Feed Widget -->
       <?php
       $announcements = [];
-      $stmt = mysqli_prepare($conn, "SELECT tenant_id, title, content, category, publish_date FROM announcements WHERE (tenant_id = ? OR tenant_id IS NULL) AND status = 'active' ORDER BY publish_date DESC, id DESC LIMIT 5");
+      $stmt = mysqli_prepare($conn, "SELECT tenant_id, title, content, category, publish_date FROM announcements WHERE (tenant_id = ? OR tenant_id IS NULL) AND status = 'active' AND publish_date <= NOW() ORDER BY publish_date DESC, id DESC LIMIT 5");
       if ($stmt) {
           mysqli_stmt_bind_param($stmt, "i", $tenantId);
           mysqli_stmt_execute($stmt);
@@ -541,7 +541,7 @@ if ($stmt) {
                       <?php echo $authorLabel; ?>
                     </span>
                   </div>
-                  <span style="font-size: 12px; color: #64748b; font-weight: 500;"><?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                  <span style="font-size: 12px; color: #64748b; font-weight: 500;"><?php echo date('M d, Y g:i A', strtotime($ann['publish_date'])); ?></span>
                 </div>
                 <strong style="color: var(--dashboard-accent); font-size: 15px; display: block; margin-bottom: 6px;"><?php echo h($ann['title']); ?></strong>
                 <p style="margin: 0; color: #475569; font-size: 13.5px; line-height: 1.5; white-space: pre-line;"><?php echo h($ann['content']); ?></p>

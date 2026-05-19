@@ -7,10 +7,8 @@ tenant_login.php (prompted)
 - remove the green glow when clicking on username and password fields. use the same style as superadmin_login.php 
 
 
-superadmin_login.php, tenant_login.php, and buttons in emailing in email address' inbox. (prompted)
+superadmin_login.php, tenant_login.php, and buttons in emailing in email address' inbox. 
 - change the color of sign in buttons and other buttons that are currently green to a more suitable color.
-(except this)
-- superadmin_login.php's sign in button is still green. change it.
 
 
 SUPER ADMIN
