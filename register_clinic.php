@@ -24,6 +24,8 @@ try {
         $address = mysqli_real_escape_string($conn, $_POST['address'] ?? '');
         $city = mysqli_real_escape_string($conn, $_POST['city'] ?? '');
         $province = mysqli_real_escape_string($conn, $_POST['province'] ?? '');
+        $barangay = mysqli_real_escape_string($conn, $_POST['barangay'] ?? '');
+        $zip_code = mysqli_real_escape_string($conn, $_POST['zip_code'] ?? '');
         $homepage_url = mysqli_real_escape_string($conn, $_POST['homepage_url'] ?? '');
         $tier   = trim((string)($_POST['tier'] ?? 'startup'));
         $start_date = trim((string)($_POST['start_date'] ?? ''));
@@ -113,11 +115,11 @@ try {
         // 4. Insert clinic into database
         $initial_status = ($tier === 'trial') ? 'active' : 'inactive';
         
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, barangay, zip_code, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration);
+        mysqli_stmt_bind_param($stmt, "sssssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $barangay, $zip_code, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);

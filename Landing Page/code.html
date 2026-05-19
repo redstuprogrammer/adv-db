@@ -88,6 +88,23 @@
             background-color: rgba(252, 248, 250, 0.7);
             backdrop-filter: blur(24px);
         }
+        .bg-brand-navy {
+            background-color: #0d3b66;
+        }
+        .hover\:bg-brand-navy-dark:hover {
+            background-color: #0b2c4d;
+        }
+        .text-brand-navy {
+            color: #0d3b66;
+        }
+        .border-brand-navy {
+            border-color: #0d3b66;
+        }
+        .focus\:ring-brand-navy:focus {
+            --tw-ring-color: #0d3b66;
+            border-color: #0d3b66;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-surface text-on-surface font-body selection:bg-secondary-container selection:text-on-secondary-container">
@@ -95,9 +112,10 @@
 <div class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full">
 <div class="text-2xl font-bold tracking-tighter text-slate-900">OralSync</div>
 <div class="hidden md:flex items-center gap-8">
-<a class="text-slate-900 font-bold border-b-2 border-on-tertiary-container transition-colors" href="#features">Features</a>
+<a class="text-slate-600 font-medium hover:text-on-tertiary-container transition-colors" href="#features">Features</a>
 <a class="text-slate-600 font-medium hover:text-on-tertiary-container transition-colors" href="#pricing">Pricing</a>
 <a class="text-slate-600 font-medium hover:text-on-tertiary-container transition-colors" href="#about">About</a>
+<a class="bg-brand-navy text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-center no-underline" href="#register-section">Register Clinic</a>
 </div>
 </div>
 </nav>
@@ -208,6 +226,7 @@
 <span class="text-on-surface-variant">Email Reminders (10/day)</span>
 </li>
 </ul>
+<button onclick="selectPlan('trial')" class="w-full mt-8 bg-slate-900 text-white py-3.5 px-6 rounded-xl font-semibold hover:bg-slate-800 active:scale-95 transition-all text-center">Start 14-Day Free Trial</button>
 </div>
 <div class="bg-primary-container p-12 rounded-xl flex flex-col h-full relative overflow-hidden transition-all hover:translate-y-[-4px]">
 <div class="absolute top-6 right-6 bg-on-tertiary-container text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Recommended</div>
@@ -242,6 +261,7 @@
 <span class="text-on-primary-container">Single Payment Method (Cash)</span>
 </li>
 </ul>
+<button onclick="selectPlan('startup')" class="w-full mt-8 bg-white text-primary-container py-3.5 px-6 rounded-xl font-semibold hover:bg-slate-100 active:scale-95 transition-all text-center">Choose Startup Plan</button>
 </div>
 <div class="bg-surface p-12 rounded-xl flex flex-col h-full border border-outline-variant/15 transition-all hover:translate-y-[-4px]">
 <h3 class="font-headline text-2xl font-bold mb-2">Professional</h3>
@@ -271,10 +291,184 @@
 <span class="text-on-surface-variant">Multiple Payment Methods</span>
 </li>
 </ul>
+<button onclick="selectPlan('professional')" class="w-full mt-8 bg-slate-900 text-white py-3.5 px-6 rounded-xl font-semibold hover:bg-slate-800 active:scale-95 transition-all text-center">Choose Professional Plan</button>
 </div>
 </div>
 </div>
 </section>
+
+<!-- Register Section -->
+<section id="register-section" class="py-32 bg-surface-container-low">
+<div class="max-w-4xl mx-auto px-8">
+    <div class="text-center mb-16">
+        <span class="font-label text-[0.75rem] uppercase tracking-widest text-brand-navy mb-4 block">Get Started</span>
+        <h2 class="font-headline text-[2.5rem] font-bold tracking-tight text-on-surface">Register Your Clinic</h2>
+        <p class="text-lg text-on-surface-variant max-w-2xl mx-auto mt-4">Join OralSync today. Complete the registration form below to set up your account.</p>
+    </div>
+
+    <form id="landing-register-form" class="bg-white p-10 rounded-2xl shadow-xl border border-slate-100 space-y-8" enctype="multipart/form-data">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Clinic Name -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-name" class="font-medium text-slate-800 text-sm">Clinic Name <span class="text-red-500">*</span></label>
+                <input type="text" id="clinic-name" name="clinicName" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. Tooth Care Dental Clinic">
+            </div>
+
+            <!-- Clinic Username -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-username" class="font-medium text-slate-800 text-sm">Subdomain / Username <span class="text-red-500">*</span></label>
+                <input type="text" id="clinic-username" name="username" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. toothcare">
+                <p class="text-xs text-slate-400">Letters, numbers, hyphens, and underscores only. This will be your domain (e.g. username.oralsync.com).</p>
+            </div>
+
+            <!-- Owner Name -->
+            <div class="flex flex-col gap-2">
+                <label for="owner-name" class="font-medium text-slate-800 text-sm">Owner Name <span class="text-red-500">*</span></label>
+                <input type="text" id="owner-name" name="ownerName" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. Dr. Juan Cruz">
+            </div>
+
+            <!-- Contact Email -->
+            <div class="flex flex-col gap-2">
+                <label for="owner-email" class="font-medium text-slate-800 text-sm">Owner / Contact Email <span class="text-red-500">*</span></label>
+                <input type="email" id="owner-email" name="email" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. contact@toothcare.com">
+            </div>
+
+            <!-- Contact Phone -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-phone" class="font-medium text-slate-800 text-sm">Phone Number <span class="text-red-500">*</span></label>
+                <input type="tel" id="clinic-phone" name="phone" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. 09171234567">
+            </div>
+
+            <!-- Clinic Address -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-address" class="font-medium text-slate-800 text-sm">Clinic Address <span class="text-red-500">*</span></label>
+                <input type="text" id="clinic-address" name="address" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all" placeholder="e.g. Unit 4B, 123 Quezon Ave">
+            </div>
+
+            <!-- Province (Luzon) -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-province" class="font-medium text-slate-800 text-sm">Province <span class="text-red-500">*</span></label>
+                <select id="clinic-province" name="province" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all bg-white">
+                    <option value="">Loading provinces...</option>
+                </select>
+            </div>
+
+            <!-- City / Municipality -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-city" class="font-medium text-slate-800 text-sm">City / Municipality <span class="text-red-500">*</span></label>
+                <select id="clinic-city" name="city" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all bg-white">
+                    <option value="">Select province first</option>
+                </select>
+            </div>
+
+            <!-- Barangay -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-barangay" class="font-medium text-slate-800 text-sm">Barangay <span class="text-red-500">*</span></label>
+                <select id="clinic-barangay" name="barangay" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all bg-white">
+                    <option value="">Select city first</option>
+                </select>
+            </div>
+
+            <!-- ZIP Code -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-zipcode" class="font-medium text-slate-800 text-sm">ZIP Code <span class="text-red-500">*</span></label>
+                <input type="text" id="clinic-zipcode" name="zip_code" required readonly class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Automatically detected...">
+            </div>
+
+            <!-- Subscription Plan -->
+            <div class="flex flex-col gap-2">
+                <label for="clinic-tier" class="font-medium text-slate-800 text-sm">Subscription Tier <span class="text-red-500">*</span></label>
+                <select id="clinic-tier" name="tier" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all bg-white">
+                    <option value="trial">Trial (Free for 14 days)</option>
+                    <option value="startup">Startup (₱124/mo)</option>
+                    <option value="professional">Professional (₱249/mo)</option>
+                </select>
+            </div>
+
+            <!-- Subscription Duration -->
+            <div id="duration-container" class="flex flex-col gap-2">
+                <label for="clinic-duration" class="font-medium text-slate-800 text-sm">Duration (Months) <span class="text-red-500">*</span></label>
+                <input type="number" id="clinic-duration" name="duration" required min="1" max="120" value="12" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-brand-navy transition-all">
+            </div>
+        </div>
+
+        <!-- Document Upload -->
+        <div class="flex flex-col gap-2">
+            <label class="font-medium text-slate-800 text-sm">Upload Credentials / Permits <span class="text-red-500">*</span></label>
+            <div class="border-2 border-dashed border-slate-200 hover:border-brand-navy rounded-2xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors relative" id="upload-dropzone">
+                <span class="material-symbols-outlined text-4xl text-slate-400" data-icon="cloud_upload">cloud_upload</span>
+                <span class="font-semibold text-slate-700 text-sm">Drag and drop files here, or click to browse</span>
+                <span class="text-xs text-slate-400">PDF, JPG, PNG or DOC (Max 5MB per file). At least one document is required.</span>
+                <input type="file" id="clinic-documents" name="documents[]" multiple accept=".pdf,.doc,.docx,.jpg,.png" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+            </div>
+            <!-- File List Preview -->
+            <div id="file-list-preview" class="hidden flex flex-col gap-2 mt-4 p-4 bg-slate-50 rounded-xl">
+                <span class="font-semibold text-xs text-slate-500 uppercase tracking-wider">Selected Documents:</span>
+                <div id="file-items" class="flex flex-col gap-2 mt-1"></div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-4 pt-4">
+            <button type="reset" class="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 active:scale-95 transition-all text-sm">Clear Form</button>
+            <button type="submit" class="px-8 py-3 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-sm">Register Clinic</button>
+        </div>
+    </form>
+</div>
+</section>
+
+<!-- Review Confirmation Modal Overlay -->
+<div id="review-modal" class="fixed inset-0 bg-slate-900/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 transform transition-all duration-300 scale-95 opacity-0" id="review-modal-card">
+        <h3 class="font-headline text-2xl font-bold text-brand-navy mb-2">Confirm Registration</h3>
+        <p class="text-sm text-slate-500 mb-6">Please check the details below. Once registered, login instructions will be sent to the email provided.</p>
+        
+        <div class="bg-slate-50 p-6 rounded-2xl space-y-3 text-sm text-slate-700 max-h-[350px] overflow-y-auto mb-6" id="review-modal-content">
+            <!-- Dynamic Review items -->
+        </div>
+
+        <div class="flex justify-end gap-4">
+            <button id="review-cancel-btn" class="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 active:scale-95 transition-all text-sm">Edit Details</button>
+            <button id="review-confirm-btn" class="px-8 py-3 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-sm">Finalize & Register</button>
+        </div>
+    </div>
+</div>
+
+<!-- PayMongo Checkout / Success Modal Overlay -->
+<div id="payment-modal" class="fixed inset-0 bg-slate-900/80 z-50 hidden items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-8 shadow-2xl border border-slate-100 text-center" id="payment-modal-card">
+        <div id="payment-modal-initial">
+            <div class="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-brand-navy text-3xl" data-icon="payments">payments</span>
+            </div>
+            <h3 class="font-headline text-2xl font-bold text-brand-navy mb-2">Payment Required</h3>
+            <p class="text-sm text-slate-500 mb-6">Click the button below to pay via GCash, Card, or PayMaya to activate your subscription.</p>
+            
+            <div class="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-200 break-all mb-6 text-xs text-brand-navy font-mono" id="payment-checkout-url"></div>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center mb-6">
+                <button id="payment-copy-btn" class="px-5 py-3 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 active:scale-95 transition-all text-sm flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-lg" data-icon="content_copy">content_copy</span> Copy Link
+                </button>
+                <a id="payment-open-btn" href="#" target="_blank" class="px-6 py-3 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-sm inline-block">Pay Now</a>
+            </div>
+
+            <div class="flex items-center justify-center gap-3 text-slate-500 text-sm">
+                <div class="w-5 h-5 border-2 border-slate-200 border-t-brand-navy rounded-full animate-spin"></div>
+                <span>Polling for payment confirmation...</span>
+            </div>
+        </div>
+
+        <div id="payment-modal-success" class="hidden">
+            <div class="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-6">
+                <span class="material-symbols-outlined text-emerald-600 text-3xl" data-icon="check_circle">check_circle</span>
+            </div>
+            <h3 class="font-headline text-2xl font-bold text-slate-800 mb-2">Registration Complete!</h3>
+            <p class="text-sm text-slate-500 mb-6">Your clinic has been registered and activated. We have sent an onboarding email with your credentials and subdomain link. Please check your email inbox (and spam folder) for details.</p>
+            <button id="success-close-btn" class="px-8 py-3 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-sm">Close</button>
+        </div>
+    </div>
+</div>
+
 <section id="contact" class="py-32 bg-surface">
 <div class="max-w-7xl mx-auto px-8 text-center">
 <span class="font-label text-[0.75rem] uppercase tracking-widest text-on-tertiary-container mb-6 block">Get In Touch</span>
@@ -335,4 +529,486 @@
 </div>
 </div>
 </footer>
+<script>
+    // Dynamic location selectors via PSGC API
+
+    function showToast(message, duration = 4000) {
+        let toast = document.getElementById('custom-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'custom-toast';
+            toast.className = 'fixed bottom-8 right-8 z-[100] bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-800 transition-all duration-300 transform translate-y-12 opacity-0';
+            document.body.appendChild(toast);
+        }
+        toast.innerHTML = `
+            <span class="material-symbols-outlined text-amber-500" data-icon="warning">warning</span>
+            <span class="text-sm font-semibold">${message}</span>
+        `;
+        toast.classList.remove('translate-y-12', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+        setTimeout(() => {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-12', 'opacity-0');
+        }, duration);
+    }
+
+    // Scroll to form and set selected plan
+    function selectPlan(planKey) {
+        const tierSelect = document.getElementById('clinic-tier');
+        if (tierSelect) {
+            tierSelect.value = planKey;
+            // Trigger change event to toggle duration visibility
+            tierSelect.dispatchEvent(new Event('change'));
+        }
+        const registerSec = document.getElementById('register-section');
+        if (registerSec) {
+            registerSec.scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const provinceSelect = document.getElementById('clinic-province');
+        const citySelect = document.getElementById('clinic-city');
+        const barangaySelect = document.getElementById('clinic-barangay');
+        const zipcodeInput = document.getElementById('clinic-zipcode');
+        const tierSelect = document.getElementById('clinic-tier');
+        const durationContainer = document.getElementById('duration-container');
+        const durationInput = document.getElementById('clinic-duration');
+        const form = document.getElementById('landing-register-form');
+        
+        const docInput = document.getElementById('clinic-documents');
+        const fileListPreview = document.getElementById('file-list-preview');
+        const fileItemsContainer = document.getElementById('file-items');
+
+        const reviewModal = document.getElementById('review-modal');
+        const reviewModalCard = document.getElementById('review-modal-card');
+        const reviewModalContent = document.getElementById('review-modal-content');
+        const reviewCancelBtn = document.getElementById('review-cancel-btn');
+        const reviewConfirmBtn = document.getElementById('review-confirm-btn');
+
+        const paymentModal = document.getElementById('payment-modal');
+        const paymentModalInitial = document.getElementById('payment-modal-initial');
+        const paymentModalSuccess = document.getElementById('payment-modal-success');
+        const checkoutUrlDisplay = document.getElementById('payment-checkout-url');
+        const paymentCopyBtn = document.getElementById('payment-copy-btn');
+        const paymentOpenBtn = document.getElementById('payment-open-btn');
+        const successCloseBtn = document.getElementById('success-close-btn');
+
+        // Toggle Duration container depending on plan (hidden for free trial)
+        if (tierSelect) {
+            tierSelect.addEventListener('change', function() {
+                if (this.value === 'trial') {
+                    durationContainer.style.display = 'none';
+                    durationInput.required = false;
+                } else {
+                    durationContainer.style.display = 'flex';
+                    durationInput.required = true;
+                }
+            });
+            // Initial call
+            tierSelect.dispatchEvent(new Event('change'));
+        }
+
+        // Load ZIP codes mapping database
+        let zipcodesData = [];
+        fetch('zipcodes.json')
+            .then(r => r.json())
+            .then(data => {
+                zipcodesData = data;
+            })
+            .catch(err => console.error('Error loading zipcodes database:', err));
+
+        function autoDetectZipCode() {
+            if (!zipcodeInput) return;
+            const provinceVal = provinceSelect.value;
+            const cityVal = citySelect.value;
+            if (!provinceVal || !cityVal) {
+                zipcodeInput.value = '';
+                return;
+            }
+            const [provCode, provName] = provinceVal.split('|');
+            const [cityCode, cityName] = cityVal.split('|');
+            
+            let cleanCity = cityName.replace(/^(City of|Municipality of)\s+/i, '').trim();
+            let searchProv = provName === 'Metro Manila' ? 'Manila' : provName;
+            
+            let match = zipcodesData.find(item => {
+                let areaLower = item.area.toLowerCase();
+                let provLower = searchProv.toLowerCase();
+                let cityLower = cleanCity.toLowerCase();
+                
+                if (provName === 'Metro Manila') {
+                    return areaLower.includes(cityLower);
+                } else {
+                    return areaLower.includes(provLower) && areaLower.includes(cityLower);
+                }
+            });
+
+            if (match) {
+                zipcodeInput.value = match.zip;
+            } else {
+                let fallbackMatch = zipcodesData.find(item => item.area.toLowerCase().includes(cleanCity.toLowerCase()));
+                if (fallbackMatch) {
+                    zipcodeInput.value = fallbackMatch.zip;
+                } else {
+                    zipcodeInput.value = '';
+                }
+            }
+        }
+
+        // Load Provinces from PSGC API
+        if (provinceSelect) {
+            fetch('https://psgc.gitlab.io/api/provinces/')
+                .then(r => r.json())
+                .then(data => {
+                    // Filter Luzon provinces
+                    let luzon = data.filter(p => p.islandGroupCode === 'luzon');
+                    // Sort alphabetically
+                    luzon.sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    provinceSelect.innerHTML = '<option value="">Select province</option>';
+                    // Metro Manila first (special region, NCR code)
+                    const ncrOption = document.createElement('option');
+                    ncrOption.value = '130000000|Metro Manila';
+                    ncrOption.textContent = 'Metro Manila';
+                    provinceSelect.appendChild(ncrOption);
+
+                    luzon.forEach(p => {
+                        const option = document.createElement('option');
+                        option.value = `${p.code}|${p.name}`;
+                        option.textContent = p.name;
+                        provinceSelect.appendChild(option);
+                    });
+                })
+                .catch(err => {
+                    console.error('Error loading provinces:', err);
+                    provinceSelect.innerHTML = '<option value="">Failed to load provinces</option>';
+                });
+        }
+
+        // Province change city list loader
+        if (provinceSelect && citySelect) {
+            provinceSelect.addEventListener('change', function() {
+                const val = this.value;
+                citySelect.innerHTML = '<option value="">Loading cities...</option>';
+                barangaySelect.innerHTML = '<option value="">Select city first</option>';
+                if (zipcodeInput) zipcodeInput.value = '';
+                
+                if (!val) {
+                    citySelect.innerHTML = '<option value="">Select province first</option>';
+                    return;
+                }
+
+                const [provCode, provName] = val.split('|');
+                const url = provCode === '130000000' 
+                    ? 'https://psgc.gitlab.io/api/regions/130000000/cities-municipalities/'
+                    : `https://psgc.gitlab.io/api/provinces/${provCode}/cities-municipalities/`;
+
+                fetch(url)
+                    .then(r => r.json())
+                    .then(cities => {
+                        cities.sort((a, b) => a.name.localeCompare(b.name));
+                        citySelect.innerHTML = '<option value="">Select city</option>';
+                        cities.forEach(c => {
+                            const option = document.createElement('option');
+                            option.value = `${c.code}|${c.name}`;
+                            option.textContent = c.name;
+                            citySelect.appendChild(option);
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Error loading cities:', err);
+                        citySelect.innerHTML = '<option value="">Failed to load cities</option>';
+                    });
+            });
+        }
+
+        // City change barangay list loader
+        if (citySelect && barangaySelect) {
+            citySelect.addEventListener('change', function() {
+                const val = this.value;
+                barangaySelect.innerHTML = '<option value="">Loading barangays...</option>';
+                
+                if (!val) {
+                    barangaySelect.innerHTML = '<option value="">Select city first</option>';
+                    if (zipcodeInput) zipcodeInput.value = '';
+                    return;
+                }
+
+                autoDetectZipCode();
+
+                const [cityCode, cityName] = val.split('|');
+                const url = `https://psgc.gitlab.io/api/cities-municipalities/${cityCode}/barangays/`;
+
+                fetch(url)
+                    .then(r => r.json())
+                    .then(brgys => {
+                        brgys.sort((a, b) => a.name.localeCompare(b.name));
+                        barangaySelect.innerHTML = '<option value="">Select barangay</option>';
+                        brgys.forEach(b => {
+                            const option = document.createElement('option');
+                            option.value = b.name;
+                            option.textContent = b.name;
+                            barangaySelect.appendChild(option);
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Error loading barangays:', err);
+                        barangaySelect.innerHTML = '<option value="">Failed to load barangays</option>';
+                    });
+            });
+        }
+
+        // Validation helpers on blur
+        function showFieldError(fieldId, errorMsg) {
+            const field = document.getElementById(fieldId);
+            let existing = document.getElementById(fieldId + '-error');
+            if (existing) existing.remove();
+            if (errorMsg) {
+                const err = document.createElement('p');
+                err.id = fieldId + '-error';
+                err.style.cssText = 'color:#ef4444;font-size:0.75rem;margin-top:4px;font-weight:500;';
+                err.textContent = errorMsg;
+                field.parentNode.appendChild(err);
+                field.style.borderColor = '#ef4444';
+            } else {
+                field.style.borderColor = '';
+            }
+        }
+
+        const emailInput = document.getElementById('owner-email');
+        if (emailInput) {
+            emailInput.addEventListener('blur', function() {
+                const email = this.value.trim();
+                if (!email) return;
+                fetch('../check_clinic_unique.php?field=email&value=' + encodeURIComponent(email))
+                    .then(r => r.json())
+                    .then(data => {
+                        showFieldError('owner-email', data.exists ? 'This email is already registered.' : '');
+                    });
+            });
+        }
+
+        const usernameInput = document.getElementById('clinic-username');
+        if (usernameInput) {
+            usernameInput.addEventListener('blur', function() {
+                const val = this.value.trim();
+                if (!val) return;
+                if (!/^[A-Za-z0-9_\-]+$/.test(val)) {
+                    showFieldError('clinic-username', 'Username may only contain letters, numbers, hyphens, and underscores.');
+                    return;
+                }
+                fetch('../check_clinic_unique.php?field=username&value=' + encodeURIComponent(val))
+                    .then(r => r.json())
+                    .then(data => {
+                        showFieldError('clinic-username', data.exists ? 'This username/subdomain is already taken.' : '');
+                    });
+            });
+        }
+
+        // File upload tracking
+        let selectedFiles = [];
+        if (docInput) {
+            docInput.addEventListener('change', function() {
+                selectedFiles = Array.from(this.files);
+                renderFileList();
+            });
+        }
+
+        function renderFileList() {
+            if (selectedFiles.length === 0) {
+                fileListPreview.classList.add('hidden');
+                fileItemsContainer.innerHTML = '';
+                return;
+            }
+            fileListPreview.classList.remove('hidden');
+            fileItemsContainer.innerHTML = selectedFiles.map((file, idx) => `
+                <div class="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-100 text-xs">
+                    <div class="flex items-center gap-2 text-slate-700 font-medium overflow-hidden">
+                        <span class="material-symbols-outlined text-slate-400 text-sm" data-icon="description">description</span>
+                        <span class="truncate max-w-[200px]">${file.name}</span>
+                        <span class="text-slate-400">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                    </div>
+                    <button type="button" onclick="window.removeFile(${idx})" class="text-red-500 font-semibold hover:text-red-700">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        window.removeFile = function(index) {
+            selectedFiles.splice(index, 1);
+            // Re-bind back to file input
+            const dt = new DataTransfer();
+            selectedFiles.forEach(f => dt.items.add(f));
+            docInput.files = dt.files;
+            renderFileList();
+        };
+
+        // Form Submit flow intercept
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Validate documents count
+                if (selectedFiles.length === 0) {
+                    showToast('Please upload at least one valid clinic document.');
+                    return;
+                }
+
+                // Check errors
+                const emailErr = document.getElementById('owner-email-error');
+                const userErr = document.getElementById('clinic-username-error');
+                if (emailErr || userErr) {
+                    showToast('Please resolve validation errors before submitting.');
+                    return;
+                }
+
+                // Render review details
+                const tierVal = tierSelect.value;
+                const tierLabel = tierVal === 'trial' ? 'Free Trial' : (tierVal === 'startup' ? 'Startup Plan' : 'Professional Plan');
+                const provinceName = provinceSelect.value ? provinceSelect.value.split('|')[1] : '';
+                const cityName = citySelect.value ? citySelect.value.split('|')[1] : '';
+                const barangayName = barangaySelect.value;
+
+                reviewModalContent.innerHTML = `
+                    <div class="flex flex-col gap-2">
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Clinic Name:</span><span class="font-semibold text-slate-800">${document.getElementById('clinic-name').value}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Subdomain/Username:</span><span class="font-semibold text-slate-800">${usernameInput.value}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Owner Name:</span><span class="font-semibold text-slate-800">${document.getElementById('owner-name').value}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Email:</span><span class="font-semibold text-slate-800">${emailInput.value}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Phone:</span><span class="font-semibold text-slate-800">${document.getElementById('clinic-phone').value}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Location:</span><span class="font-semibold text-slate-800">${barangayName ? barangayName + ', ' : ''}${cityName}, ${provinceName} ${zipcodeInput.value ? '(' + zipcodeInput.value + ')' : ''}</span></div>
+                        <div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Plan:</span><span class="font-semibold text-brand-navy">${tierLabel}</span></div>
+                        ${tierVal !== 'trial' ? `<div class="flex justify-between border-b border-slate-200/50 pb-2"><span class="text-slate-400">Duration:</span><span class="font-semibold text-slate-800">${durationInput.value} Month(s)</span></div>` : ''}
+                        <div class="flex flex-col gap-1 pt-2">
+                            <span class="text-slate-400 text-xs uppercase font-bold tracking-wider">Documents:</span>
+                            <span class="text-slate-600 text-xs">${selectedFiles.map(f => f.name).join(', ')}</span>
+                        </div>
+                    </div>
+                `;
+
+                // Open review modal
+                reviewModal.classList.remove('hidden');
+                reviewModal.classList.add('flex');
+                setTimeout(() => {
+                    reviewModalCard.classList.remove('scale-95', 'opacity-0');
+                    reviewModalCard.classList.add('scale-100', 'opacity-100');
+                }, 50);
+            });
+        }
+
+        if (reviewCancelBtn) {
+            reviewCancelBtn.addEventListener('click', function() {
+                reviewModalCard.classList.remove('scale-100', 'opacity-100');
+                reviewModalCard.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    reviewModal.classList.add('hidden');
+                    reviewModal.classList.remove('flex');
+                }, 300);
+            });
+        }
+
+        // Final Confirm Submission
+        if (reviewConfirmBtn) {
+            reviewConfirmBtn.addEventListener('click', function() {
+                reviewConfirmBtn.disabled = true;
+                reviewConfirmBtn.textContent = 'Submitting...';
+
+                const formData = new FormData();
+                formData.append('clinicName', document.getElementById('clinic-name').value.trim());
+                formData.append('ownerName', document.getElementById('owner-name').value.trim());
+                formData.append('username', usernameInput.value.trim());
+                formData.append('email', emailInput.value.trim());
+                formData.append('phone', document.getElementById('clinic-phone').value.trim());
+                formData.append('address', document.getElementById('clinic-address').value.trim());
+                formData.append('city', citySelect.value ? citySelect.value.split('|')[1] : '');
+                formData.append('province', provinceSelect.value ? provinceSelect.value.split('|')[1] : '');
+                formData.append('barangay', barangaySelect.value.trim());
+                formData.append('zip_code', zipcodeInput.value.trim());
+                formData.append('tier', tierSelect.value);
+                formData.append('start_date', ''); // Will default to today
+                formData.append('duration', tierSelect.value === 'trial' ? '1' : durationInput.value);
+
+                selectedFiles.forEach(f => {
+                    formData.append('documents[]', f);
+                });
+
+                fetch('../register_clinic.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        // Close review modal
+                        reviewModal.classList.add('hidden');
+                        reviewModal.classList.remove('flex');
+                        form.reset();
+                        selectedFiles = [];
+                        renderFileList();
+
+                        // Open checkout / success modal
+                        paymentModal.classList.remove('hidden');
+                        paymentModal.classList.add('flex');
+
+                        if (data.checkout_url) {
+                            // Paid tier - polling required
+                            paymentModalInitial.classList.remove('hidden');
+                            paymentModalSuccess.classList.add('hidden');
+                            checkoutUrlDisplay.textContent = data.checkout_url;
+                            paymentOpenBtn.href = data.checkout_url;
+
+                            paymentCopyBtn.onclick = function() {
+                                navigator.clipboard.writeText(data.checkout_url).then(() => {
+                                    showToast('Payment link copied successfully!');
+                                });
+                            };
+
+                            startPolling(data.slug);
+                        } else {
+                            // Trial / Free tier - direct activation success
+                            paymentModalInitial.classList.add('hidden');
+                            paymentModalSuccess.classList.remove('hidden');
+                        }
+                    } else {
+                        showToast(data.message || 'An error occurred during registration.');
+                        reviewConfirmBtn.disabled = false;
+                        reviewConfirmBtn.textContent = 'Finalize & Register';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    showToast('Failed to connect to registration server.');
+                    reviewConfirmBtn.disabled = false;
+                    reviewConfirmBtn.textContent = 'Finalize & Register';
+                });
+            });
+        }
+
+        let pollTimer = null;
+        function startPolling(slug) {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(() => {
+                fetch('../get_tenant_status.php?slug=' + encodeURIComponent(slug))
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status === 'active') {
+                            clearInterval(pollTimer);
+                            paymentModalInitial.classList.add('hidden');
+                            paymentModalSuccess.classList.remove('hidden');
+                            showToast('Payment confirmed! Account activated.', 5000);
+                        }
+                    })
+                    .catch(() => {});
+            }, 3000);
+        }
+
+        if (successCloseBtn) {
+            successCloseBtn.addEventListener('click', function() {
+                paymentModal.classList.add('hidden');
+                paymentModal.classList.remove('flex');
+                if (pollTimer) clearInterval(pollTimer);
+            });
+        }
+    });
+</script>
 </body></html>

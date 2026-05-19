@@ -1,13 +1,16 @@
 - make super admin's sidebar ui and style similar to tenant's sidebar ui and style.
-- remove  super admin's abiliy to register for a new tenant. transfer it to the main hompage where clients register themselves. then also transfer payment process there. payment process should occur after client fills up the registration form.
 - make headers consistent.
+- sidebar and headers: make new pages have similar icons from pages that already exist.
+
+(prompted)
+- remove  super admin's abiliy to register for a new tenant. transfer it to the main homepage where clients register themselves. then also transfer payment process there. payment process should occur after client fills up the registration form. after successfully registration, display a message to the user to check their email for more information. their information should be displayed in the tenant list after.
 
 
 tenant_login.php (prompted)
 - remove the green glow when clicking on username and password fields. use the same style as superadmin_login.php 
 
 
-superadmin_login.php, tenant_login.php, and buttons in emailing in email address' inbox. 
+superadmin_login.php, tenant_login.php, and buttons in emailing in email address' inbox. (prompted)
 - change the color of sign in buttons and other buttons that are currently green to a more suitable color.
 
 
@@ -75,8 +78,5 @@ Meet our world-renowned specialists dedicated to the intersection of oral health
 (except for this)
 - map
 
-
-sidebar
-- make new pages have similar icons from pages that already exist.
 
 

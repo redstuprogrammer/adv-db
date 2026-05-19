@@ -1,5 +1,5 @@
 <?php
-require_once 'connect.php';
+require_once __DIR__ . '/includes/connect.php';
 
 $payload = file_get_contents('php://input');
 $data = json_decode($payload, true);
