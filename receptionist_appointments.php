@@ -132,63 +132,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 }
 
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['request_action'], $_POST['request_id'])) {
-    $requestId = (int)($_POST['request_id'] ?? 0);
-    $requestAction = trim($_POST['request_action'] ?? '');
-
-    if ($requestId > 0 && in_array($requestAction, ['approve', 'disapprove'], true)) {
-        $canProceed = true;
-        $newStatus = 'Pending';
-        $updateSql = 'UPDATE appointment SET status = ?, is_appointment_request = 0 WHERE appointment_id = ? AND tenant_id = ?';
-
-        if ($requestAction === 'approve') {
-            // Before approving, check if the slot is still available
-            $stmtDetails = mysqli_prepare($conn, 'SELECT dentist_id, appointment_date, appointment_time FROM appointment WHERE appointment_id = ? AND tenant_id = ?');
-            mysqli_stmt_bind_param($stmtDetails, 'ii', $requestId, $tenantId);
-            mysqli_stmt_execute($stmtDetails);
-            $resDetails = mysqli_stmt_get_result($stmtDetails);
-            if ($details = mysqli_fetch_assoc($resDetails)) {
-                $dId = $details['dentist_id'];
-                $aDate = $details['appointment_date'];
-                $aTime = $details['appointment_time'];
-
-                $stmtCheck = mysqli_prepare($conn, 'SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved") AND appointment_id <> ?');
-                mysqli_stmt_bind_param($stmtCheck, 'iissi', $tenantId, $dId, $aDate, $aTime, $requestId);
-                mysqli_stmt_execute($stmtCheck);
-                mysqli_stmt_store_result($stmtCheck);
-
-                if (mysqli_stmt_num_rows($stmtCheck) > 0) {
-                    $canProceed = false;
-                    $errorMessage = 'Cannot approve. Booking already exists for this dentist at the requested date and time.';
-                }
-                mysqli_stmt_close($stmtCheck);
-            }
-            mysqli_stmt_close($stmtDetails);
-            $newStatus = 'Pending';
-        } else {
-            // Disapprove action
-            $newStatus = 'Disapproved';
-        }
-
-        if ($canProceed) {
-            $stmtReqUpdate = mysqli_prepare($conn, $updateSql);
-            if ($stmtReqUpdate) {
-                mysqli_stmt_bind_param($stmtReqUpdate, 'sii', $newStatus, $requestId, $tenantId);
-                if (mysqli_stmt_execute($stmtReqUpdate)) {
-                    $successMessage = $requestAction === 'approve' ? 'Appointment request approved.' : 'Appointment request disapproved.';
-                } else {
-                    $errorMessage = 'Unable to update appointment request status.';
-                }
-                mysqli_stmt_close($stmtReqUpdate);
-            } else {
-                $errorMessage = 'Unable to prepare appointment request update statement.';
-            }
-        }
-    } else {
-        $errorMessage = 'Invalid appointment request action.';
-    }
-}
-
 $patients = [];
 $stmtPatients = mysqli_prepare($conn, 'SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
 if ($stmtPatients) {
@@ -230,23 +173,7 @@ $queryActiveAppointments = "SELECT
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 0 AND a.status <> 'Disapproved'
-          ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
-
-$queryRequests = "SELECT 
-            a.appointment_id, 
-            a.appointment_date, 
-            a.appointment_time,
-            a.procedure_name,
-            p.first_name, 
-            p.last_name, 
-            d.last_name AS d_last, 
-            a.status,
-            a.dentist_id
-          FROM appointment a 
-          LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
-          LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ? AND COALESCE(a.is_appointment_request, 0) = 1
+          WHERE a.tenant_id = ? AND a.status <> 'Disapproved'
           ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC";
 
 $appointmentsResult = null;
@@ -255,14 +182,6 @@ if ($stmt) {
     mysqli_stmt_bind_param($stmt, "i", $tenantId);
     mysqli_stmt_execute($stmt);
     $appointmentsResult = mysqli_stmt_get_result($stmt);
-}
-
-$requestResult = null;
-$stmtReq = mysqli_prepare($conn, $queryRequests);
-if ($stmtReq) {
-    mysqli_stmt_bind_param($stmtReq, "i", $tenantId);
-    mysqli_stmt_execute($stmtReq);
-    $requestResult = mysqli_stmt_get_result($stmtReq);
 }
 ?>
 
@@ -647,18 +566,13 @@ if ($stmtReq) {
         <?php if ($errorMessage && !isset($_POST['add_appointment'])): ?>
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; margin-bottom: 20px;"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
-        <div class="content-header">
-          <div>
+        <div class="content-header">          <div>
             <h2 class="content-title">Front Desk Appointments</h2>
-            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="tab-button <?php echo $activeTab === 'appointments' ? 'active' : ''; ?>" type="button" onclick="showAppointmentsTab()">Appointments</button>
-              <button class="tab-button <?php echo $activeTab === 'requests' ? 'active' : ''; ?>" type="button" onclick="showRequestsTab()">Appointment Requests</button>
-            </div>
           </div>
           <button class="add-btn" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
  
-        <div id="appointmentsSection" style="<?php echo $activeTab === 'requests' ? 'display: none;' : ''; ?>">
+        <div id="appointmentsSection">
           <table class="queue-table">
             <thead>
               <tr>
@@ -697,45 +611,6 @@ if ($stmtReq) {
             </tbody>
           </table>
         </div>
- 
-        <div id="requestsSection" style="<?php echo $activeTab === 'requests' ? 'display: block;' : ''; ?> <?php echo $activeTab === 'appointments' ? 'display: none;' : ''; ?>">
-          <table class="queue-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Patient</th>
-                <th>Dentist</th>
-                <th>Time</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php if ($requestResult && $requestResult->num_rows > 0): ?>
-                <?php while($request = $requestResult->fetch_assoc()): ?>
-                  <tr>
-                    <td><?php echo date('M d, Y', strtotime($request['appointment_date'])); ?></td>
-                    <td><strong><?php echo h(($request['first_name'] ?? '') . " " . ($request['last_name'] ?? '')); ?></strong></td>
-                    <td>Dr. <?php echo h($request['d_last'] ?? ''); ?></td>
-<td><?php echo h(formatTime12Hour($request['appointment_time'])); ?></td>
-                    <td class="actions-cell">
-                      <a href="javascript:void(0);" class="action-link" onclick="openRequestViewModal(<?php echo (int)$request['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($request['first_name'] ?? '') . ' ' . ($request['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($request['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode(date('M d, Y', strtotime($request['appointment_date']))), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode(formatTime12Hour($request['appointment_time'])), ENT_QUOTES, 'UTF-8'); ?>)">View</a>
-                      <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'approve')">Approve</a>
-                      <a href="javascript:void(0);" class="action-link" onclick="submitRequestAction(<?php echo (int)$request['appointment_id']; ?>, 'disapprove')">Disapprove</a>
-                    </td>
-                  </tr>
-                <?php endwhile; ?>
-              <?php else: ?>
-                <tr><td colspan="5" style="text-align:center; padding:30px;">No appointment requests found.</td></tr>
-              <?php endif; ?>
-            </tbody>
-          </table>
-        </div>
-
-        <form id="requestActionForm" method="POST" action="receptionist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" style="display:none;">
-          <input type="hidden" name="request_id" id="request_id" value="">
-          <input type="hidden" name="request_action" id="request_action" value="">
-          <input type="hidden" name="tab_persist" value="requests">
-        </form>
       </div>
     </div>
   </div>
@@ -863,92 +738,11 @@ if ($stmtReq) {
     </div>
   </div>
 
-  <!-- View Request Modal -->
-  <div id="requestViewModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Appointment Request Details</h3>
-        <button class="modal-close" type="button" onclick="closeRequestViewModal()">&times;</button>
-      </div>
-      <div class="form-group">
-        <label>Patient</label>
-        <input type="text" id="requestPatientName" readonly>
-      </div>
-      <div class="form-group">
-        <label>Dentist</label>
-        <input type="text" id="requestDentistName" readonly>
-      </div>
-      <div class="form-group">
-        <label>Date</label>
-        <input type="text" id="requestDate" readonly>
-      </div>
-      <div class="form-group">
-        <label>Time</label>
-        <input type="text" id="requestTime" readonly>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-secondary" onclick="closeRequestViewModal()">Close</button>
-      </div>
-    </div>
-  </div>
+
 
 
   <script>
     const tenantId = <?php echo json_encode($tenantId); ?>;
-
-    function showAppointmentsTab() {
-      const apptSec = document.getElementById('appointmentsSection');
-      const reqSec = document.getElementById('requestsSection');
-      if (apptSec) apptSec.style.display = 'block';
-      if (reqSec) reqSec.style.display = 'none';
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      const buttons = document.querySelectorAll('.tab-button');
-      if (buttons[0]) buttons[0].classList.add('active');
-    }
-
-    function showRequestsTab() {
-      const apptSec = document.getElementById('appointmentsSection');
-      const reqSec = document.getElementById('requestsSection');
-      if (apptSec) apptSec.style.display = 'none';
-      if (reqSec) reqSec.style.display = 'block';
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-      const buttons = document.querySelectorAll('.tab-button');
-      if (buttons[1]) buttons[1].classList.add('active');
-    }
-
-    function submitRequestAction(id, action) {
-      const formId = document.getElementById('request_id');
-      const formAction = document.getElementById('request_action');
-      if (formId && formAction) {
-          formId.value = id;
-          formAction.value = action;
-          
-          // Add tab to the form action URL to persist it
-          const currentUrl = new URL(document.getElementById('requestActionForm').action);
-          currentUrl.searchParams.set('tab', 'requests');
-          document.getElementById('requestActionForm').action = currentUrl.toString();
-          
-          document.getElementById('requestActionForm').submit();
-      }
-    }
-    function openRequestViewModal(id, patientName, dentistName, date, time) {
-      console.log('Opening View Modal for:', id, patientName);
-      const modal = document.getElementById('requestViewModal');
-      if (!modal) {
-          console.error('Modal requestViewModal not found!');
-          return;
-      }
-      document.getElementById('requestPatientName').value = patientName;
-      document.getElementById('requestDentistName').value = dentistName;
-      document.getElementById('requestDate').value = date;
-      document.getElementById('requestTime').value = time || 'TBD';
-      modal.classList.add('active');
-    }
-
-    function closeRequestViewModal() {
-      document.getElementById('requestViewModal').classList.remove('active');
-    }
-
 
     function openScheduleModal() {
       console.log('Schedule modal opened');
@@ -1190,10 +984,8 @@ if ($stmtReq) {
     window.addEventListener('click', function(event) {
       const scheduleModal = document.getElementById('scheduleModal');
       const manageModal = document.getElementById('manageModal');
-      const requestViewModal = document.getElementById('requestViewModal');
       if (event.target === scheduleModal) closeScheduleModal();
       if (event.target === manageModal) closeManageModal();
-      if (event.target === requestViewModal) closeRequestViewModal();
     });
     
     

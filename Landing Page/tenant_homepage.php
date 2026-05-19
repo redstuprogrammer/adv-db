@@ -46,7 +46,9 @@ if ($tenant) {
         'team' => json_decode($settings['team_json'] ?? '[]', true),
         'hero_image' => $settings['hero_image'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo',
         'about_image_1' => $settings['about_image_1'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g',
-        'about_image_2' => $settings['about_image_2'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10'
+        'about_image_2' => $settings['about_image_2'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10',
+        'team_title' => $settings['team_title'] ?? 'The Architects of Your Smile',
+        'team_subtitle' => $settings['team_subtitle'] ?? 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.'
     ];
 
     // Fetch clinic schedule for this tenant
@@ -73,6 +75,27 @@ if ($tenant) {
         ];
         $schedule = $defaultHours;
     }
+
+    // Fetch services for this tenant
+    $services = [];
+    try {
+        $serviceTableResult = $conn->query("SHOW COLUMNS FROM service LIKE 'category'");
+        $categoryExists = ($serviceTableResult && $serviceTableResult->num_rows > 0);
+        
+        $selectSql = "SELECT service_name, price, description" . ($categoryExists ? ", category" : "") . " FROM service WHERE tenant_id = ? ORDER BY category, service_name";
+        $stmtServ = $conn->prepare($selectSql);
+        if ($stmtServ) {
+            $stmtServ->bind_param("i", $tenantId);
+            $stmtServ->execute();
+            $resServ = $stmtServ->get_result();
+            while ($row = $resServ->fetch_assoc()) {
+                $services[] = $row;
+            }
+            $stmtServ->close();
+        }
+    } catch (Exception $e) {
+        $services = [];
+    }
 } else {
     // Fallback if tenant not found
     $clinic = [
@@ -84,8 +107,85 @@ if ($tenant) {
         'contact_phone' => '+1 (555) 000-0000',
         'contact_email' => 'support@oralsync.com',
         'contact_address' => '123 Serenity Blvd, Medical District',
-        'accent_color' => '#004872'
+        'accent_color' => '#004872',
+        'team_title' => 'The Architects of Your Smile',
+        'team_subtitle' => 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.'
     ];
+}
+
+if (empty($services)) {
+    $services = [
+        [
+            'service_name' => 'Ultrasonic Teeth Cleaning',
+            'category' => 'Preventive',
+            'price' => 1500.00,
+            'description' => 'Advanced, pain-free ultrasonic scaling and polishing to remove plaque and maintain optimal oral hygiene.'
+        ],
+        [
+            'service_name' => 'Laser Teeth Whitening',
+            'category' => 'Cosmetic',
+            'price' => 5000.00,
+            'description' => 'State-of-the-art Mint-Glow series laser whitening that brightens teeth by up to 8 shades in a single session without sensitivity.'
+        ],
+        [
+            'service_name' => 'Clear Orthodontic Aligners',
+            'category' => 'Orthodontics',
+            'price' => 75000.00,
+            'description' => 'Discreet, removable, custom-made orthodontic aligners to align your teeth comfortably and invisibly.'
+        ],
+        [
+            'service_name' => 'Bio-Compatible Dental Implants',
+            'category' => 'Restorative',
+            'price' => 45000.00,
+            'description' => 'High-grade titanium implants topped with natural-looking crowns to restore function and beauty to your smile.'
+        ],
+        [
+            'service_name' => 'Pediatric Preventive Care',
+            'category' => 'Pediatric',
+            'price' => 1200.00,
+            'description' => 'Gentle, friendly checkups, dental sealants, and fluoride treatments tailored specially for young patients.'
+        ],
+        [
+            'service_name' => 'Restorative Composite Fillings',
+            'category' => 'Restorative',
+            'price' => 2000.00,
+            'description' => 'Durable, tooth-colored composite restorations that blend seamlessly with your natural teeth.'
+        ]
+    ];
+}
+
+// Function to map categories to modern icons
+if (!function_exists('getCategoryIcon')) {
+    function getCategoryIcon($category) {
+        $category = strtolower(trim((string)$category));
+        switch ($category) {
+            case 'preventive':
+                return 'shield';
+            case 'pediatric':
+                return 'child_care';
+            case 'prosthodontics':
+                return 'spa';
+            case 'cosmetic':
+                return 'auto_awesome';
+            case 'orthodontics':
+                return 'align_horizontal_center';
+            case 'surgery':
+                return 'medical_services';
+            case 'restorative':
+                return 'healing';
+            default:
+                return 'health_and_safety';
+        }
+    }
+}
+
+// Extract unique categories for the filters
+$categories = ['All'];
+foreach ($services as $service) {
+    $cat = $service['category'] ?? 'General';
+    if (!in_array($cat, $categories)) {
+        $categories[] = $cat;
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -190,6 +290,7 @@ if ($tenant) {
 <div class="hidden md:flex items-center space-x-8">
 <a class="text-sky-900 font-bold border-b-2 border-sky-900 pb-1 hover:text-sky-700 transition-colors duration-300" href="#">Home</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#about">About</a>
+<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#services">Services</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#team">Team</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#schedule">Schedule</a>
 <a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#location">Location</a>
@@ -282,12 +383,70 @@ if ($tenant) {
 </div>
 </div>
 </section>
+
+<!-- Services Section -->
+<section class="py-24 bg-surface" id="services">
+    <div class="max-w-7xl mx-auto px-8">
+        <div class="text-center max-w-2xl mx-auto mb-16">
+            <span class="text-primary text-sm font-bold uppercase tracking-widest block mb-3">Our Clinical Offerings</span>
+            <h2 class="text-4xl font-extrabold text-on-surface mb-4">Exceptional Dental Services</h2>
+            <p class="text-on-surface-variant font-body font-light text-lg">Discover our curated selection of state-of-the-art treatments designed around your comfort and clinical excellence.</p>
+        </div>
+
+        <?php if (count($categories) > 1): ?>
+        <!-- Category Filter Tabs -->
+        <div class="flex flex-wrap justify-center gap-3 mb-12">
+            <?php foreach ($categories as $cat): ?>
+                <button 
+                    onclick="filterServices('<?= htmlspecialchars($cat) ?>', this)" 
+                    class="category-tab px-6 py-2.5 rounded-full text-sm font-semibold tracking-wide transition-all duration-300 <?= $cat === 'All' ? 'bg-primary text-on-primary shadow-md font-bold' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' ?>">
+                    <?= htmlspecialchars($cat) ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Services Grid -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <?php foreach ($services as $service): ?>
+                <div class="bg-surface-container-lowest rounded-[2rem] p-8 shadow-sm border border-outline-variant/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group service-card" data-category="<?= htmlspecialchars($service['category'] ?? 'General') ?>">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
+                                <span class="material-symbols-outlined text-2xl"><?= getCategoryIcon($service['category'] ?? 'General') ?></span>
+                            </div>
+                            <span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-bold uppercase tracking-wider">
+                                <?= htmlspecialchars($service['category'] ?? 'General') ?>
+                            </span>
+                        </div>
+                        <h3 class="text-xl font-bold text-on-surface mb-3 group-hover:text-primary transition-colors duration-300">
+                            <?= htmlspecialchars($service['service_name']) ?>
+                        </h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed font-light mb-6 line-clamp-3">
+                            <?= htmlspecialchars($service['description'] ?? 'No description available for this service.') ?>
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-outline-variant/10">
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Investment</span>
+                            <span class="text-xl font-extrabold text-primary">₱<?= number_format($service['price'], 2) ?></span>
+                        </div>
+                        <button onclick="openModal()" class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:bg-primary group-hover:text-on-primary transition-all duration-300 shadow-md">
+                            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
 <!-- Team Section -->
-<section class="py-24" id="team">
+<section class="py-24 bg-surface-container-low" id="team">
 <div class="max-w-7xl mx-auto px-8">
 <div class="text-center max-w-2xl mx-auto mb-16">
-<h2 class="text-4xl font-extrabold text-on-surface mb-4">The Architects of Your Smile</h2>
-<p class="text-on-surface-variant font-body">Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.</p>
+<h2 class="text-4xl font-extrabold text-on-surface mb-4"><?= htmlspecialchars($clinic['team_title'] ?? 'The Architects of Your Smile') ?></h2>
+<p class="text-on-surface-variant font-body"><?= htmlspecialchars($clinic['team_subtitle'] ?? 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.') ?></p>
 </div>
 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
 <?php 
@@ -341,7 +500,7 @@ foreach ($teamMembers as $index => $member):
 </div>
 </section>
 <!-- Bento Grid: Schedule & Announcements -->
-<section class="py-24 bg-surface-container-low" id="schedule">
+<section class="py-24 bg-surface" id="schedule">
 <div class="max-w-7xl mx-auto px-8">
 <div class="grid lg:grid-cols-3 gap-8">
 <!-- Weekly Schedule -->
@@ -421,7 +580,7 @@ foreach ($announcements as $index => $announcement):
 </div>
 </section>
 <!-- Location & Map Section -->
-<section class="py-24" id="location">
+<section class="py-24 bg-surface-container-low" id="location">
 <div class="max-w-7xl mx-auto px-8">
 <div class="bg-surface-container-lowest rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
 <div class="md:w-1/2 p-12 lg:p-20">
@@ -549,6 +708,35 @@ foreach ($announcements as $index => $announcement):
     function closeModal() {
         document.getElementById('appointmentModal').classList.add('hidden');
         document.body.style.overflow = 'auto';
+    }
+    function filterServices(category, element) {
+        // Update active tab styling
+        const tabs = document.querySelectorAll('.category-tab');
+        tabs.forEach(tab => {
+            tab.classList.remove('bg-primary', 'text-on-primary', 'shadow-md', 'font-bold');
+            tab.classList.add('bg-surface-container-low', 'text-on-surface-variant', 'hover:bg-surface-container-high');
+        });
+        
+        element.classList.remove('bg-surface-container-low', 'text-on-surface-variant', 'hover:bg-surface-container-high');
+        element.classList.add('bg-primary', 'text-on-primary', 'shadow-md', 'font-bold');
+        
+        // Filter cards
+        const cards = document.querySelectorAll('.service-card');
+        cards.forEach(card => {
+            if (category === 'All' || card.getAttribute('data-category') === category) {
+                card.classList.remove('hidden');
+                // Subtle fade-in animation
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(8px)';
+                card.style.transition = 'all 0.3s ease';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 50);
+            } else {
+                card.classList.add('hidden');
+            }
+        });
     }
 </script>
 </body></html>

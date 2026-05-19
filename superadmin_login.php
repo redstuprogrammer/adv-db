@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // If we reach here, authentication failed
-        $error = 'Invalid username or password.';
+        $error = 'Invalid email / username or password.';
         mysqli_stmt_close($stmt);
     } else {
         $error = 'Please fill in all fields.';

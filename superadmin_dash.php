@@ -294,14 +294,14 @@ try {
         }
 
         .sa-btn-success {
-            background: #22c55e;
+            background: #0d3b66;
             color: #ffffff;
-            border: 2px solid #22c55e;
+            border: 2px solid #0d3b66;
         }
 
         .sa-btn-success:hover {
-            background: #16a34a;
-            border-color: #16a34a;
+            background: #0b2c4d;
+            border-color: #0b2c4d;
         }
 
         .sa-toast {
@@ -1009,7 +1009,6 @@ try {
 
         <div class="sa-form-actions">
             <button class="sa-btn sa-btn-outline" onclick="closeDetailsModal()">Close</button>
-            <button class="sa-btn sa-btn-success" id="btn-login-as"></button>
         </div>
     </div>
 </div>

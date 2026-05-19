@@ -505,6 +505,84 @@ if ($stmt) {
         </div>
       </div>
 
+      <!-- Announcements Feed Widget -->
+      <?php
+      $announcements = [];
+      $stmt = mysqli_prepare($conn, "SELECT tenant_id, title, content, category, publish_date FROM announcements WHERE (tenant_id = ? OR tenant_id IS NULL) AND status = 'active' ORDER BY publish_date DESC, id DESC LIMIT 5");
+      if ($stmt) {
+          mysqli_stmt_bind_param($stmt, "i", $tenantId);
+          mysqli_stmt_execute($stmt);
+          $res = mysqli_stmt_get_result($stmt);
+          if ($res) {
+              while ($row = mysqli_fetch_assoc($res)) {
+                  $announcements[] = $row;
+              }
+          }
+          mysqli_stmt_close($stmt);
+      }
+      ?>
+      <?php if (!empty($announcements)): ?>
+        <div class="announcements-widget" style="background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; border-bottom: 1.5px solid var(--dashboard-border); padding-bottom: 12px;">
+            <span style="font-size: 20px;">📢</span>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--dashboard-accent);">Clinic Announcements</h2>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <?php foreach ($announcements as $ann): ?>
+              <?php
+              $isPlatform = is_null($ann['tenant_id']);
+              $authorLabel = $isPlatform ? "Platform Update" : "Clinic Announcement";
+              $authorBadgeBg = $isPlatform ? "#ffe4e6" : "#f1f5f9";
+              $authorBadgeColor = $isPlatform ? "#be123c" : "#475569";
+              ?>
+              <div style="padding: 16px; border-radius: 10px; background: #f8fafc; border-left: 4px solid <?php
+                $cat = strtolower($ann['category']);
+                if (strpos($cat, 'clinical') !== false || strpos($cat, 'update') !== false) {
+                    echo '#0369a1';
+                } elseif (strpos($cat, 'patient') !== false || strpos($cat, 'care') !== false) {
+                    echo '#166534';
+                } elseif (strpos($cat, 'facility') !== false || strpos($cat, 'news') !== false || strpos($cat, 'maintenance') !== false) {
+                    echo '#d97706';
+                } elseif (strpos($cat, 'system') !== false || strpos($cat, 'platform') !== false || $isPlatform) {
+                    echo '#be123c';
+                } else {
+                    echo '#7e22ce';
+                }
+              ?>; transition: transform 0.2s ease, box-shadow 0.2s ease; cursor: default;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.05)';" onmouseout="this.style.transform='none'; this.style.boxShadow='none';">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px;">
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <!-- Category Badge -->
+                    <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; <?php
+                      $cat = strtolower($ann['category']);
+                      if (strpos($cat, 'clinical') !== false || strpos($cat, 'update') !== false) {
+                          echo 'background: #e0f2fe; color: #0369a1;';
+                      } elseif (strpos($cat, 'patient') !== false || strpos($cat, 'care') !== false) {
+                          echo 'background: #dcfce7; color: #166534;';
+                      } elseif (strpos($cat, 'facility') !== false || strpos($cat, 'news') !== false || strpos($cat, 'maintenance') !== false) {
+                          echo 'background: #fef3c7; color: #d97706;';
+                      } elseif (strpos($cat, 'system') !== false || strpos($cat, 'platform') !== false || $isPlatform) {
+                          echo 'background: #ffe4e6; color: #be123c;';
+                      } else {
+                          echo 'background: #f3e8ff; color: #7e22ce;';
+                      }
+                    ?>">
+                      <?php echo h($ann['category']); ?>
+                    </span>
+                    <!-- Origin Badge -->
+                    <span style="font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; background: <?php echo $authorBadgeBg; ?>; color: <?php echo $authorBadgeColor; ?>;">
+                      <?php echo $authorLabel; ?>
+                    </span>
+                  </div>
+                  <span style="font-size: 12px; color: #64748b; font-weight: 500;"><?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                </div>
+                <strong style="color: var(--dashboard-accent); font-size: 15px; display: block; margin-bottom: 6px;"><?php echo h($ann['title']); ?></strong>
+                <p style="margin: 0; color: #475569; font-size: 13.5px; line-height: 1.5; white-space: pre-line;"><?php echo h($ann['content']); ?></p>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php endif; ?>
+
       <!-- Calendar Card -->
       <div class="dashboard-card" style="padding: 20px; background: white; border: 1px solid var(--dashboard-border); border-radius: 12px; margin-bottom: 32px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">

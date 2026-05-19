@@ -27,16 +27,15 @@ while ($doc = mysqli_fetch_assoc($docs_result)) {
     $documents[] = $doc;
 }
 ?>
-</xai:function_call name="edit_file">
-
-<xai:function_call name="edit_file">
-<parameter name="path">c:/xampp/htdocs/adv db/view_tenant.php
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title><?php echo $tenant['company_name']; ?> | OralSync Details</title>
-    </head>
+    <link rel="stylesheet" href="style1.css">
+    <link rel="stylesheet" href="tenant_style.css">
+</head>
 <body>
     <div class="container">
         <header class="sa-main-header">

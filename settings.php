@@ -117,7 +117,7 @@ if ($isSettingsPage) {
             <div style="font-family:ui-monospace,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace;font-size:13px;color:#0f172a;word-break:break-all;">{$safeUrl}</div>
             <div style="margin-top:8px;color:#64748b;font-size:12px;">Click the button below to verify and complete the password update.</div>
             <div style="margin-top:14px;">
-              <a href="{$safeUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Verify Password Change</a>
+              <a href="{$safeUrl}" style="display:inline-block;background:#0d3b66;color:#ffffff;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Verify Password Change</a>
             </div>
           <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
             If you did not request this change, please contact your clinic administrator immediately.
@@ -172,6 +172,24 @@ HTML;
             $validationStmt->close();
         }
     }
+
+    // Self-healing database check: ensure announcements table exists
+    $conn->query("CREATE TABLE IF NOT EXISTS `announcements` (
+      `id` int NOT NULL AUTO_INCREMENT,
+      `tenant_id` int NULL,
+      `title` varchar(255) NOT NULL,
+      `content` text NOT NULL,
+      `category` varchar(255) DEFAULT 'General',
+      `image_path` varchar(511) DEFAULT NULL,
+      `status` enum('active','archived') DEFAULT 'active',
+      `publish_date` date NOT NULL,
+      `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      KEY `fk_tenant_announcement` (`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $conn->query("ALTER TABLE announcements MODIFY COLUMN tenant_id int NULL");
+    $conn->query("ALTER TABLE announcements MODIFY COLUMN category varchar(255) DEFAULT 'General'");
 
     $message = '';
 
@@ -273,7 +291,7 @@ HTML;
                 $resetDefaults = [
                     'brand_bg_color'      => '#001f3f',
                     'brand_text_color'    => '#ffffff',
-                    'primary_btn_color'   => '#22c55e',
+                    'primary_btn_color'   => '#0d3b66',
                     'link_color'          => '#2563eb',
                     'card_bg_color'       => '#ffffff',
                     'brand_logo_path'     => '',
@@ -286,7 +304,7 @@ HTML;
                 }
             } else {
                 // Save login customization settings into tenant_configs
-                $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#22c55e');
+                $primaryBtnColor = trim($_POST['primary_btn_color'] ?? '#0d3b66');
                 $linkColor = trim($_POST['link_color'] ?? '#2563eb');
                 $cardBgColor = trim($_POST['card_bg_color'] ?? '#ffffff');
 
@@ -339,6 +357,49 @@ HTML;
                     }
                 }
             } // end else (not reset_to_default)
+        } elseif (isset($_POST['announcement_action'])) {
+            $action = $_POST['announcement_action'];
+            $title = trim($_POST['title'] ?? '');
+            $content = trim($_POST['content'] ?? '');
+            $category = trim($_POST['category'] ?? 'Clinical Update');
+            $publishDate = trim($_POST['publish_date'] ?? date('Y-m-d'));
+            $status = trim($_POST['status'] ?? 'active');
+            $annId = isset($_POST['announcement_id']) ? (int)$_POST['announcement_id'] : 0;
+
+            if ($action === 'add') {
+                $stmt = $conn->prepare("INSERT INTO announcements (tenant_id, title, content, category, publish_date, status) VALUES (?, ?, ?, ?, ?, ?)");
+                if ($stmt) {
+                    $stmt->bind_param('isssss', $tenantId, $title, $content, $category, $publishDate, $status);
+                    if ($stmt->execute()) {
+                        $message = 'Announcement added successfully!';
+                    } else {
+                        $message = 'Error adding announcement.';
+                    }
+                    $stmt->close();
+                }
+            } elseif ($action === 'edit' && $annId > 0) {
+                $stmt = $conn->prepare("UPDATE announcements SET title = ?, content = ?, category = ?, publish_date = ?, status = ? WHERE id = ? AND tenant_id = ?");
+                if ($stmt) {
+                    $stmt->bind_param('sssssii', $title, $content, $category, $publishDate, $status, $annId, $tenantId);
+                    if ($stmt->execute()) {
+                        $message = 'Announcement updated successfully!';
+                    } else {
+                        $message = 'Error updating announcement.';
+                    }
+                    $stmt->close();
+                }
+            } elseif ($action === 'delete' && $annId > 0) {
+                $stmt = $conn->prepare("DELETE FROM announcements WHERE id = ? AND tenant_id = ?");
+                if ($stmt) {
+                    $stmt->bind_param('ii', $annId, $tenantId);
+                    if ($stmt->execute()) {
+                        $message = 'Announcement deleted successfully!';
+                    } else {
+                        $message = 'Error deleting announcement.';
+                    }
+                    $stmt->close();
+                }
+            }
         }
     }
     ?>
@@ -868,6 +929,81 @@ HTML;
         font-style: italic;
       }
 
+      /* Announcements styles */
+      .ann-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+      .ann-table th {
+        text-align: left;
+        padding: 12px;
+        background: #f8fafc;
+        color: #64748b;
+        font-weight: 700;
+        font-size: 12px;
+        border-bottom: 2px solid #e2e8f0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .ann-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 14px;
+        vertical-align: middle;
+      }
+      .ann-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        background: #f3e8ff;
+        color: #7e22ce;
+      }
+      .ann-badge.clinical-update { background: #e0f2fe; color: #0369a1; }
+      .ann-badge.patient-care { background: #dcfce7; color: #166534; }
+      .ann-badge.facility-news { background: #fef3c7; color: #d97706; }
+       .ann-badge.staff-training { background: #f3e8ff; color: #7e22ce; }
+      .ann-badge.system-announcement { background: #ffe4e6; color: #be123c; }
+
+      .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+      .status-badge.active { background: #dcfce7; color: #166534; }
+      .status-badge.archived { background: #f1f5f9; color: #64748b; }
+      
+      .btn-ann-action {
+        background: transparent;
+        border: 1px solid #cbd5e1;
+        color: #475569;
+        padding: 6px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+      .btn-ann-action:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+        color: var(--accent);
+      }
+      .btn-ann-danger {
+        border-color: #fee2e2;
+        color: #ef4444;
+      }
+      .btn-ann-danger:hover {
+        background: #fef2f2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+      }
       @media (max-width: 768px) {
         .preview-split-layout {
           grid-template-columns: 1fr;
@@ -947,6 +1083,123 @@ HTML;
         <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
       </div>
 
+      <!-- Announcements Section -->
+      <div class="module-card" style="margin-bottom: 32px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0; color: var(--accent);">📢 Clinic Announcements</h2>
+            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 14px;">Create and manage announcements shown to your dentists and receptionists on their dashboards.</p>
+          </div>
+          <button type="button" class="btn-primary" onclick="showAddAnnouncementForm()">+ Add Announcement</button>
+        </div>
+
+        <!-- Announcement Form Section (hidden by default) -->
+        <div id="announcementFormSection" style="display:none; border: 1.5px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #f8fafc;">
+          <h3 id="formTitle" style="margin-top:0; color: var(--accent);">Add Announcement</h3>
+          <form method="POST">
+            <input type="hidden" name="announcement_action" id="announcementAction" value="add">
+            <input type="hidden" name="announcement_id" id="announcementId" value="">
+            
+            <div class="form-group">
+              <label for="ann_title">Title</label>
+              <input type="text" id="ann_title" name="title" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
+            </div>
+            
+            <div class="form-group">
+              <label for="ann_category">Category / Tag</label>
+              <input type="text" id="ann_category" name="category" required placeholder="e.g., Clinical Update, Patient Care, Holiday Alert" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
+            </div>
+            
+            <div class="form-group">
+              <label for="ann_content">Content</label>
+              <textarea id="ann_content" name="content" required style="width:100%; height:120px; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-family:inherit; font-size:14px; box-sizing:border-box; background:white; resize:vertical;"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label for="ann_publish_date">Publish Date</label>
+              <input type="date" id="ann_publish_date" name="publish_date" required value="<?php echo date('Y-m-d'); ?>" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
+            </div>
+            
+            <div class="form-group">
+              <label for="ann_status">Status</label>
+              <select id="ann_status" name="status" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:20px;">
+              <button type="submit" class="btn-primary">Save Announcement</button>
+              <button type="button" class="btn-primary btn-secondary" onclick="hideAnnouncementForm()">Cancel</button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- Announcements Table/List -->
+        <?php
+        $allAnnouncements = [];
+        $stmt = $conn->prepare("SELECT * FROM announcements WHERE tenant_id = ? ORDER BY publish_date DESC, id DESC");
+        if ($stmt) {
+            $stmt->bind_param('i', $tenantId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $allAnnouncements[] = $row;
+                }
+            }
+            $stmt->close();
+        }
+        ?>
+
+        <?php if (empty($allAnnouncements)): ?>
+          <div style="text-align:center; padding: 40px 20px; border: 1px dashed var(--border); border-radius: 8px;">
+            <p style="color:#64748b; margin:0;">No announcements created yet. Click "+ Add Announcement" to publish one.</p>
+          </div>
+        <?php else: ?>
+          <div style="overflow-x:auto;">
+            <table class="ann-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Title & Description</th>
+                  <th>Published</th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($allAnnouncements as $ann): ?>
+                  <tr>
+                    <td>
+                      <span class="ann-badge <?php echo str_replace(' ', '-', strtolower($ann['category'])); ?>">
+                        <?php echo h($ann['category']); ?>
+                      </span>
+                    </td>
+                    <td>
+                      <strong style="color:var(--accent); font-size:15px;"><?php echo h($ann['title']); ?></strong>
+                      <p style="margin: 6px 0 0 0; color:#475569; font-size:13px; line-height:1.4; white-space:pre-line;"><?php echo h($ann['content']); ?></p>
+                    </td>
+                    <td>
+                      <span style="color:#64748b; font-size:13px; font-weight:500;"><?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                    </td>
+                    <td>
+                      <span class="status-badge <?php echo h($ann['status']); ?>">
+                        <?php echo h(ucfirst($ann['status'])); ?>
+                      </span>
+                    </td>
+                    <td style="text-align:right; white-space:nowrap;">
+                      <button type="button" class="btn-ann-action" onclick="showEditAnnouncementForm(<?php echo h(json_encode($ann)); ?>)">Edit</button>
+                      <button type="button" class="btn-ann-action btn-ann-danger" onclick="confirmDeleteAnnouncement(<?php echo (int)$ann['id']; ?>)">Delete</button>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php endif; ?>
+      </div>
+
       <div class="login-customizer">
         <h3>Login Page Customization</h3>
         <p style="color: #64748b; margin-bottom: 20px;">Customize your clinic's login page appearance. Changes will be visible to all users logging into your clinic.</p>
@@ -954,7 +1207,7 @@ HTML;
         <?php
         // Load current login customization settings from tenant_configs
         $tenantSettings = array_merge([
-            'primary_btn_color' => '#22c55e',
+            'primary_btn_color' => '#0d3b66',
             'link_color' => '#2563eb',
             'card_bg_color' => '#ffffff',
             'login_title' => 'Clinic Login',
@@ -974,11 +1227,11 @@ HTML;
             <div class="form-group" style="grid-column: 1 / -1;">
               <label>Color Theme Presets</label>
               <div class="theme-preset-grid">
-                <button type="button" class="theme-preset-btn" data-theme-btn="#22c55e" data-theme-link="#2563eb" data-theme-card="#ffffff">
+                <button type="button" class="theme-preset-btn" data-theme-btn="#0d3b66" data-theme-link="#2563eb" data-theme-card="#ffffff">
                   Classic OralSync
                   <div class="theme-preview-dots">
                     <span class="theme-dot" style="background:#001f3f;"></span>
-                    <span class="theme-dot" style="background:#22c55e;"></span>
+                    <span class="theme-dot" style="background:#0d3b66;"></span>
                     <span class="theme-dot" style="background:#2563eb;"></span>
                   </div>
                 </button>
@@ -1316,7 +1569,7 @@ HTML;
 
     function resetLoginPreview() {
       const defaults = {
-        primary_btn_color: '#22c55e',
+        primary_btn_color: '#0d3b66',
         link_color: '#2563eb',
       };
 
@@ -1365,7 +1618,7 @@ HTML;
 
       // Reset sign-in button and forgot link colors in preview
       const signinBtn = document.getElementById('preview-signin-btn');
-      if (signinBtn) signinBtn.style.backgroundColor = '#22c55e';
+      if (signinBtn) signinBtn.style.backgroundColor = '#0d3b66';
       const forgotLink = document.getElementById('preview-forgot-link');
       if (forgotLink) forgotLink.style.color = '#2563eb';
     }
@@ -1551,6 +1804,50 @@ HTML;
       const modal = document.getElementById('resetConfirmModal');
       if (event.target == modal) {
         modal.style.display = 'none';
+      }
+    }
+
+    // Announcement Management Functions
+    function showAddAnnouncementForm() {
+      document.getElementById('announcementFormSection').style.display = 'block';
+      document.getElementById('formTitle').innerText = 'Add New Announcement';
+      document.getElementById('announcementAction').value = 'add';
+      document.getElementById('announcementId').value = '';
+      document.getElementById('ann_title').value = '';
+      document.getElementById('ann_category').value = 'Clinical Update';
+      document.getElementById('ann_content').value = '';
+      document.getElementById('ann_publish_date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('ann_status').value = 'active';
+      document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showEditAnnouncementForm(ann) {
+      document.getElementById('announcementFormSection').style.display = 'block';
+      document.getElementById('formTitle').innerText = 'Edit Announcement';
+      document.getElementById('announcementAction').value = 'edit';
+      document.getElementById('announcementId').value = ann.id;
+      document.getElementById('ann_title').value = ann.title;
+      document.getElementById('ann_category').value = ann.category;
+      document.getElementById('ann_content').value = ann.content;
+      document.getElementById('ann_publish_date').value = ann.publish_date;
+      document.getElementById('ann_status').value = ann.status;
+      document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hideAnnouncementForm() {
+      document.getElementById('announcementFormSection').style.display = 'none';
+    }
+
+    function confirmDeleteAnnouncement(id) {
+      if (confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+          <input type="hidden" name="announcement_action" value="delete">
+          <input type="hidden" name="announcement_id" value="${id}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
       }
     }
   </script>

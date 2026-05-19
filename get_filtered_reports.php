@@ -112,20 +112,10 @@ try {
             SELECT 
                 t.company_name AS Tenant,
                 t.subscription_tier AS Tier,
-                COALESCE(pt.cnt, 0) AS Patients,
-                COALESCE(ap.cnt, 0) AS Appointments,
-                COALESCE(st.cnt, 0) AS Staff,
-                COALESCE(dt.cnt, 0) AS Dentists,
-                COALESCE(pym.total_amount, 0) AS Revenue,
-                COALESCE(notes.cnt, 0) AS Notes,
+                COALESCE(pym.total_amount, 0) AS Sales,
                 COALESCE(logs.activity_count, 0) AS Activities
             FROM tenants t
-            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM patient GROUP BY tenant_id) pt ON t.tenant_id = pt.tenant_id
-            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM appointment GROUP BY tenant_id) ap ON t.tenant_id = ap.tenant_id
-            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM staff_details GROUP BY tenant_id) st ON t.tenant_id = st.tenant_id
-            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM dentist GROUP BY tenant_id) dt ON t.tenant_id = dt.tenant_id
             LEFT JOIN (SELECT tenant_id, SUM(amount) total_amount FROM payment GROUP BY tenant_id) pym ON t.tenant_id = pym.tenant_id
-            LEFT JOIN (SELECT tenant_id, COUNT(*) cnt FROM clinical_notes GROUP BY tenant_id) notes ON t.tenant_id = notes.tenant_id
             LEFT JOIN (SELECT tenant_id, COUNT(*) activity_count FROM tenant_activity_logs GROUP BY tenant_id) logs ON t.tenant_id = logs.tenant_id
             WHERE 1=1";
 

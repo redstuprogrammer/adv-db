@@ -253,7 +253,7 @@ function sendEmailViaSmtp(string $toEmail, string $clinicName, string $resetLink
             Click the link below to create a new password. This link will expire in 1 hour.
           </div>
           <div style="margin-top:16px;">
-            <a href="{$resetLink}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Reset Password</a>
+            <a href="{$resetLink}" style="display:inline-block;background:#0d3b66;color:#ffffff;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Reset Password</a>
           </div>
           <div style="margin-top:16px;font-size:12px;color:#64748b;">
             Or copy this link: <br />

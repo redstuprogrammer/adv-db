@@ -6,6 +6,71 @@ require_once __DIR__ . '/includes/session_utils.php';
 $sessionManager = SessionManager::getInstance();
 $sessionManager->requireSuperAdmin();
 
+// Self-healing database check: ensure announcements table exists and has updated enum categories
+$conn->query("CREATE TABLE IF NOT EXISTS `announcements` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `tenant_id` int NULL,
+  `title` varchar(255) NOT NULL,
+  `content` text NOT NULL,
+  `category` varchar(255) DEFAULT 'General',
+  `image_path` varchar(511) DEFAULT NULL,
+  `status` enum('active','archived') DEFAULT 'active',
+  `publish_date` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fk_tenant_announcement` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+$conn->query("ALTER TABLE announcements MODIFY COLUMN tenant_id int NULL");
+$conn->query("ALTER TABLE announcements MODIFY COLUMN category varchar(255) DEFAULT 'General'");
+
+// Handle Super Admin Announcements CRUD
+$annMessage = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['announcement_action'])) {
+    $action = trim($_POST['announcement_action']);
+    $title = trim($_POST['title'] ?? '');
+    $content = trim($_POST['content'] ?? '');
+    $category = trim($_POST['category'] ?? 'System Announcement');
+    $publishDate = trim($_POST['publish_date'] ?? date('Y-m-d'));
+    $status = trim($_POST['status'] ?? 'active');
+    $annId = isset($_POST['announcement_id']) ? (int)$_POST['announcement_id'] : 0;
+
+    if ($action === 'add') {
+        $stmt = $conn->prepare("INSERT INTO announcements (tenant_id, title, content, category, publish_date, status) VALUES (NULL, ?, ?, ?, ?, ?)");
+        if ($stmt) {
+            $stmt->bind_param('sssss', $title, $content, $category, $publishDate, $status);
+            if ($stmt->execute()) {
+                $annMessage = 'System Announcement published successfully!';
+            } else {
+                $annMessage = 'Error publishing system announcement.';
+            }
+            $stmt->close();
+        }
+    } elseif ($action === 'edit' && $annId > 0) {
+        $stmt = $conn->prepare("UPDATE announcements SET title = ?, content = ?, category = ?, publish_date = ?, status = ? WHERE id = ? AND tenant_id IS NULL");
+        if ($stmt) {
+            $stmt->bind_param('sssssi', $title, $content, $category, $publishDate, $status, $annId);
+            if ($stmt->execute()) {
+                $annMessage = 'System Announcement updated successfully!';
+            } else {
+                $annMessage = 'Error updating system announcement.';
+            }
+            $stmt->close();
+        }
+    } elseif ($action === 'delete' && $annId > 0) {
+        $stmt = $conn->prepare("DELETE FROM announcements WHERE id = ? AND tenant_id IS NULL");
+        if ($stmt) {
+            $stmt->bind_param('i', $annId);
+            if ($stmt->execute()) {
+                $annMessage = 'System Announcement deleted successfully!';
+            } else {
+                $annMessage = 'Error deleting system announcement.';
+            }
+            $stmt->close();
+        }
+    }
+}
+
 // Load current settings
 require_once __DIR__ . '/settings.php';
 try {
@@ -15,7 +80,7 @@ try {
 }
 
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['announcement_action'])) {
     require_once __DIR__ . '/settings.php';
 
     try {
@@ -214,6 +279,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+        }
+
+        /* System Announcements premium CSS overrides */
+        .sa-ann-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            background: #ffe4e6;
+            color: #be123c;
+        }
+        .sa-ann-badge.system-announcement { background: #ffe4e6; color: #be123c; }
+        .sa-ann-badge.clinical-update { background: #e0f2fe; color: #0369a1; }
+        .sa-ann-badge.patient-care { background: #dcfce7; color: #166534; }
+        .sa-ann-badge.facility-news { background: #fef3c7; color: #d97706; }
+        .sa-ann-badge.staff-training { background: #f3e8ff; color: #7e22ce; }
+
+        .sa-status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .sa-status-badge.active { background: #dcfce7; color: #166534; }
+        .sa-status-badge.archived { background: #f1f5f9; color: #64748b; }
+
+        .sa-ann-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .sa-ann-table th {
+            text-align: left;
+            padding: 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-weight: 700;
+            font-size: 12px;
+            border-bottom: 2px solid #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sa-ann-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        .sa-ann-btn {
+            background: var(--sa-primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .sa-ann-btn:hover {
+            background: #0a2f52;
+        }
+        .sa-ann-btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        .sa-ann-btn-danger:hover {
+            background: #b91c1c;
+        }
+        .sa-ann-btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .sa-ann-btn-secondary:hover {
+            background: #d1d5db;
         }
 
         .roles-table th,
@@ -478,6 +622,130 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <button type="button" class="sa-btn sa-btn-outline" onclick="resetSettings()">Reset to Default</button>
             </div>
         </form>
+
+        <!-- System Announcements Section -->
+        <div class="sa-card settings-section" style="margin-top: 30px;">
+            <div class="sa-card-header" style="border-bottom: 1.5px solid var(--sa-border); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--sa-primary); display: flex; align-items: center; gap: 8px;">
+                        <span>📢</span> System Announcements
+                    </h3>
+                    <div class="sa-card-subtitle" style="margin-top: 4px;">Publish system-wide notifications (e.g. maintenance, platform-wide alerts) shown to all clinics and their staff on their dashboards</div>
+                </div>
+                <button type="button" class="sa-btn" onclick="showAddAnnouncementForm()">+ Publish Announcement</button>
+            </div>
+
+            <?php if (!empty($annMessage)): ?>
+                <div style="background: #e0f2fe; color: #0369a1; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; margin-bottom: 20px; border-left: 4px solid #0284c7;">
+                    <?php echo htmlspecialchars($annMessage); ?>
+                </div>
+            <?php endif; ?>
+
+            <!-- Announcement Form Section (hidden by default) -->
+            <div id="announcementFormSection" style="display:none; border: 1.5px solid var(--sa-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #f8fafc;">
+                <h3 id="formTitle" style="margin-top:0; color: var(--sa-primary); font-size: 1rem; font-weight: 600;">Publish System Announcement</h3>
+                <form method="POST" id="annForm">
+                    <input type="hidden" name="announcement_action" id="announcementAction" value="add">
+                    <input type="hidden" name="announcement_id" id="announcementId" value="">
+                    
+                    <div class="sa-form-group" style="margin-bottom: 15px;">
+                        <label for="ann_title" style="font-weight:600; margin-bottom:6px;">Title</label>
+                        <input type="text" id="ann_title" name="title" required style="width:100%; box-sizing:border-box;">
+                    </div>
+                    
+                    <div class="sa-form-group" style="margin-bottom: 15px;">
+                        <label for="ann_category" style="font-weight:600; margin-bottom:6px;">Category / Tag</label>
+                        <input type="text" id="ann_category" name="category" required placeholder="e.g., System Announcement, Maintenance, Platform Alert" style="width:100%; box-sizing:border-box;">
+                    </div>
+                    
+                    <div class="sa-form-group" style="margin-bottom: 15px;">
+                        <label for="ann_content" style="font-weight:600; margin-bottom:6px;">Content / Details</label>
+                        <textarea id="ann_content" name="content" required style="width:100%; height:120px; padding:10px; border: 1px solid var(--sa-border); border-radius: 6px; font-family:inherit; font-size:14px; box-sizing:border-box; background:white; resize:vertical;"></textarea>
+                    </div>
+                    
+                    <div class="sa-form-group" style="margin-bottom: 15px;">
+                        <label for="ann_publish_date" style="font-weight:600; margin-bottom:6px;">Publish Date</label>
+                        <input type="date" id="ann_publish_date" name="publish_date" required value="<?php echo date('Y-m-d'); ?>" style="width:100%; box-sizing:border-box;">
+                    </div>
+                    
+                    <div class="sa-form-group" style="margin-bottom: 15px;">
+                        <label for="ann_status" style="font-weight:600; margin-bottom:6px;">Status</label>
+                        <select id="ann_status" name="status" style="width:100%; box-sizing:border-box; height:38px;">
+                            <option value="active">Active</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button type="submit" class="sa-ann-btn">Save Announcement</button>
+                        <button type="button" class="sa-ann-btn sa-ann-btn-secondary" onclick="hideAnnouncementForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Announcements Table/List -->
+            <?php
+            $systemAnnouncements = [];
+            $stmt = $conn->prepare("SELECT * FROM announcements WHERE tenant_id IS NULL ORDER BY publish_date DESC, id DESC");
+            if ($stmt) {
+                $stmt->execute();
+                $res = $stmt->get_result();
+                if ($res) {
+                    while ($row = $res->fetch_assoc()) {
+                        $systemAnnouncements[] = $row;
+                    }
+                }
+                $stmt->close();
+            }
+            ?>
+
+            <?php if (empty($systemAnnouncements)): ?>
+                <div style="text-align:center; padding: 40px 20px; border: 1px dashed var(--sa-border); border-radius: 8px; background: #fafbfc;">
+                    <p style="color:var(--sa-muted); margin:0;">No system announcements published yet. Click "Publish Announcement" to create one.</p>
+                </div>
+            <?php else: ?>
+                <div style="overflow-x:auto;">
+                    <table class="sa-ann-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 180px;">Category</th>
+                                <th>Title & Details</th>
+                                <th style="width: 130px;">Published</th>
+                                <th style="width: 100px;">Status</th>
+                                <th style="text-align:right; width: 150px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($systemAnnouncements as $ann): ?>
+                                <tr>
+                                    <td>
+                                        <span class="sa-ann-badge <?php echo str_replace(' ', '-', strtolower($ann['category'])); ?>">
+                                            <?php echo htmlspecialchars($ann['category']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong style="color:var(--sa-primary); font-size:15px;"><?php echo htmlspecialchars($ann['title']); ?></strong>
+                                        <p style="margin: 6px 0 0 0; color:#475569; font-size:13px; line-height:1.4; white-space:pre-line;"><?php echo htmlspecialchars($ann['content']); ?></p>
+                                    </td>
+                                    <td>
+                                        <span style="color:#64748b; font-size:13px; font-weight:500;"><?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                                    </td>
+                                    <td>
+                                        <span class="sa-status-badge <?php echo htmlspecialchars($ann['status']); ?>">
+                                            <?php echo htmlspecialchars(ucfirst($ann['status'])); ?>
+                                        </span>
+                                    </td>
+                                    <td style="text-align:right; white-space:nowrap;">
+                                        <button type="button" class="sa-ann-btn" onclick='showEditAnnouncementForm(<?php echo json_encode($ann, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>)'>Edit</button>
+                                        <button type="button" class="sa-ann-btn sa-ann-btn-danger" onclick="confirmDeleteAnnouncement(<?php echo (int)$ann['id']; ?>)">Delete</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <script>
@@ -734,6 +1002,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const modal = document.getElementById('resetConfirmModal');
             if (event.target == modal) {
                 modal.style.display = 'none';
+            }
+        }
+
+        // Announcement Management Functions
+        function showAddAnnouncementForm() {
+            document.getElementById('announcementFormSection').style.display = 'block';
+            document.getElementById('formTitle').innerText = 'Publish System Announcement';
+            document.getElementById('announcementAction').value = 'add';
+            document.getElementById('announcementId').value = '';
+            document.getElementById('ann_title').value = '';
+            document.getElementById('ann_category').value = 'System Announcement';
+            document.getElementById('ann_content').value = '';
+            document.getElementById('ann_publish_date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('ann_status').value = 'active';
+            document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showEditAnnouncementForm(ann) {
+            document.getElementById('announcementFormSection').style.display = 'block';
+            document.getElementById('formTitle').innerText = 'Edit System Announcement';
+            document.getElementById('announcementAction').value = 'edit';
+            document.getElementById('announcementId').value = ann.id;
+            document.getElementById('ann_title').value = ann.title;
+            document.getElementById('ann_category').value = ann.category;
+            document.getElementById('ann_content').value = ann.content;
+            document.getElementById('ann_publish_date').value = ann.publish_date;
+            document.getElementById('ann_status').value = ann.status;
+            document.getElementById('announcementFormSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function hideAnnouncementForm() {
+            document.getElementById('announcementFormSection').style.display = 'none';
+        }
+
+        function confirmDeleteAnnouncement(id) {
+            if (confirm('Are you sure you want to delete this system announcement? This will remove it from all clinic dashboards immediately.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.innerHTML = `
+                    <input type="hidden" name="announcement_action" value="delete">
+                    <input type="hidden" name="announcement_id" value="${id}">
+                `;
+                document.body.appendChild(form);
+                form.submit();
             }
         }
     </script>

@@ -91,7 +91,7 @@ function sendUserWelcomeEmail($email, $firstName, $lastName, $tempPassword, $ten
         </div>
         
         <div style="text-align: center; margin-top: 40px;">
-            <a href="{$loginUrl}" style="background: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 999px; font-weight: 800; display: inline-block; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);">Access OralSync Portal</a>
+            <a href="{$loginUrl}" style="background: #0d3b66; color: white; padding: 14px 28px; text-decoration: none; border-radius: 999px; font-weight: 800; display: inline-block; box-shadow: 0 4px 12px rgba(13, 59, 102, 0.2);">Access OralSync Portal</a>
         </div>
     </div>
     <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; color: #94a3b8; padding: 20px; text-align: center; font-size: 12px;">

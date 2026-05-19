@@ -33,7 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
         while ($colRow = $colResult->fetch_assoc()) {
             $existingCols[] = $colRow['Field'];
         }
-        $newColumns = ['announcements_json' => 'TEXT', 'team_json' => 'TEXT', 'hero_image' => 'TEXT', 'about_image_1' => 'TEXT', 'about_image_2' => 'TEXT'];
+        $newColumns = [
+            'announcements_json' => 'TEXT',
+            'team_json' => 'TEXT',
+            'hero_image' => 'TEXT',
+            'about_image_1' => 'TEXT',
+            'about_image_2' => 'TEXT',
+            'team_title' => 'VARCHAR(255)',
+            'team_subtitle' => 'TEXT'
+        ];
         foreach ($newColumns as $col => $type) {
             if (!in_array($col, $existingCols)) {
                 if (!$conn->query("ALTER TABLE clinic_settings ADD COLUMN `$col` $type")) {
@@ -50,7 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_save'])) {
             'cta_primary',
             'accent_color',
             'announcements_json', 'team_json',
-            'hero_image', 'about_image_1', 'about_image_2'
+            'hero_image', 'about_image_1', 'about_image_2',
+            'team_title', 'team_subtitle'
         ];
 
         $fields = [];
@@ -149,6 +158,8 @@ $c = [
     'hero_image'       => $clinic['hero_image']       ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo',
     'about_image_1'    => $clinic['about_image_1']    ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g',
     'about_image_2'    => $clinic['about_image_2']    ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10',
+    'team_title'       => $clinic['team_title']       ?? 'The Architects of Your Smile',
+    'team_subtitle'    => $clinic['team_subtitle']    ?? 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.',
 ];
 
 function php_e($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
@@ -481,18 +492,25 @@ const COLOR_FIELDS = {
 
 const TEAM_FIELDS = {
     team: {
-        label: 'Team Members', sub: 'Staff profiles',
+        label: 'Team Section', sub: 'Headline & Staff profiles',
         render: () => {
             let data = []; try { data = JSON.parse(state.team_json || '[]'); } catch(err){}
-            return `<div class="space-y-4">${data.map((it, i) => `
-                <div class="bg-slate-50 p-3 rounded-lg border relative">
-                    <button onclick="removeListItem('team_json', ${i})" class="absolute top-1 right-1 text-red-500"><span class="material-symbols-outlined text-xs">delete</span></button>
-                    ${field(`team_json.${i}.name`, 'Name', 'input', it.name)}
-                    ${field(`team_json.${i}.role`, 'Role', 'input', it.role)}
-                    ${imageField(`team_json.${i}.image`, 'Profile Image', it.image)}
-                </div>`).join('')}
-                <button onclick="addListItem('team_json')" class="w-full py-2 border-2 border-dashed rounded">+ Add</button>
-            </div>`;
+            return `
+                <div class="mb-6 p-4 bg-blue-50/50 rounded-xl border border-blue-100 space-y-4">
+                    <div class="font-bold text-xs uppercase tracking-wider text-blue-900 mb-1">Section Header</div>
+                    ${field('team_title', 'Team Headline', 'input', state.team_title)}
+                    ${field('team_subtitle', 'Team Subtitle', 'textarea', state.team_subtitle)}
+                </div>
+                <div class="font-bold text-xs uppercase tracking-wider text-slate-700 mb-2 px-1">Team Members</div>
+                <div class="space-y-4">${data.map((it, i) => `
+                    <div class="bg-slate-50 p-3 rounded-lg border relative">
+                        <button onclick="removeListItem('team_json', ${i})" class="absolute top-1 right-1 text-red-500"><span class="material-symbols-outlined text-xs">delete</span></button>
+                        ${field(`team_json.${i}.name`, 'Name', 'input', it.name)}
+                        ${field(`team_json.${i}.role`, 'Role', 'input', it.role)}
+                        ${imageField(`team_json.${i}.image`, 'Profile Image', it.image)}
+                    </div>`).join('')}
+                    <button onclick="addListItem('team_json')" class="w-full py-2 border-2 border-dashed rounded">+ Add Member</button>
+                </div>`;
         }
     }
 };
@@ -504,16 +522,29 @@ function openField(key, tab = 'content') {
     activeField = key;
     document.querySelectorAll('.field-item').forEach(el => el.classList.toggle('active', el.dataset.field === key));
     
+    // Determine target tab based on the key
+    let determinedTab = tab;
+    if (key === 'accent_color') determinedTab = 'colors';
+    else if (key === 'team' || key === 'team_title' || key === 'team_subtitle') determinedTab = 'team';
+    
+    // Dynamically update active tab styling in the left sidebar
+    document.querySelectorAll('.sidebar-tab').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === determinedTab);
+    });
+    
     let def;
-    if (tab === 'colors' || key === 'accent_color') { def = COLOR_FIELDS.accent_color; tab = 'colors'; }
-    else if (tab === 'team' || key === 'team') { def = TEAM_FIELDS.team; tab = 'team'; }
-    else { def = FIELDS[key]; tab = 'content'; }
+    if (determinedTab === 'colors' || key === 'accent_color') { def = COLOR_FIELDS.accent_color; }
+    else if (determinedTab === 'team' || key === 'team') { def = TEAM_FIELDS.team; }
+    else { def = FIELDS[key]; }
     
     if (!def) return;
     rpTitle.textContent = def.label;
     rpSub.textContent = def.sub;
     rpBody.innerHTML = def.render();
     applyBtn.style.display = 'block';
+
+    // Send postMessage to scroll to the field in the live preview
+    iframe.contentWindow?.postMessage({ type: 'scroll-to-field', key: key }, '*');
 
     // Wire inputs (skip accent_color — handled by the color picker block below)
     rpBody.querySelectorAll('input, textarea').forEach(el => {
@@ -522,7 +553,42 @@ function openField(key, tab = 'content') {
         el.value = getVal(el.dataset.key);
         el.addEventListener('focus', pushToHistory);
         el.addEventListener('input', () => {
+            const oldClinicName = state.clinic_name;
             setVal(el.dataset.key, el.value);
+            
+            if (el.dataset.key === 'clinic_name') {
+                const newName = el.value;
+                
+                // Auto-propagate clinic name changes to key templates if they mention the old name
+                if (state.hero_title === oldClinicName) {
+                    state.hero_title = newName;
+                    updatePreview('hero_title', newName);
+                    refreshSidebarItem('hero_title');
+                }
+                
+                if (state.hero_description.includes(oldClinicName)) {
+                    state.hero_description = state.hero_description.replaceAll(oldClinicName, newName);
+                    updatePreview('hero_description', state.hero_description);
+                    refreshSidebarItem('hero_description');
+                }
+                
+                if (state.about_description.includes(oldClinicName)) {
+                    state.about_description = state.about_description.replaceAll(oldClinicName, newName);
+                    updatePreview('about_description', state.about_description);
+                    refreshSidebarItem('about_description');
+                }
+                
+                if (state.footer_copyright.includes(oldClinicName)) {
+                    state.footer_copyright = state.footer_copyright.replaceAll(oldClinicName, newName);
+                    updatePreview('footer_copyright', state.footer_copyright);
+                    refreshSidebarItem('footer_copyright');
+                }
+                
+                // Keep the sidebar header clinic name in sync
+                const tenantLabel = document.querySelector('.tenant-label');
+                if (tenantLabel) tenantLabel.textContent = newName;
+            }
+            
             markUnsaved();
             updatePreview(el.dataset.key, el.value);
             refreshSidebarItem(el.dataset.key);
@@ -681,11 +747,37 @@ iframe.addEventListener('load', () => {
                 footer_copyright: ['footer .text-slate-400'],
                 hero_image: ['#hero-image'],
                 about_image_1: ['#about-image-1'],
-                about_image_2: ['#about-image-2']
+                about_image_2: ['#about-image-2'],
+                team_title: ['#team h2'],
+                team_subtitle: ['#team p.font-body']
             };
             window.addEventListener('message', e => {
                 const { type, key, value } = e.data || {};
                 if (type === 'refresh') { location.reload(); return; }
+                if (type === 'scroll-to-field') {
+                    let selector = (MAP[key] || [])[0];
+                    if (key === 'about_images') selector = '#about-image-1';
+                    else if (key === 'checklist') selector = '#about .space-y-4';
+                    else if (key === 'announcements') selector = '#schedule';
+                    else if (key === 'team' || key === 'team_title' || key === 'team_subtitle') selector = '#team';
+                    else if (key === 'badge') selector = '.inline-flex[class*="bg-secondary-fixed"]';
+                    
+                    if (selector) {
+                        const targetEl = document.querySelector(selector);
+                        if (targetEl) {
+                            targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const oldOutline = targetEl.style.outline;
+                            const oldOffset = targetEl.style.outlineOffset;
+                            targetEl.style.outline = '3px solid #3b82f6';
+                            targetEl.style.outlineOffset = '4px';
+                            setTimeout(() => {
+                                targetEl.style.outline = oldOutline;
+                                targetEl.style.outlineOffset = oldOffset;
+                            }, 1500);
+                        }
+                    }
+                    return;
+                }
                 if (type !== 'update') return;
                 if (key === 'accent_color') {
                     function darken(hex, pct) {
@@ -731,7 +823,9 @@ iframe.addEventListener('load', () => {
                 { sel: '#about-image-2', k: 'about_images' },
                 { sel: '#hero-image', k: 'hero_image' },
                 { sel: '.team-member-card', k: 'team' },
-                { sel: '.announcement-item', k: 'announcements' }
+                { sel: '.announcement-item', k: 'announcements' },
+                { sel: '#team h2', k: 'team' },
+                { sel: '#team p.font-body', k: 'team' }
             ];
             const s = document.createElement('style');
             s.textContent = '.ez-edit { cursor: pointer !important; outline: 2px dashed transparent; transition: 0.2s; position: relative; } .ez-edit:hover { outline-color: #3b82f6; outline-offset: 2px; z-index: 50; }';

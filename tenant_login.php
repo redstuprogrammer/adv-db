@@ -66,7 +66,7 @@ if ($tenantSlug === '' && isset($_SESSION['tenant_context']) && is_array($_SESSI
 $loginSettings = [
     'brand_bg_color' => '#001f3f',
     'brand_text_color' => '#ffffff',
-    'primary_btn_color' => '#22c55e',
+    'primary_btn_color' => '#0d3b66',
     'link_color' => '#2563eb',
     'card_bg_color' => '#ffffff',
     'login_title' => 'Clinic Login',
@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$authenticated) {
             http_response_code(422);
-            $error = 'Incorrect email or password.';
+            $error = 'Incorrect email / username or password.';
         } else {
             // Prepare user data for session manager
             $sessionUserData = [
@@ -354,10 +354,6 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
         }
         .t-field label {
             color: var(--tenant-custom-bg);
-        }
-        .t-field input:focus {
-            border-color: color-mix(in srgb, var(--tenant-custom-primary) 60%, white 40%);
-            box-shadow: 0 0 0 4px color-mix(in srgb, var(--tenant-custom-primary) 18%, transparent);
         }
         .t-card a[href*="forgot_password"] {
             color: <?php echo h($loginSettings['link_color']); ?> !important;

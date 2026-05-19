@@ -109,7 +109,7 @@ function sendTenantOnboardingEmail(array $params): array {
               Tip: to copy, highlight the link and press <strong>Ctrl+C</strong> (or tap-and-hold on mobile).
             </div>
             <div style="margin-top:14px;">
-              <a href="{$safeLoginUrl}" style="display:inline-block;background:#22c55e;color:#0b1f13;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Open your OralSync Portal</a>
+              <a href="{$safeLoginUrl}" style="display:inline-block;background:#0d3b66;color:#ffffff;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Open your OralSync Portal</a>
             </div>
           </div>
 
