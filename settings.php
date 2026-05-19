@@ -1026,63 +1026,6 @@ HTML;
         </div>
       </div>
 
-      <div class="module-card">
-        <h2 style="margin-bottom: 20px; color: var(--accent);">Change Password</h2>
-
-        <?php if ($message): ?>
-          <div class="message <?php echo strpos($message, 'success') !== false ? 'success' : 'error'; ?>">
-            <?php echo h($message); ?>
-          </div>
-        <?php endif; ?>
-
-        <?php
-        // Fetch current username for pre-filling
-        $stmt = $conn->prepare("SELECT username FROM tenants WHERE tenant_id = ?");
-        $stmt->bind_param('i', $tenantId);
-        $stmt->execute();
-        $usernameResult = $stmt->get_result();
-        $currentUsername = $usernameResult->fetch_assoc()['username'] ?? '';
-        $stmt->close();
-        ?>
-
-        <form method="POST">
-          <input type="hidden" name="change_account_settings" value="1">
-          
-          <div class="form-group">
-            <label for="username">Username</label>
-            <input id="username" name="username" type="text" placeholder="Enter username to update">
-            <div class="helper">Your unique login name within this clinic.</div>
-          </div>
-
-          <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid var(--accent);">
-            <p style="margin: 0; font-size: 13px; color: #475569;">To change your password, fill out the fields below. Leave them empty if you only want to change your username.</p>
-          </div>
-
-          <div class="form-group">
-            <label for="current_password">Current Password</label>
-            <input type="password" id="current_password" name="current_password">
-          </div>
-
-          <div class="form-group">
-            <label for="new_password">New Password</label>
-            <input type="password" id="new_password" name="new_password">
-          </div>
-
-          <div class="form-group">
-            <label for="confirm_password">Confirm New Password</label>
-            <input type="password" id="confirm_password" name="confirm_password">
-          </div>
-
-          <button type="submit" class="btn-primary">Save Account Settings</button>
-        </form>
-      </div>
-
-      <div class="module-card" style="margin-bottom: 32px;">
-        <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
-        <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
-        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
-      </div>
-
       <!-- Announcements Section -->
       <div class="module-card" style="margin-bottom: 32px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -1107,7 +1050,11 @@ HTML;
             
             <div class="form-group">
               <label for="ann_category">Category / Tag</label>
-              <input type="text" id="ann_category" name="category" required placeholder="e.g., Clinical Update, Patient Care, Holiday Alert" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white;">
+              <select id="ann_category" name="category" required style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
+                <option value="System Maintenance">System Maintenance</option>
+                <option value="System Update">System Update</option>
+                <option value="System Alert">System Alert</option>
+              </select>
             </div>
             
             <div class="form-group">
@@ -1198,6 +1145,63 @@ HTML;
             </table>
           </div>
         <?php endif; ?>
+      </div>
+
+      <div class="module-card">
+        <h2 style="margin-bottom: 20px; color: var(--accent);">Change Password</h2>
+
+        <?php if ($message): ?>
+          <div class="message <?php echo strpos($message, 'success') !== false ? 'success' : 'error'; ?>">
+            <?php echo h($message); ?>
+          </div>
+        <?php endif; ?>
+
+        <?php
+        // Fetch current username for pre-filling
+        $stmt = $conn->prepare("SELECT username FROM tenants WHERE tenant_id = ?");
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $usernameResult = $stmt->get_result();
+        $currentUsername = $usernameResult->fetch_assoc()['username'] ?? '';
+        $stmt->close();
+        ?>
+
+        <form method="POST">
+          <input type="hidden" name="change_account_settings" value="1">
+          
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" placeholder="Enter username to update">
+            <div class="helper">Your unique login name within this clinic.</div>
+          </div>
+
+          <div style="margin: 20px 0; padding: 16px; background: #f1f5f9; border-radius: 8px; border-left: 4px solid var(--accent);">
+            <p style="margin: 0; font-size: 13px; color: #475569;">To change your password, fill out the fields below. Leave them empty if you only want to change your username.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="current_password">Current Password</label>
+            <input type="password" id="current_password" name="current_password">
+          </div>
+
+          <div class="form-group">
+            <label for="new_password">New Password</label>
+            <input type="password" id="new_password" name="new_password">
+          </div>
+
+          <div class="form-group">
+            <label for="confirm_password">Confirm New Password</label>
+            <input type="password" id="confirm_password" name="confirm_password">
+          </div>
+
+          <button type="submit" class="btn-primary">Save Account Settings</button>
+        </form>
+      </div>
+
+      <div class="module-card" style="margin-bottom: 32px;">
+        <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
+        <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
       </div>
 
       <div class="login-customizer">
@@ -1814,7 +1818,7 @@ HTML;
       document.getElementById('announcementAction').value = 'add';
       document.getElementById('announcementId').value = '';
       document.getElementById('ann_title').value = '';
-      document.getElementById('ann_category').value = 'Clinical Update';
+      document.getElementById('ann_category').value = 'System Maintenance';
       document.getElementById('ann_content').value = '';
       document.getElementById('ann_publish_date').value = new Date().toISOString().split('T')[0];
       document.getElementById('ann_status').value = 'active';
