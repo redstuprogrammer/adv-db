@@ -9,6 +9,8 @@ tenant_login.php (prompted)
 
 superadmin_login.php, tenant_login.php, and buttons in emailing in email address' inbox. (prompted)
 - change the color of sign in buttons and other buttons that are currently green to a more suitable color.
+(except this)
+- superadmin_login.php's sign in button is still green. change it.
 
 
 SUPER ADMIN
@@ -65,6 +67,7 @@ RECEPTIONIST
 1. receptionist_appointments.php (prompted)
     - remove appointment requests. patients who booked in the mobile should automatically appear in the list of appointments as they already paid in the mobile app. so there is no need to approve or disapprove.
 
+    - appointments should be reschedulable.
 
 edit_tenant_homepage.php (prompted)
 - when a user edits the clinic name, it should also update labels that mention the clinic name. for example for 'ToothFairy' clinic, the user edits the clinic name to "ToothFairy2", it should also automatically update the headline, the welcome label "Welcome to ToothFairy. Professional care for your dental health." (should be "Welcome to ToothFairy2. Professional care for your dental health."), the footer/copyright label, and etc.

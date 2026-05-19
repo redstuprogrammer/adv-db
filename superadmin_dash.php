@@ -732,6 +732,71 @@ try {
                         <canvas id="activityChart"></canvas>
                     </div>
                 </div>
+            <!-- System Announcements Feed for Super Admin -->
+            <div class="sa-card" style="margin-bottom: 20px;">
+                <div class="sa-card-header" style="border-bottom: 1.5px solid var(--sa-border); padding-bottom: 15px; margin-bottom: 20px;">
+                    <div>
+                        <div class="sa-card-title">📢 Live System Announcements</div>
+                        <div class="sa-card-subtitle">Active system-wide notifications published by you showing to all clinics.</div>
+                    </div>
+                </div>
+                
+                <?php
+                $dashboardSystemAnnouncements = [];
+                $stmt = $conn->prepare("SELECT * FROM announcements WHERE tenant_id IS NULL AND status = 'active' ORDER BY publish_date DESC, id DESC LIMIT 5");
+                if ($stmt) {
+                    $stmt->execute();
+                    $res = $stmt->get_result();
+                    if ($res) {
+                        while ($row = $res->fetch_assoc()) {
+                            $dashboardSystemAnnouncements[] = $row;
+                        }
+                    }
+                    $stmt->close();
+                }
+                ?>
+
+                <?php if (empty($dashboardSystemAnnouncements)): ?>
+                    <div style="text-align: center; padding: 30px 20px; border: 1px dashed var(--sa-border); border-radius: 12px; background: #f8fafc;">
+                        <p style="color: var(--sa-muted); margin: 0; font-size: 0.9rem;">No active system announcements. Go to settings to publish one.</p>
+                    </div>
+                <?php else: ?>
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <?php foreach ($dashboardSystemAnnouncements as $ann): ?>
+                            <?php
+                            // Dynamic category badge color styling for system categories
+                            $cat = strtolower($ann['category']);
+                            $bg = '#f3e8ff'; // Default light purple
+                            $color = '#7e22ce'; // Default purple
+                            if (strpos($cat, 'maintenance') !== false) {
+                                $bg = '#fef3c7'; // Amber
+                                $color = '#b45309';
+                            } elseif (strpos($cat, 'update') !== false) {
+                                $bg = '#e0f2fe'; // Sky Blue
+                                $color = '#0369a1';
+                            } elseif (strpos($cat, 'alert') !== false) {
+                                $bg = '#fee2e2'; // Light red
+                                $color = '#b91c1c';
+                            }
+                            ?>
+                            <div style="padding: 16px; border: 1px solid var(--sa-border); border-radius: 12px; background: #fafbfc; position: relative;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
+                                    <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--sa-primary);"><?php echo htmlspecialchars($ann['title']); ?></h4>
+                                    <span style="font-size: 0.75rem; background: <?php echo $bg; ?>; color: <?php echo $color; ?>; padding: 4px 10px; border-radius: 999px; font-weight: 700; white-space: nowrap;">
+                                        <?php echo htmlspecialchars($ann['category']); ?>
+                                    </span>
+                                </div>
+                                <p style="margin: 0 0 10px 0; font-size: 0.85rem; color: #475569; line-height: 1.5; white-space: pre-line;"><?php echo htmlspecialchars($ann['content']); ?></p>
+                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: var(--sa-muted); border-top: 1px solid #f1f5f9; padding-top: 8px;">
+                                    <span>📅 Published: <?php echo date('M d, Y', strtotime($ann['publish_date'])); ?></span>
+                                    <span style="font-weight: 600; display: inline-flex; align-items: center; gap: 4px; color: #0284c7;">
+                                        <span style="display:inline-block; width: 6px; height: 6px; border-radius: 50%; background: #0284c7;"></span> Active Feed
+                                    </span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
             </div>
         </section>
 
