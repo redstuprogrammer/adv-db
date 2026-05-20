@@ -63,19 +63,29 @@ try {
         // REQUIRED: Validate at least one clinic document uploaded
         $validDocsCount = 0;
         $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
-        $maxSizeMB = 50; // Increased to 50MB
+$maxSizeMB = 5; // Max file size shown in UI (5MB)
         $maxSizeBytes = $maxSizeMB * 1024 * 1024;
 
+        $hadUploadTooLarge = false;
         if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
             foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
-                if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK &&
-                    $_FILES['documents']['size'][$key] <= $maxSizeBytes) {
+                $err = $_FILES['documents']['error'][$key] ?? UPLOAD_ERR_NO_FILE;
+                if (in_array($err, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
+                    $hadUploadTooLarge = true;
+                    continue;
+                }
+
+                if ($err === UPLOAD_ERR_OK && ($_FILES['documents']['size'][$key] ?? 0) <= $maxSizeBytes) {
                     $ext = strtolower(pathinfo($_FILES['documents']['name'][$key], PATHINFO_EXTENSION));
                     if (in_array($ext, $allowed)) {
                         $validDocsCount++;
                     }
                 }
             }
+        }
+
+        if ($hadUploadTooLarge) {
+            throw new Exception("Uploaded document is too large. Maximum size is " . $maxSizeMB . "MB each.");
         }
 
         if ($validDocsCount === 0) {

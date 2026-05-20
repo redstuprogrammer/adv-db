@@ -112,7 +112,7 @@ try {
             SELECT 
                 t.company_name AS Tenant,
                 t.subscription_tier AS Tier,
-                COALESCE(pym.total_amount, 0) AS Sales,
+                CONCAT('₱', FORMAT(COALESCE(pym.total_amount, 0), 2)) AS Sales,
                 COALESCE(logs.activity_count, 0) AS Activities
             FROM tenants t
             LEFT JOIN (SELECT tenant_id, SUM(amount) total_amount FROM payment GROUP BY tenant_id) pym ON t.tenant_id = pym.tenant_id
