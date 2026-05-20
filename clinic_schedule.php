@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $message = 'Clinic schedule updated successfully!';
     $messageType = 'success';
+    logTenantActivity($conn, $tenantId, 'Setting Change', 'Updated clinic schedule (operating hours)');
 }
 
 // Load schedule

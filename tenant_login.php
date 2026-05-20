@@ -210,6 +210,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$authenticated) {
             http_response_code(422);
             $error = 'Incorrect email / username or password.';
+            
+            // Log failed login attempt if tenant context exists
+            if ($tenant && isset($tenant['tenant_id'])) {
+                try {
+                    $safeUsername = h($username);
+                    logTenantActivity($conn, (int)$tenant['tenant_id'], 'Failed Login', "Failed login attempt for username: $safeUsername");
+                } catch (Exception $e) {
+                    error_log('Failed login logging failed: ' . $e->getMessage());
+                }
+            }
         } else {
             // Prepare user data for session manager
             $sessionUserData = [
@@ -233,7 +243,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log activity
             $activityType = 'Login';
             try {
-                logActivity($conn, (int)$tenant['tenant_id'], $activityType, ucfirst(strtolower($userRole)) . ' logged in', $sessionUserData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+                $logText = ucfirst(strtolower($userRole)) . ' logged in';
+                if (strcasecmp($userRole, 'Admin') === 0) {
+                    $logText = 'Tenant logged in';
+                }
+                logActivity($conn, (int)$tenant['tenant_id'], $activityType, $logText, $sessionUserData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
             } catch (Exception $e) {
                 error_log('Activity logging failed: ' . $e->getMessage());
                 // Don't break login flow if logging fails

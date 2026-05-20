@@ -15,27 +15,27 @@ superadmin_login.php, tenant_login.php, and buttons in emailing in email address
 
 
 SUPER ADMIN
-1. Tenant List
+1. Tenant List (prompted)
     - when viewing a tenant's info, there is a green circle at the bottom right beside the "Close" button. that green circle looks like a livechat icon. remove it. I think its a css button. it does nothing. change the color of the green buttons to a more suitable colors. 
-    - under actions column, change the color of "Activate" green button to a more suitable color. (prompted)
+    - under actions column, change the color of "Activate" green button to a more suitable color. 
 
-2. superadmin_tenant_reports.php
+2. superadmin_tenant_reports.php (prompted)
     Tenant Activity Report
     - instead of displaying "Admin logged in", display "Tenant logged in".
     - improve tenant activity logs. add more logs rather than just recording log in and log out.
 
-    Usage Statistics Report
+    Usage Statistics Report (prompted)
     - remove columns: patients, appointments, staff, dentists, notes, 
     - change column "Revenue" to "Sales".
     - 
 
-3. superadmin_audit_logs.php
+3. superadmin_audit_logs.php (prompted)
     - improve audit logs. add more logs rather than just recording log in and log out.
     - remove tenant activity logs or any actions done by tenant. audit logs should only contain activities done by super admin.
 
 
 tenant_homepage.php (prompted)
-- adda a section that displays the services that the clinic does. and this should detect what services are in the service table in the database.
+- add a section that displays the services that the clinic does. and this should detect what services are in the service table in the database.
 
 
 ADMIN / TENANT

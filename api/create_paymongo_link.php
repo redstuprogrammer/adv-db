@@ -187,6 +187,9 @@ if ($http_code !== 200 || !isset($pm_data['data'])) {
 $session_id   = $pm_data['data']['id'];
 $checkout_url = $pm_data['data']['attributes']['checkout_url'];
 
+require_once dirname(__DIR__) . '/includes/tenant_utils.php';
+logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', "Generated PayMongo checkout session for billing ID $billing_id");
+
 $upd = $conn->prepare("
     UPDATE billing
     SET paymongo_session_id = ?, reference_number = ?

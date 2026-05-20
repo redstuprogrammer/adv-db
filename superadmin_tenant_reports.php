@@ -485,6 +485,13 @@ try {
                         <option value="Payment Received">Payment Received</option>
                         <option value="Staff Added">Staff Added</option>
                         <option value="Clinical Notes">Clinical Notes</option>
+                        <option value="Login">Login</option>
+                        <option value="Failed Login">Failed Login</option>
+                        <option value="Setting Change">Setting Change</option>
+                        <option value="Password Reset Request">Password Reset Request</option>
+                        <option value="Document Upload">Document Upload</option>
+                        <option value="Payment Gateway Sync">Payment Gateway Sync</option>
+                        <option value="Schedule">Schedule Update</option>
                     </select>
                 </div>
             </div>

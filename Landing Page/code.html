@@ -936,7 +936,28 @@
                     method: 'POST',
                     body: formData
                 })
-                .then(r => r.json())
+                .then(async r => {
+                    if (!r.ok) {
+                        if (r.status === 413) {
+                            throw new Error('The uploaded files are too large. Please upload smaller files (max 5MB each).');
+                        }
+                        let textMsg = '';
+                        try {
+                            textMsg = await r.text();
+                        } catch(e) {}
+                        throw new Error(textMsg || `Server error (HTTP ${r.status})`);
+                    }
+                    const contentType = r.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        let textMsg = '';
+                        try {
+                            textMsg = await r.text();
+                        } catch(e) {}
+                        const cleanMsg = textMsg.replace(/<[^>]*>/g, '').trim().substring(0, 150);
+                        throw new Error(cleanMsg || 'Server returned an invalid response format.');
+                    }
+                    return r.json();
+                })
                 .then(data => {
                     if (data.success) {
                         // Close review modal
@@ -977,7 +998,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    showToast('Failed to connect to registration server.');
+                    showToast(err.message || 'Failed to connect to registration server.');
                     reviewConfirmBtn.disabled = false;
                     reviewConfirmBtn.textContent = 'Finalize & Register';
                 });
@@ -989,7 +1010,7 @@
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(() => {
                 fetch('../get_tenant_status.php?slug=' + encodeURIComponent(slug))
-                    .then(r => r.json())
+                    .then(r => r.ok ? r.json() : Promise.reject())
                     .then(res => {
                         if (res.status === 'active') {
                             clearInterval(pollTimer);

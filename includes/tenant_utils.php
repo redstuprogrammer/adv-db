@@ -274,15 +274,15 @@ if (!function_exists('logSuperAdminActivity')) {
 }
 
 if (!function_exists('logTenantActivity')) {
-    function logTenantActivity($conn, int $tenantId, string $activityType, string $activityDescription): bool {
+    function logTenantActivity($conn, int $tenantId, string $activityType, string $activityDescription, int $activityCount = 1): bool {
         if (!$conn || trim($activityType) === '' || $tenantId <= 0) return false;
         $activityType = trim($activityType);
         $activityDescription = trim($activityDescription);
         $logDate = date('Y-m-d');
         $logTime = date('H:i:s');
-        $stmt = $conn->prepare('INSERT INTO tenant_activity_logs (tenant_id, activity_type, activity_description, activity_count, log_date, log_time) VALUES (?, ?, ?, 1, ?, ?)');
+        $stmt = $conn->prepare('INSERT INTO tenant_activity_logs (tenant_id, activity_type, activity_description, activity_count, log_date, log_time) VALUES (?, ?, ?, ?, ?, ?)');
         if ($stmt) {
-            $stmt->bind_param('issss', $tenantId, $activityType, $activityDescription, $logDate, $logTime);
+            $stmt->bind_param('ississ', $tenantId, $activityType, $activityDescription, $activityCount, $logDate, $logTime);
             $result = $stmt->execute();
             $stmt->close();
             return $result;
@@ -292,11 +292,11 @@ if (!function_exists('logTenantActivity')) {
 }
 
 if (!function_exists('logActivity')) {
-    function logActivity($conn, int $tenantId, string $activityType, string $actionDetails, ?string $username = null, ?string $userRole = null, string $adminName = 'Super Admin'): bool {
+    function logActivity($conn, int $tenantId, string $activityType, string $actionDetails, ?string $username = null, ?string $userRole = null, string $adminName = 'Super Admin', int $activityCount = 1): bool {
         if ($tenantId <= 0 || $userRole === 'superadmin') {
             return logSuperAdminActivity($conn, $activityType, $actionDetails, $username, $adminName);
         }
-        return logTenantActivity($conn, $tenantId, $activityType, $actionDetails);
+        return logTenantActivity($conn, $tenantId, $activityType, $actionDetails, $activityCount);
     }
 }
 

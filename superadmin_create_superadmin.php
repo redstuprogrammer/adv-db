@@ -118,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_sa'])) {
             if (mysqli_stmt_execute($insertStmt)) {
                 $success = 'Super admin account created successfully! An email has been sent.';
                 sendSuperAdminWelcomeEmail($email, $password);
+                logSuperAdminActivity($conn, 'Account Creation', "Created new super admin account for: $email");
             } else {
                 $error = 'Failed to create account. Please try again.';
             }
@@ -178,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
                     if (isset($_SESSION['superadmin'])) {
                         $_SESSION['superadmin']['username'] = $newUsername;
                     }
+                    logSuperAdminActivity($conn, 'Profile Update', "Super Admin updated their profile settings");
                 } else {
                     $error = 'Failed to update settings. Username might already be taken.';
                 }

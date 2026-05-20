@@ -1427,7 +1427,28 @@ try {
                 },
                 body: formData
             })
-            .then(res => res.json())
+            .then(async res => {
+                if (!res.ok) {
+                    if (res.status === 413) {
+                        throw new Error('The uploaded files are too large. Please upload smaller files (max 50MB each).');
+                    }
+                    let textMsg = '';
+                    try {
+                        textMsg = await res.text();
+                    } catch(e) {}
+                    throw new Error(textMsg || `Server error (HTTP ${res.status})`);
+                }
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    let textMsg = '';
+                    try {
+                        textMsg = await res.text();
+                    } catch(e) {}
+                    const cleanMsg = textMsg.replace(/<[^>]*>/g, '').trim().substring(0, 150);
+                    throw new Error(cleanMsg || 'Server returned an invalid response format.');
+                }
+                return res.json();
+            })
             .then(data => {
                 btn.disabled = false;
                 btn.textContent = 'Upload';
@@ -1444,7 +1465,7 @@ try {
                 btn.disabled = false;
                 btn.textContent = 'Upload';
                 console.error(err);
-                showToast('Upload failed due to a network error. Ensure files are under 50MB and are PDF, Word, or Images.');
+                showToast(err.message || 'Upload failed due to a network error. Ensure files are under 50MB and are PDF, Word, or Images.');
             });
         });
     });

@@ -1,5 +1,8 @@
 RewriteEngine On
 
+# Increase maximum request body size to 100MB
+LimitRequestBody 104857600
+
 # Route: /tenant/{slug}/login -> tenant_login.php?tenant={slug}
 RewriteRule ^tenant/([^/]+)/login/?$ tenant_login.php?tenant=$1 [L,QSA]
 

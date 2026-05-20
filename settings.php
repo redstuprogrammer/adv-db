@@ -225,6 +225,7 @@ HTML;
                         if ($updateUsernameStmt->execute()) {
                             $updatesMade = true;
                             $message = 'Username updated successfully. ';
+                            logTenantActivity($conn, $tenantId, 'Setting Change', "Changed account username to $newUsername");
                             // Sync session with new username
                             $tenantData = $sessionManager->getTenantData();
                             if ($tenantData) {
@@ -265,6 +266,7 @@ HTML;
 
                                 if ($emailResult['sent'] ?? false) {
                                     $message .= 'A verification email has been sent to your clinic email. Follow the instructions there to complete the password change.';
+                                    logTenantActivity($conn, $tenantId, 'Password Reset Request', "Requested password change verification email");
                                 } else {
                                     $message .= 'Unable to send verification email. Please try again later.';
                                     $clearStmt = $conn->prepare("UPDATE tenants SET password_reset_token = NULL, password_reset_expires = NULL WHERE tenant_id = ?");
@@ -300,6 +302,7 @@ HTML;
                 ];
                 if (saveTenantConfig($tenantId, $resetDefaults)) {
                     $message = 'Login customization settings reset to defaults successfully!';
+                    logTenantActivity($conn, $tenantId, 'Setting Change', "Reset clinic branding settings to defaults");
                 } else {
                     $message = 'Unable to reset settings. Please try again.';
                 }
@@ -353,6 +356,7 @@ HTML;
 
                     if (saveTenantConfig($tenantId, $configValues)) {
                         $message = 'Login customization settings saved successfully!';
+                        logTenantActivity($conn, $tenantId, 'Setting Change', "Updated clinic branding settings");
                     } else {
                         $message = 'Unable to save login customization settings. Please try again.';
                     }
@@ -401,6 +405,18 @@ HTML;
                     }
                     $stmt->close();
                 }
+            }
+        } elseif (isset($_POST['save_integration_settings'])) {
+            $gateway = trim($_POST['payment_gateway'] ?? 'PayMongo');
+            $oldGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo');
+            
+            if (saveTenantConfig($tenantId, ['payment_gateway' => $gateway])) {
+                $message = "Integration settings saved successfully!";
+                if ($oldGateway !== $gateway) {
+                    logTenantActivity($conn, $tenantId, 'Setting Change', "Switched payment gateway integration from $oldGateway to $gateway");
+                }
+            } else {
+                $message = "Unable to save integration settings. Please try again.";
             }
         }
     }
@@ -1242,6 +1258,28 @@ HTML;
         <h2 style="margin-bottom: 10px; color: var(--accent);">Public Landing Page</h2>
         <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Manage the clinic information displayed on your public landing page, including hero titles, contact details, and clinic description.</p>
         <a href="Landing Page/edit_tenant_homepage.php?tenant=<?php echo h($tenantSlug); ?>" class="btn-primary" style="display: inline-block;" target="_blank">Edit Landing Page Content</a>
+      </div>
+
+      <div class="module-card" style="margin-bottom: 32px;">
+        <h2 style="margin-bottom: 10px; color: var(--accent);">🔌 Integrations & Payments</h2>
+        <p style="color: #64748b; margin-bottom: 20px; font-size: 14px;">Choose and configure your clinic's active payment gateway provider for patients' booking deposits and bill payments.</p>
+        
+        <?php
+        $activeGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo');
+        ?>
+        
+        <form method="POST">
+          <input type="hidden" name="save_integration_settings" value="1">
+          <div class="form-group" style="max-width: 400px;">
+            <label for="payment_gateway">Active Payment Gateway</label>
+            <select id="payment_gateway" name="payment_gateway" style="width:100%; padding:10px; border: 1px solid var(--border); border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
+              <option value="PayMongo" <?php echo $activeGateway === 'PayMongo' ? 'selected' : ''; ?>>PayMongo (GCash, Maya, Cards)</option>
+              <option value="Maya" <?php echo $activeGateway === 'Maya' ? 'selected' : ''; ?>>Maya Business</option>
+              <option value="PayPal" <?php echo $activeGateway === 'PayPal' ? 'selected' : ''; ?>>PayPal Checkout</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary">Save Integration Settings</button>
+        </form>
       </div>
 
       <div class="login-customizer">

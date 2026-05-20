@@ -43,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['announcement_action']
             $stmt->bind_param('sssss', $title, $content, $category, $publishDate, $status);
             if ($stmt->execute()) {
                 $annMessage = 'System Announcement published successfully!';
+                logSuperAdminActivity($conn, 'Announcement Added', "Published: $title ($category)");
             } else {
                 $annMessage = 'Error publishing system announcement.';
             }
@@ -54,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['announcement_action']
             $stmt->bind_param('sssssi', $title, $content, $category, $publishDate, $status, $annId);
             if ($stmt->execute()) {
                 $annMessage = 'System Announcement updated successfully!';
+                logSuperAdminActivity($conn, 'Announcement Edited', "Updated: $title");
             } else {
                 $annMessage = 'Error updating system announcement.';
             }
@@ -65,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['announcement_action']
             $stmt->bind_param('i', $annId);
             if ($stmt->execute()) {
                 $annMessage = 'System Announcement deleted successfully!';
+                logSuperAdminActivity($conn, 'Announcement Deleted', "Deleted announcement ID: $annId");
             } else {
                 $annMessage = 'Error deleting system announcement.';
             }
@@ -96,6 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['announcement_action'
                 @unlink(__DIR__ . '/' . ltrim($currentLogo, '/'));
             }
             setSetting('logo_path', '');
+            
+            logSuperAdminActivity($conn, 'Settings Reset', "Reset system settings to defaults");
 
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest' || isset($_POST['reset'])) {
                 // If it's the fetch request from JS
@@ -124,6 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['announcement_action'
                 setSetting('logo_path', '/uploads/' . $filename);
             }
 
+            logSuperAdminActivity($conn, 'Settings Changed', "Updated system name to: " . ($_POST['system_name'] ?? 'OralSync'));
             $message = "Settings saved successfully!";
         }
     } catch (Exception $e) {

@@ -231,32 +231,14 @@ try {
                     <input type="date" id="search_date">
                 </div>
                 <div class="sa-form-group">
-                    <label for="search_user_type">User Type</label>
-                    <select id="search_user_type">
-                        <option value="">All Users</option>
-                        <option value="superadmin">Super Admin</option>
-                        <option value="tenant">Tenant</option>
-                    </select>
-                </div>
-                <div class="sa-form-group">
                     <label for="search_action">Action Type</label>
                     <select id="search_action">
                         <option value="">All Actions</option>
-                        <option value="Superadmin Login">Superadmin Login</option>
-                        <option value="Superadmin Logout">Superadmin Logout</option>
-                        <option value="Tenant Registration">Tenant Registration</option>
+                        <option value="Login">Superadmin Login</option>
+                        <option value="Logout">Superadmin Logout</option>
+                        <option value="Registration">Tenant Registration</option>
                         <option value="Tenant Status Change">Tenant Status Change</option>
-                        <option value="Dentist Login">Dentist Login</option>
-                        <option value="Dentist Logout">Dentist Logout</option>
-                        <option value="Receptionist Login">Receptionist Login</option>
-                        <option value="Receptionist Logout">Receptionist Logout</option>
-                        <option value="Tenant Logout">Tenant Logout</option>
-                        <option value="Appointment Scheduled">Appointment Scheduled</option>
-                        <option value="Payment Received">Payment Received</option>
-                        <option value="Patient Created">Patient Created</option>
-                        <option value="Invoice Generated">Invoice Generated</option>
-                        <option value="Appointment Completed">Appointment Completed</option>
-                        <option value="Patient Updated">Patient Updated</option>
+                        <option value="Upload">Tenant Document Upload</option>
                         <option value="Subscription Renewed">Subscription Renewed</option>
                         <option value="Report Generated">Report Generated</option>
                     </select>
@@ -296,7 +278,7 @@ try {
         // Load initial data and make filter inputs live
         document.addEventListener('DOMContentLoaded', function() {
             loadLogs();
-            ['search_date', 'search_user_type', 'search_action'].forEach(id => {
+            ['search_date', 'search_action'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', function() {
@@ -309,14 +291,12 @@ try {
         function loadLogs(page = 1) {
             currentPage = page;
             const date = document.getElementById('search_date').value;
-            const userType = document.getElementById('search_user_type').value;
             const action = document.getElementById('search_action').value;
 
             const params = new URLSearchParams({
                 page: page,
                 limit: limit,
                 date: date,
-                user_type: userType,
                 action: action
             });
 
@@ -383,14 +363,12 @@ try {
 
         function clearFilters() {
             document.getElementById('search_date').value = '';
-            document.getElementById('search_user_type').value = '';
             document.getElementById('search_action').value = '';
             loadLogs(1);
         }
 
         function exportCSV() {
             const date = document.getElementById('search_date').value;
-            const userType = document.getElementById('search_user_type').value;
             const action = document.getElementById('search_action').value;
 
             // For CSV export, we'll get all filtered records (or first 1000 for performance)
@@ -398,7 +376,6 @@ try {
                 page: 1,
                 limit: 1000, // Export up to 1000 records
                 date: date,
-                user_type: userType,
                 action: action
             });
 
