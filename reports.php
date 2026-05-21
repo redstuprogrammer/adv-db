@@ -240,7 +240,7 @@ if (!$hasBasicReporting) {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">📊 Reports & Analytics</div>
+        <div class="tenant-header-title">Reports & Analytics</div>
         <?php renderDateClock(); ?>
       </div>
 

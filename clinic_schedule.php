@@ -180,7 +180,7 @@ $daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
         <main class="tenant-main-content">
             <div class="tenant-header-bar">
-                <h1 style="margin:0; font-size: 20px; font-weight: 700; color: var(--accent);">Clinic Schedule</h1>
+                <div class="tenant-header-title">Clinic Schedule</div>
                 <?php renderDateClock(); ?>
             </div>
 

@@ -380,16 +380,20 @@ if ($stats_stmt) {
 
 
       <div class="module-card">
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
-          <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
-          <div style="color: #0f172a; font-size: 14px;">
-            Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
+          <div class="search-container" style="flex: 1 1 320px;">
+            <input type="text" id="paymentSearch" class="search-input" placeholder="Search patient, invoice, or status..." onkeyup="filterPayments()">
           </div>
-          <button class="action-btn" style="background: var(--accent); border-color: var(--accent);" onclick="openAddModal(); return false;">+ Create Invoice</button>
-        </div>
 
-        <div class="search-container" style="margin-bottom:16px;">
-          <input type="text" id="paymentSearch" class="search-input" placeholder="Search patient, invoice, or status..." onkeyup="filterPayments()">
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
+            <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
+              <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
+              <button class="action-btn" style="background: var(--accent); border-color: var(--accent);" onclick="openAddModal(); return false;">+ Create Invoice</button>
+            </div>
+            <div style="color: #0f172a; font-size: 14px;">
+              Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
+            </div>
+          </div>
         </div>
 
         <table class="module-table" id="paymentTable">

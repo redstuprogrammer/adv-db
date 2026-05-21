@@ -156,10 +156,7 @@ mysqli_stmt_close($stmt);
         <?php include __DIR__ . '/includes/sidebar_main.php'; ?>
         <main class="tenant-main-content">
             <div class="tenant-header-bar">
-                <div>
-                    <h1 class="t-title" style="margin:0;">My Schedule</h1>
-                    <p class="t-subtitle" style="margin:0;">Manage your weekly clinical availability</p>
-                </div>
+                <div class="tenant-header-title">My Schedule</div>
                 <?php renderDateClock(); ?>
             </div>
 

@@ -66,16 +66,26 @@ try {
 $maxSizeMB = 5; // Max file size shown in UI (5MB)
         $maxSizeBytes = $maxSizeMB * 1024 * 1024;
 
-        $hadUploadTooLarge = false;
+        $oversizedFiles = 0;
         if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name'])) {
             foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
                 $err = $_FILES['documents']['error'][$key] ?? UPLOAD_ERR_NO_FILE;
+
+                // Treat PHP upload-size errors as oversized
                 if (in_array($err, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)) {
-                    $hadUploadTooLarge = true;
+                    $oversizedFiles++;
                     continue;
                 }
 
-                if ($err === UPLOAD_ERR_OK && ($_FILES['documents']['size'][$key] ?? 0) <= $maxSizeBytes) {
+                $fileSize = (int)($_FILES['documents']['size'][$key] ?? 0);
+
+                // Explicit size check: each file must be <= 5MB
+                if ($err === UPLOAD_ERR_OK && $fileSize > $maxSizeBytes) {
+                    $oversizedFiles++;
+                    continue;
+                }
+
+                if ($err === UPLOAD_ERR_OK && $fileSize <= $maxSizeBytes) {
                     $ext = strtolower(pathinfo($_FILES['documents']['name'][$key], PATHINFO_EXTENSION));
                     if (in_array($ext, $allowed)) {
                         $validDocsCount++;
@@ -84,9 +94,13 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             }
         }
 
-        if ($hadUploadTooLarge) {
-            throw new Exception("Uploaded document is too large. Maximum size is " . $maxSizeMB . "MB each.");
+        if ($oversizedFiles > 0) {
+            throw new Exception(
+                "Upload limit exceeded: each document must be at most {$maxSizeMB}MB. " .
+                "Your upload includes {$oversizedFiles} oversized file(s)."
+            );
         }
+
 
         if ($validDocsCount === 0) {
             throw new Exception("Please upload at least one valid clinic document (PDF, DOC, DOCX, JPG, PNG; max " . $maxSizeMB . "MB each) before registering the tenant.");

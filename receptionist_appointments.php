@@ -567,7 +567,7 @@ if ($stmt) {
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border-color: #fecaca; margin-bottom: 20px;"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
         <div class="content-header">          <div>
-            <h2 class="content-title">Front Desk Appointments</h2>
+            <h2 class="content-title">Appointments</h2>
           </div>
           <button class="add-btn" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>

@@ -367,7 +367,7 @@ $errorMessage = '';
     <div class="tenant-main-content">
       <!-- Header Bar -->
       <div class="tenant-header-bar">
-        <div class="tenant-header-title"><?php echo h($tenantName); ?> Dentist Portal</div>
+        <div class="tenant-header-title">Appointments</div>
         <?php renderDateClock(); ?>
       </div>
 

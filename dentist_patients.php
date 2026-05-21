@@ -120,7 +120,7 @@ if (isset($_GET['view_patient_id'])) {
 
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👥 My Patients</div>
+        <div class="tenant-header-title">My Patients</div>
         <?php renderDateClock(); ?>
       </div>
 

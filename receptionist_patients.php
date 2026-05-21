@@ -651,7 +651,6 @@ if (isset($_GET['view_patient_id'])) {
           <div class="message error"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
           <button class="btn-primary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 

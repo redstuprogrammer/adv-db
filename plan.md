@@ -22,8 +22,8 @@ superadmin_login.php, tenant_login.php, and buttons in emailing in email address
 - change the color of sign in buttons and other buttons that are currently green to a more suitable color.
 
 
-edit_tenant_homepage.php
-- when I edit posts / Pulse Posts, it doesnt show the preview of the changes right away. fix that.
+edit_tenant_homepage.php 
+- (prompted) when I edit posts / Pulse Posts, it doesnt show the preview of the changes right away. fix that.
 - map
 
 
@@ -37,14 +37,12 @@ SUPER ADMIN
 ADMIN / TENANT
 - admin/tenant should have the same abilities as dentist and receptionist. so admin/tenant should have the same pages and features as dentist and receptionist. (manage button in appointments, adding of patients, etc) but dont remove the pages that are already there for admin/tenant. just update some of the pages. 
 
-(prompted)
-- patients.php, remove "Patient Directory" label. remove the icon in the header too
-- appointments.php remove "Appointment Management" label and the icon on the header too.
-- billing.php, remove the icon in the header. move the searchbar inside the table of billing records and align "Current Booking Downpayment:" the same level with the button for "Set Booking Downpayment". the same as how it is in receptionist_billing.php (instructions below receptionist_billing.php). add a button for creating an invoice too, same as receptionist_billing.php. remove "Transaction Audit" label.
-- users.php, remove the icon in the header.
-- clinic_schedule.php's label in the header isnt the same font color as the page's headers.
-- reports.php, remove the icon in the header.
-- settings.php remove the icon in the header.
+headers
+- patients.php, remove icon beside "Patients" label in the header.
+- appointments.php, remove icon beside "Appointments" label in the header.
+- move Current Booking Downpayment, Set Booking Downpayment and Create Invoice buttons to the right the same as receptionist_billing.php
+- clinic_schedule.php, "Clinic Schedule" label should have the same font thickness or boldness as the other headers from other pages too.
+- reports.php, remove icon beside "Reports & Analytics" label in the header.
 
 1. reports.php
     Activity Audit Trail tab/section
@@ -56,8 +54,12 @@ ADMIN / TENANT
 
 
 DENTIST
-2. dentist_dashbord.php (prompted)
-    - when user clicks "View Case" button, just display the clinical_record.php page. and a button to return to the dashboard.
+2. headers
+    - dentist_appointments.php, change "ToothFairy Dentist Portal" label to "Appointments"
+    - dentist_patients.php, remove the icon in the header beside "My Patients" label.
+    - dentist_schedule.php, use the same header format as the other pages for dentist. the header is taller and "My Schedule" font color is not the same as others - dark navy blue.
+    - dentist_account_settings.php, change "ToothFairy Account Settings" label to just "Account Settings"
+
 
 
 RECEPTIONIST
@@ -77,3 +79,4 @@ RECEPTIONIST
 4. receptionist_billing.php (prompted)
     - put searchbar inside the same container where the table is. place the searchbar above the columns like how it is in receptionist_patients.php make it look the same as searchbar for receptionist_patients.php.
 
+make the username in the sidebar more visible. the font color is making it hard to notice.

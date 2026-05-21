@@ -215,12 +215,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="tenant-main-content">
       <!-- Header Bar -->
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">
-            <?php echo h($tenantName); ?> Account Settings
-            <span style="margin-left: 10px; font-size: 14px; background: #e2e8f0; color: #475569; padding: 4px 12px; border-radius: 20px; font-weight: 700; letter-spacing: 0.5px;">
-                Code: <?php echo h($sessionManager->getTenantData()['tenant_code'] ?? 'N/A'); ?>
-            </span>
-        </div>
+        <div class="tenant-header-title">Account Settings</div>
         <?php renderDateClock(); ?>
       </div>
 

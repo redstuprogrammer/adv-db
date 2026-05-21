@@ -376,10 +376,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
 
     <div class="tenant-main-content">
         <div class="tenant-header-bar">
-            <div>
-                <h1 style="color: #0d3b66; margin:0;">Billing & Payments</h1>
-                <p style="color: #64748b; margin: 6px 0 0;">Manage invoices and transaction records</p>
-            </div>
+            <div class="tenant-header-title">Billing & Payments</div>
             <?php renderDateClock(); ?>
         </div>
 

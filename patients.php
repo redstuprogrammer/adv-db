@@ -423,7 +423,7 @@ if (isset($_GET['view_patient_id'])) {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👥 Patients</div>
+        <div class="tenant-header-title">Patients</div>
         <?php renderDateClock(); ?>
       </div>
 

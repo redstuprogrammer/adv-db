@@ -494,7 +494,7 @@ $stmt->close();
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">📅 Appointments</div>
+        <div class="tenant-header-title">Appointments</div>
         <?php renderDateClock(); ?>
       </div>
 
