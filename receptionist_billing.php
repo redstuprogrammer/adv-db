@@ -135,8 +135,30 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         .partial { background: #fef9c3; color: #854d0e; }
         .installment { background: #fef9c3; color: #854d0e; }
 
+        /* Search (match receptionist_patients.php look) */
+        .search-container {
+            margin-bottom: 0;
+            width: 100%;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d1d5db !important;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .search-input:focus {
+            border-color: #0d3b66 !important;
+            box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+            outline: none;
+        }
+
         /* Buttons */
         .btn-action { text-decoration: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+
         .btn-print { background: #0d3b66; color: white; border-color: #0d3b66; }
         .btn-print:hover { background: #0a2d4f; color: #fff; }
         .btn-edit { background: #ecfdf5; color: #059669; border-color: #059669; margin-left: 5px; }
@@ -361,15 +383,23 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             <?php renderDateClock(); ?>
         </div>
 
-        <section style="display: flex; justify-content: space-between; align-items: center; padding: 20px 0; gap: 12px; flex-wrap: wrap;">
-            <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 300px;">
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <button class="add-btn-main" onclick="openDepositModal()" style="background: #14b8a6;">Set Booking Downpayment</button>
-                <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
+        <!-- Billing toolbar (search + actions + downpayment) -->
+        <div class="content-card" style="padding: 24px 20px 18px;">
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
+                <div class="search-container" style="flex: 1 1 320px;">
+                    <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" class="search-input" />
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
+                    <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
+                        <button class="add-btn-main" onclick="openDepositModal()" style="background: #14b8a6;">Set Booking Downpayment</button>
+                        <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
+                    </div>
+                    <div style="color: #0f172a; font-size: 14px;">
+                        Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
+                    </div>
+                </div>
             </div>
-        </section>
-        <div style="padding: 12px 0 0; color: #0f172a; font-size: 14px;">
-            Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
         </div>
 
         <!-- Message Display -->

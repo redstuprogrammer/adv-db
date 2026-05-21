@@ -360,9 +360,7 @@ $hasCustomLogo = !empty($loginSettings['brand_logo_path']);
             height: 44px;
             object-fit: contain;
         }
-        .t-btnPrimary {
-            background: <?php echo h($loginSettings['primary_btn_color']); ?> !important;
-        }
+
         .t-cardTitle {
             color: var(--tenant-custom-bg);
         }

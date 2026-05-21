@@ -294,14 +294,13 @@ try {
         }
 
         .sa-btn-success {
-            background: #0d3b66;
-            color: #ffffff;
-            border: 2px solid #0d3b66;
+            border: 1px solid #22c55e;
+            background: rgba(34,197,94,0.1);
+            color: #16a34a;
         }
-
         .sa-btn-success:hover {
-            background: #0b2c4d;
-            border-color: #0b2c4d;
+            background: #22c55e;
+            color: #fff;
         }
 
         .sa-toast {

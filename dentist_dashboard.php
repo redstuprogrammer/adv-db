@@ -306,7 +306,11 @@ if ($stmt) {
         border: 1px solid var(--dashboard-border);
         border-radius: 12px;
         padding: 20px;
-        margin-bottom: 32px;
+      }
+
+      .schedule-section {
+        overflow-y: auto;
+        max-height: 520px;
       }
 
       .calendar-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -320,6 +324,16 @@ if ($stmt) {
       .appt-dot { width: 6px; height: 6px; background-color: #38bdf8; border-radius: 50%; margin-top: 5px; }
 
       .schedule-item-pop small { color: #64748b; font-weight: bold; }
+      .schedule-item-pop {
+        background: #f8fafc;
+        border: 1px solid var(--dashboard-border);
+        border-left: 4px solid var(--dashboard-accent);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
       
       .status-indicator { font-size: 11px; font-weight: 700; text-transform: uppercase; margin-top: 5px; display: inline-block; }
       .status-pending { color: #f59e0b; }
@@ -473,6 +487,8 @@ if ($stmt) {
           <div class="stat-label">Upcoming Appointments (Week)</div>
           <div class="stat-value"><?php echo $weekAppt; ?></div>
         </div>
+      </div><!-- end .dashboard-stats -->
+
       <!-- Announcements Feed Widget -->
       <?php
       $announcements = [];
@@ -551,9 +567,9 @@ if ($stmt) {
         </div>
       <?php endif; ?>
 
-      <!-- Dashboard Grid -->
-      <div class="dashboard-grid">
-        <div class="calendar-section">
+      <!-- Dashboard Grid: Calendar + Today's Schedule side by side -->
+      <div class="dashboard-grid" style="margin-bottom: 32px;">
+        <div class="calendar-section" style="margin-bottom: 0;">
           <h2 style="margin-bottom: 16px; color: var(--dashboard-accent);">Your Calendar</h2>
           <div class="cal-nav">
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&m=<?php echo $prevMonth; ?>&y=<?php echo $prevYear; ?>">❮</a>
@@ -608,7 +624,7 @@ if ($stmt) {
           </table>
         </div>
 
-        <div class="schedule-section">
+        <div class="schedule-section" style="margin-bottom: 0;">
           <h2 style="margin-bottom: 16px; color: var(--dashboard-accent);">Your Schedule for Today</h2>
           <p class="schedule-date" style="font-weight:bold; color:#64748b; margin-bottom:15px;">
             📅 <?php echo date('D, M d, Y'); ?>

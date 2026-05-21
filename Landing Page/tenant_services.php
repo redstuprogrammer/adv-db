@@ -288,12 +288,10 @@ foreach ($services as $service) {
 <div class="text-2xl font-bold text-sky-900"><?= htmlspecialchars($clinic['name'] ?? 'Your Clinic') ?></div>
 
 <div class="hidden md:flex items-center space-x-8">
-<a class="text-sky-900 font-bold border-b-2 border-sky-900 pb-1 hover:text-sky-700 transition-colors duration-300" href="#">Home</a>
-<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#about">About</a>
-<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#services">Services</a>
-<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#team">Team</a>
-<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#schedule">Schedule</a>
-<a class="text-slate-600 font-medium hover:text-sky-700 transition-colors duration-300" href="#location">Location</a>
+<a class="text-sky-900 font-bold border-b-2 border-sky-900 pb-1 hover:text-sky-700 transition-colors duration-300 flex items-center gap-2" href="tenant_homepage.php?tenant=<?= urlencode($slug) ?>">
+    <span class="material-symbols-outlined text-sm">arrow_back</span>
+    Back to Homepage
+</a>
 </div>
 <button onclick="openModal()" class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-6 py-2.5 rounded-full font-semibold shadow-md active:scale-95 transition-all duration-200">
                 <?= htmlspecialchars($clinic['cta_primary']) ?>
@@ -301,285 +299,66 @@ foreach ($services as $service) {
 </nav>
 </header>
 <main class="pt-24">
-<!-- Hero Section -->
-<section class="relative overflow-hidden min-h-[870px] flex items-center px-8 max-w-7xl mx-auto">
-<div class="absolute top-0 right-0 -z-10 w-2/3 h-full opacity-10 pointer-events-none">
-<div class="w-full h-full bg-secondary-container rounded-full blur-3xl scale-150 transform translate-x-1/2 -translate-y-1/4"></div>
-</div>
-<div class="grid md:grid-cols-2 gap-12 items-center">
-<div class="space-y-8">
-<?php if ($clinic['badge_visible']): ?>
-<div class="inline-flex items-center space-x-2 bg-secondary-fixed text-on-secondary-fixed px-4 py-1.5 rounded-full">
-<span class="material-symbols-outlined text-sm">spa</span>
-<span class="text-xs font-bold uppercase tracking-widest"><?= htmlspecialchars($clinic['badge_text']) ?></span>
-</div>
-<?php endif; ?>
-<h1 class="text-5xl md:text-7xl font-extrabold text-on-surface leading-[1.1] tracking-tight">
-                        <?= htmlspecialchars($clinic['hero_title'] ?? 'Exhale the <span class="text-primary">Ordinary.</span>') ?>
-</h1>
-<p class="text-xl text-on-surface-variant max-w-lg leading-relaxed font-light">
-                        <?= htmlspecialchars($clinic['hero_description'] ?? 'Experience a new standard of dental care where precision engineering meets a curated, calming environment. Your comfort is our primary clinical protocol.') ?>
-                    </p>
-<div class="flex flex-wrap gap-4">
-<button onclick="openModal()" class="bg-primary text-on-primary px-8 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all">
-                            <?= htmlspecialchars($clinic['cta_primary']) ?>
-                        </button>
-</div>
-</div>
-<div class="relative">
-<div class="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl relative z-10">
-<img id="hero-image" class="w-full h-full object-cover" data-alt="Modern high-end dental clinic" src="<?= htmlspecialchars($clinic['hero_image']) ?>"/>
-</div>
-<div class="absolute -bottom-6 -left-6 bg-surface-container-lowest p-6 rounded-xl shadow-xl z-20 flex items-center gap-4 max-w-xs">
-<div class="w-12 h-12 bg-secondary-container rounded-full flex items-center justify-center text-on-secondary-container">
-<span class="material-symbols-outlined">verified_user</span>
-</div>
-<div>
-<p class="font-bold text-primary">Certified Quality</p>
-<p class="text-xs text-on-surface-variant">Top-rated patient experience 2024</p>
-</div>
-</div>
-</div>
-</div>
-</section>
-<!-- Philosophy / About Section -->
-<section class="py-24 bg-surface-container-low" id="about">
-<div class="max-w-7xl mx-auto px-8">
-<div class="grid md:grid-cols-12 gap-12 items-center">
-<div class="md:col-span-5">
-<h2 class="text-4xl font-extrabold text-on-surface mb-6 leading-tight">Professionalism<br/>Refined through Art.</h2>
-<p class="text-on-surface-variant leading-relaxed text-lg mb-8">
-                            <?= htmlspecialchars($clinic['about_description'] ?? 'At ' . ($clinic['name'] ?? 'our clinic') . ', we believe that world-class dentistry should never feel clinical.') ?>
-                        </p>
-<div class="space-y-4">
-<div class="flex items-center gap-4">
-<span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium"><?= htmlspecialchars($clinic['checklist_1']) ?></span>
-</div>
-<div class="flex items-center gap-4">
-<span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium"><?= htmlspecialchars($clinic['checklist_2']) ?></span>
-</div>
-<div class="flex items-center gap-4">
-<span class="material-symbols-outlined text-secondary">check_circle</span>
-<span class="font-medium"><?= htmlspecialchars($clinic['checklist_3']) ?></span>
-</div>
-</div>
-</div>
-<div class="md:col-span-7 grid grid-cols-2 gap-4">
-<div class="space-y-4 pt-12">
-<div class="rounded-2xl overflow-hidden shadow-lg h-64">
-<img id="about-image-1" class="w-full h-full object-cover" data-alt="Abstract macro shot" src="<?= htmlspecialchars($clinic['about_image_1']) ?>"/>
-</div>
-<div class="bg-primary p-8 rounded-2xl text-on-primary">
-<p class="text-4xl font-black mb-2"><?= htmlspecialchars($clinic['stat_number']) ?></p>
-<p class="text-sm font-medium uppercase tracking-widest opacity-80"><?= htmlspecialchars($clinic['stat_label']) ?></p>
-</div>
-</div>
-<div class="rounded-2xl overflow-hidden shadow-lg h-[450px]">
-<img id="about-image-2" class="w-full h-full object-cover" data-alt="Interior of a luxury clinic" src="<?= htmlspecialchars($clinic['about_image_2']) ?>"/>
-</div>
-</div>
-</div>
-</div>
-</section>
+
 
 <!-- Services Section -->
 <section class="py-24 bg-surface" id="services">
     <div class="max-w-7xl mx-auto px-8">
-        <div class="text-center max-w-2xl mx-auto mb-10">
+        <div class="text-center max-w-2xl mx-auto mb-16">
             <span class="text-primary text-sm font-bold uppercase tracking-widest block mb-3">Our Clinical Offerings</span>
             <h2 class="text-4xl font-extrabold text-on-surface mb-4">Exceptional Dental Services</h2>
             <p class="text-on-surface-variant font-body font-light text-lg">Discover our curated selection of state-of-the-art treatments designed around your comfort and clinical excellence.</p>
         </div>
 
-        <div class="flex justify-center">
-            <a href="tenant_services.php?tenant=<?= urlencode($slug) ?>" class="bg-primary text-on-primary px-10 py-4 rounded-full font-bold shadow-lg hover:bg-on-primary-fixed-variant active:scale-95 transition-all text-lg flex items-center gap-3">
-                View Full Services Menu
-                <span class="material-symbols-outlined">arrow_forward</span>
-            </a>
+        <?php if (count($categories) > 1): ?>
+        <!-- Category Filter Tabs -->
+        <div class="flex flex-wrap justify-center gap-3 mb-12">
+            <?php foreach ($categories as $cat): ?>
+                <button 
+                    onclick="filterServices('<?= htmlspecialchars($cat) ?>', this)" 
+                    class="category-tab px-6 py-2.5 rounded-full text-sm font-semibold tracking-wide transition-all duration-300 <?= $cat === 'All' ? 'bg-primary text-on-primary shadow-md font-bold' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' ?>">
+                    <?= htmlspecialchars($cat) ?>
+                </button>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- Services Grid -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <?php foreach ($services as $service): ?>
+                <div class="bg-surface-container-lowest rounded-[2rem] p-8 shadow-sm border border-outline-variant/10 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group service-card" data-category="<?= htmlspecialchars($service['category'] ?? 'General') ?>">
+                    <div>
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
+                                <span class="material-symbols-outlined text-2xl"><?= getCategoryIcon($service['category'] ?? 'General') ?></span>
+                            </div>
+                            <span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-bold uppercase tracking-wider">
+                                <?= htmlspecialchars($service['category'] ?? 'General') ?>
+                            </span>
+                        </div>
+                        <h3 class="text-xl font-bold text-on-surface mb-3 group-hover:text-primary transition-colors duration-300">
+                            <?= htmlspecialchars($service['service_name']) ?>
+                        </h3>
+                        <p class="text-on-surface-variant text-sm leading-relaxed font-light mb-6 line-clamp-3">
+                            <?= htmlspecialchars($service['description'] ?? 'No description available for this service.') ?>
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-outline-variant/10">
+                        <div>
+                            <span class="text-xs text-on-surface-variant block uppercase tracking-wider">Investment</span>
+                            <span class="text-xl font-extrabold text-primary">₱<?= number_format($service['price'], 2) ?></span>
+                        </div>
+                        <button onclick="openModal()" class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:bg-primary group-hover:text-on-primary transition-all duration-300 shadow-md">
+                            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
     </div>
 </section>
 
-<!-- Team Section -->
-<section class="py-24 bg-surface-container-low" id="team">
-<div class="max-w-7xl mx-auto px-8">
-<div class="text-center max-w-2xl mx-auto mb-16">
-<h2 class="text-4xl font-extrabold text-on-surface mb-4"><?= htmlspecialchars($clinic['team_title'] ?? 'The Architects of Your Smile') ?></h2>
-<p class="text-on-surface-variant font-body"><?= htmlspecialchars($clinic['team_subtitle'] ?? 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.') ?></p>
-</div>
-<div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-<?php 
-$teamMembers = $clinic['team'];
-if (empty($teamMembers)) {
-    // Default team members
-    $teamMembers = [
-        [
-            'name' => 'Dr. Julian Vance',
-            'role' => 'Chief Prosthodontist',
-            'description' => 'Expert in reconstructive aesthetic dentistry with 15 years of clinical excellence.',
-            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuAL6y-PIHQgnWOeLZ5oQKYGgDndV6mBtY3McI8O3gNlbATmsN2z2HgaxB-ro25d2kQLdLGYhOU-mXkv8H1ymAXABErj7Ln5TcPKwyl4vUKofbL7zTdrh1qMT7qHTaUX5Vdp6_XodPSrNA6ITzHaqKly1bE44rPUXUcGVU4Uk4l3stZltFc-XUdPrAY-kWiZ1WkUnwinm2qQLIeboU5FEBIbIngq4zL38-_-JJFPxiIKlpFt4ZfZ-mmfZEXnMz2iprXW9ITFVCdm6ec',
-            'tags' => ['Implants', 'Veneers']
-        ],
-        [
-            'name' => 'Dr. Elena Rostova',
-            'role' => 'Lead Orthodontist',
-            'description' => 'Specializing in invisible alignment systems and holistic jaw alignment therapies.',
-            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuBg81LjkOL5PJs-3Td8bb1ZgBCLAPvxEAdqtUpn67cGf3NLmthtQeSDEQuTK34bONhUB0kdmmBZiPLjbDi8yGyEO-Tsyz1-dRm2R1xJS0pR09srYU5-qxYt_zlgOvCPVXV0-dMwj3nskjmm23Untq7MI233FD1FLJLQJALp8M7fhspLqa7YGnut6EmSYskyCLavjOQgdDoNiZLugEawq3GJp28iLds9YBHjDhgoOHV_W535CyhByi1fyrDdLI5jJnmze3TR7u0WgXE',
-            'tags' => ['Invisalign', 'Alignment']
-        ],
-        [
-            'name' => 'Marcus Chen',
-            'role' => 'Oral Hygienist',
-            'description' => 'Pioneer of pain-free ultrasonic cleaning protocols and preventive care wellness.',
-            'image' => 'https://lh3.googleusercontent.com/aida-public/AB6AXuA0eWtPM78tu6eWdZGq4m28rrX6alFZJgIexcRarCMngAQLEPexwrUY-IK_jv6PMQBsCy94KBDN3RYbOxrHW0lIj5adOrqhlGLXUnpygo86x9VOIDFqDuZxHbybXTjCQsZ9eQ02aqP-_-_dXUG2LJm3DqdZcGaskOIiAvJR7Mhm1EoSYxVVpMraYoYNL0rsIfnd4pRPoVLM6PfJZEQCSkAybceC2G9uJVZZbyQd9_VK5JaB3J28og-YJnJOFEZjxmGw7fmItxQG-eQ',
-            'tags' => ['Cleaning', 'Prevention']
-        ]
-    ];
-}
 
-foreach ($teamMembers as $index => $member):
-?>
-<div class="bg-surface-container-lowest rounded-xl overflow-hidden group hover:shadow-xl transition-all duration-300 team-member-card" data-index="<?= $index ?>">
-<div class="aspect-square overflow-hidden">
-<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Professional portrait" src="<?= htmlspecialchars($member['image']) ?>"/>
-</div>
-<div class="p-8">
-<span class="text-secondary text-xs font-bold uppercase tracking-widest block mb-2"><?= htmlspecialchars($member['role']) ?></span>
-<h3 class="text-xl font-bold text-on-surface mb-2"><?= htmlspecialchars($member['name']) ?></h3>
-<p class="text-on-surface-variant text-sm leading-relaxed mb-6"><?= htmlspecialchars($member['description']) ?></p>
-<div class="flex gap-2">
-<?php foreach ($member['tags'] as $tag): ?>
-<span class="px-3 py-1 bg-secondary-fixed text-on-secondary-container rounded-full text-xs font-semibold"><?= htmlspecialchars($tag) ?></span>
-<?php endforeach; ?>
-</div>
-</div>
-</div>
-<?php endforeach; ?>
-</div>
-</div>
-</section>
-<!-- Bento Grid: Schedule & Announcements -->
-<section class="py-24 bg-surface" id="schedule">
-<div class="max-w-7xl mx-auto px-8">
-<div class="grid lg:grid-cols-3 gap-8">
-<!-- Weekly Schedule -->
-<div class="lg:col-span-2 bg-surface-container-lowest p-10 rounded-3xl shadow-sm border border-outline-variant/10">
-<div class="flex items-center justify-between mb-8">
-<h2 class="text-3xl font-bold text-on-surface">Weekly Schedule</h2>
-<span class="material-symbols-outlined text-primary text-3xl">calendar_month</span>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
-<?php 
-$daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-foreach ($daysOrder as $day):
-    $dayData = $schedule[$day] ?? null;
-    $dayName = ucfirst($day);
-    $timeStr = '';
-    $isSpecial = false;
-
-    if (!$dayData || $dayData['is_closed']) {
-        $timeStr = 'Closed';
-        $isSpecial = true;
-    } else {
-        $open = date('g:i A', strtotime($dayData['opening_time']));
-        $close = date('g:i A', strtotime($dayData['closing_time']));
-        $timeStr = "$open — $close";
-    }
-?>
-<div class="flex justify-between items-center py-3 border-b border-outline-variant/20">
-    <span class="font-semibold"><?= $dayName ?></span>
-    <span class="<?= $isSpecial ? 'text-outline italic' : 'text-secondary font-medium' ?>"><?= $timeStr ?></span>
-</div>
-<?php endforeach; ?>
-<div class="flex justify-between items-center py-3">
-<span class="font-bold text-primary">Public Holidays</span>
-<span class="text-outline">Closed</span>
-</div>
-</div>
-</div>
-<!-- Announcements Feed -->
-<div class="bg-primary text-on-primary p-10 rounded-3xl flex flex-col justify-between">
-<div>
-<div class="flex items-center gap-3 mb-8">
-<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">campaign</span>
-<h2 class="text-2xl font-bold">Latest Pulse</h2>
-</div>
-<div class="space-y-8">
-<?php 
-$announcements = $clinic['announcements'];
-if (empty($announcements)) {
-    // Default announcements
-    $announcements = [
-        [
-            'date' => 'Sept 12, 2024',
-            'title' => 'New Aesthetic Laser Protocol',
-            'description' => 'Introducing the Mint-Glow series for 20-minute whitening without sensitivity.'
-        ],
-        [
-            'date' => 'Sept 05, 2024',
-            'title' => 'Evening Hours Extended',
-            'description' => 'Thursday nights are now open until 9 PM for our executive patients.'
-        ]
-    ];
-}
-
-foreach ($announcements as $index => $announcement):
-?>
-<div class="announcement-item" data-index="<?= $index ?>">
-<span class="text-xs uppercase font-bold tracking-widest opacity-60"><?= htmlspecialchars($announcement['date']) ?></span>
-<h4 class="font-bold text-lg mt-1"><?= htmlspecialchars($announcement['title']) ?></h4>
-<p class="text-on-primary/70 text-sm mt-2"><?= htmlspecialchars($announcement['description']) ?></p>
-</div>
-<?php endforeach; ?>
-</div>
-</div>
-
-</div>
-</div>
-</div>
-</section>
-<!-- Location & Map Section -->
-<section class="py-24 bg-surface-container-low" id="location">
-<div class="max-w-7xl mx-auto px-8">
-<div class="bg-surface-container-lowest rounded-[3rem] overflow-hidden shadow-2xl flex flex-col md:flex-row">
-<div class="md:w-1/2 p-12 lg:p-20">
-<h2 class="text-4xl font-extrabold text-on-surface mb-8">Visit the Oasis.</h2>
-<div class="space-y-10">
-<div class="flex gap-6">
-<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary">location_on</span>
-</div>
-<div>
-<h4 class="font-bold text-lg mb-1">Our Studio</h4>
-<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_address'] ?? 'Address not set') ?></p>
-</div>
-</div>
-<div class="flex gap-6">
-<div class="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary">call</span>
-</div>
-<div>
-<h4 class="font-bold text-lg mb-1">Contact Concierge</h4>
-<p class="text-on-surface-variant"><?= htmlspecialchars($clinic['contact_phone'] ?? 'Phone not set') ?><br/><?= htmlspecialchars($clinic['contact_email'] ?? 'support@oralsync.com') ?></p>
-</div>
-</div>
-</div>
-</div>
-<div class="md:w-1/2 min-h-[400px] relative grayscale">
-<img class="w-full h-full object-cover" data-alt="Minimalist street map of a modern metropolitan city area with light blue and grey tones" data-location="Metropolis" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsRWlBMULDv8ZnFrVini31nZRjWisxLoSoCvPlhqTaYW1oha1LJOtM5QRjEL4gVZ7LY0yLkmEinpX7VwlovQ5A_fr-4t_xqzCNscyhC397pxjreAzCHVv0RLHWu5jO_ztfQHM7c-CpHbspqYgJP4VaitiUv64Rw4BKXGw8jppiikSBupnkawgrCDETven0rquGxgC5bfYixBXcS97M-YIHOMGo0qvM40sKe5rD58HztoXTsusTUCDWxG5mjoL9ASS3fFpDu-RaYu0"/>
-<!-- Glassmorphic Overlay -->
-<div class="absolute inset-0 bg-primary/10 pointer-events-none"></div>
-<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-surface/80 backdrop-blur-md p-6 rounded-2xl shadow-2xl border border-white/20 text-center">
-<span class="material-symbols-outlined text-primary text-4xl mb-2" style="font-variation-settings: 'FILL' 1;">location_on</span>
-<p class="font-bold text-on-surface"><?= htmlspecialchars($clinic['name']) ?></p>
-<p class="text-xs text-secondary mt-1">Now Arriving</p>
-</div>
-</div>
-</div>
-</div>
-</section>
 </main>
 <footer class="w-full py-16 px-8 bg-[#f2f4f5] dark:bg-slate-950 font-['Inter'] text-xs uppercase tracking-widest mt-12">
 <div class="flex flex-col items-center text-center space-y-6 w-full max-w-7xl mx-auto">

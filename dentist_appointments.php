@@ -38,6 +38,31 @@ $dentistName = $sessionManager->getUsername() ?? 'Dentist';
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $today = date('Y-m-d');
 
+// Pagination Setup
+$perPage = 12;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
+$totalAppointments = 0;
+$countQuery = "SELECT COUNT(*) AS total FROM appointment a WHERE a.tenant_id = ? AND a.dentist_id = ? AND a.status <> 'Disapproved'";
+if ($filter == 'today') $countQuery .= " AND a.appointment_date = ?";
+elseif ($filter == 'upcoming') $countQuery .= " AND a.appointment_date > ?";
+
+$countStmt = $conn->prepare($countQuery);
+if ($countStmt) {
+    if ($filter == 'today' || $filter == 'upcoming') {
+        $countStmt->bind_param("iis", $tenantId, $dentistId, $today);
+    } else {
+        $countStmt->bind_param("ii", $tenantId, $dentistId);
+    }
+    $countStmt->execute();
+    $countRes = $countStmt->get_result();
+    if ($countRow = $countRes->fetch_assoc()) {
+        $totalAppointments = (int)$countRow['total'];
+    }
+    $countStmt->close();
+}
+
 // Query Logic
 $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name, 
                  COALESCE(s.service_name, 'No Service Specified') AS service_name, 
@@ -50,15 +75,15 @@ $query = "SELECT a.appointment_id, p.patient_id, p.first_name, p.last_name,
 if ($filter == 'today') $query .= " AND a.appointment_date = ?";
 elseif ($filter == 'upcoming') $query .= " AND a.appointment_date > ?";
 
-$query .= " ORDER BY a.appointment_date ASC, a.appointment_time ASC";
+$query .= " ORDER BY a.appointment_date ASC, a.appointment_time ASC LIMIT ?, ?";
 
 $result = null;
 $stmt = mysqli_prepare($conn, $query);
 if ($stmt) {
     if ($filter == 'today' || $filter == 'upcoming') {
-        mysqli_stmt_bind_param($stmt, "iis", $tenantId, $dentistId, $today);
+        mysqli_stmt_bind_param($stmt, "iisii", $tenantId, $dentistId, $today, $offset, $perPage);
     } else {
-        mysqli_stmt_bind_param($stmt, "ii", $tenantId, $dentistId);
+        mysqli_stmt_bind_param($stmt, "iiii", $tenantId, $dentistId, $offset, $perPage);
     }
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
@@ -146,71 +171,67 @@ $errorMessage = '';
         color: white;
       }
 
-      .appt-list-container {
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
+      .module-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
       }
 
-      .appt-card {
-        display: grid;
-        grid-template-columns: 100px 1fr auto;
-        align-items: center;
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-        border-left: 6px solid var(--dashboard-accent);
-        transition: transform 0.2s;
-      }
-
-      .appt-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
-
-      .time-badge {
-        text-align: center;
-        border-right: 1px solid var(--dashboard-border);
-        padding-right: 15px;
-      }
-
-      .time-badge h4 { margin: 0; color: var(--dashboard-accent); font-size: 16px; }
-      .time-badge p { margin: 0; font-size: 12px; color: #64748b; }
-
-      .patient-details { padding-left: 20px; }
-      .patient-details h3 { margin: 0 0 5px 0; color: #1e293b; font-size: 18px; }
-      .service-tag { 
-        background: var(--dashboard-bg); 
-        color: #64748b; 
-        padding: 3px 10px; 
-        border-radius: 5px; 
-        font-size: 12px; 
-        font-weight: 600; 
-      }
-
-      .status-indicator {
-        font-size: 12px;
+      .module-table th {
+        background: var(--dashboard-bg);
+        border-bottom: 2px solid var(--dashboard-border);
+        padding: 12px;
+        text-align: left;
         font-weight: 700;
+        color: var(--dashboard-accent);
+        font-size: 12px;
         text-transform: uppercase;
-        margin-top: 8px;
-        display: block;
+        letter-spacing: 0.5px;
       }
 
-      .btn-treatment {
-        background: var(--dashboard-accent);
-        color: white !important;
-        text-decoration: none;
-        padding: 12px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
+      .module-table td {
+        padding: 12px;
+        border-bottom: 1px solid var(--dashboard-border);
+        font-size: 14px;
+      }
+
+      .module-table tbody tr:hover {
+        background: var(--dashboard-bg);
+      }
+
+      .status-pill {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        text-transform: uppercase;
         display: inline-block;
       }
 
-      .hidden-card { display: none !important; }
+      .status-pill.pending { background: #fffbeb; color: #92400e; }
+      .status-pill.completed { background: #f0fdf4; color: #166534; }
+      .status-pill.cancelled { background: #fef2f2; color: #991b1b; }
+      .status-pill.in-progress { background: #e0f2fe; color: #0369a1; }
+      .status-pill.approved { background: #dcfce7; color: #166534; }
 
-      /* Status Colors */
-      .status-pending { color: #f59e0b; }
-      .status-completed { color: #10b981; }
-      .status-in-progress { color: #0ea5e9; }
+      .btn-treatment {
+        background: white;
+        color: var(--dashboard-accent);
+        border: 1px solid var(--dashboard-accent);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: pointer;
+        transition: 0.2s;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn-treatment:hover {
+        background: var(--dashboard-accent);
+        color: white;
+      }
 
       .live-clock-badge {
         background: linear-gradient(135deg, rgba(13, 59, 102, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
@@ -383,48 +404,56 @@ $errorMessage = '';
         </div>
 
         <div class="appt-list-container" id="apptList">
-          <?php if ($result && $result->num_rows > 0): ?>
-            <?php while($row = $result->fetch_assoc()):
-              $statusClass = strtolower($row['status'] ?? 'pending');
-              $dateFormatted = date('M d', strtotime($row['appointment_date']));
-              $yearFormatted = date('Y', strtotime($row['appointment_date']));
-              $dayFormatted  = date('D', strtotime($row['appointment_date']));
-            ?>
-              <div class="appt-card" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
-
-                <div class="time-badge">
-                  <h4 style="font-size: 14px;"><?php echo $dateFormatted; ?></h4>
-                  <p style="font-size: 11px;"><?php echo $dayFormatted; ?></p>
-                  <?php if (!empty($row['appointment_time'])): ?>
-                    <div style="margin-top: 5px; font-weight: bold; color: var(--dashboard-accent); font-size: 13px;">
-                        <?php echo date('g:i A', strtotime($row['appointment_time'])); ?>
-                    </div>
-                  <?php endif; ?>
-                </div>
-
-                <div class="patient-details">
-                  <h3><?php echo h(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?></h3>
-                  <?php if (!empty($row['service_name']) && $row['service_name'] !== 'No Service Specified'): ?>
-                    <span class="service-tag"><?php echo h($row['service_name']); ?></span>
-                  <?php endif; ?>
-                  <span class="status-indicator status-<?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>">
-                    ● <?php echo h(ucwords(strtolower($row['status'] ?? 'pending'))); ?>
-                  </span>
-                </div>
-
-                <div class="appt-actions" style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                  <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">
-                    Open Clinical Log
-                  </a>
-                </div>
-
-              </div>
-            <?php endwhile; ?>
-          <?php else: ?>
-            <div style="text-align:center; padding: 60px; background:white; border-radius:15px; color:#94a3b8;">
-              <div style="font-size:48px; margin-bottom:16px;">📅</div>
-              <p style="font-size:15px; font-weight:600;">No appointments found</p>
-              <p style="font-size:13px;">Try switching the filter above or check back later.</p>
+          <table class="module-table" id="appointmentTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Patient</th>
+                <th>Service</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <?php if ($result && $result->num_rows > 0): ?>
+                <?php while($row = $result->fetch_assoc()):
+                  $statusClass = strtolower(str_replace(' ', '-', $row['status'] ?? 'pending'));
+                  $dateFormatted = date('M d, Y', strtotime($row['appointment_date']));
+                  $timeFormatted = !empty($row['appointment_time']) ? date('g:i A', strtotime($row['appointment_time'])) : '-';
+                  $patientName = h(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
+                  $serviceName = h($row['service_name'] ?? 'No Service Specified');
+                ?>
+                  <tr class="appt-row" data-name="<?php echo strtolower($row['first_name'] . ' ' . $row['last_name']); ?>">
+                    <td><strong><?php echo $dateFormatted; ?></strong></td>
+                    <td><?php echo $timeFormatted; ?></td>
+                    <td><?php echo $patientName; ?></td>
+                    <td><?php echo $serviceName !== 'No Service Specified' ? '<span class="service-tag">'.$serviceName.'</span>' : $serviceName; ?></td>
+                    <td><span class="status-pill <?php echo $statusClass; ?>"><?php echo h(ucwords(strtolower($row['status'] ?? 'pending'))); ?></span></td>
+                    <td>
+                      <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo $row['patient_id']; ?>&appt=<?php echo $row['appointment_id']; ?>" class="btn-treatment">Open Clinical Log</a>
+                    </td>
+                  </tr>
+                <?php endwhile; ?>
+              <?php else: ?>
+                <tr>
+                  <td colspan="6" style="text-align: center; color: #64748b; padding: 40px;">No appointments found. Try switching the filter above or check back later.</td>
+                </tr>
+              <?php endif; ?>
+            </tbody>
+          </table>
+          
+          <?php if ($totalAppointments > $perPage):
+              $lastPage = (int)ceil($totalAppointments / $perPage);
+          ?>
+            <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:18px;">
+              <?php if ($page > 1): ?>
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="btn-treatment">Previous</a>
+              <?php endif; ?>
+              <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
+              <?php if ($page < $lastPage): ?>
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="btn-treatment">Next</a>
+              <?php endif; ?>
             </div>
           <?php endif; ?>
         </div>
@@ -441,9 +470,9 @@ $errorMessage = '';
     
     document.getElementById('apptSearch').addEventListener('input', function() {
       const q = this.value.toLowerCase();
-      document.querySelectorAll('.appt-card').forEach(card => {
-        const match = (card.dataset.name || '').includes(q);
-        card.classList.toggle('hidden-card', !match);
+      document.querySelectorAll('.appt-row').forEach(row => {
+        const match = (row.dataset.name || '').includes(q);
+        row.style.display = match ? '' : 'none';
       });
     });
   </script>

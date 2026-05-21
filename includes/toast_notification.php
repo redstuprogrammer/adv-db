@@ -70,3 +70,5 @@
         }
     });
 </script>
+
+<?php include_once __DIR__ . '/global_announcements.php'; ?>
