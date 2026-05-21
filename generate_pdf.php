@@ -28,16 +28,11 @@ require_once __DIR__ . '/includes/session_utils.php';
 
 $sessionManager = SessionManager::getInstance();
 $isSuperAdmin   = $sessionManager->isSuperAdmin();
-
-// Tenant admin: try SessionManager first, then fall back to raw $_SESSION.
-// reports.php sets $_SESSION['role'] = 'Admin' directly, which SessionManager
-// may not expose via isTenantUser() if it uses a different session key.
-$isTenantAdmin  = ($sessionManager->isTenantUser() && strtolower((string)$sessionManager->getRole()) === 'admin')
-               || (!empty($_SESSION['tenant_id']) && isset($_SESSION['role']) && strtolower((string)$_SESSION['role']) === 'admin');
+$isTenantAdmin  = $sessionManager->isTenantUser() && strtolower((string)$sessionManager->getRole()) === 'admin';
 
 if (!$isSuperAdmin && !$isTenantAdmin) {
     ob_end_clean();
-    header('Location: tenant_login.php');
+    header('Location: ' . ($isSuperAdmin ? 'superadmin_login.php' : 'tenant_login.php'));
     exit;
 }
 
@@ -130,10 +125,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // If superadmin is viewing a clinic, we need the tenant_id from the data or URL
             $tenantId = $sessionManager->getTenantId();
-            if (!$tenantId && isset($data['tenant_id']) && $data['tenant_id']) {
+            if (!$tenantId && isset($data['tenant_id'])) {
                 $tenantId = (int)$data['tenant_id'];
             }
-            // Direct $_SESSION fallback — reports.php stores tenant_id here
+            // Fallback: read directly from raw session (in case SessionManager uses a different key)
             if (!$tenantId && !empty($_SESSION['tenant_id'])) {
                 $tenantId = (int)$_SESSION['tenant_id'];
             }
@@ -165,12 +160,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $query = "SELECT py.billing_id AS payment_id,
                              py.amount_paid AS amount,
-                             py.payment_status AS status,
+                             CONVERT(py.payment_status USING utf8mb4) COLLATE utf8mb4_general_ci AS status,
                              py.billing_date,
                              py.billing_date AS payment_date,
-                               p.first_name, p.last_name,
-                               py.payment_type,
-                               'web' AS source
+                             CONVERT(p.first_name      USING utf8mb4) COLLATE utf8mb4_general_ci AS first_name,
+                             CONVERT(p.last_name       USING utf8mb4) COLLATE utf8mb4_general_ci AS last_name,
+                             CONVERT(py.payment_type   USING utf8mb4) COLLATE utf8mb4_general_ci AS payment_type,
+                             CONVERT('web'             USING utf8mb4) COLLATE utf8mb4_general_ci AS source
                       FROM billing py
                       LEFT JOIN appointment a ON py.appointment_id = a.appointment_id
                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id
@@ -180,12 +176,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                       
                       SELECT r.payment_id,
                              r.amount,
-                             r.status,
+                             CONVERT(r.status          USING utf8mb4) COLLATE utf8mb4_general_ci AS status,
                              r.payment_date AS billing_date,
                              r.payment_date,
-                             p.first_name, p.last_name,
-                             r.payment_type,
-                             'mobile' AS source
+                             CONVERT(p.first_name      USING utf8mb4) COLLATE utf8mb4_general_ci AS first_name,
+                             CONVERT(p.last_name       USING utf8mb4) COLLATE utf8mb4_general_ci AS last_name,
+                             CONVERT(r.payment_type    USING utf8mb4) COLLATE utf8mb4_general_ci AS payment_type,
+                             CONVERT('mobile'          USING utf8mb4) COLLATE utf8mb4_general_ci AS source
                       FROM payment r
                       LEFT JOIN appointment a ON r.appointment_id = a.appointment_id
                       LEFT JOIN patient     p ON a.patient_id      = p.patient_id

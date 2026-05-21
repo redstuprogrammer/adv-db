@@ -808,9 +808,37 @@
 
         // File upload tracking
         let selectedFiles = [];
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+        
         if (docInput) {
             docInput.addEventListener('change', function() {
-                selectedFiles = Array.from(this.files);
+                // Validate each file before adding to selectedFiles
+                const newFiles = Array.from(this.files);
+                const validFiles = [];
+                let hasInvalidFiles = false;
+                
+                newFiles.forEach(file => {
+                    if (file.size > MAX_FILE_SIZE) {
+                        hasInvalidFiles = true;
+                        showToast(`File "${file.name}" exceeds 5MB limit. Please select a smaller file.`);
+                    } else {
+                        validFiles.push(file);
+                    }
+                });
+                
+                // Only add valid files
+                selectedFiles = validFiles;
+                
+                // Update file input to reflect only valid files
+                if (hasInvalidFiles && validFiles.length === 0) {
+                    docInput.value = ''; // Clear input if all files were invalid
+                } else if (hasInvalidFiles && validFiles.length > 0) {
+                    // Re-bind valid files back to input
+                    const dt = new DataTransfer();
+                    validFiles.forEach(f => dt.items.add(f));
+                    docInput.files = dt.files;
+                }
+                
                 renderFileList();
             });
         }
@@ -822,16 +850,20 @@
                 return;
             }
             fileListPreview.classList.remove('hidden');
-            fileItemsContainer.innerHTML = selectedFiles.map((file, idx) => `
-                <div class="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-100 text-xs">
-                    <div class="flex items-center gap-2 text-slate-700 font-medium overflow-hidden">
-                        <span class="material-symbols-outlined text-slate-400 text-sm" data-icon="description">description</span>
+            fileItemsContainer.innerHTML = selectedFiles.map((file, idx) => {
+                const isOversized = file.size > MAX_FILE_SIZE;
+                const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                return `
+                <div class="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border ${isOversized ? 'border-red-300 bg-red-50' : 'border-slate-100'} text-xs">
+                    <div class="flex items-center gap-2 ${isOversized ? 'text-red-700 font-bold' : 'text-slate-700 font-medium'} overflow-hidden">
+                        <span class="material-symbols-outlined ${isOversized ? 'text-red-500' : 'text-slate-400'} text-sm" data-icon="description">description</span>
                         <span class="truncate max-w-[200px]">${file.name}</span>
-                        <span class="text-slate-400">(${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                        <span class="${isOversized ? 'text-red-600 font-bold' : 'text-slate-400'}">(${fileSizeMB} MB)${isOversized ? ' ⚠️ TOO LARGE' : ''}</span>
                     </div>
                     <button type="button" onclick="window.removeFile(${idx})" class="text-red-500 font-semibold hover:text-red-700">Remove</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         window.removeFile = function(index) {
@@ -843,6 +875,33 @@
             renderFileList();
         };
 
+        // Drag and drop handling
+        const dropzone = document.getElementById('upload-dropzone');
+        if (dropzone) {
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-brand-navy', 'bg-blue-50');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('border-brand-navy', 'bg-blue-50');
+            });
+
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-brand-navy', 'bg-blue-50');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    // Trigger file input change to use same validation logic
+                    const dt = new DataTransfer();
+                    Array.from(files).forEach(f => dt.items.add(f));
+                    docInput.files = dt.files;
+                    docInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+
         // Form Submit flow intercept
         if (form) {
             form.addEventListener('submit', function(e) {
@@ -851,6 +910,19 @@
                 // Validate documents count
                 if (selectedFiles.length === 0) {
                     showToast('Please upload at least one valid clinic document.');
+                    return;
+                }
+
+                // Validate file sizes before submission
+                let oversizedFiles = [];
+                selectedFiles.forEach(file => {
+                    if (file.size > MAX_FILE_SIZE) {
+                        oversizedFiles.push(file.name);
+                    }
+                });
+                
+                if (oversizedFiles.length > 0) {
+                    showToast(`The following files exceed 5MB: ${oversizedFiles.join(', ')}. Please remove and reselect.`);
                     return;
                 }
 

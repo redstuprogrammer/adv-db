@@ -639,7 +639,7 @@ if (isset($_GET['view_patient_id'])) {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👥 Patient Records</div>
+        <div class="tenant-header-title">Patient Records</div>
         <?php renderDateClock(); ?>
       </div>
 
@@ -650,7 +650,7 @@ if (isset($_GET['view_patient_id'])) {
         <?php if ($errorMessage): ?>
           <div class="message error"><?php echo h($errorMessage); ?></div>
         <?php endif; ?>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 20px; gap: 16px; flex-wrap: wrap;">
           <button class="btn-primary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 
@@ -771,50 +771,85 @@ if (isset($_GET['view_patient_id'])) {
         <button class="patient-modal-close" onclick="closePatientModal()">&times;</button>
       </div>
       <div id="modalBody">
-        <!-- Patient details will be loaded here -->
+        <?php if ($viewPatient): ?>
+          <?php
+            $fields = [
+              'Patient ID'      => 'P' . str_pad($viewPatient['patient_id'], 3, '0', STR_PAD_LEFT),
+              'Full Name'       => h($viewPatient['first_name'] . ' ' . $viewPatient['last_name']),
+              'Contact Number'  => h($viewPatient['contact_number'] ?? 'N/A'),
+              'Email'           => h($viewPatient['email'] ?? 'N/A'),
+              'Gender'          => h($viewPatient['gender'] ?? 'N/A'),
+              'Birthdate'       => h($viewPatient['birthdate'] ?? 'N/A'),
+              'Address'         => h($viewPatient['address'] ?? 'N/A'),
+            ];
+            foreach ($fields as $label => $value): ?>
+              <div class="patient-detail-row">
+                <div class="patient-detail-label"><?php echo $label; ?></div>
+                <div class="patient-detail-value"><?php echo $value; ?></div>
+              </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+      <div style="padding: 16px 24px; display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border);">
+        <a id="modalRecordsLink" href="#" class="action-btn outline">View Clinical Records</a>
+        <button class="action-btn" onclick="closePatientModal()">Close</button>
       </div>
     </div>
   </div>
 
   <script>
-    function openPatientModal(patientId) {
-      // Fetch patient data via AJAX
-      fetch('get_patient_details.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>') + '&patient_id=' + patientId)
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            const patient = data.patient;
-            document.getElementById('modalPatientName').textContent = patient.first_name + ' ' + patient.last_name;
-            
-            const fields = [
-              { label: 'Patient ID', value: 'P' + String(patient.patient_id).padStart(3, '0') },
-              { label: 'Full Name', value: patient.full_name },
-              { label: 'Contact Number', value: patient.contact_number },
-              { label: 'Email', value: patient.email },
-              { label: 'Gender', value: patient.gender },
-              { label: 'Birthdate', value: patient.birthdate + ' (Age: ' + patient.age + ')' },
-              { label: 'Address', value: patient.address },
-              { label: 'Emergency Contact', value: patient.emergency_contact },
-              { label: 'Medical History', value: patient.medical_history },
-              { label: 'Last Appointment', value: patient.last_appointment }
-            ];
-            
-            let html = '';
-            fields.forEach(field => {
-              html += '<div class="patient-detail-row"><div class="patient-detail-label">' + field.label + '</div><div class="patient-detail-value">' + field.value + '</div></div>';
-            });
-            
-            document.getElementById('modalBody').innerHTML = html;
-            document.getElementById('patientModal').classList.add('open');
-          }
-        })
-        .catch(error => console.error('Error:', error));
+    <?php printDateClockScript(); ?>
+
+    const tenantSlug = '<?php echo rawurlencode($tenantSlug); ?>';
+
+    const patientData = <?php
+      $map = [];
+      foreach ($patients as $p) {
+          $map[$p['patient_id']] = [
+              'name'      => $p['first_name'] . ' ' . $p['last_name'],
+              'pid'       => 'P' . str_pad($p['patient_id'], 3, '0', STR_PAD_LEFT),
+              'contact'   => $p['contact_number'] ?? 'N/A',
+              'email'     => $p['email'] ?? 'N/A',
+              'gender'    => $p['gender'] ?? 'N/A',
+              'birthdate' => $p['birthdate'] ?? 'N/A',
+              'address'   => $p['address'] ?? 'N/A',
+              'last_visit'=> $p['last_visit'] ? date('M d, Y', strtotime($p['last_visit'])) : 'Never',
+          ];
+      }
+      echo json_encode($map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT);
+    ?>;
+
+    function openPatientModal(id) {
+      const p = patientData[id];
+      if (!p) return;
+      document.getElementById('modalPatientName').textContent = p.name + ' — Patient Details';
+      document.getElementById('modalRecordsLink').href =
+        'clinical_record.php?tenant=' + tenantSlug + '&patient_id=' + id;
+
+      const fields = [
+        ['Patient ID', p.pid], ['Full Name', p.name], ['Contact Number', p.contact],
+        ['Email', p.email], ['Gender', p.gender], ['Birthdate', p.birthdate],
+        ['Address', p.address], ['Last Visit', p.last_visit],
+      ];
+      document.getElementById('modalBody').innerHTML = fields.map(([l, v]) =>
+        `<div class="patient-detail-row">
+           <div class="patient-detail-label">${l}</div>
+           <div class="patient-detail-value">${v}</div>
+         </div>`
+      ).join('');
+      document.getElementById('patientModal').classList.add('open');
     }
 
     function closePatientModal() {
       const modal = document.getElementById('patientModal');
       if (modal) modal.classList.remove('open');
+      history.replaceState(null, '', window.location.pathname + '?tenant=' + tenantSlug);
     }
+
+    document.getElementById('patientModal').addEventListener('click', function(e) {
+      if (e.target === this) closePatientModal();
+    });
+
     function openAddPatientModal() {
       const form = document.querySelector('.patient-form');
       if (form) form.reset();

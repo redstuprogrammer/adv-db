@@ -92,7 +92,7 @@ switch ($role) {
             <div>
                 <div class="sidebar-logo-text">OralSync</div>
                 <div class="sidebar-clinic-name"><?php echo htmlspecialchars($tenantName, ENT_QUOTES, 'UTF-8'); ?></div>
-                <div style="font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 2px;">
+                <div style="font-size: 10px; color: rgba(255, 255, 255, 0.95); font-weight: 600; text-transform: uppercase; margin-top: 2px;">
                     👤 <?php echo htmlspecialchars(SessionManager::getInstance()->getUsername() ?? 'User', ENT_QUOTES, 'UTF-8'); ?>
                 </div>
             </div>

@@ -124,6 +124,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     <style>
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
+        .module-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .data-table th { background: #f8fafc; color: #0d3b66; padding: 12px; text-align: left; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
         .data-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
@@ -163,6 +164,27 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         .btn-print:hover { background: #0a2d4f; color: #fff; }
         .btn-edit { background: #ecfdf5; color: #059669; border-color: #059669; margin-left: 5px; }
         .btn-edit:hover { background: #059669; color: #fff; }
+        
+        .action-btn {
+          display: inline-block;
+          padding: 8px 12px;
+          margin-right: 4px;
+          background: var(--accent);
+          border: 1px solid var(--accent);
+          border-radius: 4px;
+          cursor: pointer;
+          text-decoration: none;
+          font-size: 12px;
+          color: white;
+          font-weight: 600;
+          transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+          background: #0a2d4f;
+          border-color: #0a2d4f;
+        }
+        
         .add-btn-main { background: #0d3b66; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; }
 
         /* Modal Logic */
@@ -381,16 +403,16 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         </div>
 
         <!-- Billing toolbar (search + actions + downpayment) -->
-        <div class="content-card" style="padding: 24px 20px 18px;">
+        <div class="module-card">
             <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
                 <div class="search-container" style="flex: 1 1 320px;">
-                    <input type="text" id="tableSearch" placeholder="Search patient..." onkeyup="filterMainTable()" class="search-input" />
+                    <input type="text" id="tableSearch" placeholder="Search patient, invoice, or status..." onkeyup="filterMainTable()" class="search-input" />
                 </div>
 
                 <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
                     <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
-                        <button class="add-btn-main" onclick="openDepositModal()" style="background: #14b8a6;">Set Booking Downpayment</button>
-                        <button class="add-btn-main" onclick="openAddModal()">+ Create Invoice</button>
+                        <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
+                        <button class="action-btn" style="background: var(--accent); border-color: var(--accent);" onclick="openAddModal(); return false;">+ Create Invoice</button>
                     </div>
                     <div style="color: #0f172a; font-size: 14px;">
                         Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
