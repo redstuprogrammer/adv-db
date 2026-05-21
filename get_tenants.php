@@ -20,7 +20,7 @@ if (!$conn) {
     exit;
 }
 
-$sql = "SELECT * FROM tenants ORDER BY created_at DESC";
+$sql = "SELECT * FROM tenants WHERE status = 'active' ORDER BY created_at DESC";
 $result = $conn->query($sql);
 
 $tenants = [];

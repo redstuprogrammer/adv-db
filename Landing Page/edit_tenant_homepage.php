@@ -403,6 +403,7 @@ let historyIdx = 0;
 let activeField = null;
 let unsaved = false;
 let toastTimer;
+let announcementSaveTimer = null; // Debounce timer for announcement saves
 
 const iframe    = document.getElementById('preview-iframe');
 const rpBody    = document.getElementById('rp-body');
@@ -552,7 +553,7 @@ function openField(key, tab = 'content') {
         if (el.dataset.key === 'accent_color') return;
         el.value = getVal(el.dataset.key);
         el.addEventListener('focus', pushToHistory);
-        el.addEventListener('input', () => {
+        el.addEventListener('input', async () => {
             const oldClinicName = state.clinic_name;
             setVal(el.dataset.key, el.value);
             
@@ -589,9 +590,20 @@ function openField(key, tab = 'content') {
                 if (tenantLabel) tenantLabel.textContent = newName;
             }
             
-            markUnsaved();
-            updatePreview(el.dataset.key, el.value);
-            refreshSidebarItem(el.dataset.key);
+            // For nested fields (announcements, team), save and refresh the preview immediately
+            if (el.dataset.key.includes('.')) {
+                markUnsaved();
+                // Debounce the save/refresh to avoid excessive server calls
+                clearTimeout(announcementSaveTimer);
+                announcementSaveTimer = setTimeout(async () => {
+                    await autoSaveQuietly();
+                    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+                }, 500);
+            } else {
+                markUnsaved();
+                updatePreview(el.dataset.key, el.value);
+                refreshSidebarItem(el.dataset.key);
+            }
         });
     });
 

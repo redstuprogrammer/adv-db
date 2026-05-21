@@ -39,7 +39,7 @@ switch ($role) {
             ['section' => 'Dentist', 'items' => [
                 ['href' => $basePath . '/dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
             ]],
-            ['section' => 'Core Features', 'items' => [
+            ['section' => '', 'items' => [
                 ['href' => $basePath . '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
                 ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
                 ['href' => $basePath . '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
@@ -53,7 +53,7 @@ switch ($role) {
             ['section' => 'Receptionist', 'items' => [
                 ['href' => $basePath . '/receptionist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'receptionist_dashboard.php'],
             ]],
-            ['section' => 'Core Features', 'items' => [
+            ['section' => '', 'items' => [
                 ['href' => $basePath . '/receptionist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'receptionist_patients.php'],
                 ['href' => $basePath . '/receptionist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'receptionist_appointments.php'],
                 ...($canUseBilling ? [['href' => $basePath . '/receptionist_billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'receptionist_billing.php']] : []),
@@ -64,15 +64,15 @@ switch ($role) {
         break;
     default:
         $menu = [
-            ['section' => 'Main', 'items' => [
+            ['section' => '', 'items' => [
                 ['href' => $basePath . '/dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dashboard.php'],
             ]],
-            ['section' => 'Core Features', 'items' => [
+            ['section' => '', 'items' => [
                 ['href' => $basePath . '/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
                 ['href' => $basePath . '/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
                 ...($canUseBilling ? [['href' => $basePath . '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php']] : []),
             ]],
-            ['section' => 'Management', 'items' => [
+            ['section' => '', 'items' => [
                 ['href' => $basePath . '/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],
                 ['href' => $basePath . '/staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
                 ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
@@ -102,7 +102,9 @@ switch ($role) {
     <div class="sidebar-nav">
         <?php foreach ($menu as $group): ?>
             <div class="sidebar-section">
-                <div class="sidebar-section-title"><?php echo htmlspecialchars($group['section'], ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php if (!empty(trim((string)($group['section'] ?? '')))): ?>
+                    <div class="sidebar-section-title"><?php echo htmlspecialchars($group['section'], ENT_QUOTES, 'UTF-8'); ?></div>
+                <?php endif; ?>
                 <?php foreach ($group['items'] as $item): ?>
                     <a href="<?php echo htmlspecialchars($item['href'], ENT_QUOTES, 'UTF-8'); ?>" class="sidebar-nav-item<?php echo sidebarActive($currentPage, $item['active']); ?>">
                         <span class="sidebar-nav-icon"><?php echo htmlspecialchars($item['icon'], ENT_QUOTES, 'UTF-8'); ?></span>

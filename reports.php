@@ -356,7 +356,7 @@ if (!$hasBasicReporting) {
                   <option value="monthly">This Month's Sales</option>
                   <option value="yearly">This Year's Sales</option>
               </select>
-              <button class="btn-primary" onclick="exportRevenuePDF()" style="padding: 6px 12px; font-size: 12px;">Generate Report</button>
+              <button class="btn-primary" onclick="exportRevenuePDF(this)" style="padding: 6px 12px; font-size: 12px;">Generate Report</button>
             </div>
           </div>
           
@@ -702,8 +702,7 @@ if (!$hasBasicReporting) {
       container.innerHTML = html;
     }
 
-    function exportRevenuePDF() {
-      const btn = event.target;
+    function exportRevenuePDF(btn) {
       const period = document.getElementById('revenueReportPeriod').value;
       const originalText = btn.textContent;
       btn.textContent = 'Generating...';
@@ -724,8 +723,10 @@ if (!$hasBasicReporting) {
       })
       .then(response => {
         if (!response.ok) {
-            if (response.status === 404) throw new Error('No data found for the selected period');
-            throw new Error('PDF generation failed');
+            return response.text().then(text => {
+              if (response.status === 404) throw new Error('No data found for the selected period');
+              throw new Error(text || 'PDF generation failed');
+            });
         }
         return response.blob();
       })

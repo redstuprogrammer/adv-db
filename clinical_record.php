@@ -411,7 +411,7 @@ if ($docsStmt) {
         <h1>Clinical Record</h1>
         <div style="display: flex; align-items: center; gap: 20px;">
             <?php renderDateClock(); ?>
-            <a href="dentist_appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Back to Appointments</a>
+            <a href="dentist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Return to Dashboard</a>
         </div>
     </div>
 

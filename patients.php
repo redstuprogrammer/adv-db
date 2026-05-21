@@ -435,10 +435,6 @@ if (isset($_GET['view_patient_id'])) {
           <div class="error-msg" style="display: block;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Patient Directory</h2>
-        </div>
-
         <div class="search-bar">
           <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
         </div>

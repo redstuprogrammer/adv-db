@@ -28,11 +28,16 @@ require_once __DIR__ . '/includes/session_utils.php';
 
 $sessionManager = SessionManager::getInstance();
 $isSuperAdmin   = $sessionManager->isSuperAdmin();
-$isTenantAdmin  = $sessionManager->isTenantUser() && strtolower((string)$sessionManager->getRole()) === 'admin';
+
+// Tenant admin: try SessionManager first, then fall back to raw $_SESSION.
+// reports.php sets $_SESSION['role'] = 'Admin' directly, which SessionManager
+// may not expose via isTenantUser() if it uses a different session key.
+$isTenantAdmin  = ($sessionManager->isTenantUser() && strtolower((string)$sessionManager->getRole()) === 'admin')
+               || (!empty($_SESSION['tenant_id']) && isset($_SESSION['role']) && strtolower((string)$_SESSION['role']) === 'admin');
 
 if (!$isSuperAdmin && !$isTenantAdmin) {
     ob_end_clean();
-    header('Location: ' . ($isSuperAdmin ? 'superadmin_login.php' : 'tenant_login.php'));
+    header('Location: tenant_login.php');
     exit;
 }
 
@@ -125,10 +130,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // If superadmin is viewing a clinic, we need the tenant_id from the data or URL
             $tenantId = $sessionManager->getTenantId();
-            if (!$tenantId && isset($data['tenant_id'])) {
+            if (!$tenantId && isset($data['tenant_id']) && $data['tenant_id']) {
                 $tenantId = (int)$data['tenant_id'];
             }
-            // Fallback: read directly from raw session (in case SessionManager uses a different key)
+            // Direct $_SESSION fallback — reports.php stores tenant_id here
             if (!$tenantId && !empty($_SESSION['tenant_id'])) {
                 $tenantId = (int)$_SESSION['tenant_id'];
             }

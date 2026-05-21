@@ -449,6 +449,109 @@ if (isset($_GET['view_patient_id'])) {
         margin-bottom: 16px;
       }
 
+      .action-btn {
+        padding: 6px 12px;
+        background: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        transition: background 0.2s;
+      }
+
+      .action-btn:hover {
+        background: #0a2d4f;
+      }
+
+      .action-btn.outline {
+        background: white;
+        color: var(--accent);
+        border: 1px solid var(--border);
+      }
+
+      .action-btn.outline:hover {
+        background: #f8fafc;
+      }
+
+      .patient-modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .patient-modal.open {
+        display: flex;
+      }
+
+      .patient-modal-content {
+        background: white;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 540px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+      }
+
+      .patient-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+      }
+
+      .patient-modal-header span {
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--accent);
+      }
+
+      .patient-modal-close {
+        font-size: 22px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        color: #64748b;
+        line-height: 1;
+      }
+
+      .patient-modal-close:hover {
+        color: var(--accent);
+      }
+
+      .patient-detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .patient-detail-label {
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 13px;
+      }
+
+      .patient-detail-value {
+        font-size: 13px;
+        color: #64748b;
+        text-align: right;
+        max-width: 60%;
+      }
+
       /* Modal Styles */
       .modal {
         display: none;
@@ -565,21 +668,28 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               <?php if (empty($patients)): ?>
                 <tr>
-                  <td colspan="5" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
+                  <td colspan="6" style="text-align:center; padding: 40px; color: #94a3b8;">No patients registered in this clinic yet.</td>
                 </tr>
               <?php else: ?>
-                <?php foreach ($patients as $patient): ?>
+                <?php foreach ($patients as $patient):
+                  $lastVisit = $patient['last_visit'] ? date('M d, Y', strtotime($patient['last_visit'])) : 'Never';
+                ?>
                   <tr data-patient-name="<?php echo strtolower($patient['first_name'] . ' ' . $patient['last_name']); ?>" data-patient-contact="<?php echo strtolower($patient['contact_number']); ?>">
                     <td><strong><?php echo h(formatTenantPatientId($patient['tenant_patient_id'])); ?></strong></td>
                     <td><strong><?php echo h(($patient['first_name'] ?? '') . ' ' . ($patient['last_name'] ?? '')); ?></strong></td>
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
-                    <td><?php echo h($patient['last_visit'] ?? 'Never'); ?></td>
+                    <td><?php echo h($lastVisit); ?></td>
+                    <td style="display:flex; gap:6px;">
+                      <button class="action-btn" onclick="openPatientModal(<?php echo (int)$patient['patient_id']; ?>)">View</button>
+                      <a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&patient_id=<?php echo (int)$patient['patient_id']; ?>" class="action-btn outline">Records</a>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -654,7 +764,58 @@ if (isset($_GET['view_patient_id'])) {
     </div>
   </div>
 
+  <!-- Patient Detail Modal -->
+  <div id="patientModal" class="patient-modal <?php echo $viewPatient ? 'open' : ''; ?>">
+    <div class="patient-modal-content">
+      <div class="patient-modal-header">
+        <span id="modalPatientName">Patient Details</span>
+        <button class="patient-modal-close" onclick="closePatientModal()">&times;</button>
+      </div>
+      <div id="modalBody">
+        <!-- Patient details will be loaded here -->
+      </div>
+    </div>
+  </div>
+
   <script>
+    function openPatientModal(patientId) {
+      // Fetch patient data via AJAX
+      fetch('get_patient_details.php?tenant=' + encodeURIComponent('<?php echo rawurlencode($tenantSlug); ?>') + '&patient_id=' + patientId)
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            const patient = data.patient;
+            document.getElementById('modalPatientName').textContent = patient.first_name + ' ' + patient.last_name;
+            
+            const fields = [
+              { label: 'Patient ID', value: 'P' + String(patient.patient_id).padStart(3, '0') },
+              { label: 'Full Name', value: patient.full_name },
+              { label: 'Contact Number', value: patient.contact_number },
+              { label: 'Email', value: patient.email },
+              { label: 'Gender', value: patient.gender },
+              { label: 'Birthdate', value: patient.birthdate + ' (Age: ' + patient.age + ')' },
+              { label: 'Address', value: patient.address },
+              { label: 'Emergency Contact', value: patient.emergency_contact },
+              { label: 'Medical History', value: patient.medical_history },
+              { label: 'Last Appointment', value: patient.last_appointment }
+            ];
+            
+            let html = '';
+            fields.forEach(field => {
+              html += '<div class="patient-detail-row"><div class="patient-detail-label">' + field.label + '</div><div class="patient-detail-value">' + field.value + '</div></div>';
+            });
+            
+            document.getElementById('modalBody').innerHTML = html;
+            document.getElementById('patientModal').classList.add('open');
+          }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function closePatientModal() {
+      const modal = document.getElementById('patientModal');
+      if (modal) modal.classList.remove('open');
+    }
     function openAddPatientModal() {
       const form = document.querySelector('.patient-form');
       if (form) form.reset();
@@ -688,9 +849,13 @@ if (isset($_GET['view_patient_id'])) {
 
     // Click outside modal to close
     window.addEventListener('click', function(e) {
-      const modal = document.getElementById('addPatientModal');
-      if (e.target === modal) {
-        modal.classList.remove('active');
+      const addModal = document.getElementById('addPatientModal');
+      const patientModal = document.getElementById('patientModal');
+      if (e.target === addModal) {
+        addModal.classList.remove('active');
+      }
+      if (e.target === patientModal) {
+        patientModal.classList.remove('open');
       }
     });
 

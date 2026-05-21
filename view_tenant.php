@@ -9,7 +9,7 @@ if ($tenant_id === 0) {
 }
 
 // 2. Fetch details
-$query = "SELECT * FROM tenants WHERE tenant_id = ?";
+$query = "SELECT * FROM tenants WHERE tenant_id = ? AND status = 'active'";
 $stmt = mysqli_prepare($conn, $query);
 mysqli_stmt_bind_param($stmt, "i", $tenant_id);
 mysqli_stmt_execute($stmt);

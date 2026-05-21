@@ -141,7 +141,7 @@ if ($stmt) {
 ========================= */
 
 $scheduleResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, p.first_name, p.last_name, a.status, s.service_name
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, p.patient_id, p.first_name, p.last_name, a.status, s.service_name
                   FROM appointment a
                   JOIN patient p ON a.patient_id = p.patient_id
                   LEFT JOIN service s ON a.service_id = s.service_id
@@ -157,7 +157,7 @@ if ($stmt) {
    UPCOMING APPOINTMENTS
 ========================= */
 $upcomingResult = null;
-$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, a.appointment_time, p.first_name, p.last_name, a.status, s.service_name
+$stmt = mysqli_prepare($conn, "SELECT a.appointment_id, a.appointment_date, a.appointment_time, p.patient_id, p.first_name, p.last_name, a.status, s.service_name
                   FROM appointment a
                   JOIN patient p ON a.patient_id = p.patient_id
                   LEFT JOIN service s ON a.service_id = s.service_id
@@ -675,7 +675,7 @@ if ($stmt) {
                   <td><span style="font-weight: 600; color: #1e293b;"><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></span></td>
                   <td style="color: #64748b;"><?php echo h($row['service_name'] ?? 'General Service'); ?></td>
                   <td><span class="status-pill <?php echo str_replace(' ', '-', strtolower($row['status'] ?? 'pending')); ?>"><?php echo h($row['status'] ?? 'Pending'); ?></span></td>
-                  <td><a href="dentist_patient_view.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&id=<?php echo (int)$row['appointment_id']; ?>" style="color: var(--dashboard-accent); text-decoration: none; font-weight: 700; font-size: 12px; border: 1px solid var(--dashboard-accent); padding: 4px 10px; border-radius: 6px; transition: 0.2s;">View Case</a></td>
+                  <td><a href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&patient_id=<?php echo (int)$row['patient_id']; ?>" style="color: var(--dashboard-accent); text-decoration: none; font-weight: 700; font-size: 12px; border: 1px solid var(--dashboard-accent); padding: 4px 10px; border-radius: 6px; transition: 0.2s;">View Case</a></td>
                 </tr>
               <?php endwhile; ?>
             <?php else: ?>

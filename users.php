@@ -324,7 +324,7 @@ try {
     <!-- Main Content -->
     <div class="tenant-main-content">
       <div class="tenant-header-bar">
-        <div class="tenant-header-title">👤 Users</div>
+        <div class="tenant-header-title">Users</div>
         <div style="display: flex; align-items: center; gap: 16px;">
           <div class="tenant-header-date"><?php echo date('l, M d, Y'); ?></div>
           <div id="liveClock" class="live-clock-badge">00:00:00 AM</div>

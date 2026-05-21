@@ -506,10 +506,6 @@ $stmt->close();
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0; color: var(--accent); font-size: 16px;">Appointment Management</h2>
-        </div>
-        
         <div class="search-container">
           <input type="text" id="appointmentSearch" class="search-input" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
         </div>
