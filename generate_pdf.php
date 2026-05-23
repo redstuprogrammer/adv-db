@@ -70,6 +70,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $generator  = new OralSyncPDFGenerator();
         $reportData = [];
+
+        // Pull clinic info early so the generator can embed it in headers/footers.
+        // We query after $conn is available (required above). Silently skip on failure.
+        if (isset($conn)) {
+            $clinicStmt = $conn->prepare("SELECT company_name, address, contact_phone FROM tenants WHERE tenant_id = ? LIMIT 1");
+            if ($clinicStmt) {
+                $tmpTid = isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : 0;
+                $clinicStmt->bind_param('i', $tmpTid);
+                $clinicStmt->execute();
+                $clinicRow = $clinicStmt->get_result()->fetch_assoc();
+                if ($clinicRow) {
+                    $generator->setClinicInfo(
+                        $clinicRow['company_name'] ?? '',
+                        $clinicRow['address']       ?? '',
+                        $clinicRow['contact_phone'] ?? ''
+                    );
+                }
+            }
+        }
         $period     = $data['period'] ?? 'all';
 
         $dateFilter  = '';
