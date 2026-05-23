@@ -403,7 +403,7 @@ let historyIdx = 0;
 let activeField = null;
 let unsaved = false;
 let toastTimer;
-let announcementSaveTimer = null; // Debounce timer for announcement saves
+let nestedSaveTimer = null; // Debounce timer for nested field saves
 
 const iframe    = document.getElementById('preview-iframe');
 const rpBody    = document.getElementById('rp-body');
@@ -593,11 +593,29 @@ function openField(key, tab = 'content') {
             // For nested fields (announcements, team), save and refresh the preview immediately
             if (el.dataset.key.includes('.')) {
                 markUnsaved();
-                // Debounce the save/refresh to avoid excessive server calls
-                clearTimeout(announcementSaveTimer);
-                announcementSaveTimer = setTimeout(async () => {
+                // Debounce the save and apply incremental preview updates for nested content
+                clearTimeout(nestedSaveTimer);
+                nestedSaveTimer = setTimeout(async () => {
                     await autoSaveQuietly();
-                    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+                    if (el.dataset.key.startsWith('announcements_json.')) {
+                        const [, itemIndex, itemField] = el.dataset.key.split('.');
+                        iframe.contentWindow?.postMessage({
+                            type: 'update-announcement',
+                            index: Number(itemIndex),
+                            field: itemField,
+                            value: el.value
+                        }, '*');
+                    } else if (el.dataset.key.startsWith('team_json.')) {
+                        const [, itemIndex, itemField] = el.dataset.key.split('.');
+                        iframe.contentWindow?.postMessage({
+                            type: 'update-team-member',
+                            index: Number(itemIndex),
+                            field: itemField,
+                            value: el.value
+                        }, '*');
+                    } else {
+                        iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+                    }
                 }, 500);
             } else {
                 markUnsaved();
@@ -708,9 +726,10 @@ async function addListItem(key) {
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
     
-    // Save before refresh to ensure iframe sees the new data
+    // Save before updating preview state
     await autoSaveQuietly();
-    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+    if (key === 'announcements_json') sendAnnouncementsState();
+    else if (key === 'team_json') sendTeamState();
 }
 
 async function removeListItem(key, i) {
@@ -721,12 +740,29 @@ async function removeListItem(key, i) {
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
     
-    // Save before refresh
+    // Save before updating preview state
     await autoSaveQuietly();
-    iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
+    if (key === 'announcements_json') sendAnnouncementsState();
+    else if (key === 'team_json') sendTeamState();
+}
+
+function sendAnnouncementsState() {
+    iframe.contentWindow?.postMessage({ type: 'set-announcements', announcements: JSON.parse(state.announcements_json || '[]') }, '*');
+}
+
+function sendTeamState() {
+    iframe.contentWindow?.postMessage({ type: 'set-team', team: JSON.parse(state.team_json || '[]'), title: state.team_title, subtitle: state.team_subtitle }, '*');
 }
 
 function updatePreview(key, value) {
+    if (key === 'announcements_json') {
+        iframe.contentWindow?.postMessage({ type: 'set-announcements', announcements: JSON.parse(value || '[]') }, '*');
+        return;
+    }
+    if (key === 'team_json') {
+        iframe.contentWindow?.postMessage({ type: 'set-team', team: JSON.parse(value || '[]'), title: state.team_title, subtitle: state.team_subtitle }, '*');
+        return;
+    }
     iframe.contentWindow?.postMessage({ type: 'update', key, value }, '*');
 }
 
@@ -764,7 +800,7 @@ iframe.addEventListener('load', () => {
                 team_subtitle: ['#team p.font-body']
             };
             window.addEventListener('message', e => {
-                const { type, key, value } = e.data || {};
+                const { type, key, value, announcements, index, field, team, title, subtitle } = e.data || {};
                 if (type === 'refresh') { location.reload(); return; }
                 if (type === 'scroll-to-field') {
                     let selector = (MAP[key] || [])[0];
@@ -787,6 +823,33 @@ iframe.addEventListener('load', () => {
                                 targetEl.style.outlineOffset = oldOffset;
                             }, 1500);
                         }
+                    }
+                    return;
+                }
+                if (type === 'set-announcements') {
+                    const wrapper = document.querySelector('.bg-primary .space-y-8');
+                    if (!wrapper) return;
+                    wrapper.innerHTML = (announcements || []).map(function(announcement, idx) {
+                        return '<div class="announcement-item" data-index="' + idx + '">' +
+                            '<span class="text-xs uppercase font-bold tracking-widest opacity-60">' + (announcement.date ? announcement.date : '') + '</span>' +
+                            '<h4 class="font-bold text-lg mt-1">' + (announcement.title ? announcement.title : '') + '</h4>' +
+                            '<p class="text-on-primary/70 text-sm mt-2">' + (announcement.description ? announcement.description : '') + '</p>' +
+                        '</div>';
+                    }).join('');
+                    return;
+                }
+                if (type === 'update-announcement') {
+                    const item = document.querySelector('.announcement-item[data-index="' + index + '"]');
+                    if (!item) return;
+                    if (field === 'title') {
+                        const heading = item.querySelector('h4');
+                        if (heading) heading.textContent = value;
+                    } else if (field === 'description') {
+                        const paragraph = item.querySelector('p');
+                        if (paragraph) paragraph.textContent = value;
+                    } else if (field === 'date') {
+                        const span = item.querySelector('span');
+                        if (span) span.textContent = value;
                     }
                     return;
                 }

@@ -71,6 +71,7 @@ switch ($role) {
                 ['href' => $basePath . '/patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'patients.php'],
                 ['href' => $basePath . '/appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'appointments.php'],
                 ...($canUseBilling ? [['href' => $basePath . '/billing.php' . $baseTenantQuery, 'icon' => '💳', 'label' => 'Billing', 'active' => 'billing.php']] : []),
+                ['href' => $basePath . '/subscription.php' . $baseTenantQuery, 'icon' => '🧾', 'label' => 'Subscription', 'active' => 'subscription.php'],
             ]],
             ['section' => '', 'items' => [
                 ['href' => $basePath . '/users.php' . $baseTenantQuery, 'icon' => '👤', 'label' => 'Users', 'active' => 'users.php'],

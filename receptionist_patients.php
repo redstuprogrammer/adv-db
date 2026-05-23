@@ -397,9 +397,17 @@ if (isset($_GET['view_patient_id'])) {
       .form-group select {
         width: 100%;
         padding: 12px;
-        border: 1px solid var(--border);
+        border: 1px solid #cbd5e1;
         border-radius: 8px;
         font-size: 14px;
+        background: #ffffff;
+      }
+
+      .form-group input:focus,
+      .form-group select:focus {
+        outline: none;
+        border-color: #0d3b66;
+        box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.12);
       }
 
       .form-actions {
@@ -477,49 +485,7 @@ if (isset($_GET['view_patient_id'])) {
         background: #f8fafc;
       }
 
-      .patient-modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.5);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .patient-modal.open {
-        display: flex;
-      }
-
-      .patient-modal-content {
-        background: white;
-        border-radius: 12px;
-        width: 100%;
-        max-width: 540px;
-        max-height: 85vh;
-        overflow-y: auto;
-        box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
-      }
-
-      .patient-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px 24px 16px;
-        border-bottom: 1px solid var(--border);
-        position: sticky;
-        top: 0;
-        background: white;
-        z-index: 1;
-      }
-
-      .patient-modal-header span {
-        font-weight: 700;
-        font-size: 15px;
-        color: var(--accent);
-      }
-
-      .patient-modal-close {
+      .close {
         font-size: 22px;
         cursor: pointer;
         background: none;
@@ -528,8 +494,16 @@ if (isset($_GET['view_patient_id'])) {
         line-height: 1;
       }
 
-      .patient-modal-close:hover {
+      .close:hover {
         color: var(--accent);
+      }
+
+      .modal-footer {
+        padding: 16px 24px;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        border-top: 1px solid var(--border);
       }
 
       .patient-detail-row {
@@ -586,6 +560,14 @@ if (isset($_GET['view_patient_id'])) {
         margin-bottom: 20px;
       }
 
+      #patientModal .modal-header {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 1;
+        border-bottom: 1px solid var(--border);
+      }
+
       .modal-title {
         font-size: 20px;
         font-weight: 700;
@@ -601,10 +583,10 @@ if (isset($_GET['view_patient_id'])) {
       }
 
       .patient-detail-row {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        gap: 16px;
-        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--border);
       }
 
       .patient-detail-label {
@@ -614,8 +596,10 @@ if (isset($_GET['view_patient_id'])) {
       }
 
       .patient-detail-value {
-        color: #475569;
-        font-size: 14px;
+        font-size: 13px;
+        color: #64748b;
+        text-align: right;
+        max-width: 60%;
       }
 
       .live-clock-badge {
@@ -732,7 +716,6 @@ if (isset($_GET['view_patient_id'])) {
           <div class="form-group">
             <label for="email">Email</label>
             <input type="email" id="email" name="email">
-            <small style="color: #666;">Welcome email will be sent here.</small>
           </div>
           <div class="form-group">
             <label for="birthdate">Birthdate</label>
@@ -764,11 +747,11 @@ if (isset($_GET['view_patient_id'])) {
   </div>
 
   <!-- Patient Detail Modal -->
-  <div id="patientModal" class="patient-modal <?php echo $viewPatient ? 'open' : ''; ?>">
-    <div class="patient-modal-content">
-      <div class="patient-modal-header">
+  <div id="patientModal" class="modal <?php echo $viewPatient ? 'active' : ''; ?>">
+    <div class="modal-content">
+      <div class="modal-header">
         <span id="modalPatientName">Patient Details</span>
-        <button class="patient-modal-close" onclick="closePatientModal()">&times;</button>
+        <button class="close" onclick="closePatientModal()">&times;</button>
       </div>
       <div id="modalBody">
         <?php if ($viewPatient): ?>
@@ -790,7 +773,7 @@ if (isset($_GET['view_patient_id'])) {
           <?php endforeach; ?>
         <?php endif; ?>
       </div>
-      <div style="padding: 16px 24px; display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border);">
+      <div class="modal-footer">
         <a id="modalRecordsLink" href="#" class="action-btn outline">View Clinical Records</a>
         <button class="action-btn" onclick="closePatientModal()">Close</button>
       </div>
@@ -837,12 +820,12 @@ if (isset($_GET['view_patient_id'])) {
            <div class="patient-detail-value">${v}</div>
          </div>`
       ).join('');
-      document.getElementById('patientModal').classList.add('open');
+      document.getElementById('patientModal').classList.add('active');
     }
 
     function closePatientModal() {
       const modal = document.getElementById('patientModal');
-      if (modal) modal.classList.remove('open');
+      if (modal) modal.classList.remove('active');
       history.replaceState(null, '', window.location.pathname + '?tenant=' + tenantSlug);
     }
 

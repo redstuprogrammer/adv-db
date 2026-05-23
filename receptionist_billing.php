@@ -122,6 +122,12 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     <title>OralSync | Billing Management</title>
     <link rel="stylesheet" href="tenant_style.css">
     <style>
+        :root {
+            --accent: #0d3b66;
+            --border: #e2e8f0;
+            --bg: #f8fafc;
+        }
+
         /* UI Elements */
         .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
         .module-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
@@ -139,20 +145,21 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         /* Search (match receptionist_patients.php look) */
         .search-container {
             margin-bottom: 0;
-            width: 100%;
+            flex: 1 1 320px !important;
         }
 
         .search-input {
             width: 100%;
+            max-width: 100%;
             padding: 12px 16px;
-            border: 2px solid #d1d5db !important;
+            border: 1px solid var(--border) !important;
             border-radius: 8px;
             font-size: 14px;
             box-sizing: border-box;
         }
 
         .search-input:focus {
-            border-color: #0d3b66 !important;
+            border-color: var(--accent) !important;
             box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
             outline: none;
         }
@@ -167,14 +174,14 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         
         .action-btn {
           display: inline-block;
-          padding: 8px 12px;
-          margin-right: 4px;
-          background: var(--accent);
-          border: 1px solid var(--accent);
-          border-radius: 4px;
+          padding: 10px 16px;
+          margin-right: 8px;
+          background: #0d3b66;
+          border: 1px solid #0d3b66;
+          border-radius: 6px;
           cursor: pointer;
           text-decoration: none;
-          font-size: 12px;
+          font-size: 13px;
           color: white;
           font-weight: 600;
           transition: all 0.2s ease;
@@ -405,14 +412,14 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         <!-- Billing toolbar (search + actions + downpayment) -->
         <div class="module-card">
             <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
-                <div class="search-container" style="flex: 1 1 320px;">
+                <div class="search-container">
                     <input type="text" id="tableSearch" placeholder="Search patient, invoice, or status..." onkeyup="filterMainTable()" class="search-input" />
                 </div>
 
                 <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
                     <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
-                        <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
-                        <button class="action-btn" style="background: var(--accent); border-color: var(--accent);" onclick="openAddModal(); return false;">+ Create Invoice</button>
+                        <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6; color: white;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
+                        <button class="action-btn" style="background: #0d3b66; border-color: #0d3b66; color: white;" onclick="openAddModal(); return false;">+ Create Invoice</button>
                     </div>
                     <div style="color: #0f172a; font-size: 14px;">
                         Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>

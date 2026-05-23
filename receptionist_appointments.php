@@ -197,7 +197,8 @@ if ($stmtDentists) {
 ============================================================ */
 
 $appointmentsPerPage = 10;
-$currentPage = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$pageParam = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+$currentPage = $pageParam !== false && $pageParam !== null ? $pageParam : 1;
 $offset = ($currentPage - 1) * $appointmentsPerPage;
 
 // Get total count of appointments
@@ -286,7 +287,7 @@ if ($stmt) {
 
       .content-header {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
         margin-bottom: 16px;
       }
@@ -669,12 +670,13 @@ if ($stmt) {
         <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
           <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--dashboard-border);">
-            <?php if ($currentPage > 1): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo $currentPage - 1; ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">← Previous</a>
+            <?php if ((int)$currentPage > 1): ?>
+              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage - 1); ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">← Previous</a>
             <?php endif; ?>
             
             <div style="display: flex; gap: 4px; align-items: center;">
               <?php 
+              $currentPage = (int)$currentPage;
               $startPage = max(1, $currentPage - 2);
               $endPage = min($totalPages, $currentPage + 2);
               
@@ -684,7 +686,7 @@ if ($stmt) {
               <?php endif; ?>
               
               <?php for ($page = $startPage; $page <= $endPage; $page++): ?>
-                <?php if ($page === $currentPage): ?>
+                <?php if ($page === (int)$currentPage): ?>
                   <span style="padding: 8px 10px; background: var(--dashboard-accent); color: white; border-radius: 6px; font-weight: 700; border: 1px solid var(--dashboard-accent);"><?php echo $page; ?></span>
                 <?php else: ?>
                   <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo $page; ?>" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; color: #0d3b66; text-decoration: none; font-weight: 600; transition: 0.2s;"><?php echo $page; ?></a>
@@ -697,12 +699,12 @@ if ($stmt) {
               <?php endif; ?>
             </div>
             
-            <?php if ($currentPage < $totalPages): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo $currentPage + 1; ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">Next →</a>
+            <?php if ((int)$currentPage < $totalPages): ?>
+              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage + 1); ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">Next →</a>
             <?php endif; ?>
           </div>
           <div style="text-align: center; margin-top: 16px; color: #64748b; font-size: 13px;">
-            Page <?php echo $currentPage; ?> of <?php echo $totalPages; ?> • Showing <?php echo (($currentPage - 1) * $appointmentsPerPage) + 1; ?>–<?php echo min($currentPage * $appointmentsPerPage, $totalAppointments); ?> of <?php echo $totalAppointments; ?> appointments
+            Page <?php echo (int)$currentPage; ?> of <?php echo $totalPages; ?> • Showing <?php echo (((int)$currentPage - 1) * $appointmentsPerPage) + 1; ?>–<?php echo min((int)$currentPage * $appointmentsPerPage, $totalAppointments); ?> of <?php echo $totalAppointments; ?> appointments
           </div>
         <?php endif; ?>
       </div>
