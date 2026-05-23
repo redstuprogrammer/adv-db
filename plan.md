@@ -17,6 +17,10 @@ SUPER ADMIN
 
 ADMIN / TENANT
 - admin/tenant should have the same abilities as dentist and receptionist. so admin/tenant should have the same pages and features as dentist and receptionist. (manage button in appointments, adding of patients, etc) but dont remove the pages that are already there for admin/tenant. just update some of the pages. 
+    - patients.php, use the same "Add Patient" button and its functions as in receptionist_patients.php. use the same button "View" and "Records" too.
+    - appointments.php, as same in receptionist_appointments.php where you could schedule an appointment, manage an appointment, and reschedule.
+
+- put Subscription navigation link below Settings.
 
 
 1. reports.php
@@ -25,14 +29,21 @@ ADMIN / TENANT
 
 
 RECEPTIONIST
-1. receptionist_appointments.php ✅ COMPLETED
-    - appointments should be reschedulable. allow the receptionist and admin/tenant to reschedule a patient's appointment date and time. use the same modal form in creating/adding a new appointment. ✅
-    - change "In Progress" status to "Ongoing" ✅
+1. receptionist_appointments.php 
+    - like in dentist_appointments.php, there should be filter tabs to see the appointments for all, today, and upcoming.
 
-3. receptionist_patients.php ✅ COMPLETED
-    - patient list should contain patient records (clinical_record.php?) the same as records in dentist and admin/tenant. records button now works. ✅
-    - when viewing a patient's info by the modal form, it looks the same as the dentist_patients.php but the way its displayed is not. fix the layout, make it look exactly the same as the modal form in dentist_patients.php
-    - when adding a patient in the modal form, remove "Welcome email will be sent here" under email address input field. and make the borderline of the input fields more noticeable, it makes it kinda hard to notice since the borderline kinda transparent that it blends with the white color of the modal form. do this for the other modal forms too - admin/tenant, dentist, and other modal forms of receptionist. 
+    - upon rescheduling an appointment. the fields must be automatically filled. the patient's name, the previously selected dentist, and the original scheduled date must be also displayed.
+
+    - change "In Progress" status to "Ongoing"
+    2026-05-23T15:59:42.489729Z NOTICE: PHP message: PHP Fatal error:  Uncaught mysqli_sql_exception: Data truncated for column 'status' at row 1 in /home/site/wwwroot/receptionist_appointments.php:155
+2026-05-23T15:59:42.4897696Z Stack trace:
+2026-05-23T15:59:42.4897751Z #0 /home/site/wwwroot/receptionist_appointments.php(155): mysqli_stmt_execute(Object(mysqli_stmt))
+2026-05-23T15:59:42.4897788Z #1 {main}
+2026-05-23T15:59:42.4897827Z   thrown in /home/site/wwwroot/receptionist_appointments.php on line 155
+2026-05-23T15:59:42.4897934Z 127.0.0.1 -  23/May/2026:15:59:42 +0000 "POST /receptionist_appointments.php" 500
+
+3. receptionist_patients.php 
+    - records button doesnt work
 
 
 4. receptionist_billing.php 

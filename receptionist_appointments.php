@@ -52,13 +52,16 @@ $tenantId = $sessionManager->getTenantId();
 $receptionistName = $sessionManager->getUsername() ?? 'Receptionist';
 $successMessage = '';
 $errorMessage = '';
+// Filtering for All / Today / Upcoming
+$filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
+$today = date('Y-m-d');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
     $dentistId = isset($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : 0;
     $appointmentDate = trim($_POST['appointment_date'] ?? '');
     $appointmentTime = trim($_POST['appointment_time'] ?? '');
-    $status = 'Pending'; // Automatically set to Pending on creation
+    $status = 'pending'; // Automatically set to pending on creation
 
     if (!tenantHasTierFeature((int)$tenantId, 'appointment_scheduling', $conn)) {
         $errorMessage = 'Appointment scheduling is not available on your current plan.';
@@ -135,7 +138,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reschedule_appointmen
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])) {
     $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
-    $newStatus = trim($_POST['new_status'] ?? '');
+    $rawStatus = trim($_POST['new_status'] ?? '');
+    $statusMap = [
+        'ongoing' => 'pending',
+        'in_progress' => 'pending',
+        'pending' => 'pending',
+        'completed' => 'completed',
+        'cancelled' => 'cancelled',
+        'approved' => 'approved',
+        'disapproved' => 'disapproved',
+        'pending_payment' => 'pending_payment',
+    ];
+    $statusKey = strtolower(str_replace(' ', '_', $rawStatus));
+    $newStatus = $statusMap[$statusKey] ?? '';
 
     if ($appointmentId > 0 && $newStatus !== '') {
         // Extra safety check: verify current status is not a final state
@@ -201,12 +216,18 @@ $pageParam = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => 
 $currentPage = $pageParam !== false && $pageParam !== null ? $pageParam : 1;
 $offset = ($currentPage - 1) * $appointmentsPerPage;
 
-// Get total count of appointments
-$countQuery = "SELECT COUNT(*) as total FROM appointment WHERE tenant_id = ? AND status <> 'Disapproved'";
-$countStmt = mysqli_prepare($conn, $countQuery);
 $totalAppointments = 0;
+// Get total count of appointments (respecting filter)
+$countQuery = "SELECT COUNT(*) as total FROM appointment WHERE tenant_id = ? AND status <> 'Disapproved'";
+if ($filter === 'today') $countQuery .= " AND appointment_date = ?";
+elseif ($filter === 'upcoming') $countQuery .= " AND appointment_date > ?";
+$countStmt = mysqli_prepare($conn, $countQuery);
 if ($countStmt) {
-    mysqli_stmt_bind_param($countStmt, "i", $tenantId);
+    if ($filter === 'today' || $filter === 'upcoming') {
+        mysqli_stmt_bind_param($countStmt, "is", $tenantId, $today);
+    } else {
+        mysqli_stmt_bind_param($countStmt, "i", $tenantId);
+    }
     mysqli_stmt_execute($countStmt);
     $countResult = mysqli_stmt_get_result($countStmt);
     $countRow = mysqli_fetch_assoc($countResult);
@@ -215,6 +236,7 @@ if ($countStmt) {
 }
 $totalPages = ceil($totalAppointments / $appointmentsPerPage);
 
+// Main appointments query (respecting filter)
 $queryActiveAppointments = "SELECT 
             a.appointment_id, 
             a.appointment_date, 
@@ -228,14 +250,19 @@ $queryActiveAppointments = "SELECT
           FROM appointment a 
           LEFT JOIN patient p ON a.patient_id = p.patient_id AND p.tenant_id = a.tenant_id
           LEFT JOIN users d ON a.dentist_id = d.user_id AND d.tenant_id = a.tenant_id
-          WHERE a.tenant_id = ? AND a.status <> 'Disapproved'
-          ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC
-          LIMIT ? OFFSET ?";
+          WHERE a.tenant_id = ? AND a.status <> 'Disapproved'";
+if ($filter === 'today') $queryActiveAppointments .= " AND a.appointment_date = ?";
+elseif ($filter === 'upcoming') $queryActiveAppointments .= " AND a.appointment_date > ?";
+$queryActiveAppointments .= " ORDER BY a.appointment_date DESC, a.appointment_time DESC, a.appointment_id ASC LIMIT ? OFFSET ?";
 
 $appointmentsResult = null;
 $stmt = mysqli_prepare($conn, $queryActiveAppointments);
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, "iii", $tenantId, $appointmentsPerPage, $offset);
+    if ($filter === 'today' || $filter === 'upcoming') {
+        mysqli_stmt_bind_param($stmt, "isii", $tenantId, $today, $appointmentsPerPage, $offset);
+    } else {
+        mysqli_stmt_bind_param($stmt, "iii", $tenantId, $appointmentsPerPage, $offset);
+    }
     mysqli_stmt_execute($stmt);
     $appointmentsResult = mysqli_stmt_get_result($stmt);
 }
@@ -626,7 +653,16 @@ if ($stmt) {
         <div class="content-header">
           <button class="add-btn" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
- 
+
+        <div class="action-bar">
+          <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name...">
+          <div class="filter-tabs" style="margin-left:12px; display:flex; gap:8px;">
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="tab <?php echo $filter == 'all' ? 'active' : ''; ?>">All</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="tab <?php echo $filter == 'today' ? 'active' : ''; ?>">Today</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=upcoming" class="tab <?php echo $filter == 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
+          </div>
+        </div>
+
         <div id="appointmentsSection">
           <table class="queue-table">
             <thead>
@@ -642,7 +678,7 @@ if ($stmt) {
             <tbody>
               <?php if ($appointmentsResult && $appointmentsResult->num_rows > 0): ?>
                 <?php while($row = $appointmentsResult->fetch_assoc()): ?>
-                  <tr>
+                  <tr class="appt-row" data-name="<?php echo strtolower(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')); ?>">
                     <td><?php echo date('M d, Y', strtotime($row['appointment_date'])); ?></td>
                     <td><span class="time-badge"><?php echo h(formatTime12Hour($row['appointment_time'])); ?></span></td>
                     <td><strong><?php echo h(($row['first_name'] ?? '') . " " . ($row['last_name'] ?? '')); ?></strong></td>
@@ -653,7 +689,7 @@ if ($stmt) {
                         $isFinalStatus = in_array(strtolower($row['status'] ?? ''), ['completed', 'cancelled']);
                         if (!$isFinalStatus): 
                       ?>
-                        <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($row['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>)">Manage</a>
+                        <a href="javascript:void(0);" class="action-link" onclick="openManageModal(<?php echo (int)$row['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode('Dr. ' . ($row['d_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($row['appointment_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)$row['dentist_id']; ?>)">Manage</a>
                       <?php else: ?>
                         <span class="action-link" style="opacity: 0.5; cursor: not-allowed; border-color: #ccc; color: #999;">Locked</span>
                       <?php endif; ?>
@@ -816,6 +852,8 @@ if ($stmt) {
         <input type="hidden" id="manage_appointment_id" value="">
         <input type="hidden" id="manage_patient_id" value="">
         <input type="hidden" id="manage_dentist_id" value="">
+        <input type="hidden" id="manage_patient_name" value="">
+        <input type="hidden" id="manage_original_date" value="">
         <div class="form-group">
           <label>Appointment</label>
           <input type="text" id="manageAppointmentInfo" readonly>
@@ -824,9 +862,9 @@ if ($stmt) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
-            <option value="Ongoing">Ongoing</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
+            <option value="pending">Ongoing</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
         <div class="modal-actions">
@@ -857,8 +895,15 @@ if ($stmt) {
             </div>
 
             <div class="form-group">
+              <label>Original Appointment</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="reschedule-original-date" style="font-weight:700; color:var(--dashboard-accent);">-</span>
+              </div>
+            </div>
+
+            <div class="form-group">
               <label for="reschedule_dentist_id">Preferred Dentist</label>
-              <select id="reschedule_dentist_id" onchange="handleRescheduleDentistChange()">
+              <select id="reschedule_dentist_id" name="reschedule_dentist_id" onchange="handleRescheduleDentistChange()">
                 <option value="">Select dentist</option>
                 <?php foreach ($dentists as $dentist): ?>
                   <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
@@ -1129,10 +1174,29 @@ if ($stmt) {
       }
     }
 
-    function openManageModal(id, patientName, dentistName, status) {
+    function openManageModal(id, patientName, dentistName, status, apptDate, dentistId) {
       document.getElementById('update_id').value = id;
       document.getElementById('manage_appointment_id').value = id;
-      document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
+      // store patient name and original date for reschedule
+      document.getElementById('manage_patient_name').value = patientName || '';
+      document.getElementById('manage_original_date').value = apptDate || '';
+      document.getElementById('manage_dentist_id').value = dentistId ? dentistId : '';
+
+      const statusLabels = {
+          pending: 'Ongoing',
+          completed: 'Completed',
+          cancelled: 'Cancelled',
+          approved: 'Approved',
+          disapproved: 'Disapproved',
+          pending_payment: 'Pending Payment'
+      };
+
+      let formattedDate = '';
+      try {
+        if (apptDate) formattedDate = new Date(apptDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch(e) { formattedDate = apptDate || ''; }
+
+      document.getElementById('manageAppointmentInfo').value = (patientName || '') + ' with ' + (dentistName || '') + (formattedDate ? ' — ' + formattedDate : '') + ' (' + (statusLabels[status] || status) + ')';
       
       const newStatusSelect = document.getElementById('new_status');
       const updateBtn = document.getElementById('updateStatusBtn');
@@ -1146,17 +1210,10 @@ if ($stmt) {
         if (updateBtn) updateBtn.disabled = true;
         if (rescheduleBtn) rescheduleBtn.disabled = true;
       } else {
-        // Allow modification for Pending or Ongoing
+        // Allow modification for pending or ongoing state
         newStatusSelect.disabled = false;
         if (updateBtn) updateBtn.disabled = false;
         if (rescheduleBtn) rescheduleBtn.disabled = false;
-        
-        // Ensure "Ongoing" option visibility logic
-        const ongoingOption = newStatusSelect.querySelector('option[value="Ongoing"]');
-        if (ongoingOption) {
-            ongoingOption.disabled = false;
-            ongoingOption.style.display = 'block';
-        }
       }
       
       document.getElementById('manageModal').classList.add('active');
@@ -1191,8 +1248,27 @@ if ($stmt) {
       document.getElementById('reschedule-summary-dentist').textContent = 'Select dentist';
       document.getElementById('reschedule-slots-container').style.display = 'none';
       document.getElementById('reschedule-no-slots-msg').style.display = 'block';
-      document.getElementById('reschedule_dentist_id').value = '';
       
+      // Autofill patient name, previously selected dentist, and original date
+      const patientName = document.getElementById('manage_patient_name').value || '';
+      const originalDate = document.getElementById('manage_original_date').value || '';
+      const prevDentistId = document.getElementById('manage_dentist_id').value || '';
+
+      document.getElementById('reschedule_patient_display').value = patientName;
+      if (originalDate) {
+        try { document.getElementById('reschedule-original-date').textContent = new Date(originalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+        catch(e) { document.getElementById('reschedule-original-date').textContent = originalDate; }
+      } else {
+        document.getElementById('reschedule-original-date').textContent = '-';
+      }
+
+      if (prevDentistId) {
+        document.getElementById('reschedule_dentist_id').value = prevDentistId;
+        handleRescheduleDentistChange();
+      } else {
+        document.getElementById('reschedule_dentist_id').value = '';
+      }
+
       document.getElementById('rescheduleModal').classList.add('active');
       fetchRescheduleAvailability(reschedule_currentViewDate.getMonth(), reschedule_currentViewDate.getFullYear());
     }
@@ -1387,6 +1463,18 @@ if ($stmt) {
       // Note: Time slot will be re-rendered after handleDateClick and fetchAvailabilityData
     });
     <?php endif; ?>
+
+    // Search filter for appointments
+    const apptSearchEl = document.getElementById('apptSearch');
+    if (apptSearchEl) {
+      apptSearchEl.addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('.appt-row').forEach(row => {
+          const match = (row.dataset.name || '').includes(q);
+          row.style.display = match ? '' : 'none';
+        });
+      });
+    }
 
     console.log('Receptionist Appointments Page Initialized');
   </script>

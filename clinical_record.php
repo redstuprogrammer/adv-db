@@ -3,7 +3,7 @@
  * ============================================
  * CLINICAL RECORD - PATIENT TREATMENT HISTORY
  * Last Updated: April 6, 2026
- * For: Dentist Access
+ * For: Dentist, Receptionist, and Tenant Admin Access
  * ============================================
  */
 
@@ -12,7 +12,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/session_utils.php';
 
 $sessionManager = SessionManager::getInstance();
-$sessionManager->requireTenantUser('dentist');
+$sessionManager->requireTenantUser();
 
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
@@ -29,11 +29,18 @@ $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantData  = $sessionManager->getTenantData();
 $tenantName  = $tenantData['tenant_name'] ?? '';
 $tenantId    = $sessionManager->getTenantId();
+$currentRole = $sessionManager->getCurrentRole();
 $dentistId   = $sessionManager->getUserId() ?? 0;
-$dentistName = $sessionManager->getUsername() ?? 'Dentist';
+$dentistName = $sessionManager->getUsername() ?? ucfirst($currentRole ?? 'User');
 
 if (!$tenantId || !$dentistId) {
     echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
+    exit();
+}
+
+if (!in_array($currentRole, ['dentist', 'receptionist', 'admin'], true)) {
+    $slug = $sessionManager->getCurrentTenantSlug() ?: 'unknown';
+    header('Location: tenant_login.php?tenant=' . rawurlencode($slug));
     exit();
 }
 

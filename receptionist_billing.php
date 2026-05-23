@@ -129,8 +129,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         }
 
         /* UI Elements */
-        .content-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
-        .module-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .module-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .data-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         .data-table th { background: #f8fafc; color: #0d3b66; padding: 12px; text-align: left; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
         .data-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
@@ -142,18 +141,18 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
         .partial { background: #fef9c3; color: #854d0e; }
         .installment { background: #fef9c3; color: #854d0e; }
 
-        /* Search (match receptionist_patients.php look) */
+        /* Search */
         .search-container {
-            margin-bottom: 0;
+            margin-bottom: 20px;
             flex: 1 1 320px !important;
         }
 
         .search-input {
             width: 100%;
-            max-width: 100%;
+            max-width: 420px;
             padding: 12px 16px;
             border: 1px solid var(--border) !important;
-            border-radius: 8px;
+            border-radius: 25px;
             font-size: 14px;
             box-sizing: border-box;
         }
@@ -162,6 +161,32 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             border-color: var(--accent) !important;
             box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
             outline: none;
+        }
+
+        .module-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .module-table th {
+            background: #f8fafc;
+            color: #0d3b66;
+            padding: 12px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 700;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .module-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 14px;
+        }
+
+        .module-table tbody tr:hover {
+            background: #f8fafc;
         }
 
         /* Buttons */
@@ -409,25 +434,6 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             <?php renderDateClock(); ?>
         </div>
 
-        <!-- Billing toolbar (search + actions + downpayment) -->
-        <div class="module-card">
-            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px;">
-                <div class="search-container">
-                    <input type="text" id="tableSearch" placeholder="Search patient, invoice, or status..." onkeyup="filterMainTable()" class="search-input" />
-                </div>
-
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
-                    <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
-                        <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6; color: white;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
-                        <button class="action-btn" style="background: #0d3b66; border-color: #0d3b66; color: white;" onclick="openAddModal(); return false;">+ Create Invoice</button>
-                    </div>
-                    <div style="color: #0f172a; font-size: 14px;">
-                        Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Message Display -->
         <?php if (isset($_SESSION['success'])): ?>
             <div style="background: #dcfce7; color: #166534; padding: 12px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #bbf7d0;">
@@ -446,8 +452,24 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             </div>
         <?php endif; ?>
 
-        <div class="content-card">
-            <table class="data-table" id="paymentTable">
+        <div class="module-card">
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px;">
+                <div class="search-container" style="flex: 1 1 320px;">
+                    <input type="text" id="tableSearch" placeholder="Search patient, invoice, or status..." onkeyup="filterMainTable()" class="search-input" />
+                </div>
+
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap: 8px;">
+                    <div style="display:flex; gap: 10px; align-items:center; flex-wrap: wrap; justify-content:flex-end;">
+                        <button class="action-btn" style="background: #14b8a6; border-color: #14b8a6; color: white;" onclick="openDepositModal(); return false;">Set Booking Downpayment</button>
+                        <button class="action-btn" style="background: #0d3b66; border-color: #0d3b66; color: white;" onclick="openAddModal(); return false;">+ Create Invoice</button>
+                    </div>
+                    <div style="color: #0f172a; font-size: 14px;">
+                        Current booking downpayment: <strong><?php echo $bookingDepositAmount > 0 ? '₱' . number_format($bookingDepositAmount, 2) : 'None configured'; ?></strong>
+                    </div>
+                </div>
+            </div>
+
+            <table class="module-table" id="paymentTable">
                 <thead>
                     <tr>
                         <th>Inv #</th>
@@ -506,7 +528,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                             </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
+                            <tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td></tr>
                         <?php endif; ?>
                 </tbody>
             </table>

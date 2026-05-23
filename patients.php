@@ -7,6 +7,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
@@ -33,9 +34,94 @@ if ($_SESSION['role'] !== 'Admin') {
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$successMsg = '';
+$errorMsg = '';
 
-// Handle toggle patient status
+// Handle Add Patient
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
+    $contactNumber = trim($_POST['contact_number'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $birthdate = trim($_POST['birthdate'] ?? '');
+    $gender = trim($_POST['gender'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $usernameInput = trim($_POST['patient_username'] ?? '');
 
+    if (!tenantHasTierFeature((int)$tenantId, 'patient_records', $conn)) {
+        $errorMsg = 'Patient records are not available on your current plan.';
+    } elseif ($firstName === '' || $lastName === '' || $contactNumber === '' || $usernameInput === '') {
+        $errorMsg = 'First name, last name, contact number, and username are required.';
+    } else {
+        $patientLimit = getTenantTierLimit((int)$tenantId, 'max_patients', $conn);
+        if ($patientLimit !== null) {
+            $countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM patient WHERE tenant_id = ?');
+            if ($countStmt) {
+                $countStmt->bind_param('i', $tenantId);
+                $countStmt->execute();
+                $resCount = $countStmt->get_result();
+                $countRow = $resCount->fetch_assoc();
+                $countStmt->close();
+                if ((int)($countRow['c'] ?? 0) >= $patientLimit) {
+                    $errorMsg = 'Patient limit reached for your plan (' . $patientLimit . '). Upgrade to add more patients.';
+                }
+            }
+        }
+
+        if ($errorMsg === '') {
+            $checkUserStmt = $conn->prepare('SELECT patient_id FROM patient WHERE username = ? LIMIT 1');
+            if ($checkUserStmt) {
+                $checkUserStmt->bind_param('s', $usernameInput);
+                $checkUserStmt->execute();
+                $checkUserResult = $checkUserStmt->get_result();
+                if ($checkUserResult && $checkUserResult->num_rows > 0) {
+                    $errorMsg = 'That username is already taken. Please choose a different username.';
+                }
+                $checkUserStmt->close();
+            }
+        }
+
+        if ($errorMsg === '' && $email !== '') {
+            $checkEmailStmt = $conn->prepare('SELECT patient_id FROM patient WHERE tenant_id = ? AND email = ? LIMIT 1');
+            if ($checkEmailStmt) {
+                $checkEmailStmt->bind_param('is', $tenantId, $email);
+                $checkEmailStmt->execute();
+                $checkEmailResult = $checkEmailStmt->get_result();
+                if ($checkEmailResult && $checkEmailResult->num_rows > 0) {
+                    $errorMsg = 'That email address is already registered to another patient in this clinic.';
+                }
+                $checkEmailStmt->close();
+            }
+        }
+
+        if ($errorMsg === '') {
+            $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
+            if ($maxIdStmt) {
+                $maxIdStmt->bind_param('i', $tenantId);
+                $maxIdStmt->execute();
+                $maxIdResult = $maxIdStmt->get_result();
+                $maxIdRow = $maxIdResult->fetch_assoc();
+                $maxIdStmt->close();
+            }
+
+            $newTenantPatientId = (($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1);
+            $passwordHash = password_hash(trim($_POST['temp_password'] ?? bin2hex(random_bytes(4))), PASSWORD_DEFAULT);
+
+            $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            if ($insertStmt) {
+                $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $usernameInput, $passwordHash);
+                if ($insertStmt->execute()) {
+                    $successMsg = 'Patient added successfully.';
+                } else {
+                    $errorMsg = 'Unable to add patient. DB Error: ' . $conn->error;
+                }
+                $insertStmt->close();
+            } else {
+                $errorMsg = 'Unable to prepare patient insert statement.';
+            }
+        }
+    }
+}
 
 // Fetch all patients for this tenant
 $patients = [];
@@ -428,15 +514,18 @@ if (isset($_GET['view_patient_id'])) {
       </div>
 
       <div class="module-card">
-        <?php if (isset($successMsg)): ?>
+        <?php if ($successMsg): ?>
           <div class="success-msg" style="display: block;"><?php echo h($successMsg); ?></div>
         <?php endif; ?>
-        <?php if (isset($errorMsg)): ?>
+        <?php if ($errorMsg): ?>
           <div class="error-msg" style="display: block;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
-        <div class="search-bar">
-          <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+          <div class="search-bar" style="flex:1; min-width:240px;">
+            <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
+          </div>
+          <button class="btn-primary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
         </div>
 
         <div style="overflow-x:auto;">
@@ -448,6 +537,7 @@ if (isset($_GET['view_patient_id'])) {
                 <th>Contact</th>
                 <th>Email</th>
                 <th>Last Visit</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -465,6 +555,10 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['contact_number'] ?? 'N/A'); ?></td>
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($lastVisit); ?></td>
+                    <td style="display:flex; gap:8px; flex-wrap:wrap;">
+                      <button class="action-btn" type="button" onclick="window.location.href='patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo (int)$patient['patient_id']; ?>'">View</button>
+                      <a class="action-btn" style="background:white; color:var(--accent); border:1px solid var(--accent);" href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&patient_id=<?php echo (int)$patient['patient_id']; ?>">Records</a>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -540,6 +634,71 @@ if (isset($_GET['view_patient_id'])) {
   </div>
   <?php endif; ?>
 
+  <!-- Add Patient Modal -->
+  <div id="addPatientModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Add Patient</span>
+        <button class="close" type="button" onclick="closeAddPatientModal()">&times;</button>
+      </div>
+      <form method="POST" action="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>">
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" required>
+          </div>
+          <div class="form-group required">
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="contact_number">Contact Number</label>
+            <input type="text" id="contact_number" name="contact_number" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="birthdate">Birthdate</label>
+            <input type="date" id="birthdate" name="birthdate">
+          </div>
+          <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender" name="gender">
+              <option value="">Select gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="address">Address</label>
+          <textarea id="address" name="address"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="patient_username">Username</label>
+            <input type="text" id="patient_username" name="patient_username" required>
+          </div>
+          <div class="form-group">
+            <label for="temp_password">Temporary Password</label>
+            <input type="text" id="temp_password" name="temp_password" placeholder="Leave blank to auto-generate">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
+          <button type="submit" class="btn-submit" name="add_patient">Save Patient</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     <?php printDateClockScript(); ?>
     // Verification logs
@@ -552,6 +711,14 @@ if (isset($_GET['view_patient_id'])) {
       window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';
     }
 
+    function openAddPatientModal() {
+      document.getElementById('addPatientModal').style.display = 'block';
+    }
+
+    function closeAddPatientModal() {
+      document.getElementById('addPatientModal').style.display = 'none';
+    }
+
     function filterPatients() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
       const rows = document.querySelectorAll('#patientGrid tbody tr');
@@ -560,6 +727,13 @@ if (isset($_GET['view_patient_id'])) {
         const text = row.textContent.toLowerCase();
         row.style.display = text.includes(searchInput) ? '' : 'none';
       });
+    }
+
+    window.onclick = function(event) {
+      const modal = document.getElementById('addPatientModal');
+      if (event.target === modal) {
+        closeAddPatientModal();
+      }
     }
   </script>
 </body>

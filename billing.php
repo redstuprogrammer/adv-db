@@ -581,6 +581,10 @@ if ($stats_stmt) {
         row.style.display = text.includes(query) ? '' : 'none';
       });
     }
+
+    function openAddModal() {
+      alert('Invoice creation is currently available through the receptionist billing workflow.');
+    }
   </script>
 </body>
 </html>

@@ -431,12 +431,6 @@ if ($stmt) {
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon icon-green">✅</div>
-          <div class="stat-label">Check-outs Done</div>
-          <div class="stat-value"><?php echo $completedCount; ?></div>
-        </div>
-
-        <div class="stat-card">
           <div class="stat-icon icon-blue">👥</div>
           <div class="stat-label">Total Patients</div>
           <div class="stat-value"><?php echo $newPatients; ?></div>
