@@ -472,6 +472,23 @@ body {
   padding: 24px;
 }
 
+/* Ensure pages that use a different main wrapper (superadmin pages) are offset
+   so the fixed sidebar doesn't cover their content. Targets common selectors
+   used by superadmin pages like .main-content and container > main. */
+.main-content,
+.container > .main-content {
+  margin-left: 260px;
+  padding: 24px;
+}
+
+/* Keep responsive behaviour: remove forced left margin on small screens */
+@media (max-width: 768px) {
+  .main-content,
+  .container > .main-content {
+    margin-left: 0;
+  }
+}
+
 .tenant-header-bar {
   display: flex;
   justify-content: space-between;
