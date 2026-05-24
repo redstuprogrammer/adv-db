@@ -229,6 +229,8 @@ function sendPasswordResetEmail(string $to, string $firstName, string $token): b
 }
 
 // ─── Internal dispatcher ──────────────────────────────────────
+// Bypasses createMailer() and builds PHPMailer directly with
+// trimmed credentials — prevents whitespace issues from Azure env vars.
 
 function dispatchMail(
     string $to,
@@ -237,13 +239,36 @@ function dispatchMail(
     string $htmlBody,
     string $altBody
 ): bool {
+    require_once __DIR__ . '/../vendor/autoload.php';
+
+    $host     = trim(getenv('SMTP_HOST')      ?: getenv('SMTP_HOSTNAME')   ?: '');
+    $username = trim(getenv('SMTP_USER')      ?: getenv('SMTP_USERNAME')   ?: '');
+    $password = trim(getenv('SMTP_PASS')      ?: getenv('SMTP_PASSWORD')   ?: '');
+    $port     = (int)(getenv('SMTP_PORT')     ?: 587);
+    $from     = trim(getenv('SMTP_FROM')      ?: getenv('SMTP_FROM_EMAIL') ?: $username);
+    $fromName = trim(getenv('SMTP_FROM_NAME') ?: 'OralSync');
+
+    if (!$host || !$username || !$password) {
+        error_log('[OralSync Mailer] SMTP credentials not configured. Cannot send to ' . $to);
+        return false;
+    }
+
     try {
-        $mail = createMailer();
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host       = $host;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $username;
+        $mail->Password   = $password;
+        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = $port;
+        $mail->CharSet    = 'UTF-8';
+        $mail->setFrom($from, $fromName);
         $mail->addAddress($to, $name);
-        $mail->Subject  = $subject;
         $mail->isHTML(true);
-        $mail->Body     = $htmlBody;
-        $mail->AltBody  = $altBody;
+        $mail->Subject = $subject;
+        $mail->Body    = $htmlBody;
+        $mail->AltBody = $altBody;
         $mail->send();
         return true;
     } catch (\Exception $e) {
