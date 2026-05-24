@@ -74,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Pull clinic info early so the generator can embed it in headers/footers.
         // We query after $conn is available (required above). Silently skip on failure.
         if (isset($conn)) {
-            $clinicStmt = $conn->prepare("SELECT company_name, address, contact_phone FROM tenants WHERE tenant_id = ? LIMIT 1");
+            $clinicStmt = $conn->prepare("SELECT company_name, owner_name, contact_email FROM tenants WHERE tenant_id = ? LIMIT 1");
             if ($clinicStmt) {
                 $tmpTid = isset($_SESSION['tenant_id']) ? (int)$_SESSION['tenant_id'] : 0;
                 $clinicStmt->bind_param('i', $tmpTid);
@@ -83,8 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($clinicRow) {
                     $generator->setClinicInfo(
                         $clinicRow['company_name'] ?? '',
-                        $clinicRow['address']       ?? '',
-                        $clinicRow['contact_phone'] ?? ''
+                        $clinicRow['owner_name']   ?? '',
+                        $clinicRow['contact_email'] ?? ''
                     );
                 }
             }
