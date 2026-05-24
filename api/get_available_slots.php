@@ -1,16 +1,21 @@
 <?php
 // ============================================================
-// FILE TYPE: API ENDPOINT — deploy to server
-// PATH on server: /api/get_available_slots.php
+// FILE: /api/get_available_slots.php
 // ============================================================
 // GET params:
-//   tenant_id  (int, required)
-//   dentist_id (int, required)
-//   date       (string YYYY-MM-DD, required)
+//   tenant_id       (int,    required)
+//   dentist_id      (int,    required)
+//   date            (string YYYY-MM-DD, required)
+//   total_duration  (int,    optional — default 30)
+//             Sum of selected service durations in minutes.
+//             System adds 15-min sanitation buffer automatically.
 //
-// Returns 30-min slots within the dentist's schedule for that day,
-// marking each slot available or unavailable (booked/past/too-soon).
-// "Too soon" = same-day slots within 1 hour of now (matches book_appointment.php).
+// A slot is available only when:
+//   1. slot_start + total_duration + 15min buffer <= schedule end
+//   2. The window [slot_start … slot_start + total_duration + 15]
+//      does not overlap any existing appointment's occupied window.
+//
+// Slot grid: every 30 minutes.
 // ============================================================
 
 date_default_timezone_set('Asia/Manila');
@@ -28,20 +33,27 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-$tenant_id  = $_GET['tenant_id']  ?? '';
-$dentist_id = $_GET['dentist_id'] ?? '';
-$date       = $_GET['date']       ?? '';
+$tenant_id      = $_GET['tenant_id']      ?? '';
+$dentist_id     = $_GET['dentist_id']     ?? '';
+$date           = $_GET['date']           ?? '';
+$total_duration = isset($_GET['total_duration']) ? (int)$_GET['total_duration'] : 30;
 
 if (empty($tenant_id)  || !is_numeric($tenant_id)  ||
     empty($dentist_id) || !is_numeric($dentist_id) ||
     empty($date)       || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-    echo json_encode(['success' => false, 'message' => 'Valid tenant_id, dentist_id, and date (YYYY-MM-DD) are required']);
+    echo json_encode(['success' => false, 'message' => 'Valid tenant_id, dentist_id, and date are required']);
     exit;
 }
 
+// Clamp duration to sensible range
+$total_duration = max(15, min($total_duration, 240));
+$buffer_minutes = 15; // sanitation buffer between appointments
+$full_window    = $total_duration + $buffer_minutes; // total time block needed
+$slot_step      = 30; // grid granularity in minutes
+
 $day_of_week = date('l', strtotime($date));
 
-// 1. Get dentist's schedule for that day
+// 1. Fetch dentist schedule for this day
 $stmt = $conn->prepare("
     SELECT start_time, end_time
     FROM dentist_schedule
@@ -58,63 +70,91 @@ $schedule = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$schedule) {
-    echo json_encode(['success' => true, 'message' => 'No schedule for this dentist on ' . $day_of_week, 'slots' => []]);
+    echo json_encode([
+        'success' => true,
+        'message' => 'No schedule for this dentist on ' . $day_of_week,
+        'slots'   => [],
+    ]);
     exit;
 }
 
-// 2. Get already-booked times for this dentist on this date
+// 2. Fetch all existing booked appointments for this dentist/date
+//    including their total_duration so we can compute their occupied window.
 $stmt = $conn->prepare("
-    SELECT appointment_time
+    SELECT
+        appointment_time,
+        COALESCE(total_duration_minutes, 30) AS duration_minutes
     FROM appointment
     WHERE dentist_id       = ?
       AND tenant_id        = ?
       AND appointment_date = ?
-      AND status NOT IN ('cancelled', 'voided')
+      AND status NOT IN ('cancelled', 'no_show', 'declined')
 ");
 $stmt->bind_param("iis", $dentist_id, $tenant_id, $date);
 $stmt->execute();
-$res = $stmt->get_result();
-$booked_times = [];
-while ($row = $res->fetch_assoc()) {
-    if ($row['appointment_time']) {
-        $booked_times[] = date('H:i', strtotime($row['appointment_time']));
-    }
-}
+$rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
+$conn->close();
 
-// 3. Generate 30-min slots
-$slot_duration = 30;
-$slots    = [];
-$current  = strtotime($schedule['start_time']);
-$end      = strtotime($schedule['end_time']);
-$is_today = ($date === date('Y-m-d'));
-// 1-hour buffer for same-day bookings — matches book_appointment.php
-$min_allowed = time() + (1 * 60 * 60);
+// Build list of booked windows: [start_ts, end_ts]
+// end_ts = appointment_time + duration + 15min buffer
+$booked_windows = [];
+foreach ($rows as $row) {
+    if (!$row['appointment_time']) continue;
+    $a_start = strtotime($date . ' ' . $row['appointment_time']);
+    $a_end   = $a_start + (((int)$row['duration_minutes'] + $buffer_minutes) * 60);
+    $booked_windows[] = [$a_start, $a_end];
+}
 
-while ($current < $end) {
-    $slot_time  = date('H:i', $current);
-    $slot_label = date('g:i A', $current);
+// 3. Generate candidate slots and evaluate availability
+$sched_start  = strtotime($date . ' ' . $schedule['start_time']);
+$sched_end    = strtotime($date . ' ' . $schedule['end_time']);
+$is_today     = ($date === date('Y-m-d'));
+$min_allowed  = time() + (1 * 60 * 60); // 1-hour buffer for same-day
 
-    // Unavailable if: already past, OR same-day within 2h buffer, OR already booked
-    $too_early  = $is_today && ($current < $min_allowed);
-    $is_booked  = in_array($slot_time, $booked_times);
+$slots = [];
+$cursor = $sched_start;
+
+while ($cursor < $sched_end) {
+    $slot_end_ts = $cursor + ($full_window * 60);
+
+    // Rule 1: entire window must fit within schedule
+    $fits_schedule = ($slot_end_ts <= $sched_end);
+
+    // Rule 2: same-day 1hr buffer
+    $too_soon = $is_today && ($cursor < $min_allowed);
+
+    // Rule 3: no overlap with any existing appointment window
+    $has_overlap = false;
+    if ($fits_schedule && !$too_soon) {
+        foreach ($booked_windows as [$bk_start, $bk_end]) {
+            // Overlap if: cursor < bk_end AND slot_end_ts > bk_start
+            if ($cursor < $bk_end && $slot_end_ts > $bk_start) {
+                $has_overlap = true;
+                break;
+            }
+        }
+    }
 
     $slots[] = [
-        'time'      => $slot_time,
-        'label'     => $slot_label,
-        'available' => !$too_early && !$is_booked,
+        'time'      => date('H:i', $cursor),
+        'label'     => date('g:i A', $cursor),
+        'available' => $fits_schedule && !$too_soon && !$has_overlap,
     ];
 
-    $current = strtotime("+{$slot_duration} minutes", $current);
+    $cursor = strtotime("+{$slot_step} minutes", $cursor);
 }
 
 echo json_encode([
-    'success'  => true,
-    'message'  => 'Slots fetched successfully',
-    'day'      => $day_of_week,
-    'schedule' => ['start' => $schedule['start_time'], 'end' => $schedule['end_time']],
-    'slots'    => $slots,
+    'success'          => true,
+    'message'          => 'Slots fetched successfully',
+    'day'              => $day_of_week,
+    'schedule'         => [
+        'start' => $schedule['start_time'],
+        'end'   => $schedule['end_time'],
+    ],
+    'total_duration'   => $total_duration,
+    'buffer_minutes'   => $buffer_minutes,
+    'slots'            => $slots,
 ]);
-
-$conn->close();
 ?>

@@ -1,13 +1,10 @@
 <?php
 /**
- * =============================================================================
- * PATIENT LOGIN — FINAL (Phase 1.0 + 1.4)
- * =============================================================================
+ * ============================================================
+ * PATIENT LOGIN — Phase 1.5 (with email verification check)
+ * ============================================================
  * Endpoint: POST /api/patient_login.php
- *
- * Returns must_change_password flag so mobile knows whether to
- * force ChangePasswordScreen before going to Home.
- * =============================================================================
+ * ============================================================
  */
 
 header('Content-Type: application/json');
@@ -37,7 +34,6 @@ if (empty($identifier) || empty($password)) {
 }
 
 try {
-    // Lookup by email OR username
     $stmt = $pdo->prepare('
         SELECT
             patient_id,
@@ -54,7 +50,8 @@ try {
             allergies,
             medical_history,
             password_hash,
-            must_change_password
+            must_change_password,
+            email_verified
         FROM patient
         WHERE LOWER(TRIM(email)) = LOWER(?)
            OR username = ?
@@ -75,7 +72,19 @@ try {
         exit;
     }
 
-    // Also fetch clinic name for the home screen greeting
+    // ── Email verification gate ───────────────────────────────
+    if ((int)$patient['email_verified'] === 0) {
+        http_response_code(403);
+        echo json_encode([
+            'success'          => false,
+            'message'          => 'Please verify your email before logging in. Check your inbox for the verification link.',
+            'email_unverified' => true,
+            'email'            => $patient['email'],
+        ]);
+        exit;
+    }
+
+    // Fetch clinic name
     $stmt2 = $pdo->prepare('SELECT company_name FROM tenants WHERE tenant_id = ? LIMIT 1');
     $stmt2->execute([$patient['tenant_id']]);
     $tenant = $stmt2->fetch(PDO::FETCH_ASSOC);
@@ -99,6 +108,7 @@ try {
             'medical_history'      => $patient['medical_history'],
             'company_name'         => $tenant['company_name'] ?? '',
             'must_change_password' => (int) $patient['must_change_password'],
+            'email_verified'       => (int) $patient['email_verified'],
         ]
     ]);
 
