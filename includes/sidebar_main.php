@@ -81,12 +81,6 @@ switch ($role) {
                 ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
                 ['href' => $basePath . '/subscription.php' . $baseTenantQuery, 'icon' => '🧾', 'label' => 'Subscription', 'active' => 'subscription.php'],
             ]],
-                ['href' => $basePath . '/staff.php' . $baseTenantQuery, 'icon' => '👨‍⚕️', 'label' => 'Staff', 'active' => 'staff.php'],
-                ['href' => $basePath . '/services.php' . $baseTenantQuery, 'icon' => '🦷', 'label' => 'Services', 'active' => 'services.php'],
-                ['href' => $basePath . '/clinic_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'Clinic Availability', 'active' => 'clinic_schedule.php'],
-                ...($canUseReports ? [['href' => $basePath . '/reports.php' . $baseTenantQuery, 'icon' => '📈', 'label' => 'Reports', 'active' => 'reports.php']] : []),
-                ['href' => $basePath . '/settings.php' . $baseTenantQuery, 'icon' => '⚙️', 'label' => 'Settings', 'active' => 'settings.php'],
-            ]],
         ];
         $logoutLink = $basePath . '/tenant_logout.php' . $baseTenantQuery;
         break;
