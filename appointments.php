@@ -207,14 +207,15 @@ if ($stmt) {
       .btn-primary {
         background: var(--accent);
         color: white;
-        padding: 10px 16px;
+        padding: 10px 18px;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         cursor: pointer;
         text-decoration: none;
         font-weight: 600;
         font-size: 13px;
         transition: background 0.2s ease;
+        min-height: 44px;
       }
 
       .btn-primary:hover {
@@ -227,6 +228,211 @@ if ($stmt) {
         border-radius: 12px;
         padding: 24px;
         box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+      }
+
+      .btn-secondary {
+        background: #f1f5f9;
+        color: #334155;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 16px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .action-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .filter-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .tab {
+        background: #e2e8f0;
+        color: #0f172a;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .tab.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1100;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        width: 100%;
+        max-width: 560px;
+        box-shadow: 0 20px 25px rgba(15, 23, 42, 0.15);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+      }
+
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .modal-actions button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .modal-actions .btn-secondary {
+        background: #f1f5f9;
+        color: #334155;
+      }
+
+      .modal-actions .btn-primary {
+        background: var(--accent);
+        color: white;
+      }
+
+      .form-group label {
+        font-weight: 600;
+        color: #334155;
+      }
+
+      .form-group input,
+      .form-group select {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+      }
+
+      .modal form {
+        display: contents;
+      }
+
+      .booking-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+
+      .booking-sidebar {
+        display: block;
+      }
+
+      .booking-main {
+        display: block;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content.wide {
+        max-width: 800px;
+      }
+
+      .tab.active, .action-btn.active {
+        background: var(--accent);
+        color: white;
+      }
+
+      .action-btn {
+        text-decoration: none;
+      }
+
+      .search-box {
+        width: 100%;
+        min-height: 44px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+
+      .search-container {
+        flex: 1;
+        min-width: 240px;
+      }
+
+      .action-bar .filter-tabs {
+        margin-left: auto;
+      }
+
+      .filter-tabs a {
+        text-decoration: none;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+      }
+
+      .modal-close:hover {
+        color: #0d3b66;
+      }
+
+      .modal-actions .btn-secondary:hover,
+      .modal-actions .btn-primary:hover,
+      .btn-primary:hover {
+        opacity: 0.95;
+      }
+
+      .modal textarea {
+        min-height: 120px;
+      }
+
+      .modal .form-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
       }
 
       .filters {
@@ -570,17 +776,19 @@ if ($stmt) {
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
-        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; align-items:center; margin-bottom:18px;">
-          <div class="search-container" style="flex:1; min-width:240px;">
-            <input type="text" id="appointmentSearch" class="search-input" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
-          </div>
+        <div class="content-header" style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:16px;">
           <button class="btn-primary" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
 
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px;">
-          <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="action-btn <?php echo $filter === 'all' ? 'active' : ''; ?>" style="padding: 10px 14px;">All</a>
-          <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="action-btn <?php echo $filter === 'today' ? 'active' : ''; ?>" style="padding: 10px 14px;">Today</a>
-          <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=upcoming" class="action-btn <?php echo $filter === 'upcoming' ? 'active' : ''; ?>" style="padding: 10px 14px;">Upcoming</a>
+        <div class="action-bar">
+          <div class="search-container">
+            <input type="text" id="appointmentSearch" class="search-box" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
+          </div>
+          <div class="filter-tabs">
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="tab <?php echo $filter === 'all' ? 'active' : ''; ?>">All</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="tab <?php echo $filter === 'today' ? 'active' : ''; ?>">Today</a>
+            <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=upcoming" class="tab <?php echo $filter === 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
+          </div>
         </div>
 
         <table class="module-table" id="appointmentTable">
@@ -646,8 +854,8 @@ if ($stmt) {
   <div id="scheduleModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <span>Schedule Appointment</span>
-        <button class="close" type="button" onclick="closeScheduleModal()">&times;</button>
+        <h3 class="modal-title">Schedule Appointment</h3>
+        <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
       </div>
       <form method="POST" action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>">
         <div class="form-group required">
@@ -678,9 +886,9 @@ if ($stmt) {
             <input type="time" id="appointment_time" name="appointment_time" required>
           </div>
         </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
-          <button type="submit" class="btn-submit" name="add_appointment">Confirm Appointment</button>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+          <button type="submit" class="btn-primary" name="add_appointment">Confirm Appointment</button>
         </div>
       </form>
     </div>
@@ -782,7 +990,7 @@ if ($stmt) {
         if (timeInput) {
           timeInput.value = '';
         }
-        document.getElementById('scheduleModal').style.display = 'block';
+        document.getElementById('scheduleModal').style.display = 'flex';
       }
 
       function closeScheduleModal() {
@@ -813,12 +1021,12 @@ if ($stmt) {
         document.getElementById('reschedule_date').value = appointmentDate;
         document.getElementById('reschedule_time').value = appointmentTime;
         
-        document.getElementById('manageModal').style.display = 'block';
+        document.getElementById('manageModal').style.display = 'flex';
       }
 
       function openRescheduleModal() {
         closeManageModal();
-        document.getElementById('rescheduleModal').style.display = 'block';
+        document.getElementById('rescheduleModal').style.display = 'flex';
       }
 
       function closeRescheduleModal() {

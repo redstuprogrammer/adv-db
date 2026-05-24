@@ -79,6 +79,20 @@ if ($paymentMethodsTableExists) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['save_integration_settings'])) {
+        $gateway = trim($_POST['payment_gateway'] ?? 'PayMongo');
+        $oldGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo');
+
+        if (saveTenantConfig($tenantId, ['payment_gateway' => $gateway])) {
+            $saveMessage = 'Integration settings saved successfully.';
+            if ($oldGateway !== $gateway) {
+                logTenantActivity($conn, $tenantId, 'Setting Change', "Switched payment gateway integration from $oldGateway to $gateway");
+            }
+        } else {
+            $errorMessage = 'Unable to save integration settings. Please try again.';
+        }
+    }
+
     $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
     if ($subscription && isset($subscription['id'])) {
         $update = $conn->prepare('UPDATE subscriptions SET auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?');
@@ -217,6 +231,26 @@ function formatReadableDate(?string $date): string {
 
           <div style="grid-column: 1 / -1; text-align: right; margin-top: 16px;">
             <button type="submit" class="button-primary">Save Subscription Settings</button>
+          </div>
+        </form>
+
+        <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+          <div class="subscription-item subscription-card" style="grid-column: 1 / -1;">
+            <h3>🔌 Integrations & Payments</h3>
+            <p style="color: #475569; margin-bottom: 16px;">Choose and configure your clinic's active payment gateway provider for patients' booking deposits and bill payments.</p>
+            <?php $activeGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo'); ?>
+            <input type="hidden" name="save_integration_settings" value="1">
+            <div class="form-group" style="margin-bottom: 18px;">
+              <label for="payment_gateway">Active Payment Gateway</label>
+              <select id="payment_gateway" name="payment_gateway" style="width:100%; padding:10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
+                <option value="PayMongo" <?php echo $activeGateway === 'PayMongo' ? 'selected' : ''; ?>>PayMongo (GCash, Maya, Cards)</option>
+                <option value="Maya" <?php echo $activeGateway === 'Maya' ? 'selected' : ''; ?>>Maya Business</option>
+                <option value="PayPal" <?php echo $activeGateway === 'PayPal' ? 'selected' : ''; ?>>PayPal Checkout</option>
+              </select>
+            </div>
+            <div style="text-align: right;">
+              <button type="submit" class="button-primary">Save Integration Settings</button>
+            </div>
           </div>
         </form>
       </div>

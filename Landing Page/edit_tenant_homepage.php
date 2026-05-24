@@ -590,13 +590,12 @@ function openField(key, tab = 'content') {
                 if (tenantLabel) tenantLabel.textContent = newName;
             }
             
-            // For nested fields (announcements, team), save and refresh the preview immediately
+            // For nested fields (announcements, team), update the preview temporarily and do not persist until sync.
             if (el.dataset.key.includes('.')) {
                 markUnsaved();
-                // Debounce the save and apply incremental preview updates for nested content
+                // Debounce preview updates for nested content without saving to the server.
                 clearTimeout(nestedSaveTimer);
-                nestedSaveTimer = setTimeout(async () => {
-                    await autoSaveQuietly();
+                nestedSaveTimer = setTimeout(() => {
                     if (el.dataset.key.startsWith('announcements_json.')) {
                         const [, itemIndex, itemField] = el.dataset.key.split('.');
                         iframe.contentWindow?.postMessage({
@@ -616,7 +615,7 @@ function openField(key, tab = 'content') {
                     } else {
                         iframe.contentWindow?.postMessage({ type: 'refresh' }, '*');
                     }
-                }, 500);
+                }, 250);
             } else {
                 markUnsaved();
                 updatePreview(el.dataset.key, el.value);
@@ -726,8 +725,6 @@ async function addListItem(key) {
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
     
-    // Save before updating preview state
-    await autoSaveQuietly();
     if (key === 'announcements_json') sendAnnouncementsState();
     else if (key === 'team_json') sendTeamState();
 }
@@ -740,8 +737,6 @@ async function removeListItem(key, i) {
     openField(key === 'team_json' ? 'team' : 'announcements');
     markUnsaved();
     
-    // Save before updating preview state
-    await autoSaveQuietly();
     if (key === 'announcements_json') sendAnnouncementsState();
     else if (key === 'team_json') sendTeamState();
 }

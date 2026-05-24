@@ -4,8 +4,8 @@
 
 
 edit_tenant_homepage.php 
-- (prompted) when I edit posts / Pulse Posts, I dont want it showing the page refreshing every time a change happens. I want it to smoothly show the changes.
-- map
+- when I edit posts / Pulse Posts, it must not save right away unless Sync to Live Site button is clicked. when apply changes is clicked, it must be a temporary save like the other elements.
+- remove the map. do the same for tenant_homepage.php
 
 
 SUPER ADMIN
@@ -16,11 +16,15 @@ SUPER ADMIN
 
 
 ADMIN / TENANT
-- admin/tenant should have the same abilities as dentist and receptionist. so admin/tenant should have the same pages and features as dentist and receptionist. (manage button in appointments, adding of patients, etc) but dont remove the pages that are already there for admin/tenant. just update some of the pages. 
-    - patients.php, use the same "Add Patient" button and its functions as in receptionist_patients.php. use the same button "View" and "Records" too.
-    - appointments.php, as same in receptionist_appointments.php where you could schedule an appointment, manage an appointment, and reschedule.
+    - patients.php, the "Add Patient" button is kinda off in position, align the button perfectly with the searchbar. center the position of the modal form for adding patients.
+    - appointments.php, it doesn't have the same styles of receptionist_appointments.php's modal form when scheduling an appointment. use the same modal form. also, the tabs for "All", "Today", and "Upcoming" isnt exactly the same as in dentist_appointments.php, use the same style. and also move the tabs to the right.
 
-- put Subscription navigation link below Settings.
+subscription.php
+    - this is indicated: "Payment method
+No saved payment method is available. You can still manage your subscription settings here." but there are no display where user can edit/manage their payment method. plus the payment method is already selected during the registration. fix that. Next renewal should also be already indicated as the 
+
+settings.php
+- move 🔌 Integrations & Payments inside subscription.php
 
 
 1. reports.php
@@ -28,23 +32,13 @@ ADMIN / TENANT
     - improve audit logs. record other actions done by admin, dentist, and receptionist other than just log in and log out. 
 
 
+DENTIST
+1. dentist_appointments.php
+    - for the list of appointments, dont display appointments that are "Declined". or dont display duplicates. use the same functions as for appointments.php and receptionist_appointments.php
+
 RECEPTIONIST
 1. receptionist_appointments.php 
-    - like in dentist_appointments.php, there should be filter tabs to see the appointments for all, today, and upcoming.
+    - same problem as appointments.php, it doesn't have the same styles of receptionist_appointments.php's modal form when scheduling an appointment. use the same modal form. also, the tabs for "All", "Today", and "Upcoming" isnt exactly the same as in dentist_appointments.php, use the same style. and also move the tabs to the right.
 
-    - upon rescheduling an appointment. the fields must be automatically filled. the patient's name, the previously selected dentist, and the original scheduled date must be also displayed.
+    - when I update an appointment to "Ongoing", it marks the status "Pending", which shouldnt happen, status must be Ongoing.
 
-    - change "In Progress" status to "Ongoing"
-    2026-05-23T15:59:42.489729Z NOTICE: PHP message: PHP Fatal error:  Uncaught mysqli_sql_exception: Data truncated for column 'status' at row 1 in /home/site/wwwroot/receptionist_appointments.php:155
-2026-05-23T15:59:42.4897696Z Stack trace:
-2026-05-23T15:59:42.4897751Z #0 /home/site/wwwroot/receptionist_appointments.php(155): mysqli_stmt_execute(Object(mysqli_stmt))
-2026-05-23T15:59:42.4897788Z #1 {main}
-2026-05-23T15:59:42.4897827Z   thrown in /home/site/wwwroot/receptionist_appointments.php on line 155
-2026-05-23T15:59:42.4897934Z 127.0.0.1 -  23/May/2026:15:59:42 +0000 "POST /receptionist_appointments.php" 500
-
-3. receptionist_patients.php 
-    - records button doesnt work
-
-
-4. receptionist_billing.php 
-    - make the container for the list of billing records look similar to billing.php. same searchbar and button positions. 

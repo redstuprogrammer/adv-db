@@ -191,16 +191,18 @@ if (isset($_GET['view_patient_id'])) {
 
       .search-bar {
         display: flex;
+        align-items: center;
         gap: 12px;
         margin-bottom: 20px;
       }
 
-.search-bar input {
+      .search-bar input {
         flex: 1;
-        padding: 10px 12px;
+        padding: 12px 14px;
         border: 2px solid #d1d5db !important;
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 13px;
+        min-height: 44px;
       }
 
       .search-bar input:focus {
@@ -348,24 +350,26 @@ if (isset($_GET['view_patient_id'])) {
       .modal {
         display: none;
         position: fixed;
+        inset: 0;
         z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
         background-color: rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
         overflow-y: auto;
       }
 
       .modal-content {
         background-color: white;
-        margin: 5% auto;
-        padding: 20px;
+        padding: 24px;
         border: 1px solid var(--border);
-        border-radius: 12px;
-        width: 90%;
+        border-radius: 16px;
+        width: min(600px, 100%);
         max-width: 600px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        box-shadow: 0 20px 30px rgba(15, 23, 42, 0.14);
       }
 
       .modal-header {
@@ -571,7 +575,7 @@ if (isset($_GET['view_patient_id'])) {
 
   <!-- View Patient Modal (if viewing) -->
   <?php if ($viewPatient): ?>
-  <div id="viewPatientModal" class="modal" style="display: block;">
+  <div id="viewPatientModal" class="modal" style="display: flex;">
     <div class="modal-content">
       <div class="modal-header">
         <span><?php echo h($viewPatient['first_name'] . ' ' . $viewPatient['last_name']); ?> - Patient Details</span>
@@ -712,7 +716,7 @@ if (isset($_GET['view_patient_id'])) {
     }
 
     function openAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'block';
+      document.getElementById('addPatientModal').style.display = 'flex';
     }
 
     function closeAddPatientModal() {

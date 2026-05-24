@@ -140,8 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
     $rawStatus = trim($_POST['new_status'] ?? '');
     $statusMap = [
-        'ongoing' => 'pending',
-        'in_progress' => 'pending',
+        'ongoing' => 'ongoing',
+        'in_progress' => 'ongoing',
         'pending' => 'pending',
         'completed' => 'completed',
         'cancelled' => 'cancelled',
@@ -293,6 +293,41 @@ if ($stmt) {
       .action-link { color: var(--dashboard-accent); text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid var(--dashboard-accent); padding: 5px 12px; border-radius: 6px; transition: 0.2s; }
       .action-link:hover { background: var(--dashboard-accent); color: white; }
 
+      .search-box {
+        flex: 1;
+        min-width: 240px;
+        width: 100%;
+        min-height: 44px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+      }
+
+      .filter-tabs {
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+      }
+
+      .tab {
+        background: #e2e8f0;
+        color: #0f172a;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      .tab.active {
+        background: var(--dashboard-accent);
+        color: white;
+        border-color: var(--dashboard-accent);
+      }
+
       .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
       .status-pill.pending { background: #fff3cd; color: #856404; }
       .status-pill.completed { background: #dcfce7; color: #166534; }
@@ -334,6 +369,13 @@ if ($stmt) {
         font-size: 16px;
         cursor: pointer;
         text-decoration: none;
+      }
+
+      .action-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 18px;
       }
 
       .tab-button {
@@ -656,7 +698,7 @@ if ($stmt) {
 
         <div class="action-bar">
           <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name...">
-          <div class="filter-tabs" style="margin-left:12px; display:flex; gap:8px;">
+          <div class="filter-tabs">
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="tab <?php echo $filter == 'all' ? 'active' : ''; ?>">All</a>
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="tab <?php echo $filter == 'today' ? 'active' : ''; ?>">Today</a>
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=upcoming" class="tab <?php echo $filter == 'upcoming' ? 'active' : ''; ?>">Upcoming</a>
@@ -862,7 +904,7 @@ if ($stmt) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
-            <option value="pending">Ongoing</option>
+            <option value="ongoing">Ongoing</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -1184,6 +1226,7 @@ if ($stmt) {
 
       const statusLabels = {
           pending: 'Ongoing',
+          ongoing: 'Ongoing',
           completed: 'Completed',
           cancelled: 'Cancelled',
           approved: 'Approved',
