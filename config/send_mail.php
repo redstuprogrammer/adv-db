@@ -208,6 +208,26 @@ function sendRescheduleRequestEmail(
     return dispatchMail($to, $firstName, 'Reschedule Requested — OralSync', $body, $alt);
 }
 
+// ─── 5. Password Reset ───────────────────────────────────────
+
+function sendPasswordResetEmail(string $to, string $firstName, string $token): bool {
+    $link = APP_BASE_URL . '/api/patient_reset_password.php?token=' . urlencode($token);
+    $body = mailWrap("
+        <h2>Reset Your Password</h2>
+        <span class='badge badge-amber'>Expires in 1 Hour</span>
+        <p>Hi {$firstName},</p>
+        <p>We received a request to reset the password for your OralSync account. Click the button below to set a new password:</p>
+        <a href='{$link}' class='btn'>Reset My Password</a>
+        <p>This link will expire in <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email — your account remains secure.</p>
+        <div class='note'>
+          If the button doesn't work, copy and paste this link into your browser:
+          <div class='url'>{$link}</div>
+        </div>
+    ");
+    $alt = "Hi {$firstName},\n\nReset your OralSync password:\n{$link}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.";
+    return dispatchMail($to, $firstName, 'Reset Your OralSync Password', $body, $alt);
+}
+
 // ─── Internal dispatcher ──────────────────────────────────────
 
 function dispatchMail(
