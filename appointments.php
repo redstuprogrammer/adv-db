@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     $appointmentId = isset($_POST['update_id']) ? (int)$_POST['update_id'] : 0;
     $rawStatus = trim($_POST['new_status'] ?? '');
     $statusMap = [
-        'ongoing' => 'pending',
-        'in progress' => 'pending',
+        'ongoing' => 'ongoing',
+        'in progress' => 'ongoing',
         'pending' => 'pending',
         'completed' => 'completed',
         'cancelled' => 'cancelled',
@@ -251,27 +251,25 @@ if ($stmt) {
 
       .filter-tabs {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-left: auto;
+        background: #f1f5f9;
+        padding: 5px;
+        border-radius: 12px;
+        gap: 5px;
       }
 
       .tab {
-        background: #e2e8f0;
-        color: #0f172a;
-        border: 1px solid transparent;
-        border-radius: 10px;
-        padding: 10px 14px;
-        font-size: 14px;
-        font-weight: 600;
+        padding: 8px 20px;
+        border-radius: 8px;
         text-decoration: none;
-        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 14px;
+        transition: 0.3s;
       }
 
       .tab.active {
         background: var(--accent);
         color: white;
-        border-color: var(--accent);
       }
 
       .modal {
@@ -386,11 +384,11 @@ if ($stmt) {
       }
 
       .search-box {
+        padding: 12px 20px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 12px;
         width: 100%;
-        min-height: 44px;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border: 1px solid #d1d5db;
+        max-width: 400px;
         font-size: 14px;
       }
 
@@ -781,9 +779,7 @@ if ($stmt) {
         </div>
 
         <div class="action-bar">
-          <div class="search-container">
-            <input type="text" id="appointmentSearch" class="search-box" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
-          </div>
+          <input type="text" id="appointmentSearch" class="search-box" placeholder="🔍 Search by patient, dentist, or treatment..." onkeyup="filterAppointments()">
           <div class="filter-tabs">
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all" class="tab <?php echo $filter === 'all' ? 'active' : ''; ?>">All</a>
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=today" class="tab <?php echo $filter === 'today' ? 'active' : ''; ?>">Today</a>
@@ -852,43 +848,58 @@ if ($stmt) {
 
   <!-- Schedule Appointment Modal -->
   <div id="scheduleModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Schedule Appointment</h3>
-        <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
-      </div>
+    <div class="modal-content wide">
       <form method="POST" action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>">
-        <div class="form-group required">
-          <label for="patient_id">Patient</label>
-          <select id="patient_id" name="patient_id" required>
-            <option value="">Select patient</option>
-            <?php foreach ($patients as $patient): ?>
-              <option value="<?php echo (int)$patient['patient_id']; ?>"><?php echo h(formatTenantPatientId($patient['tenant_patient_id']) . ' - ' . $patient['first_name'] . ' ' . $patient['last_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-group required">
-          <label for="dentist_id">Dentist</label>
-          <select id="dentist_id" name="dentist_id" required>
-            <option value="">Select dentist</option>
-            <?php foreach ($dentists as $dentist): ?>
-              <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group required">
-            <label for="appointment_date">Date</label>
-            <input type="date" id="appointment_date" name="appointment_date" required>
+        <div class="booking-grid">
+          <!-- Sidebar: Selection -->
+          <div class="booking-sidebar">
+            <div class="modal-header">
+              <h3 class="modal-title">Schedule Appointment</h3>
+              <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+              <label for="patient_id">Patient</label>
+              <select id="patient_id" name="patient_id" required>
+                <option value="">Select patient</option>
+                <?php foreach ($patients as $patient): ?>
+                  <option value="<?php echo (int)$patient['patient_id']; ?>"><?php echo h(formatTenantPatientId($patient['tenant_patient_id']) . ' - ' . $patient['first_name'] . ' ' . $patient['last_name']); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dentist_id">Dentist</label>
+              <select id="dentist_id" name="dentist_id" required>
+                <option value="">Select dentist</option>
+                <?php foreach ($dentists as $dentist): ?>
+                  <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="appointment_date">Date</label>
+              <input type="date" id="appointment_date" name="appointment_date" required>
+            </div>
+
+            <div class="form-group">
+              <label for="appointment_time">Time</label>
+              <input type="time" id="appointment_time" name="appointment_time" required>
+            </div>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
+              <button type="submit" class="btn-primary" name="add_appointment">Confirm Appointment</button>
+            </div>
           </div>
-          <div class="form-group required">
-            <label for="appointment_time">Time</label>
-            <input type="time" id="appointment_time" name="appointment_time" required>
+
+          <!-- Main: Info Area -->
+          <div class="booking-main">
+            <div style="padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 12px; height: 100%; display: flex; align-items: center; justify-content: center;">
+              <p>Select patient, dentist, and appointment details on the left to schedule.</p>
+            </div>
           </div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
-          <button type="submit" class="btn-primary" name="add_appointment">Confirm Appointment</button>
         </div>
       </form>
     </div>

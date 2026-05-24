@@ -2,8 +2,51 @@
 require_once '../includes/connect.php';
 
 $slug = $_GET['tenant'] ?? '';
-</div>
-</main>
+$tenant = null;
+
+if ($slug) {
+    $stmt = $conn->prepare("SELECT * FROM tenants WHERE subdomain_slug = ?");
+    $stmt->bind_param("s", $slug);
+    $stmt->execute();
+    $tenant = $stmt->get_result()->fetch_assoc();
+}
+
+if ($tenant) {
+    $tenantId = $tenant['tenant_id'];
+    
+    // Fetch settings from clinic_settings for this tenant
+    $stmtSet = $conn->prepare("SELECT * FROM clinic_settings WHERE tenant_id = ?");
+    $stmtSet->bind_param("i", $tenantId);
+    $stmtSet->execute();
+    $settings = $stmtSet->get_result()->fetch_assoc() ?: [];
+    $stmtSet->close();
+
+    // Map tenant fields and settings to the $clinic array
+    // Core details (name, phone, email, address) always come from 'tenants' table
+    $clinic = [
+        'clinic_name' => $settings['clinic_name'] ?? $tenant['company_name'],
+        'name' => $settings['clinic_name'] ?? $tenant['company_name'],
+        'hero_title' => $settings['hero_title'] ?? $tenant['company_name'], 
+        'hero_description' => $settings['hero_description'] ?? ("Welcome to " . $tenant['company_name'] . ". Professional care for your dental health."),
+        'about_description' => $settings['about_description'] ?? ("Serving the community in " . $tenant['city'] . ", " . $tenant['province'] . "."),
+        'contact_phone' => $tenant['phone'],
+        'contact_email' => $tenant['contact_email'] ?? $tenant['email'] ?? 'support@oralsync.com',
+        'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province'],
+        'accent_color' => $settings['accent_color'] ?? '#004872',
+        'badge_text' => $settings['badge_text'] ?? 'Clinical Serenity',
+        'badge_visible' => ($settings['badge_visible'] ?? '1') === '1',
+        'stat_number' => $settings['stat_number'] ?? '98%',
+        'stat_label' => $settings['stat_label'] ?? 'Patient Comfort Index',
+        'checklist_1' => $settings['checklist_1'] ?? 'Curated Acoustic Environments',
+        'checklist_2' => $settings['checklist_2'] ?? 'Bio-compatible Premium Materials',
+        'checklist_3' => $settings['checklist_3'] ?? 'Post-treatment Serenity Lounges',
+        'cta_primary' => $settings['cta_primary'] ?? 'Book Appointment',
+        'footer_copyright' => $settings['footer_copyright'] ?? ("© 2024 " . $tenant['company_name'] . ". Professional Dental Serenity."),
+        'announcements' => json_decode($settings['announcements_json'] ?? '[]', true),
+        'team' => json_decode($settings['team_json'] ?? '[]', true),
+        'hero_image' => $settings['hero_image'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuC1xIbTG7yvJ_dnNR_6565TiT6x37q1WBDSpLC-6orwCNFBV8PNvU1LG8MBljTwI6ykaAo1sk0apu72Fwnx8Kd34sY0QjrnWbLd4u4wsri9CrmkfTq5WemVWkOzq5-yO0T4FYAC-jJ0qCiXBY-qIXe8WtFskhQrPOF-E24-m9ydQZ6L1BK7Xz0QLixe9njuH_EwsSX_WFl4tYmNI4Xi68Np-4ROrt-ulUYA0yI7T1gejLd0VIZ4giBQsRVRvFb1tZNqF5ptfCDKNuo',
+        'about_image_1' => $settings['about_image_1'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFClTvpcJUUHoP5IhpaOwWPPgz8GG6P7H5xT7efg3XWtfz-01tG_XTvOTItatWorrgb4N4vOlyH9_abFeVbVyQJGmNW8keiVgjd5cguQJCy0fU3FW09mBwcP21Y6w7VyCnogTKiwY544oFdoeIhmszgf3kgTdiX9CQQfXdbVpq1oT2b5F2TXunM1WHN0FRUL_O6ogUn2vj5IwOYtpxCyGNTDYjAUiRkt45GLttu1WNn0z2WHGhjzyFT1ZozeNWmMBLy-L4nPuF-1g',
+        'about_image_2' => $settings['about_image_2'] ?? 'https://lh3.googleusercontent.com/aida-public/AB6AXuDfL5XxGL2fbsN5rWest-yN7ja8_3q1ZbAiT_yuzB2Fgx5ys1N5W9tBmfwFCQkQgHn0cqNxRsnDX-_YPKxO7-X0HSr8Zeodhe9Zg5LM6KuHoBvrxhQMDkb8QovcTugn_OUH1ZqiFfJJQX-PBr6dihZPL6v7Fe1BldTgtYfpdZ3TWsXCvvMjRyqJ3NmzQM1vyhjj3Tb6gFhPhondxzUJqMifmdm-1PgDRq-wq5JS6FjLUZH24CsmKabNUrpikLejFVuUogJWKoJvc10',
         'team_title' => $settings['team_title'] ?? 'The Architects of Your Smile',
         'team_subtitle' => $settings['team_subtitle'] ?? 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.'
     ];
@@ -41,8 +84,51 @@ $slug = $_GET['tenant'] ?? '';
         
         $selectSql = "SELECT service_name, price, description" . ($categoryExists ? ", category" : "") . " FROM service WHERE tenant_id = ? ORDER BY category, service_name";
         $stmtServ = $conn->prepare($selectSql);
-         </div>
-         </main>
+        if ($stmtServ) {
+            $stmtServ->bind_param("i", $tenantId);
+            $stmtServ->execute();
+            $resServ = $stmtServ->get_result();
+            while ($row = $resServ->fetch_assoc()) {
+                $services[] = $row;
+            }
+            $stmtServ->close();
+        }
+    } catch (Exception $e) {
+        $services = [];
+    }
+} else {
+    // Fallback if tenant not found
+    $clinic = [
+        'name' => 'Professional Dental Care',
+        'clinic_name' => 'Professional Dental Care',
+        'hero_title' => 'Exhale the Ordinary.',
+        'hero_description' => 'Experience a new standard of dental care where precision engineering meets a curated, calming environment.',
+        'about_description' => 'At our clinic, we believe that world-class dentistry should never feel clinical.',
+        'contact_phone' => '+1 (555) 000-0000',
+        'contact_email' => 'support@oralsync.com',
+        'contact_address' => '123 Serenity Blvd, Medical District',
+        'accent_color' => '#004872',
+        'team_title' => 'The Architects of Your Smile',
+        'team_subtitle' => 'Meet our world-renowned specialists dedicated to the intersection of oral health and aesthetic perfection.'
+    ];
+}
+
+if (empty($services)) {
+    $services = [
+        [
+            'service_name' => 'Ultrasonic Teeth Cleaning',
+            'category' => 'Preventive',
+            'price' => 1500.00,
+            'description' => 'Advanced, pain-free ultrasonic scaling and polishing to remove plaque and maintain optimal oral hygiene.'
+        ],
+        [
+            'service_name' => 'Laser Teeth Whitening',
+            'category' => 'Cosmetic',
+            'price' => 5000.00,
+            'description' => 'State-of-the-art Mint-Glow series laser whitening that brightens teeth by up to 8 shades in a single session without sensitivity.'
+        ],
+        [
+            'service_name' => 'Clear Orthodontic Aligners',
             'category' => 'Orthodontics',
             'price' => 75000.00,
             'description' => 'Discreet, removable, custom-made orthodontic aligners to align your teeth comfortably and invisibly.'

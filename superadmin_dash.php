@@ -294,12 +294,12 @@ try {
         }
 
         .sa-btn-success {
-            border: 1px solid #22c55e;
-            background: rgba(34,197,94,0.1);
-            color: #16a34a;
+            border: 1px solid #0d3b66;
+            background: rgba(13,59,102,0.06);
+            color: #0d3b66;
         }
         .sa-btn-success:hover {
-            background: #22c55e;
+            background: #0d3b66;
             color: #fff;
         }
 

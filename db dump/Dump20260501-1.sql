@@ -95,7 +95,7 @@ CREATE TABLE `appointment` (
   `appointment_time` time DEFAULT NULL,
   `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
   `service_id` int DEFAULT NULL,
-  `status` enum('pending','pending_payment','completed','cancelled','approved','disapproved') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'pending',
+  `status` enum('pending','pending_payment','completed','cancelled','approved','disapproved','ongoing') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'pending',
   `procedure_name` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
   `is_appointment_request` tinyint(1) DEFAULT '1',
   `requested_by` enum('patient','receptionist','dentist') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'patient',
