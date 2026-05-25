@@ -298,8 +298,9 @@ if ($stmt) {
       .queue-table td { padding: 15px; border-bottom: 1px solid var(--dashboard-border); font-size: 14px; }
 
       .time-badge { background: rgba(13, 59, 102, 0.1); color: var(--dashboard-accent); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-      .action-link { color: var(--dashboard-accent); text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid var(--dashboard-accent); padding: 5px 12px; border-radius: 6px; transition: 0.2s; }
+      .action-link { background: white; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid var(--dashboard-accent); padding: 5px 12px; border-radius: 6px; transition: 0.2s; display: inline-block; }
       .action-link:hover { background: var(--dashboard-accent); color: white; }
+      .actions-cell .action-link { background: white; color: var(--dashboard-accent); }
 
       .search-box {
         flex: 1;
@@ -314,26 +315,25 @@ if ($stmt) {
 
       .filter-tabs {
         display: flex;
-        gap: 8px;
-        margin-left: auto;
+        background: var(--dashboard-bg);
+        padding: 5px;
+        border-radius: 12px;
+        gap: 5px;
       }
 
       .tab {
-        background: #e2e8f0;
-        color: #0f172a;
-        border: 1px solid transparent;
-        border-radius: 10px;
-        padding: 10px 14px;
-        font-size: 14px;
-        font-weight: 600;
+        padding: 8px 20px;
+        border-radius: 8px;
         text-decoration: none;
-        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 14px;
+        transition: 0.3s;
       }
 
       .tab.active {
         background: var(--dashboard-accent);
         color: white;
-        border-color: var(--dashboard-accent);
       }
 
       .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
@@ -755,42 +755,14 @@ if ($stmt) {
 
         <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
-          <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--dashboard-border);">
+          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:24px;">
             <?php if ((int)$currentPage > 1): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage - 1); ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">← Previous</a>
+              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage - 1); ?>" class="btn btn-secondary">← Previous</a>
             <?php endif; ?>
-            
-            <div style="display: flex; gap: 4px; align-items: center;">
-              <?php 
-              $currentPage = (int)$currentPage;
-              $startPage = max(1, $currentPage - 2);
-              $endPage = min($totalPages, $currentPage + 2);
-              
-              if ($startPage > 1): ?>
-                <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=1" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; color: #0d3b66; text-decoration: none; font-weight: 600;">1</a>
-                <?php if ($startPage > 2): ?><span style="color: #94a3b8; padding: 0 4px;">...</span><?php endif; ?>
-              <?php endif; ?>
-              
-              <?php for ($page = $startPage; $page <= $endPage; $page++): ?>
-                <?php if ($page === (int)$currentPage): ?>
-                  <span style="padding: 8px 10px; background: var(--dashboard-accent); color: white; border-radius: 6px; font-weight: 700; border: 1px solid var(--dashboard-accent);"><?php echo $page; ?></span>
-                <?php else: ?>
-                  <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo $page; ?>" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; color: #0d3b66; text-decoration: none; font-weight: 600; transition: 0.2s;"><?php echo $page; ?></a>
-                <?php endif; ?>
-              <?php endfor; ?>
-              
-              <?php if ($endPage < $totalPages): ?>
-                <?php if ($endPage < $totalPages - 1): ?><span style="color: #94a3b8; padding: 0 4px;">...</span><?php endif; ?>
-                <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo $totalPages; ?>" style="padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 6px; color: #0d3b66; text-decoration: none; font-weight: 600;"><?php echo $totalPages; ?></a>
-              <?php endif; ?>
-            </div>
-            
+            <span style="font-size: 13px; color: #475569;">Page <?php echo (int)$currentPage; ?> of <?php echo $totalPages; ?></span>
             <?php if ((int)$currentPage < $totalPages): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage + 1); ?>" style="padding: 8px 12px; border: 1px solid var(--dashboard-accent); border-radius: 6px; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; transition: 0.2s;">Next →</a>
+              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage + 1); ?>" class="btn btn-secondary">Next →</a>
             <?php endif; ?>
-          </div>
-          <div style="text-align: center; margin-top: 16px; color: #64748b; font-size: 13px;">
-            Page <?php echo (int)$currentPage; ?> of <?php echo $totalPages; ?> • Showing <?php echo (((int)$currentPage - 1) * $appointmentsPerPage) + 1; ?>–<?php echo min((int)$currentPage * $appointmentsPerPage, $totalAppointments); ?> of <?php echo $totalAppointments; ?> appointments
           </div>
         <?php endif; ?>
       </div>

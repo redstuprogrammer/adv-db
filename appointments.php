@@ -23,6 +23,10 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function formatTenantPatientId($tenant_patient_id) {
+  return '#' . str_pad($tenant_patient_id, 4, '0', STR_PAD_LEFT);
+}
+
 $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 requireTenantLogin($tenantSlug);
 
@@ -41,6 +45,27 @@ $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $today = date('Y-m-d');
+
+// Fetch patients and dentists for scheduling modal
+$patients = [];
+$pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+if ($pstmt) {
+  $pstmt->bind_param('i', $tenantId);
+  $pstmt->execute();
+  $pres = $pstmt->get_result();
+  while ($r = $pres->fetch_assoc()) $patients[] = $r;
+  $pstmt->close();
+}
+
+$dentists = [];
+$dstmt = $conn->prepare('SELECT user_id AS dentist_id, first_name, last_name FROM users WHERE tenant_id = ? AND role = "Dentist" ORDER BY last_name ASC');
+if ($dstmt) {
+  $dstmt->bind_param('i', $tenantId);
+  $dstmt->execute();
+  $dres = $dstmt->get_result();
+  while ($r = $dres->fetch_assoc()) $dentists[] = $r;
+  $dstmt->close();
+}
 
 // Handle Add Appointment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
@@ -255,7 +280,7 @@ if ($stmt) {
 
       .filter-tabs {
         display: flex;
-        background: #f1f5f9;
+        background: var(--bg);
         padding: 5px;
         border-radius: 12px;
         gap: 5px;
@@ -834,13 +859,13 @@ if ($stmt) {
         <?php if ($totalAppointments > $perPage):
             $lastPage = (int)ceil($totalAppointments / $perPage);
         ?>
-          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:18px;">
+          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:24px;">
             <?php if ($page > 1): ?>
-              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="action-btn">Previous</a>
+              <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="btn btn-secondary">Previous</a>
             <?php endif; ?>
             <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
             <?php if ($page < $lastPage): ?>
-              <a href="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="action-btn">Next</a>
+              <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="btn btn-secondary">Next</a>
             <?php endif; ?>
           </div>
         <?php endif; ?>
@@ -850,10 +875,10 @@ if ($stmt) {
 
 
 
-  <!-- Schedule Appointment Modal -->
+  <!-- Schedule Appointment Modal (receptionist-style) -->
   <div id="scheduleModal" class="modal">
     <div class="modal-content wide">
-      <form method="POST" action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>">
+      <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
         <div class="booking-grid">
           <!-- Sidebar: Selection -->
           <div class="booking-sidebar">
@@ -873,35 +898,63 @@ if ($stmt) {
             </div>
 
             <div class="form-group">
-              <label for="dentist_id">Dentist</label>
-              <select id="dentist_id" name="dentist_id" required>
-                <option value="">Select dentist</option>
+              <label for="dentist_id">Preferred Dentist</label>
+              <select id="dentist_id" onchange="handleDentistChange()">
+                <option value="">Any Dentist (First Available)</option>
                 <?php foreach ($dentists as $dentist): ?>
                   <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
                 <?php endforeach; ?>
               </select>
+              <input type="hidden" id="final_dentist_id" name="dentist_id" value="">
             </div>
 
-            <div class="form-group">
-              <label for="appointment_date">Date</label>
-              <input type="date" id="appointment_date" name="appointment_date" required>
+            <div class="booking-summary-card">
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--accent);">Appointment Summary</h4>
+              <div class="summary-item">
+                <span class="summary-label">Date:</span>
+                <span class="summary-value" id="summary-date">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Time:</span>
+                <span class="summary-value" id="summary-time">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Dentist:</span>
+                <span class="summary-value" id="summary-dentist">First Available</span>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label for="appointment_time">Time</label>
-              <input type="time" id="appointment_time" name="appointment_time" required>
-            </div>
+            <input type="hidden" id="appointment_date" name="appointment_date" required>
+            <input type="hidden" id="appointment_time" name="appointment_time" required>
 
             <div class="modal-actions">
               <button type="button" class="btn-secondary" onclick="closeScheduleModal()">Cancel</button>
-              <button type="submit" class="btn-primary" name="add_appointment">Confirm Appointment</button>
+              <button type="submit" class="btn-primary" name="add_appointment">Confirm Booking</button>
             </div>
           </div>
 
-          <!-- Main: Info Area -->
+          <!-- Main: Calendar & Slots -->
           <div class="booking-main">
-            <div style="padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 12px; height: 100%; display: flex; align-items: center; justify-content: center;">
-              <p>Select patient, dentist, and appointment details on the left to schedule.</p>
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button type="button" class="action-link" onclick="prevMonth()" style="padding: 4px 10px;">❮</button>
+                <h4 id="calendar-month-year" style="margin: 0; font-weight: 700;"></h4>
+                <button type="button" class="action-link" onclick="nextMonth()" style="padding: 4px 10px;">❯</button>
+              </div>
+              <div class="calendar-grid" id="calendar-grid">
+                <!-- Calendar will be rendered here -->
+              </div>
+            </div>
+
+            <div id="slots-container" style="display: none;">
+              <h4 style="margin: 0; font-size: 14px; color: var(--accent);">Available Time Slots</h4>
+              <div class="time-slot-grid" id="time-slot-grid">
+                <!-- Slots will be rendered here -->
+              </div>
+            </div>
+
+            <div id="no-slots-msg" style="display: block; padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 12px;">
+              <p>Please select a date from the calendar to view available times.</p>
             </div>
           </div>
         </div>
@@ -993,23 +1046,190 @@ if ($stmt) {
       
       <?php printDateClockScript(); ?>
       
+      const tenantId = <?php echo json_encode($tenantId); ?>;
+
       function openScheduleModal() {
-        const dateInput = document.getElementById('appointment_date');
-        if (dateInput) {
-          const now = new Date();
-          const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0,10);
-          dateInput.min = localDate;
-          dateInput.value = localDate;
-        }
-        const timeInput = document.getElementById('appointment_time');
-        if (timeInput) {
-          timeInput.value = '';
-        }
-        document.getElementById('scheduleModal').style.display = 'flex';
+        const form = document.querySelector('#scheduleModal form');
+        if (form) form.reset();
+        selectedBookingDate = null;
+        selectedBookingTime = null;
+        selectedBookingDentist = null;
+        currentViewDate = new Date();
+
+        document.getElementById('appointment_date').value = '';
+        document.getElementById('appointment_time').value = '';
+        document.getElementById('summary-date').textContent = 'Not selected';
+        document.getElementById('summary-time').textContent = 'Not selected';
+        document.getElementById('summary-dentist').textContent = 'First Available';
+        document.getElementById('slots-container').style.display = 'none';
+        document.getElementById('no-slots-msg').style.display = 'block';
+
+        document.getElementById('scheduleModal').classList.add('active');
+        fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear());
       }
 
       function closeScheduleModal() {
-        document.getElementById('scheduleModal').style.display = 'none';
+        document.getElementById('scheduleModal').classList.remove('active');
+      }
+
+      let currentViewDate = new Date();
+      let selectedBookingDate = null;
+      let selectedBookingTime = null;
+      let availabilityData = null;
+
+      async function fetchAvailabilityData(month, year, dentistId = null) {
+        const url = `api/get_monthly_availability.php?tenant_id=${tenantId}&month=${month + 1}&year=${year}${dentistId ? '&dentist_id=' + dentistId : ''}`;
+        try {
+          const response = await fetch(url);
+          availabilityData = await response.json();
+          renderBookingCalendar();
+        } catch (err) {
+          console.error('Failed to fetch availability:', err);
+        }
+      }
+
+      function renderBookingCalendar() {
+        const grid = document.getElementById('calendar-grid');
+        const monthYearLabel = document.getElementById('calendar-month-year');
+        if (!grid || !monthYearLabel) return;
+
+        grid.innerHTML = '';
+        const year = currentViewDate.getFullYear();
+        const month = currentViewDate.getMonth();
+        monthYearLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(currentViewDate);
+
+        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+          const div = document.createElement('div');
+          div.className = 'cal-day-header';
+          div.textContent = day;
+          grid.appendChild(div);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+        const today = new Date().toISOString().split('T')[0];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayDiv = document.createElement('div');
+          dayDiv.className = 'cal-day';
+          dayDiv.textContent = d;
+
+          const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(year, month, d));
+          const isClinicClosed = availabilityData?.clinic_closed_days?.includes(dayName);
+          const isDentistWorking = availabilityData?.dentist_working_days?.length > 0 ? availabilityData.dentist_working_days.includes(dayName) : true;
+          const isPast = dateStr < today;
+
+          if (isClinicClosed || !isDentistWorking || isPast) {
+            dayDiv.classList.add('disabled');
+          } else {
+            dayDiv.classList.add('working');
+            dayDiv.onclick = () => handleDateClick(dateStr);
+          }
+
+          if (dateStr === today) dayDiv.classList.add('today');
+          if (dateStr === selectedBookingDate) dayDiv.classList.add('active');
+
+          grid.appendChild(dayDiv);
+        }
+      }
+
+      function prevMonth() {
+        currentViewDate.setMonth(currentViewDate.getMonth() - 1);
+        fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), document.getElementById('dentist_id').value);
+      }
+
+      function nextMonth() {
+        currentViewDate.setMonth(currentViewDate.getMonth() + 1);
+        fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), document.getElementById('dentist_id').value);
+      }
+
+      function handleDentistChange() {
+        const dentistId = document.getElementById('dentist_id').value;
+        const dentistName = document.getElementById('dentist_id').options[document.getElementById('dentist_id').selectedIndex].text;
+        document.getElementById('summary-dentist').textContent = dentistId ? dentistName : 'First Available';
+        document.getElementById('final_dentist_id').value = dentistId;
+        selectedBookingTime = null;
+        document.getElementById('appointment_time').value = '';
+        document.getElementById('summary-time').textContent = 'Not selected';
+        fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear(), dentistId);
+        if (selectedBookingDate) loadSlotsForDate(selectedBookingDate, dentistId);
+      }
+
+      async function handleDateClick(dateStr) {
+        selectedBookingDate = dateStr;
+        document.getElementById('appointment_date').value = dateStr;
+        document.getElementById('summary-date').textContent = new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        selectedBookingTime = null;
+        document.getElementById('appointment_time').value = '';
+        document.getElementById('summary-time').textContent = 'Not selected';
+        renderBookingCalendar();
+        loadSlotsForDate(dateStr, document.getElementById('dentist_id').value);
+      }
+
+      async function loadSlotsForDate(date, dentistId) {
+        const slotsContainer = document.getElementById('slots-container');
+        const timeGrid = document.getElementById('time-slot-grid');
+        const noSlotsMsg = document.getElementById('no-slots-msg');
+
+        slotsContainer.style.display = 'block';
+        noSlotsMsg.style.display = 'none';
+        timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">Loading slots...</p>';
+
+        let url = '';
+        if (dentistId) {
+          url = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${date}`;
+          document.getElementById('final_dentist_id').value = dentistId;
+        } else {
+          url = `api/get_available_dentists.php?tenant_id=${tenantId}&date=${date}`;
+          try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.success && data.dentists.length > 0) {
+              const firstDentistId = data.dentists[0].dentist_id;
+              const firstDentistName = `Dr. ${data.dentists[0].first_name} ${data.dentists[0].last_name}`;
+              document.getElementById('summary-dentist').textContent = firstDentistName + " (Auto-selected)";
+              document.getElementById('final_dentist_id').value = firstDentistId;
+              url = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${firstDentistId}&date=${date}`;
+            } else {
+               timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color: #ef4444;">No dentists available on this day.</p>';
+               return;
+            }
+          } catch(e) { console.error(e); }
+        }
+
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+          timeGrid.innerHTML = '';
+          if (!data.success || !data.slots || data.slots.length === 0) {
+            timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No available slots for this selection.</p>';
+            return;
+          }
+
+          data.slots.forEach(slot => {
+            const chip = document.createElement('div');
+            chip.className = `time-chip ${slot.available ? '' : 'disabled'}`;
+            chip.textContent = slot.label;
+            if (slot.available) {
+              chip.onclick = () => {
+                document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                selectedBookingTime = slot.time;
+                document.getElementById('appointment_time').value = slot.time;
+                document.getElementById('summary-time').textContent = slot.label;
+              };
+            }
+            if (selectedBookingTime === slot.time) chip.classList.add('active');
+            timeGrid.appendChild(chip);
+          });
+        } catch (err) {
+          console.error('Failed to load slots:', err);
+          timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color: #ef4444;">Error loading slots.</p>';
+        }
       }
 
       function openManageModal(id, patientName, dentistName, status, appointmentDate, appointmentTime, dentistId) {
@@ -1053,15 +1273,14 @@ if ($stmt) {
       }
 
       // Close modal when clicking outside
-      window.onclick = function(event) {
-        const activeModals = ['manageModal', 'scheduleModal', 'rescheduleModal'];
-        activeModals.forEach(modalId => {
-          const modal = document.getElementById(modalId);
-          if (modal && event.target === modal) {
-            modal.style.display = 'none';
-          }
-        });
-      }
+      window.addEventListener('click', function(event) {
+        const scheduleModalEl = document.getElementById('scheduleModal');
+        const manageModal = document.getElementById('manageModal');
+        const rescheduleModal = document.getElementById('rescheduleModal');
+        if (event.target === scheduleModalEl) closeScheduleModal();
+        if (event.target === manageModal) closeManageModal();
+        if (event.target === rescheduleModal) closeRescheduleModal();
+      });
   </script>
 </body>
 </html>

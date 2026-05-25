@@ -4,8 +4,8 @@
 
 session_start();
 
-require_once __DIR__ . '/includes/security_headers.php';
-require_once __DIR__ . '/includes/connect.php';
+require_once __DIR__ . '/../includes/security_headers.php';
+require_once __DIR__ . '/../includes/connect.php';
 
 // Prefer mysqli (already initialized in connect.php as $conn)
 if (!isset($conn) || !($conn instanceof mysqli)) {
