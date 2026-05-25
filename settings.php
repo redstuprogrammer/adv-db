@@ -225,7 +225,12 @@ HTML;
                         if ($updateUsernameStmt->execute()) {
                             $updatesMade = true;
                             $message = 'Username updated successfully. ';
-                            logTenantActivity($conn, $tenantId, 'Setting Change', "Changed account username to $newUsername");
+                          try {
+                            $desc = safeDesc('Updated', 'Tenant', $tenantId, ['action' => 'username_change']);
+                            logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                          } catch (Exception $e) {
+                            error_log('Username change logging failed: ' . $e->getMessage());
+                          }
                             // Sync session with new username
                             $tenantData = $sessionManager->getTenantData();
                             if ($tenantData) {
@@ -301,8 +306,13 @@ HTML;
                     'brand_bg_image_path' => '',
                 ];
                 if (saveTenantConfig($tenantId, $resetDefaults)) {
-                    $message = 'Login customization settings reset to defaults successfully!';
-                    logTenantActivity($conn, $tenantId, 'Setting Change', "Reset clinic branding settings to defaults");
+                  $message = 'Login customization settings reset to defaults successfully!';
+                  try {
+                    $desc = safeDesc('Reset', 'Settings', null, ['section' => 'branding']);
+                    logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                  } catch (Exception $e) {
+                    error_log('Settings reset logging failed: ' . $e->getMessage());
+                  }
                 } else {
                     $message = 'Unable to reset settings. Please try again.';
                 }
@@ -355,8 +365,13 @@ HTML;
                     }
 
                     if (saveTenantConfig($tenantId, $configValues)) {
-                        $message = 'Login customization settings saved successfully!';
-                        logTenantActivity($conn, $tenantId, 'Setting Change', "Updated clinic branding settings");
+                      $message = 'Login customization settings saved successfully!';
+                      try {
+                        $desc = safeDesc('Updated', 'Settings', null, ['section' => 'branding']);
+                        logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                      } catch (Exception $e) {
+                        error_log('Settings save logging failed: ' . $e->getMessage());
+                      }
                     } else {
                         $message = 'Unable to save login customization settings. Please try again.';
                     }
@@ -377,7 +392,13 @@ HTML;
                 if ($stmt) {
                     $stmt->bind_param('isssss', $tenantId, $title, $content, $category, $publishDate, $status);
                     if ($stmt->execute()) {
-                        $message = 'Announcement added successfully!';
+                  $message = 'Announcement added successfully!';
+                  // Log announcement creation
+                  $annNewId = $conn->insert_id ?? null;
+                  if ($annNewId) {
+                    $desc = safeDesc('Created', 'Announcement', $annNewId, ['title' => substr($title,0,40)]);
+                    logTenantActivity($conn, $tenantId, 'Created', $desc);
+                  }
                     } else {
                         $message = 'Error adding announcement.';
                     }
@@ -388,7 +409,10 @@ HTML;
                 if ($stmt) {
                     $stmt->bind_param('sssssii', $title, $content, $category, $publishDate, $status, $annId, $tenantId);
                     if ($stmt->execute()) {
-                        $message = 'Announcement updated successfully!';
+                  $message = 'Announcement updated successfully!';
+                  // Log announcement update
+                  $desc = safeDesc('Updated', 'Announcement', $annId, ['title' => substr($title,0,40)]);
+                  logTenantActivity($conn, $tenantId, 'Updated', $desc);
                     } else {
                         $message = 'Error updating announcement.';
                     }
@@ -399,7 +423,10 @@ HTML;
                 if ($stmt) {
                     $stmt->bind_param('ii', $annId, $tenantId);
                     if ($stmt->execute()) {
-                        $message = 'Announcement deleted successfully!';
+                  $message = 'Announcement deleted successfully!';
+                  // Log announcement deletion
+                  $desc = safeDesc('Deleted', 'Announcement', $annId);
+                  logTenantActivity($conn, $tenantId, 'Deleted', $desc);
                     } else {
                         $message = 'Error deleting announcement.';
                     }

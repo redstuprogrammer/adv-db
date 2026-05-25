@@ -189,8 +189,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
                     
                     // Send welcome email with temporary password
                     sendUserWelcomeEmail($email, $firstName, $lastName, $rawPassword, $tenantName, $tenantSlug, $role);
-                    
-                    header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
+                  // Log user creation (privacy-safe)
+                  try {
+                    $newUserId = $stmt->insert_id ?? null;
+                    if ($newUserId) {
+                      $desc = safeDesc('Created', 'User', $newUserId, ['role' => $role]);
+                      logTenantActivity($conn, $tenantId, 'Created', $desc);
+                    }
+                  } catch (Exception $e) {
+                    error_log('User creation logging failed: ' . $e->getMessage());
+                  }
+
+                  header('Location: users.php?tenant=' . urlencode($tenantSlug) . '&success=1');
                     exit;
                 } else {
                     error_log("Error adding user: " . $stmt->error);

@@ -91,8 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
-    // Fetch current billing row
-    $chk = $conn->prepare("SELECT total_amount, amount_paid FROM billing WHERE billing_id = ? LIMIT 1");
+    // Fetch current billing row (including tenant_id)
+    $chk = $conn->prepare("SELECT tenant_id, total_amount, amount_paid FROM billing WHERE billing_id = ? LIMIT 1");
     $chk->bind_param("i", $billing_id);
     $chk->execute();
     $bill = $chk->get_result()->fetch_assoc();
@@ -128,6 +128,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $upd->close(); $conn->close(); exit;
     }
     $upd->close();
+
+    // Log cash payment in tenant activity (privacy-safe)
+    try {
+        require_once __DIR__ . '/../includes/tenant_utils.php';
+        $tenant_id_for_log = $bill['tenant_id'] ?? null;
+        if ($tenant_id_for_log) {
+            $desc = safeDesc('Payment', 'Billing', $billing_id, ['status' => $new_status, 'mode' => $mode]);
+            logTenantActivity($conn, (int)$tenant_id_for_log, 'Payment', $desc);
+        }
+    } catch (Exception $e) {
+        error_log('Billing payment logging failed: ' . $e->getMessage());
+    }
+
     $conn->close();
 
     echo json_encode([

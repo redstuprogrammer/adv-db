@@ -182,6 +182,30 @@ try {
     // Commit transaction
     $conn->commit();
 
+    // Log payment processing
+    try {
+        $patientStmt = $conn->prepare("SELECT first_name, last_name FROM patient WHERE patient_id = ? AND tenant_id = ?");
+        if ($patientStmt) {
+            $patientStmt->bind_param("ii", $patient_id, $tenantId);
+            $patientStmt->execute();
+            $patientResult = $patientStmt->get_result();
+            $patientData = $patientResult->fetch_assoc();
+            $patientStmt->close();
+            
+            $patientName = ($patientData ? $patientData['first_name'] . ' ' . ($patientData['last_name'] ?? '') : 'Unknown');
+            $logDesc = safeDesc('Payment', 'Processed', $patient_id, [
+                'patient_name' => $patientName,
+                'amount' => $amount_paid_final,
+                'payment_mode' => $db_mode,
+                'reference_number' => $reference_number,
+                'appointment_id' => $appointment_id
+            ]);
+            logTenantActivity($conn, $tenantId, 'Payment', $logDesc);
+        }
+    } catch (Exception $e) {
+        error_log('Payment logging failed: ' . $e->getMessage());
+    }
+
     $successMessage = "Payment processed successfully! Reference: " . $reference_number;
     if (!empty($depositApplied) && $depositApplied > 0) {
         $successMessage = "Deposit of ₱" . number_format($depositApplied, 2) . " applied. " . $successMessage;

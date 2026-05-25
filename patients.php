@@ -112,6 +112,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
                 $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $usernameInput, $passwordHash);
                 if ($insertStmt->execute()) {
                     $successMsg = 'Patient added successfully.';
+                    // Log patient creation (privacy-safe)
+                    $newPatientId = $conn->insert_id ?? null;
+                    if ($newPatientId) {
+                      $desc = safeDesc('Created', 'Patient', $newPatientId, ['tenant_patient_id' => $newTenantPatientId]);
+                      logTenantActivity($conn, $tenantId, 'Created', $desc);
+                    }
                 } else {
                     $errorMsg = 'Unable to add patient. DB Error: ' . $conn->error;
                 }
@@ -157,6 +163,7 @@ if (isset($_GET['view_patient_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Patients</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
       :root {
         --accent: #0d3b66;
@@ -502,6 +509,48 @@ if (isset($_GET['view_patient_id'])) {
       .patient-detail-value {
         font-size: 13px;
         color: #64748b;
+      }
+
+      /* Modal styles (ensure hidden by default and consistent across pages) */
+      .modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1100;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        width: 100%;
+        max-width: 760px;
+        box-shadow: 0 20px 25px rgba(15, 23, 42, 0.15);
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .modal .close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+      }
+
+      .modal.active {
+        display: flex;
       }
 
     </style>

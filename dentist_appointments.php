@@ -100,6 +100,7 @@ $errorMessage = '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Dentist Appointments</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
       :root {
         --dashboard-accent: #0d3b66;
@@ -394,7 +395,7 @@ $errorMessage = '';
         <?php endif; ?>
 
         <div class="action-bar">
-          <input type="text" id="apptSearch" class="search-box" placeholder="🔍 Search patient name...">
+          <input type="text" id="apptSearch" class="search-input" placeholder="🔍 Search patient name...">
           
           <div class="filter-tabs">
             <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&filter=all"      class="tab <?php echo $filter == 'all'      ? 'active' : ''; ?>">All</a>
@@ -446,13 +447,13 @@ $errorMessage = '';
           <?php if ($totalAppointments > $perPage):
               $lastPage = (int)ceil($totalAppointments / $perPage);
           ?>
-            <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:18px;">
+            <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:24px;">
               <?php if ($page > 1): ?>
-                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="btn-treatment">Previous</a>
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="btn btn-secondary">Previous</a>
               <?php endif; ?>
               <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
               <?php if ($page < $lastPage): ?>
-                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="btn-treatment">Next</a>
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="btn btn-secondary">Next</a>
               <?php endif; ?>
             </div>
           <?php endif; ?>

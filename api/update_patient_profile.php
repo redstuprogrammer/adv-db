@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/../connect.php';
+require_once __DIR__ . '/../includes/tenant_utils.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Only POST requests allowed']);
@@ -148,6 +149,13 @@ $stmt->bind_param(
 );
 
 if ($stmt->execute()) {
+    // Log profile update (privacy-safe)
+    try {
+        $desc = safeDesc('Updated', 'Patient', $patient_id, ['action' => 'profile_update']);
+        logTenantActivity($conn, $tenant_id, 'Updated', $desc);
+    } catch (Exception $e) {
+        error_log('Patient update logging failed: ' . $e->getMessage());
+    }
     echo json_encode([
         'success' => true,
         'message' => 'Profile updated successfully',

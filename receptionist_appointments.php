@@ -169,6 +169,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
                 mysqli_stmt_bind_param($stmtUpdate, 'sii', $newStatus, $appointmentId, $tenantId);
                 if (mysqli_stmt_execute($stmtUpdate)) {
                     $successMessage = 'Appointment status updated successfully.';
+                    // Log appointment status change
+                    try {
+                        $logDesc = safeDesc('Appointment', 'Status Changed', $appointmentId, ['new_status' => $newStatus, 'old_status' => $current['status']]);
+                        logTenantActivity($conn, $tenantId, 'Appointment', $logDesc);
+                    } catch (Exception $e) {
+                        error_log('Appointment status update logging failed: ' . $e->getMessage());
+                    }
                 } else {
                     $errorMessage = 'Unable to update appointment status.';
                 }
@@ -275,6 +282,7 @@ if ($stmt) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Front Desk Appointments</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
       :root {
         --dashboard-accent: #0d3b66;

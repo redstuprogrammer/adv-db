@@ -140,7 +140,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
                 
                 if (move_uploaded_file($tmp_name, $dest_path)) {
                     $fileSizeMB = round($file_size / (1024 * 1024), 2);
-                    logTenantActivity($conn, $tenantId, 'Document Upload', "Uploaded document: $original_name ($fileSizeMB MB)", max(1, (int)ceil($fileSizeMB)));
+                    $desc = safeDesc('Upload', 'Document', null, ['sizeMB' => $fileSizeMB]);
+                    logTenantActivity($conn, $tenantId, 'Document Upload', $desc, max(1, (int)ceil($fileSizeMB)));
                     $db_path = 'uploads/patient_docs/' . $safe_name;
                     $doc_sql = "INSERT INTO patient_documents (tenant_id, patient_id, document_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?, ?)";
                     $doc_stmt = mysqli_prepare($conn, $doc_sql);

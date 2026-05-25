@@ -49,10 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all_schedule']))
         }
     }
 
-    if ($successCount === 7) {
+        if ($successCount === 7) {
         $message = 'Weekly schedule updated successfully.';
         $messageType = 'success';
-        logActivity($conn, $tenantId, 'Schedule', 'Dentist updated full weekly schedule', $dentistName, 'dentist', 'Dentist');
+        $desc = safeDesc('Schedule', 'DentistSchedule', null, ['dentist_id' => $dentistId]);
+        logActivity($conn, $tenantId, 'Schedule', $desc, null, 'dentist', 'Dentist');
     }
 }
 

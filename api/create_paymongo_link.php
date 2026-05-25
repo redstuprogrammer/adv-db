@@ -188,7 +188,8 @@ $session_id   = $pm_data['data']['id'];
 $checkout_url = $pm_data['data']['attributes']['checkout_url'];
 
 require_once dirname(__DIR__) . '/includes/tenant_utils.php';
-logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', "Generated PayMongo checkout session for billing ID $billing_id");
+$desc = safeDesc('Payment', 'Billing', $billing_id, ['action' => 'checkout_session', 'provider' => 'PayMongo']);
+logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', $desc);
 
 $upd = $conn->prepare("
     UPDATE billing

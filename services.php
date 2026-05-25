@@ -62,7 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if ($stmt) {
                 if (mysqli_stmt_execute($stmt)) {
-                    $message = 'Service added successfully!';
+                $message = 'Service added successfully!';
+                // Log service creation (privacy-safe)
+                $newServiceId = mysqli_insert_id($conn);
+                if ($newServiceId) {
+                  $desc = safeDesc('Created', 'Service', $newServiceId, ['name' => $serviceName]);
+                  logTenantActivity($conn, $tenantId, 'Created', $desc);
+                }
                 } else {
                     $message = 'Error adding service.';
                 }
@@ -79,7 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, "ii", $serviceId, $tenantId);
             mysqli_stmt_execute($stmt);
-            $message = 'Service deleted successfully!';
+          $message = 'Service deleted successfully!';
+          // Log service deletion (privacy-safe)
+          try {
+            $desc = safeDesc('Deleted', 'Service', $serviceId);
+            logTenantActivity($conn, $tenantId, 'Deleted', $desc);
+          } catch (Exception $e) {
+            error_log('Service deletion logging failed: ' . $e->getMessage());
+          }
         }
     }
 }

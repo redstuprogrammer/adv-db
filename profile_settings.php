@@ -91,6 +91,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $messageType = 'success';
                     // Update session data
                     $sessionManager->loginTenantUser($tenantSlug, array_merge($tenantData, ['username' => $fullName, 'email' => $email]));
+                    // Log tenant profile update (privacy-safe)
+                    try {
+                        $desc = safeDesc('Updated', 'Tenant', $tenantId, ['section' => 'owner_profile']);
+                        logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                    } catch (Exception $e) {
+                        error_log('Tenant profile update logging failed: ' . $e->getMessage());
+                    }
                 } else {
                     $message = 'Failed to update profile.';
                     $messageType = 'error';
@@ -160,6 +167,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $messageType = 'success';
                     // Update session data
                     $sessionManager->loginTenantUser($tenantSlug, array_merge($tenantData, ['username' => $username, 'email' => $email]));
+
+                    // Log user profile update (privacy-safe)
+                    try {
+                        $meta = ['usernameChanged' => ($username !== ($userData['username'] ?? '')) ? '1' : '0', 'passwordChanged' => ($changePassword ? '1' : '0')];
+                        $desc = safeDesc('Updated', 'User', $userId, $meta);
+                        logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                    } catch (Exception $e) {
+                        error_log('User profile update logging failed: ' . $e->getMessage());
+                    }
 
                     // Refresh data for the form after update
                     $refreshStmt = mysqli_prepare($conn, "SELECT first_name, last_name, username, email, phone, password FROM users WHERE user_id = ? AND tenant_id = ?");

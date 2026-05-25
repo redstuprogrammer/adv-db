@@ -45,7 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $message = 'Clinic schedule updated successfully!';
     $messageType = 'success';
-    logTenantActivity($conn, $tenantId, 'Setting Change', 'Updated clinic schedule (operating hours)');
+    try {
+        $desc = safeDesc('Updated', 'Settings', null, ['section' => 'clinic_schedule']);
+        logTenantActivity($conn, $tenantId, 'Updated', $desc);
+    } catch (Exception $e) {
+        error_log('Clinic schedule logging failed: ' . $e->getMessage());
+    }
 }
 
 // Load schedule

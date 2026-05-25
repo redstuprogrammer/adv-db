@@ -121,6 +121,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
     <meta charset="UTF-8">
     <title>OralSync | Billing Management</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
         :root {
             --accent: #0d3b66;

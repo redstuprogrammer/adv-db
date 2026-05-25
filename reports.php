@@ -265,9 +265,23 @@ if (!$hasBasicReporting) {
             <input type="date" id="activity_date_to" />
             <select id="activity_type_filter">
               <option value="">All Types</option>
+              <option value="Login">Login</option>
+              <option value="Logout">Logout</option>
+              <option value="Failed Login">Failed Login</option>
               <option value="Created">Created</option>
               <option value="Updated">Updated</option>
               <option value="Deleted">Deleted</option>
+              <option value="Appointment">Appointment</option>
+              <option value="Schedule">Schedule</option>
+              <option value="Payment">Payment</option>
+              <option value="Subscription">Subscription</option>
+              <option value="Upload">Upload</option>
+              <option value="RoleChange">RoleChange</option>
+              <option value="SettingsChange">SettingsChange</option>
+              <option value="Registration">Registration</option>
+              <option value="Password Reset Request">Password Reset Request</option>
+              <option value="Document Upload">Document Upload</option>
+              <option value="Payment Gateway Sync">Payment Gateway Sync</option>
           </select>
 
           </div>
@@ -294,27 +308,44 @@ if (!$hasBasicReporting) {
                 $rowCount++;
                 $badge = '';
                 $movementDetail = h($row['activity_description'] ?? $row['activity_type']);
-                
+                $movementDetail = str_replace(['Admin logged in', 'Admin logged out'], ['Tenant logged in', 'Tenant logged out'], $movementDetail);
+
                 // Determine badge and movement detail based on activity type
                 switch ($row['activity_type']) {
-                  case 'Created': 
-                    $badge = '<span class="badge badge-created">Created</span>'; 
+                  case 'Login':
+                    $badge = '<span class="badge badge-created">Login</span>';
                     break;
-                  case 'Updated': 
-                    $badge = '<span class="badge badge-updated">Updated</span>'; 
+                  case 'Logout':
+                    $badge = '<span class="badge badge-deleted">Logout</span>';
                     break;
-                  case 'Deleted': 
-                    $badge = '<span class="badge badge-deleted">Deleted</span>'; 
+                  case 'Failed Login':
+                    $badge = '<span class="badge badge-deleted">Failed Login</span>';
                     break;
-                  case 'Admin Login':
-                    $badge = '<span class="badge badge-created">Admin Login</span>';
-                    $movementDetail = '👤 Admin Login';
+                  case 'Created':
+                    $badge = '<span class="badge badge-created">Created</span>';
                     break;
-                  case 'Admin Logout':
-                    $badge = '<span class="badge badge-deleted">Admin Logout</span>';
-                    $movementDetail = '👤 Admin Logout';
+                  case 'Updated':
+                    $badge = '<span class="badge badge-updated">Updated</span>';
                     break;
-                  default: 
+                  case 'Deleted':
+                    $badge = '<span class="badge badge-deleted">Deleted</span>';
+                    break;
+                  case 'Appointment':
+                  case 'Schedule':
+                    $badge = '<span class="badge badge-updated">' . h($row['activity_type']) . '</span>';
+                    break;
+                  case 'Payment':
+                  case 'Subscription':
+                  case 'Upload':
+                  case 'RoleChange':
+                  case 'SettingsChange':
+                  case 'Registration':
+                  case 'Password Reset Request':
+                  case 'Document Upload':
+                  case 'Payment Gateway Sync':
+                    $badge = '<span class="badge badge-updated">' . h($row['activity_type']) . '</span>';
+                    break;
+                  default:
                     $badge = h($row['activity_type']);
                 }
                 
@@ -330,9 +361,9 @@ if (!$hasBasicReporting) {
               
               // Show sample data if no data exists
               if ($rowCount === 0) {
-                echo "<tr><td>1</td><td>10:45 AM</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Admin Login</span></td><td>👤 Admin Login</td></tr>";
-                echo "<tr><td>2</td><td>09:30:15</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-updated'>Updated</span></td><td>Payment recorded</td></tr>";
-                echo "<tr><td>3</td><td>08:15:00</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Patient registered</td></tr>";
+                echo "<tr><td>1</td><td>10:45 AM</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Login</span></td><td>Tenant logged in</td></tr>";
+                echo "<tr><td>2</td><td>09:30:15</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-updated'>Payment</span></td><td>Payment collected</td></tr>";
+                echo "<tr><td>3</td><td>08:15:00</td><td>" . date('Y-m-d') . "</td><td><span class='badge badge-created'>Created</span></td><td>Patient record created</td></tr>";
               }
               ?>
             </tbody>
@@ -582,14 +613,12 @@ if (!$hasBasicReporting) {
       data.forEach(row => {
         const badge = getBadge(row.activity_type);
         let movementDetail = row.details || row.activity_description || row.activity_type;
+        movementDetail = movementDetail.replace('Admin logged in', 'Tenant logged in').replace('Admin logged out', 'Tenant logged out');
         
-        // Handle special cases for login/logout
-        if (row.activity_type === 'Admin Login') {
-          movementDetail = '👤 Admin Login';
-        } else if (row.activity_type === 'Admin Logout') {
-          movementDetail = '👤 Admin Logout';
+        if (row.activity_type === 'Login' || row.activity_type === 'Logout' || row.activity_type === 'Failed Login') {
+          movementDetail = row.activity_description || row.activity_type;
         }
-        
+
         tbody.innerHTML += `<tr>
           <td>${row.log_id}</td>
           <td>${row.log_time}</td>
@@ -602,12 +631,24 @@ if (!$hasBasicReporting) {
 
     function getBadge(type) {
       switch (type) {
+        case 'Login': return '<span class="badge badge-created">Login</span>';
+        case 'Logout': return '<span class="badge badge-deleted">Logout</span>';
+        case 'Failed Login': return '<span class="badge badge-deleted">Failed Login</span>';
         case 'Created': return '<span class="badge badge-created">Created</span>';
         case 'Updated': return '<span class="badge badge-updated">Updated</span>';
         case 'Deleted': return '<span class="badge badge-deleted">Deleted</span>';
-        case 'Admin Login': return '<span class="badge badge-created">Admin Login</span>';
-        case 'Admin Logout': return '<span class="badge badge-deleted">Admin Logout</span>';
-        default: return type;
+        case 'Appointment': return '<span class="badge badge-updated">Appointment</span>';
+        case 'Schedule': return '<span class="badge badge-updated">Schedule</span>';
+        case 'Payment': return '<span class="badge badge-updated">Payment</span>';
+        case 'Subscription': return '<span class="badge badge-updated">Subscription</span>';
+        case 'Upload': return '<span class="badge badge-updated">Upload</span>';
+        case 'RoleChange': return '<span class="badge badge-updated">RoleChange</span>';
+        case 'SettingsChange': return '<span class="badge badge-updated">SettingsChange</span>';
+        case 'Registration': return '<span class="badge badge-created">Registration</span>';
+        case 'Password Reset Request': return '<span class="badge badge-updated">Password Reset Request</span>';
+        case 'Document Upload': return '<span class="badge badge-updated">Document Upload</span>';
+        case 'Payment Gateway Sync': return '<span class="badge badge-updated">Payment Gateway Sync</span>';
+        default: return '<span class="badge">' + type + '</span>';
       }
     }
 

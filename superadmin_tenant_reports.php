@@ -480,18 +480,23 @@ try {
                     <label for="activity_type">Activity Type</label>
                     <select id="activity_type">
                         <option value="">All Types</option>
-                        <option value="Patient Created">Patient Created</option>
-                        <option value="Appointment Scheduled">Appointment Scheduled</option>
-                        <option value="Payment Received">Payment Received</option>
-                        <option value="Staff Added">Staff Added</option>
-                        <option value="Clinical Notes">Clinical Notes</option>
                         <option value="Login">Login</option>
+                        <option value="Logout">Logout</option>
                         <option value="Failed Login">Failed Login</option>
-                        <option value="Setting Change">Setting Change</option>
+                        <option value="Created">Created</option>
+                        <option value="Updated">Updated</option>
+                        <option value="Deleted">Deleted</option>
+                        <option value="Appointment">Appointment</option>
+                        <option value="Schedule">Schedule</option>
+                        <option value="Payment">Payment</option>
+                        <option value="Subscription">Subscription</option>
+                        <option value="Upload">Upload</option>
+                        <option value="RoleChange">RoleChange</option>
+                        <option value="SettingsChange">SettingsChange</option>
+                        <option value="Registration">Registration</option>
                         <option value="Password Reset Request">Password Reset Request</option>
                         <option value="Document Upload">Document Upload</option>
                         <option value="Payment Gateway Sync">Payment Gateway Sync</option>
-                        <option value="Schedule">Schedule Update</option>
                     </select>
                 </div>
             </div>
@@ -674,7 +679,9 @@ try {
             data.forEach(row => {
                 html += '<tr>';
                 Object.values(row).forEach(cell => {
-                    html += `<td>${cell}</td>`;
+                    let value = String(cell);
+                    value = value.replace('Admin logged in', 'Tenant logged in').replace('Admin logged out', 'Tenant logged out');
+                    html += `<td>${value}</td>`;
                 });
                 html += '</tr>';
             });

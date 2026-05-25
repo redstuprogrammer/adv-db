@@ -56,8 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
         $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
         $stmt->bind_param('iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
         if ($stmt->execute()) {
-            $successMsg = 'Appointment scheduled successfully!';
-            logTenantActivity($conn, $tenantId, 'Appointment', "New appointment scheduled for patient ID: $patientId");
+          $successMsg = 'Appointment scheduled successfully!';
+          $newAppointmentId = $conn->insert_id ?? null;
+          $desc = safeDesc('Appointment', 'Appointment', $newAppointmentId, ['status' => 'scheduled']);
+          logTenantActivity($conn, $tenantId, 'Appointment', $desc);
         }
         $stmt->close();
     } else {
@@ -121,9 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
             $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
             $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
             if ($stmt->execute()) {
-                $successMsg = 'Appointment updated successfully!';
-                logTenantActivity($conn, $tenantId, 'Appointment', "Appointment ID: $appointmentId updated to $newStatus");
-            } else {
+            $successMsg = 'Appointment updated successfully!';
+            $desc = safeDesc('Appointment', 'Appointment', $appointmentId, ['status' => $newStatus]);
+            logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+          } else {
                 $errorMsg = 'Unable to update appointment status.';
             }
             $stmt->close();
@@ -197,6 +200,7 @@ if ($stmt) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | Appointments</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
       :root {
         --accent: #0d3b66;

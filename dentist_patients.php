@@ -72,6 +72,7 @@ if (isset($_GET['view_patient_id'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo h($tenantName); ?> | My Patients</title>
     <link rel="stylesheet" href="tenant_style.css">
+    <link rel="stylesheet" href="components.css">
     <style>
       :root { --accent: #0d3b66; --border: #e2e8f0; --bg: #f8fafc; }
 
@@ -131,11 +132,11 @@ if (isset($_GET['view_patient_id'])) {
         </div>
 
         <div class="search-bar">
-          <input type="text" id="searchInput" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
+          <input type="text" id="searchInput" class="search-input" placeholder="Search patient by name or ID..." onkeyup="filterPatients()" />
         </div>
 
         <div style="overflow-x:auto;">
-          <table class="patient-table" id="patientGrid">
+          <table class="data-table" id="patientGrid">
             <thead>
               <tr>
                 <th>Patient ID</th>

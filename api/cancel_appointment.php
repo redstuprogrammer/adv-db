@@ -22,6 +22,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
 require_once __DIR__ . '/../config/send_mail.php';
+require_once __DIR__ . '/../includes/tenant_utils.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Only POST requests allowed']);
@@ -92,6 +93,22 @@ $upd = $conn->prepare("
 $upd->bind_param("iii", $appointment_id, $patient_id, $tenant_id);
 $upd->execute();
 $upd->close();
+
+// Log appointment cancellation
+try {
+    $logDesc = safeDesc('Appointment', 'Cancellation', $appointment_id, [
+        'patient_id' => $patient_id,
+        'patient_name' => $appt['first_name'] . ' ' . ($appt['last_name'] ?? ''),
+        'appointment_date' => $appt['appointment_date'],
+        'appointment_time' => $appt['appointment_time'],
+        'reason' => 'Patient cancelled appointment'
+    ]);
+    logTenantActivity($conn, $tenant_id, 'Appointment', $logDesc);
+} catch (Exception $e) {
+    // Log error but don't break the cancellation flow
+    error_log('Appointment cancellation logging failed: ' . $e->getMessage());
+}
+
 $conn->close();
 
 // Send cancellation email (non-blocking)

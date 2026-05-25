@@ -38,6 +38,29 @@ if (!$staff_id && !$user_id) {
 
 // Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Fetch previous role (if exists) for role-change detection
+    $prevRole = null;
+    if ($staff_id > 0) {
+        $rstmt = $conn->prepare('SELECT role FROM staff_details WHERE staff_id = ? AND tenant_id = ? LIMIT 1');
+        if ($rstmt) {
+            $rstmt->bind_param('ii', $staff_id, $tenantId);
+            $rstmt->execute();
+            $rres = $rstmt->get_result();
+            $rrow = $rres->fetch_assoc();
+            if ($rrow) $prevRole = $rrow['role'] ?? null;
+            $rstmt->close();
+        }
+    } elseif ($user_id > 0) {
+        $rstmt = $conn->prepare('SELECT role FROM users WHERE user_id = ? AND tenant_id = ? LIMIT 1');
+        if ($rstmt) {
+            $rstmt->bind_param('ii', $user_id, $tenantId);
+            $rstmt->execute();
+            $rres = $rstmt->get_result();
+            $rrow = $rres->fetch_assoc();
+            if ($rrow) $prevRole = $rrow['role'] ?? null;
+            $rstmt->close();
+        }
+    }
     $firstName = trim($_POST['first_name'] ?? '');
     $lastName = trim($_POST['last_name'] ?? '');
     $email = trim($_POST['email'] ?? '');
@@ -71,6 +94,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // If it was an insert, get the new ID
             if ($staff_id === 0) {
                 $staff_id = mysqli_insert_id($conn);
+            }
+            // Logging: created or updated staff
+            try {
+                if ($staff_id && ($prevRole === null)) {
+                    $desc = safeDesc('Created', 'Staff', $staff_id, ['role' => $role]);
+                    logTenantActivity($conn, $tenantId, 'Created', $desc);
+                } else {
+                    $desc = safeDesc('Updated', 'Staff', $staff_id, ['role' => $role]);
+                    logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                    if ($prevRole !== null && strcasecmp($prevRole, $role) !== 0) {
+                        $rcDesc = safeDesc('RoleChange', 'Staff', $staff_id, ['from' => $prevRole, 'to' => $role]);
+                        logTenantActivity($conn, $tenantId, 'RoleChange', $rcDesc);
+                    }
+                }
+            } catch (Exception $e) {
+                error_log('Staff update logging failed: ' . $e->getMessage());
             }
             header("Location: view_staff_profile.php?tenant=" . rawurlencode($tenantSlug) . "&id=" . $staff_id . "&uid=" . $user_id . "&success=1");
             exit();

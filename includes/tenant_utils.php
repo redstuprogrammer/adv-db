@@ -255,6 +255,73 @@ if (!function_exists('formatDateTimeReadable')) {
  * Logging Utilities
  */
 
+if (!function_exists('getAllowedActivityTypes')) {
+    function getAllowedActivityTypes(): array {
+        return [
+            'Login','Logout','Created','Updated','Deleted','Schedule','Payment','Subscription','Upload','Registration','RoleChange','SettingsChange','Appointment','Failed Login'
+        ];
+    }
+}
+
+if (!function_exists('safeDesc')) {
+    function safeDesc(string $action, string $entity = null, $id = null, array $meta = []): string {
+        $action = trim((string)$action);
+        $entity = $entity ? trim((string)$entity) : null;
+
+        // Special case: Login descriptions should be role-aware and privacy-safe
+        $role = $meta['role'] ?? null;
+        if (strcasecmp($action, 'Login') === 0) {
+            if ($role) {
+                if (strcasecmp($role, 'Admin') === 0) {
+                    return 'Tenant logged in';
+                }
+                return ucfirst(strtolower((string)$role)) . ' logged in';
+            }
+            return 'User logged in';
+        }
+
+        if (strcasecmp($action, 'Logout') === 0) {
+            if ($role) {
+                if (strcasecmp($role, 'Admin') === 0) {
+                    return 'Tenant logged out';
+                }
+                return ucfirst(strtolower((string)$role)) . ' logged out';
+            }
+            return 'User logged out';
+        }
+
+        if (in_array(strtolower($action), ['failed login', 'failedlogin'], true)) {
+            $reason = isset($meta['reason']) ? preg_replace('/\s+/', '_', (string)$meta['reason']) : 'unknown_reason';
+            return 'Failed login attempt (' . $reason . ')';
+        }
+
+        $parts = [];
+        if ($entity) $parts[] = $entity;
+        $parts[] = $action;
+
+        if ($id !== null && $id !== '') {
+            // include hashed/truncated id for traceability without exposing raw ids
+            $hash = substr(hash('sha256', (string)$id), 0, 10);
+            $parts[] = '[id:' . $hash . ']';
+        }
+
+        // include non-sensitive meta (skip role already used)
+        $metaParts = [];
+        foreach ($meta as $k => $v) {
+            if ($k === 'role') continue;
+            if ($v === null || $v === '') continue;
+            $metaParts[] = $k . ':' . preg_replace('/\s+/', '_', (string)$v);
+        }
+        if (!empty($metaParts)) {
+            $parts[] = '(' . implode(', ', $metaParts) . ')';
+        }
+
+        $desc = trim(implode(' ', $parts));
+        // Ensure description fits DB column
+        return substr($desc, 0, 255);
+    }
+}
+
 if (!function_exists('logSuperAdminActivity')) {
     function logSuperAdminActivity($conn, string $activityType, string $actionDetails, ?string $username = null, string $adminName = 'Super Admin'): bool {
         if (!$conn || trim($activityType) === '') return false;

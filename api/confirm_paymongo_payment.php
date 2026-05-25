@@ -254,7 +254,8 @@ try {
     error_log("[confirm_payment] SUCCESS billing_id=$billing_id status=$new_status");
     
     require_once dirname(__DIR__) . '/includes/tenant_utils.php';
-    logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', "Confirmed PayMongo payment for billing ID $billing_id. Status updated to $new_status.");
+    $desc = safeDesc('Payment', 'Billing', $billing_id, ['status' => $new_status, 'provider' => 'PayMongo']);
+    logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', $desc);
 
 } catch (Exception $ex) {
     $conn->rollback();

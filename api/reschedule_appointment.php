@@ -40,6 +40,7 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
 require_once __DIR__ . '/../connect.php';
 require_once __DIR__ . '/../config/send_mail.php';
+require_once __DIR__ . '/../includes/tenant_utils.php';
 
 if (!isset($conn) || !$conn || $conn->connect_error) {
     http_response_code(500);
@@ -222,6 +223,23 @@ try {
     }
 
     $conn->commit();
+
+    // Log appointment rescheduling
+    try {
+        $logDesc = safeDesc('Appointment', 'Rescheduled', $appointment_id, [
+            'patient_id' => $patient_id,
+            'patient_name' => $appt['first_name'] . ' ' . ($appt['last_name'] ?? ''),
+            'original_date' => $appt['appointment_date'],
+            'original_time' => $appt['appointment_time'],
+            'new_date' => $new_date,
+            'new_time' => $new_time,
+            'new_appointment_id' => $new_appointment_id
+        ]);
+        logTenantActivity($conn, $tenant_id, 'Appointment', $logDesc);
+    } catch (Exception $e) {
+        // Log error but don't break the reschedule flow
+        error_log('Appointment rescheduling logging failed: ' . $e->getMessage());
+    }
 
 } catch (Exception $ex) {
     $conn->rollback();

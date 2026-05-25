@@ -86,28 +86,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (saveTenantConfig($tenantId, ['payment_gateway' => $gateway])) {
             $saveMessage = 'Integration settings saved successfully.';
             if ($oldGateway !== $gateway) {
-                logTenantActivity($conn, $tenantId, 'Setting Change', "Switched payment gateway integration from $oldGateway to $gateway");
-            }
-        } else {
-            $errorMessage = 'Unable to save integration settings. Please try again.';
-        }
-    }
-
-    $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
-    if ($subscription && isset($subscription['id'])) {
-        $update = $conn->prepare('UPDATE subscriptions SET auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?');
-        if ($update) {
-            $update->bind_param('iii', $autoRenewValue, $subscription['id'], $tenantId);
-            if ($update->execute()) {
-                $saveMessage = 'Subscription preferences have been saved successfully.';
-                $subscription['auto_renew'] = $autoRenewValue;
+                    try {
+                        $desc = safeDesc('Updated', 'Settings', null, ['section' => 'payment_gateway', 'from' => $oldGateway, 'to' => $gateway]);
+                        logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                    } catch (Exception $e) {
+                        error_log('Payment gateway logging failed: ' . $e->getMessage());
+                    }
+                }
             } else {
-                $errorMessage = 'Unable to save your subscription settings. Please try again.';
+                $errorMessage = 'Unable to save integration settings. Please try again.';
             }
-            $update->close();
-        } else {
-            $errorMessage = 'Unable to prepare subscription update query.';
         }
+
+        $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
+        if ($subscription && isset($subscription['id'])) {
+            $currentAutoRenew = intval($subscription['auto_renew'] ?? 0);
+            $update = $conn->prepare('UPDATE subscriptions SET auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?');
+            if ($update) {
+                $update->bind_param('iii', $autoRenewValue, $subscription['id'], $tenantId);
+                if ($update->execute()) {
+                    $saveMessage = 'Subscription preferences have been saved successfully.';
+                    if ($currentAutoRenew !== $autoRenewValue) {
+                        try {
+                            $desc = safeDesc('Updated', 'Subscription', $subscription['id'], ['setting' => 'auto_renew', 'value' => $autoRenewValue ? 'enabled' : 'disabled']);
+                            logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                        } catch (Exception $e) {
+                            error_log('Auto-renew logging failed: ' . $e->getMessage());
+                        }
+                    }
     } else {
         $errorMessage = 'No active subscription record was found to update.';
     }

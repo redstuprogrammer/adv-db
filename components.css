@@ -1,0 +1,787 @@
+/**
+ * ============================================
+ * UNIFIED COMPONENT STYLES FOR ORALSYNC
+ * Ensures consistent UI/UX across all pages
+ * for Admin, Dentist, and Receptionist roles
+ * ============================================
+ */
+
+:root {
+  --accent: #0d3b66;
+  --accent-dark: #0a2d4f;
+  --accent-light: #0f4a8f;
+  --success: #10b981;
+  --success-light: #dcfce7;
+  --success-dark: #166534;
+  --warning: #f59e0b;
+  --warning-light: #fef9c3;
+  --warning-dark: #854d0e;
+  --danger: #ef4444;
+  --danger-light: #fee2e2;
+  --danger-dark: #991b1b;
+  --info: #0369a1;
+  --info-light: #e0f2fe;
+  --border: #e2e8f0;
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --text-muted: #64748b;
+}
+
+/* ============================================
+   BUTTONS - UNIFIED STYLES
+   ============================================ */
+
+.btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+}
+
+.btn-primary:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.btn-primary:active {
+  opacity: 0.85;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.btn-outline {
+  background: white;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.btn-outline:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+  border: 1px solid var(--success);
+}
+
+.btn-success:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  border: 1px solid var(--danger);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.btn-warning {
+  background: var(--warning);
+  color: white;
+  border: 1px solid var(--warning);
+}
+
+.btn-warning:hover {
+  background: #d97706;
+  border-color: #d97706;
+}
+
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.btn-large {
+  padding: 12px 24px;
+  font-size: 14px;
+}
+
+/* ============================================
+   TABLES - UNIFIED STYLES
+   ============================================ */
+
+.data-table,
+.module-table,
+.patient-table,
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.data-table th,
+.module-table th,
+.patient-table th,
+.queue-table th {
+  background: var(--bg);
+  color: var(--accent);
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border);
+}
+
+.data-table td,
+.module-table td,
+.patient-table td,
+.queue-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  color: #334155;
+}
+
+.data-table tbody tr:hover,
+.module-table tbody tr:hover,
+.patient-table tbody tr:hover,
+.queue-table tbody tr:hover {
+  background: var(--bg);
+}
+
+.data-table tbody tr:last-child td,
+.module-table tbody tr:last-child td,
+.patient-table tbody tr:last-child td,
+.queue-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================
+   SEARCH & FILTER BAR
+   ============================================ */
+
+.search-bar,
+.search-container,
+.action-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-input,
+.search-box {
+  flex: 1;
+  min-width: 240px;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus,
+.search-box:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+}
+
+/* ============================================
+   PAGINATION
+   ============================================ */
+
+.pagination,
+.paginator {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.pagination a,
+.pagination button,
+.paginator a,
+.paginator button,
+.pagination-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pagination a:hover,
+.pagination button:hover,
+.paginator a:hover,
+.paginator button:hover,
+.pagination-btn:hover {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.pagination a.active,
+.pagination button.active,
+.paginator a.active,
+.paginator button.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.pagination .disabled,
+.paginator .disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ============================================
+   TABS & FILTERS
+   ============================================ */
+
+.filter-tabs,
+.tab-container {
+  display: flex;
+  gap: 8px;
+  background: var(--bg);
+  padding: 6px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tab,
+.tab-button,
+.filter-btn {
+  padding: 8px 16px;
+  background: transparent;
+  color: #334155;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.tab:hover,
+.tab-button:hover,
+.filter-btn:hover {
+  background: rgba(13, 59, 102, 0.1);
+  color: var(--accent);
+}
+
+.tab.active,
+.tab-button.active,
+.filter-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+/* ============================================
+   MODALS & DIALOGS
+   ============================================ */
+
+.modal,
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal.open,
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 540px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+}
+
+.modal-header-title {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #94a3b8;
+  line-height: 1;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--accent);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* ============================================
+   STATUS PILLS & BADGES
+   ============================================ */
+
+.status-pill,
+.badge,
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Pending Status */
+.status-pill.pending,
+.badge.pending {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+/* Ongoing/In Progress Status */
+.status-pill.ongoing,
+.status-pill.in-progress,
+.status-pill.in_progress,
+.badge.ongoing,
+.badge.in-progress {
+  background: var(--info-light);
+  color: var(--info);
+}
+
+/* Completed Status */
+.status-pill.completed,
+.badge.completed,
+.status-pill.approved,
+.badge.approved {
+  background: var(--success-light);
+  color: var(--success-dark);
+}
+
+/* Cancelled Status */
+.status-pill.cancelled,
+.badge.cancelled,
+.status-pill.disapproved,
+.badge.disapproved {
+  background: var(--danger-light);
+  color: var(--danger-dark);
+}
+
+/* Paid Status */
+.status-pill.paid,
+.badge.paid {
+  background: var(--success-light);
+  color: var(--success-dark);
+}
+
+/* Unpaid/Pending Payment */
+.status-pill.unpaid,
+.status-pill.pending-payment,
+.status-pill.pending_payment,
+.badge.unpaid {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+/* Partial Payment */
+.status-pill.partial,
+.status-pill.installment,
+.badge.partial {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+.time-badge {
+  background: rgba(13, 59, 102, 0.1);
+  color: var(--accent);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ============================================
+   CARDS & CONTAINERS
+   ============================================ */
+
+.module-card,
+.content-card,
+.data-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  margin-bottom: 24px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+}
+
+/* ============================================
+   ALERT & MESSAGE BOXES
+   ============================================ */
+
+.alert,
+.alert-box,
+.message-box {
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alert-success {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success-dark);
+}
+
+.alert-error {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger-dark);
+}
+
+.alert-warning {
+  background: var(--warning-light);
+  border-color: var(--warning);
+  color: var(--warning-dark);
+}
+
+.alert-info {
+  background: var(--info-light);
+  border-color: var(--info);
+  color: #003d82;
+}
+
+/* ============================================
+   ACTION LINKS & BUTTONS
+   ============================================ */
+
+.action-link,
+.action-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.action-link:hover,
+.action-btn:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.action-link.outline,
+.action-btn.outline {
+  background: white;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+
+.action-link.outline:hover,
+.action-btn.outline:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.text-info {
+  color: var(--info);
+}
+
+.mb-0 { margin-bottom: 0; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-20 { margin-bottom: 20px; }
+.mb-24 { margin-bottom: 24px; }
+
+.mt-0 { margin-top: 0; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mt-24 { margin-top: 24px; }
+
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+@media (max-width: 768px) {
+  .data-table,
+  .module-table,
+  .patient-table,
+  .queue-table {
+    font-size: 12px;
+  }
+
+  .data-table th,
+  .module-table th,
+  .patient-table th,
+  .queue-table th {
+    padding: 12px 10px;
+    font-size: 11px;
+  }
+
+  .data-table td,
+  .module-table td,
+  .patient-table td,
+  .queue-table td {
+    padding: 12px 10px;
+  }
+
+  .search-input,
+  .search-box {
+    min-width: auto;
+  }
+
+  .filter-tabs {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tab,
+  .tab-button,
+  .filter-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .btn {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .modal-content {
+    max-width: 90%;
+    max-height: 90vh;
+  }
+
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input,
+  .search-box {
+    width: 100%;
+  }
+
+  .filter-tabs {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .pagination {
+    gap: 4px;
+  }
+
+  .pagination a,
+  .pagination button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 16px;
+  }
+}

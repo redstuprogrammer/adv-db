@@ -117,10 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $message = 'Account updated successfully.';
                         $messageType = 'success';
                         
-                        // Log activity
-                        $logMsg = $usernameChanged ? "Updated username" : "";
-                        if ($passwordChanged) $logMsg .= ($logMsg ? " and " : "") . "Updated password";
-                        logTenantActivity($conn, $tenantId, 'Account Settings', $logMsg);
+                        // Log activity (privacy-safe)
+                        try {
+                            $meta = ['usernameChanged' => $usernameChanged ? '1' : '0', 'passwordChanged' => $passwordChanged ? '1' : '0'];
+                            $desc = safeDesc('Updated', 'User', $userId, $meta);
+                            logTenantActivity($conn, $tenantId, 'Updated', $desc);
+                        } catch (Exception $e) {
+                            error_log('Account settings logging failed: ' . $e->getMessage());
+                        }
 
                         // Refresh current user data
                         $refreshStmt = mysqli_prepare($conn, "SELECT username, email, password, role FROM users WHERE user_id = ? AND tenant_id = ? LIMIT 1");

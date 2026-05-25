@@ -214,8 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log failed login attempt if tenant context exists
             if ($tenant && isset($tenant['tenant_id'])) {
                 try {
-                    $safeUsername = h($username);
-                    logTenantActivity($conn, (int)$tenant['tenant_id'], 'Failed Login', "Failed login attempt for username: $safeUsername");
+                    $desc = safeDesc('FailedLogin', 'User', null, ['reason' => 'bad_credentials']);
+                    logTenantActivity($conn, (int)$tenant['tenant_id'], 'Failed Login', $desc);
                 } catch (Exception $e) {
                     error_log('Failed login logging failed: ' . $e->getMessage());
                 }
@@ -240,14 +240,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $sessionManager->loginTenantUser($tenant['subdomain_slug'], $sessionUserData);
 
-            // Log activity
+            // Log activity (privacy-safe)
             $activityType = 'Login';
             try {
-                $logText = ucfirst(strtolower($userRole)) . ' logged in';
-                if (strcasecmp($userRole, 'Admin') === 0) {
-                    $logText = 'Tenant logged in';
-                }
-                logActivity($conn, (int)$tenant['tenant_id'], $activityType, $logText, $sessionUserData['username'], strtolower($userRole), ucfirst(strtolower($userRole)));
+                $desc = safeDesc('Login', 'User', $sessionUserData['user_id'] ?? null, ['role' => $userRole]);
+                logActivity(
+                    $conn,
+                    (int)$tenant['tenant_id'],
+                    $activityType,
+                    $desc,
+                    $sessionUserData['username'],
+                    strtolower($userRole),
+                    ucfirst(strtolower($userRole))
+                );
             } catch (Exception $e) {
                 error_log('Activity logging failed: ' . $e->getMessage());
                 // Don't break login flow if logging fails
