@@ -9,7 +9,25 @@ ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
 
-require_once __DIR__ . '/../includes/connect.php';
+$connectPaths = [
+    __DIR__ . '/includes/connect.php',
+    __DIR__ . '/../includes/connect.php',
+    __DIR__ . '/adv db/includes/connect.php',
+];
+
+$connected = false;
+foreach ($connectPaths as $connectPath) {
+    if (file_exists($connectPath)) {
+        require_once $connectPath;
+        $connected = true;
+        break;
+    }
+}
+
+if (!$connected || !isset($conn) || !$conn) {
+    fwrite(STDERR, "Database connection is unavailable.\n");
+    exit(1);
+}
 
 function runSingleRowQuery(mysqli $conn, string $sql, array $params = []): array {
     $stmt = $conn->prepare($sql);

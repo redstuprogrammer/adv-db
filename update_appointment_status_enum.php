@@ -10,9 +10,22 @@
  *   php update_appointment_status_enum.php
  */
 
-require_once __DIR__ . '/includes/connect.php';
+$connectPaths = [
+    __DIR__ . '/includes/connect.php',
+    __DIR__ . '/../includes/connect.php',
+    __DIR__ . '/adv db/includes/connect.php',
+];
 
-if (!isset($conn) || !$conn) {
+$connected = false;
+foreach ($connectPaths as $connectPath) {
+    if (file_exists($connectPath)) {
+        require_once $connectPath;
+        $connected = true;
+        break;
+    }
+}
+
+if (!$connected || !isset($conn) || !$conn) {
     fwrite(STDERR, "Database connection is unavailable.\n");
     exit(1);
 }
@@ -46,9 +59,7 @@ foreach ($cleanupMap as $from => $to) {
     mysqli_stmt_close($stmt);
 }
 
-$sql = "ALTER TABLE appointment \
-    MODIFY COLUMN status ENUM('pending','ongoing','completed','cancelled') \
-    COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'pending'";
+$sql = "ALTER TABLE appointment MODIFY COLUMN status ENUM('pending','ongoing','completed','cancelled') COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'pending'";
 
 if (mysqli_query($conn, $sql)) {
     echo "Appointment status enum updated successfully.\n";
