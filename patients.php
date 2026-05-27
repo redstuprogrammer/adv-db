@@ -129,11 +129,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
     }
 }
 
-// Fetch all patients for this tenant
+// Fetch paginated patients for this tenant
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$perPage = 12;
+
+$totalPatients = 0;
+$countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM patient WHERE tenant_id = ?');
+if ($countStmt) {
+    $countStmt->bind_param('i', $tenantId);
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    $totalPatients = (int)($countResult->fetch_assoc()['c'] ?? 0);
+    $countStmt->close();
+}
+
+$totalPages = $perPage > 0 ? max(1, (int)ceil($totalPatients / $perPage)) : 1;
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
 $patients = [];
-$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.patient_id ASC');
+$stmt = $conn->prepare('SELECT p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender, MAX(a.appointment_date) AS last_visit FROM patient p LEFT JOIN appointment a ON p.patient_id = a.patient_id AND a.tenant_id = p.tenant_id WHERE p.tenant_id = ? GROUP BY p.patient_id, p.tenant_patient_id, p.first_name, p.last_name, p.contact_number, p.email, p.birthdate, p.gender ORDER BY p.patient_id ASC LIMIT ?, ?');
 if ($stmt) {
-    $stmt->bind_param('i', $tenantId);
+    $stmt->bind_param('iii', $tenantId, $offset, $perPage);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -240,6 +257,46 @@ if (isset($_GET['view_patient_id'])) {
 
       .patient-table tbody tr:hover {
         background: #f1f5f9;
+      }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 20px 0 0;
+      }
+
+      .page-link {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
+      }
+
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .page-link.disabled,
+      .page-link[disabled] {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
       }
 
       .patient-grid {
@@ -619,6 +676,28 @@ if (isset($_GET['view_patient_id'])) {
             </tbody>
           </table>
         </div>
+        <?php if ($totalPages > 1): ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+            <?php
+            $start = max(1, $page - 2);
+            $end = min($totalPages, $page + 2);
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $page) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+            if ($end < $totalPages) {
+                if ($end < $totalPages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $totalPages . '" class="page-link">' . $totalPages . '</a>';
+            }
+            ?>
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="page-link <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -682,7 +761,7 @@ if (isset($_GET['view_patient_id'])) {
         </div>
       </div>
       <div class="form-actions">
-        <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>" class="btn-cancel" style="text-decoration: none; text-align: center; padding: 10px;">Back to Patients</a>
+        <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?><?php echo ($page > 1 ? '&page=' . $page : ''); ?>" class="btn-cancel" style="text-decoration: none; text-align: center; padding: 10px;">Back to Patients</a>
       </div>
     </div>
   </div>

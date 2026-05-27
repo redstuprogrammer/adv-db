@@ -358,6 +358,42 @@ $errorMessage = '';
       }
 
       .alert-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; font-size: 14px; }
+
+      /* Pagination Styles */
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 30px;
+        padding: 20px 0;
+      }
+      .page-link {
+        padding: 8px 16px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 8px;
+        background: white;
+        color: var(--dashboard-accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+      .page-link:hover {
+        background: var(--dashboard-bg);
+        border-color: var(--dashboard-accent);
+      }
+      .page-link.active {
+        background: var(--dashboard-accent);
+        color: white;
+        border-color: var(--dashboard-accent);
+      }
+      .page-link.disabled {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
     </style>
 </head>
 <body>
@@ -447,14 +483,30 @@ $errorMessage = '';
           <?php if ($totalAppointments > $perPage):
               $lastPage = (int)ceil($totalAppointments / $perPage);
           ?>
-            <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:24px;">
-              <?php if ($page > 1): ?>
-                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page - 1; ?>" class="btn btn-secondary">Previous</a>
-              <?php endif; ?>
-              <span style="font-size: 13px; color: #475569;">Page <?php echo $page; ?> of <?php echo $lastPage; ?></span>
-              <?php if ($page < $lastPage): ?>
-                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo $page + 1; ?>" class="btn btn-secondary">Next</a>
-              <?php endif; ?>
+            <div class="pagination">
+              <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo max(1, $page - 1); ?>" class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+
+              <?php
+              $start = max(1, $page - 2);
+              $end = min($lastPage, $page + 2);
+
+              if ($start > 1) {
+                  echo '<a href="?tenant=' . urlencode($tenantSlug) . '&filter=' . urlencode($filter) . '&page=1" class="page-link">1</a>';
+                  if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+              }
+
+              for ($i = $start; $i <= $end; $i++) {
+                  $activeClass = ($i === $page) ? 'active' : '';
+                  echo '<a href="?tenant=' . urlencode($tenantSlug) . '&filter=' . urlencode($filter) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+              }
+
+              if ($end < $lastPage) {
+                  if ($end < $lastPage - 1) echo '<span style="color: #94a3b8;">...</span>';
+                  echo '<a href="?tenant=' . urlencode($tenantSlug) . '&filter=' . urlencode($filter) . '&page=' . $lastPage . '" class="page-link">' . $lastPage . '</a>';
+              }
+              ?>
+
+              <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&filter=<?php echo urlencode($filter); ?>&page=<?php echo min($lastPage, $page + 1); ?>" class="page-link <?php echo ($page >= $lastPage) ? 'disabled' : ''; ?>">Next →</a>
             </div>
           <?php endif; ?>
         </div>

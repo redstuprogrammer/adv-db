@@ -39,6 +39,25 @@ if (!$hasBasicReporting) {
     http_response_code(403);
     die('Reports are not available on your current subscription plan.');
 }
+
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$perPage = 10;
+
+$totalActivityLogs = 0;
+$countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM tenant_activity_logs WHERE tenant_id = ?');
+if ($countStmt) {
+    $countStmt->bind_param('i', $tenantId);
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    if ($countResult) {
+        $totalActivityLogs = (int)($countResult->fetch_assoc()['c'] ?? 0);
+    }
+    $countStmt->close();
+}
+
+$totalPages = $perPage > 0 ? max(1, (int)ceil($totalActivityLogs / $perPage)) : 1;
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
 ?>
 <!doctype html>
 <html lang="en">
@@ -187,49 +206,44 @@ if (!$hasBasicReporting) {
       }
 
       /* Pagination Styles */
-      .sa-pagination {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-top: 20px;
-          padding: 15px 0;
-          border-top: 1px solid var(--border);
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 20px 0 0;
       }
 
-      .sa-pagination-info {
-          font-size: 0.875rem;
-          color: #64748b;
+      .page-link {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
       }
 
-      .sa-pagination-controls {
-          display: flex;
-          gap: 5px;
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
       }
 
-      .sa-pagination-btn {
-          padding: 6px 12px;
-          border: 1px solid var(--border);
-          background: white;
-          color: var(--accent);
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 0.875rem;
-          transition: all 0.2s;
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
       }
 
-      .sa-pagination-btn:hover:not(:disabled) {
-          background: #f1f5f9;
-      }
-
-      .sa-pagination-btn.active {
-          background: var(--accent);
-          color: white;
-          border-color: var(--accent);
-      }
-
-      .sa-pagination-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+      .page-link.disabled,
+      .page-link[disabled] {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
       }
     </style>
 </head>
@@ -299,8 +313,8 @@ if (!$hasBasicReporting) {
             <tbody id="activity-tbody">
               <?php
               // Load initial data from tenant_activity_logs
-              $stmt = $conn->prepare("SELECT log_id, log_time, log_date, activity_type, activity_description FROM tenant_activity_logs WHERE tenant_id = ? ORDER BY log_date DESC, log_time DESC LIMIT 10");
-              $stmt->bind_param('i', $tenantId);
+              $stmt = $conn->prepare("SELECT log_id, log_time, log_date, activity_type, activity_description FROM tenant_activity_logs WHERE tenant_id = ? ORDER BY log_date DESC, log_time DESC LIMIT ?, ?");
+              $stmt->bind_param('iii', $tenantId, $offset, $perPage);
               $stmt->execute();
               $result = $stmt->get_result();
               $rowCount = 0;
@@ -368,7 +382,31 @@ if (!$hasBasicReporting) {
               ?>
             </tbody>
           </table>
-          <div id="activity-pagination"></div>
+          <?php if ($totalPages > 1): ?>
+            <div class="pagination">
+              <div class="page-link disabled">Page <?php echo $page; ?> of <?php echo $totalPages; ?> (<?php echo $totalActivityLogs; ?> records)</div>
+              <div class="pagination-controls">
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" class="page-link<?php echo ($page <= 1) ? ' disabled' : ''; ?>">← Previous</a>
+                <?php
+                  $start = max(1, $page - 2);
+                  $end = min($totalPages, $page + 2);
+                  if ($start > 1) {
+                      echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                      if ($start > 2) echo '<span class="page-link disabled" style="background: none; border: none; color: #64748b; cursor: default;">...</span>';
+                  }
+                  for ($i = $start; $i <= $end; $i++) {
+                      $activeClass = ($i === $page) ? ' active' : '';
+                      echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link' . $activeClass . '">' . $i . '</a>';
+                  }
+                  if ($end < $totalPages) {
+                      if ($end < $totalPages - 1) echo '<span class="page-link disabled" style="background: none; border: none; color: #64748b; cursor: default;">...</span>';
+                      echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $totalPages . '" class="page-link">' . $totalPages . '</a>';
+                  }
+                ?>
+                <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="page-link<?php echo ($page >= $totalPages) ? ' disabled' : ''; ?>">Next →</a>
+              </div>
+            </div>
+          <?php endif; ?>
         </div><!-- end .module-card -->
       </div><!-- end #activity tab-content -->
 
@@ -716,12 +754,12 @@ if (!$hasBasicReporting) {
       const loadFunc = type === 'activity' ? 'loadActivityReport' : 'loadRevenueReport';
       
       let html = `
-        <div class="sa-pagination">
-          <div class="sa-pagination-info">
+        <div class="pagination">
+          <div class="page-link disabled">
             Showing ${(pagination.current_page - 1) * pagination.per_page + 1} to ${Math.min(pagination.current_page * pagination.per_page, pagination.total_count)} of ${pagination.total_count} records
           </div>
-          <div class="sa-pagination-controls">
-            <button class="sa-pagination-btn" ${pagination.current_page <= 1 ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page - 1})">Previous</button>
+          <div class="pagination-controls">
+            <button class="page-link" ${pagination.current_page <= 1 ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page - 1})">Previous</button>
       `;
 
       let startPage = Math.max(1, pagination.current_page - 2);
@@ -732,11 +770,11 @@ if (!$hasBasicReporting) {
 
       for (let i = startPage; i <= endPage; i++) {
         if (i < 1) continue;
-        html += `<button class="sa-pagination-btn ${i === pagination.current_page ? 'active' : ''}" onclick="${loadFunc}(${i})">${i}</button>`;
+        html += `<button class="page-link ${i === pagination.current_page ? 'active' : ''}" onclick="${loadFunc}(${i})">${i}</button>`;
       }
 
       html += `
-            <button class="sa-pagination-btn" ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page + 1})">Next</button>
+            <button class="page-link" ${pagination.current_page >= pagination.total_pages ? 'disabled' : ''} onclick="${loadFunc}(${pagination.current_page + 1})">Next</button>
           </div>
         </div>
       `;

@@ -214,11 +214,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_user'])) {
     }
 }
 
-// Fetch users for display
+// Fetch paginated users for display
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$perPage = 12;
+
+$totalUsers = 0;
+try {
+    $countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM users WHERE tenant_id = ?');
+    if ($countStmt) {
+        $countStmt->bind_param('i', $tenantId);
+        $countStmt->execute();
+        $countResult = $countStmt->get_result();
+        $totalUsers = (int)($countResult->fetch_assoc()['c'] ?? 0);
+        $countStmt->close();
+    }
+} catch (Exception $e) {
+    error_log("Error counting users: " . $e->getMessage());
+}
+
+$totalPages = $perPage > 0 ? max(1, (int)ceil($totalUsers / $perPage)) : 1;
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
 $users = [];
 try {
-    $stmt = $conn->prepare('SELECT user_id, email, phone, role, first_name, last_name, created_at FROM users WHERE tenant_id = ? ORDER BY email');
-    $stmt->bind_param('i', $tenantId);
+    $stmt = $conn->prepare('SELECT user_id, email, phone, role, first_name, last_name, created_at FROM users WHERE tenant_id = ? ORDER BY email ASC LIMIT ?, ?');
+    $stmt->bind_param('iii', $tenantId, $offset, $perPage);
     $stmt->execute();
     $result = $stmt->get_result();
     $users = $result->fetch_all(MYSQLI_ASSOC);
@@ -226,7 +247,7 @@ try {
 } catch (Exception $e) {
     error_log("Error fetching users: " . $e->getMessage());
 }
-?>
+?> 
 <!doctype html>
 <html lang="en">
 <head>
@@ -325,6 +346,46 @@ try {
         background: #0a2d4f;
         border-color: #0a2d4f;
       }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 20px 0 0;
+      }
+
+      .page-link {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
+      }
+
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .page-link.disabled,
+      .page-link[disabled] {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
     </style>
 </head>
 <body>
@@ -390,6 +451,28 @@ try {
             <?php endif; ?>
           </tbody>
         </table>
+        <?php if ($totalPages > 1): ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+            <?php
+            $start = max(1, $page - 2);
+            $end = min($totalPages, $page + 2);
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $page) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+            if ($end < $totalPages) {
+                if ($end < $totalPages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $totalPages . '" class="page-link">' . $totalPages . '</a>';
+            }
+            ?>
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="page-link <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
+          </div>
+        <?php endif; ?>
       </div>
     </div>
   </div>

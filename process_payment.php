@@ -167,6 +167,17 @@ try {
 
     mysqli_stmt_close($stmt);
 
+    // Capture created billing id and log invoice creation for audit
+    try {
+        $billing_id = (int)$conn->insert_id;
+        if ($billing_id > 0) {
+            $invoiceDesc = safeDesc('Created', 'Invoice', $billing_id, ['amount' => $total_amount_final, 'status' => $status]);
+            logTenantActivity($conn, $tenantId, 'Created', $invoiceDesc);
+        }
+    } catch (Exception $e) {
+        error_log('Invoice creation logging failed: ' . $e->getMessage());
+    }
+
     // If manual status update is requested
     $target_appt_status = trim($_POST['update_appt_status'] ?? '');
     if ($target_appt_status !== '' && $appointment_id > 0) {

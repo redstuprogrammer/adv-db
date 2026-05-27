@@ -18,3 +18,5 @@ No saved payment method is available. You can still manage your subscription set
     Activity Audit Trail tab/section
     - improve audit logs. record other actions done by admin, dentist, and receptionist other than just log in and log out. 
 
+
+I added a new patient but superadmin_tenant_reports.php and reports.php didnt show any action recorded.

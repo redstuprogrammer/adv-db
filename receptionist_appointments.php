@@ -298,9 +298,8 @@ if ($stmt) {
       .queue-table td { padding: 15px; border-bottom: 1px solid var(--dashboard-border); font-size: 14px; }
 
       .time-badge { background: rgba(13, 59, 102, 0.1); color: var(--dashboard-accent); padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-      .action-link { background: white; color: var(--dashboard-accent); text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid var(--dashboard-accent); padding: 5px 12px; border-radius: 6px; transition: 0.2s; display: inline-block; }
-      .action-link:hover { background: var(--dashboard-accent); color: white; }
-      .actions-cell .action-link { background: white; color: var(--dashboard-accent); }
+      .action-link { display: inline-block; padding: 8px 12px; background: var(--dashboard-accent); color: white; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid var(--dashboard-accent); border-radius: 6px; transition: 0.2s; cursor: pointer; }
+      .action-link:hover { background: #0a2d4f; border-color: #0a2d4f; }
 
       .search-box {
         flex: 1;
@@ -414,6 +413,42 @@ if ($stmt) {
         font-family: 'Courier New', monospace;
         letter-spacing: 1px;
         white-space: nowrap;
+      }
+
+      /* Pagination Styles */
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 30px;
+        padding: 20px 0;
+      }
+      .page-link {
+        padding: 8px 16px;
+        border: 1px solid var(--dashboard-border);
+        border-radius: 8px;
+        background: white;
+        color: var(--dashboard-accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+      .page-link:hover {
+        background: var(--dashboard-bg);
+        border-color: var(--dashboard-accent);
+      }
+      .page-link.active {
+        background: var(--dashboard-accent);
+        color: white;
+        border-color: var(--dashboard-accent);
+      }
+      .page-link.disabled {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
       }
 
       .modal {
@@ -755,14 +790,30 @@ if ($stmt) {
 
         <!-- Pagination -->
         <?php if ($totalPages > 1): ?>
-          <div style="display:flex; gap:10px; justify-content:center; align-items:center; margin-top:24px;">
-            <?php if ((int)$currentPage > 1): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage - 1); ?>" class="btn btn-secondary">← Previous</a>
-            <?php endif; ?>
-            <span style="font-size: 13px; color: #475569;">Page <?php echo (int)$currentPage; ?> of <?php echo $totalPages; ?></span>
-            <?php if ((int)$currentPage < $totalPages): ?>
-              <a href="?tenant=<?php echo rawurlencode($tenantSlug); ?>&page=<?php echo ((int)$currentPage + 1); ?>" class="btn btn-secondary">Next →</a>
-            <?php endif; ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $currentPage - 1); ?>" class="page-link <?php echo ($currentPage <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+
+            <?php
+            $start = max(1, $currentPage - 2);
+            $end = min($totalPages, $currentPage + 2);
+
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $currentPage) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+
+            if ($end < $totalPages) {
+                if ($end < $totalPages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $totalPages . '" class="page-link">' . $totalPages . '</a>';
+            }
+            ?>
+
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $currentPage + 1); ?>" class="page-link <?php echo ($currentPage >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
           </div>
         <?php endif; ?>
       </div>

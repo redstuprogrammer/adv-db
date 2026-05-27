@@ -618,6 +618,3 @@ if ($stmt) {
     }
   </script>
 </body>
-</html>
-
-

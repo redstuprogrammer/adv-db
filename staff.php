@@ -27,9 +27,28 @@ $tenantSlug = trim((string)($_GET['tenant'] ?? ''));
 $tenantName = $sessionManager->getTenantData()['tenant_name'] ?? '';
 $tenantId = $sessionManager->getTenantId();
 
-// Fetch staff from 'users' table joined with 'staff_details'
+// Fetch paginated staff from 'users' table joined with 'staff_details'
+$page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
+$perPage = 12;
+
+$totalStaff = 0;
+$countStmt = mysqli_prepare($conn, "SELECT COUNT(*) AS c FROM users WHERE tenant_id = ? AND role IN ('Admin', 'Dentist', 'Receptionist', 'Assistant')");
+if ($countStmt) {
+    mysqli_stmt_bind_param($countStmt, 'i', $tenantId);
+    mysqli_stmt_execute($countStmt);
+    $countResult = mysqli_stmt_get_result($countStmt);
+    if ($countResult) {
+        $totalStaff = (int)($countResult->fetch_assoc()['c'] ?? 0);
+    }
+    mysqli_stmt_close($countStmt);
+}
+
+$totalPages = $perPage > 0 ? max(1, (int)ceil($totalStaff / $perPage)) : 1;
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
 $staffMembers = [];
-// We pull from users as the source of truth for clinic members, 
+// We pull from users as the source of truth for clinic members,
 // and left join staff_details for professional info (bio, phone, specialties, image).
 $sql = "SELECT 
             u.user_id,
@@ -52,11 +71,12 @@ $sql = "SELECT
         LEFT JOIN staff_details sd ON u.email = sd.email AND u.tenant_id = sd.tenant_id
         WHERE u.tenant_id = ? 
         AND u.role IN ('Admin', 'Dentist', 'Receptionist', 'Assistant')
-        ORDER BY u.last_name ASC, u.first_name ASC";
+        ORDER BY u.last_name ASC, u.first_name ASC
+        LIMIT ?, ?";
 
 $stmt = mysqli_prepare($conn, $sql);
 if ($stmt) {
-    mysqli_stmt_bind_param($stmt, 'i', $tenantId);
+    mysqli_stmt_bind_param($stmt, 'iii', $tenantId, $offset, $perPage);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     if ($result) {
@@ -203,6 +223,46 @@ if ($stmt) {
         font-weight: 700;
         text-transform: uppercase;
       }
+
+      .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+        margin-top: 24px;
+        padding: 20px 0 0;
+      }
+
+      .page-link {
+        padding: 8px 14px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s ease;
+      }
+
+      .page-link:hover {
+        background: var(--bg);
+        border-color: var(--accent);
+      }
+
+      .page-link.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .page-link.disabled,
+      .page-link[disabled] {
+        color: #94a3b8;
+        pointer-events: none;
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+      }
       
       .status-active { background: #dcfce7; color: #166534; }
       .status-inactive { background: #f1f5f9; color: #64748b; }
@@ -262,6 +322,28 @@ if ($stmt) {
             </div>
           <?php endif; ?>
         </div>
+        <?php if ($totalPages > 1 && !empty($staffMembers)): ?>
+          <div class="pagination">
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo max(1, $page - 1); ?>" class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+            <?php
+            $start = max(1, $page - 2);
+            $end = min($totalPages, $page + 2);
+            if ($start > 1) {
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=1" class="page-link">1</a>';
+                if ($start > 2) echo '<span style="color: #94a3b8;">...</span>';
+            }
+            for ($i = $start; $i <= $end; $i++) {
+                $activeClass = ($i === $page) ? 'active' : '';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $i . '" class="page-link ' . $activeClass . '">' . $i . '</a>';
+            }
+            if ($end < $totalPages) {
+                if ($end < $totalPages - 1) echo '<span style="color: #94a3b8;">...</span>';
+                echo '<a href="?tenant=' . urlencode($tenantSlug) . '&page=' . $totalPages . '" class="page-link">' . $totalPages . '</a>';
+            }
+            ?>
+            <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="page-link <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
+          </div>
+        <?php endif; ?>
       </div>
     </main>
   </div>

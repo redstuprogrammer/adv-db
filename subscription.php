@@ -63,11 +63,11 @@ if ($subscriptionsTableExists) {
 
 if ($paymentMethodsTableExists) {
     $stmt = $conn->prepare(
-        'SELECT provider, brand, last4, exp_month, exp_year, billing_contact
-         FROM payment_methods
-         WHERE tenant_id = ?
-         ORDER BY is_default DESC, id DESC
-         LIMIT 1'
+      'SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default
+       FROM payment_methods
+       WHERE tenant_id = ?
+       ORDER BY is_default DESC, id DESC
+       LIMIT 1'
     );
     if ($stmt) {
         $stmt->bind_param('i', $tenantId);
@@ -79,6 +79,80 @@ if ($paymentMethodsTableExists) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  // ----- Save or delete payment method -----
+  if (isset($_POST['save_payment_method'])) {
+    $provider = trim($_POST['provider'] ?? '');
+    $brand = trim($_POST['brand'] ?? '');
+    $last4 = preg_replace('/\D/', '', (string)($_POST['last4'] ?? ''));
+    $exp_month = intval($_POST['exp_month'] ?? 0);
+    $exp_year = intval($_POST['exp_year'] ?? 0);
+    $billing_contact = trim($_POST['billing_contact'] ?? '');
+    $make_default = isset($_POST['make_default']) ? 1 : 0;
+
+    if ($provider === '' || $last4 === '' || $exp_month < 1 || $exp_month > 12 || $exp_year < 2000) {
+      $errorMessage = 'Please provide a valid payment method (provider, 4 digits, expiry).';
+    } else {
+      // If making default, clear other defaults first
+      if ($make_default) {
+        $clear = $conn->prepare('UPDATE payment_methods SET is_default = 0 WHERE tenant_id = ?');
+        if ($clear) { $clear->bind_param('i', $tenantId); $clear->execute(); $clear->close(); }
+      }
+
+      if (!empty($currentPaymentMethod) && !empty($currentPaymentMethod['id'])) {
+        $pmId = (int)$currentPaymentMethod['id'];
+        $upd = $conn->prepare('UPDATE payment_methods SET provider = ?, brand = ?, last4 = ?, exp_month = ?, exp_year = ?, billing_contact = ?, is_default = ? WHERE id = ? AND tenant_id = ?');
+        if ($upd) {
+          $upd->bind_param('sssiisiii', $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default, $pmId, $tenantId);
+          if ($upd->execute()) {
+            $saveMessage = 'Payment method updated.';
+            try {
+              $desc = safeDesc('Updated', 'Payment Method', $pmId, ['provider' => $provider, 'last4' => $last4]);
+              logTenantActivity($conn, $tenantId, 'Updated', $desc);
+            } catch (Exception $e) { error_log('Payment method update logging failed: ' . $e->getMessage()); }
+          } else {
+            $errorMessage = 'Unable to update payment method.';
+          }
+          $upd->close();
+        }
+      } else {
+        $ins = $conn->prepare('INSERT INTO payment_methods (tenant_id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        if ($ins) {
+          $ins->bind_param('isssiiisi', $tenantId, $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default);
+          if ($ins->execute()) {
+            $newId = (int)$conn->insert_id;
+            $saveMessage = 'Payment method saved.';
+            try {
+              $desc = safeDesc('Created', 'Payment Method', $newId, ['provider' => $provider, 'last4' => $last4]);
+              logTenantActivity($conn, $tenantId, 'Created', $desc);
+            } catch (Exception $e) { error_log('Payment method creation logging failed: ' . $e->getMessage()); }
+          } else {
+            $errorMessage = 'Unable to save payment method.';
+          }
+          $ins->close();
+        }
+      }
+      // Refresh current payment method for immediate UI feedback
+      $stmt = $conn->prepare('SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default FROM payment_methods WHERE tenant_id = ? ORDER BY is_default DESC, id DESC LIMIT 1');
+      if ($stmt) { $stmt->bind_param('i', $tenantId); $stmt->execute(); $currentPaymentMethod = $stmt->get_result()->fetch_assoc() ?: null; $stmt->close(); }
+    }
+  }
+
+  if (isset($_POST['delete_payment_method']) && !empty($currentPaymentMethod['id'])) {
+    $pmId = (int)$currentPaymentMethod['id'];
+    $del = $conn->prepare('DELETE FROM payment_methods WHERE id = ? AND tenant_id = ?');
+    if ($del) {
+      $del->bind_param('ii', $pmId, $tenantId);
+      if ($del->execute()) {
+        $saveMessage = 'Payment method deleted.';
+        try { $desc = safeDesc('Deleted', 'Payment Method', $pmId); logTenantActivity($conn, $tenantId, 'Deleted', $desc); } catch (Exception $e) { error_log('Payment method delete logging failed: ' . $e->getMessage()); }
+        $currentPaymentMethod = null;
+      } else {
+        $errorMessage = 'Unable to delete payment method.';
+      }
+      $del->close();
+    }
+  }
+
     if (isset($_POST['save_integration_settings'])) {
         $gateway = trim($_POST['payment_gateway'] ?? 'PayMongo');
         $oldGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo');
@@ -224,15 +298,31 @@ function formatReadableDate(?string $date): string {
 
           <div class="subscription-item subscription-card" style="grid-column: 1 / -1;">
             <h3>Payment method</h3>
-            <?php if ($currentPaymentMethod): ?>
-              <div class="payment-method">
-                <p><strong><?php echo h($currentPaymentMethod['provider']); ?></strong></p>
-                <p><?php echo h($currentPaymentMethod['brand'] ?? 'Card'); ?> ending in <strong><?php echo h($currentPaymentMethod['last4'] ?? '0000'); ?></strong></p>
-                <p>Expires <?php echo h(sprintf('%02d/%04d', $currentPaymentMethod['exp_month'] ?? 0, $currentPaymentMethod['exp_year'] ?? 0)); ?></p>
-              </div>
-            <?php else: ?>
-              <p style="color: #475569;">No saved payment method is available. You can still manage your subscription settings here.</p>
-            <?php endif; ?>
+            <div class="payment-method">
+              <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+                <input type="hidden" name="save_payment_method" value="1">
+                <input type="hidden" name="existing_pm_id" value="<?php echo h($currentPaymentMethod['id'] ?? ''); ?>">
+                <p><label>Provider</label><br>
+                  <input type="text" name="provider" value="<?php echo h($currentPaymentMethod['provider'] ?? 'PayMongo'); ?>" style="width:100%; padding:8px; margin-top:6px;" required></p>
+                <p><label>Brand (Card Brand)</label><br>
+                  <input type="text" name="brand" value="<?php echo h($currentPaymentMethod['brand'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;"></p>
+                <p style="display:flex; gap:8px;"><span style="flex:1"><label>Last 4 digits</label><br>
+                  <input type="text" name="last4" maxlength="4" value="<?php echo h($currentPaymentMethod['last4'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span>
+                  <span style="width:140px"><label>Exp (MM)</label><br>
+                  <input type="number" name="exp_month" min="1" max="12" value="<?php echo h($currentPaymentMethod['exp_month'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span>
+                  <span style="width:160px"><label>Exp (YYYY)</label><br>
+                  <input type="number" name="exp_year" min="2023" value="<?php echo h($currentPaymentMethod['exp_year'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span></p>
+                <p><label>Billing Contact</label><br>
+                  <input type="text" name="billing_contact" value="<?php echo h($currentPaymentMethod['billing_contact'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;"></p>
+                <p><label style="display:inline-block; margin-right:12px;"><input type="checkbox" name="make_default" value="1" <?php echo (!empty($currentPaymentMethod['is_default']) ? 'checked' : ''); ?>> Make default</label></p>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
+                  <button type="submit" class="button-primary">Save Payment Method</button>
+                  <?php if (!empty($currentPaymentMethod['id'])): ?>
+                    <button type="submit" name="delete_payment_method" value="1" onclick="return confirm('Delete saved payment method? This cannot be undone.');" style="background:#ef4444; border:none; color:white; padding:12px 16px; border-radius:12px;">Delete</button>
+                  <?php endif; ?>
+                </div>
+              </form>
+            </div>
           </div>
 
           <div style="grid-column: 1 / -1; text-align: right; margin-top: 16px;">

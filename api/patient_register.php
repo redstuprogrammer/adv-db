@@ -151,6 +151,23 @@ try {
     $patient_id = $pdo->lastInsertId();
     $pdo->commit();
 
+    // Log tenant activity for patient registration
+    try {
+        $activityDescription = sprintf(
+            'Patient account created for %s %s (patient_id=%d, tenant_patient_id=%d)',
+            $first_name,
+            $last_name,
+            $patient_id,
+            $tenant_patient_id
+        );
+        $insertLog = $pdo->prepare(
+            'INSERT INTO tenant_activity_logs (tenant_id, activity_type, activity_description, activity_count, log_date, log_time) VALUES (?, ?, ?, ?, CURDATE(), CURTIME())'
+        );
+        $insertLog->execute([$tenant_id, 'Created', $activityDescription, 1]);
+    } catch (PDOException $e) {
+        error_log('Patient registration logging failed: ' . $e->getMessage());
+    }
+
     // Send verification email — non-blocking (failure doesn't break registration)
     $mailSent = sendVerificationEmail($email, $first_name, $verification_token);
     if (!$mailSent) {

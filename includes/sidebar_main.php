@@ -38,10 +38,10 @@ switch ($role) {
         $menu = [
             ['section' => 'Dentist', 'items' => [
                 ['href' => $basePath . '/dentist_dashboard.php' . $baseTenantQuery, 'icon' => '📊', 'label' => 'Dashboard', 'active' => 'dentist_dashboard.php'],
+                ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
             ]],
             ['section' => '', 'items' => [
                 ['href' => $basePath . '/dentist_appointments.php' . $baseTenantQuery, 'icon' => '📅', 'label' => 'Appointments', 'active' => 'dentist_appointments.php'],
-                ['href' => $basePath . '/dentist_patients.php' . $baseTenantQuery, 'icon' => '👥', 'label' => 'Patients', 'active' => 'dentist_patients.php'],
                 ['href' => $basePath . '/dentist_schedule.php' . $baseTenantQuery, 'icon' => '🗓️', 'label' => 'My Schedule', 'active' => 'dentist_schedule.php'],
                 ['href' => $basePath . '/dentist_account_settings.php' . $baseTenantQuery, 'icon' => '🔐', 'label' => 'Account Settings', 'active' => 'dentist_account_settings.php'],
             ]],
