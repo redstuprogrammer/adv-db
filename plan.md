@@ -20,3 +20,8 @@ No saved payment method is available. You can still manage your subscription set
 
 
 I added a new patient but superadmin_tenant_reports.php and reports.php didnt show any action recorded.
+
+when I register a tenant, the email is automatically displayed as the username in the sidebar even though there is already a username field in the registration. only username should be displayed in the sidebar.
+
+
+transfer the tenant code from the dashboard to the Book Appointment modal form in tenant's homepage
