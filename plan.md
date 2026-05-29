@@ -25,3 +25,8 @@ when I register a tenant, the email is automatically displayed as the username i
 
 
 transfer the tenant code from the dashboard to the Book Appointment modal form in tenant's homepage
+
+2026-05-29T02:40:16.3698092Z NOTICE: PHP message: PHP Parse error:  syntax error, unexpected end of file in /home/site/wwwroot/services.php on line 624
+2026-05-29T02:40:16.369847Z 127.0.0.1 -  29/May/2026:02:40:16 +0000 "GET /services.php" 500
+
+for every filter in reports.php - activity audit trail
