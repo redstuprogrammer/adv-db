@@ -140,6 +140,91 @@ function isTenantWithinLimits(int $tenantId, string $resource, int $currentCount
 }
 
 /**
+ * Get tenant storage usage in bytes.
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return int Total storage used in bytes
+ */
+function getTenantStorageUsageBytes(int $tenantId, $conn): int {
+    if (!$conn || $tenantId <= 0) {
+        return 0;
+    }
+
+    $totalBytes = 0;
+    $queries = [
+        'SELECT SUM(file_size) AS total_size FROM patient_documents WHERE tenant_id = ?',
+        'SELECT SUM(file_size) AS total_size FROM tenant_documents WHERE tenant_id = ?'
+    ];
+
+    foreach ($queries as $sql) {
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            continue;
+        }
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+
+        $totalBytes += isset($row['total_size']) ? (int)$row['total_size'] : 0;
+    }
+
+    return $totalBytes;
+}
+
+/**
+ * Get tenant storage limit in bytes based on plan settings.
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return int|null Limit in bytes, or null if undefined
+ */
+function getTenantStorageLimitBytes(int $tenantId, $conn): ?int {
+    $limitGb = getTenantTierLimit($tenantId, 'max_storage_gb', $conn);
+    if ($limitGb === null) {
+        return null;
+    }
+
+    return $limitGb * 1024 * 1024 * 1024;
+}
+
+/**
+ * Get tenant storage usage details.
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return array ['usage_bytes' => int, 'limit_bytes' => int|null, 'usage_percent' => int|null]
+ */
+function getTenantStorageUsageInfo(int $tenantId, $conn): array {
+    $usageBytes = getTenantStorageUsageBytes($tenantId, $conn);
+    $limitBytes = getTenantStorageLimitBytes($tenantId, $conn);
+    $usagePercent = null;
+
+    if ($limitBytes !== null && $limitBytes > 0) {
+        $usagePercent = (int) floor($usageBytes / $limitBytes * 100);
+        if ($usagePercent > 100) {
+            $usagePercent = 100;
+        }
+    }
+
+    return [
+        'usage_bytes' => $usageBytes,
+        'limit_bytes' => $limitBytes,
+        'usage_percent' => $usagePercent
+    ];
+}
+
+/**
+ * Format bytes to a human-readable MB string.
+ * @param int $bytes Bytes to format
+ * @param int $decimals Decimal places
+ * @return string
+ */
+function formatBytesToMB(int $bytes, int $decimals = 2): string {
+    $megabytes = $bytes / (1024 * 1024);
+    return number_format($megabytes, $decimals) . ' MB';
+}
+
+/**
  * Check if trial has expired for a tenant
  * @param int $tenantId The tenant ID
  * @param mysqli $conn Database connection

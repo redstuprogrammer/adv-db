@@ -257,6 +257,92 @@ try {
     $desc = safeDesc('Payment', 'Billing', $billing_id, ['status' => $new_status, 'provider' => 'PayMongo']);
     logTenantActivity($conn, $tenant_id, 'Payment Gateway Sync', $desc);
 
+    // Attempt to fetch detailed payment object from PayMongo and save a tokenized payment method
+    if (!empty($paymongo_payment_id)) {
+        try {
+            $ch2 = curl_init('https://api.paymongo.com/v1/payments/' . urlencode($paymongo_payment_id));
+            curl_setopt_array($ch2, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER     => [
+                    'Accept: application/json',
+                    'Authorization: Basic ' . $auth,
+                ],
+            ]);
+            $pm_pay_response = curl_exec($ch2);
+            $pm_http = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+            curl_close($ch2);
+
+            if ($pm_pay_response && $pm_http === 200) {
+                $pm_pay_data = json_decode($pm_pay_response, true);
+
+                $provider_token = $pm_pay_data['data']['id'] ?? null;
+                $attrs = $pm_pay_data['data']['attributes'] ?? [];
+                $source = $attrs['source'] ?? [];
+                $payment_method = $attrs['payment_method'] ?? [];
+
+                // Try common locations for card details
+                $card = [];
+                if (!empty($payment_method) && is_array($payment_method)) {
+                    $card = $payment_method['card'] ?? $payment_method;
+                }
+                if (empty($card) && !empty($source) && is_array($source)) {
+                    $card = $source['card'] ?? $source;
+                }
+
+                $brand = $card['brand'] ?? ($attrs['type'] ?? ($source['type'] ?? 'PayMongo'));
+                $last4 = $card['last4'] ?? $card['last_four'] ?? '';
+                $exp_month = isset($card['exp_month']) ? intval($card['exp_month']) : 0;
+                $exp_year = isset($card['exp_year']) ? intval($card['exp_year']) : 0;
+                $billing_contact = $attrs['billing']['name'] ?? $attrs['billing_contact'] ?? '';
+
+                // Save into payment_methods table if table exists
+                $tblCheck = $conn->query("SHOW TABLES LIKE 'payment_methods'");
+                if ($tblCheck && $tblCheck->num_rows > 0) {
+                    // Ensure provider_token column exists (add if missing)
+                    $colCheck = $conn->query("SHOW COLUMNS FROM payment_methods LIKE 'provider_token'");
+                    if ($colCheck && $colCheck->num_rows === 0) {
+                        $conn->query("ALTER TABLE payment_methods ADD COLUMN provider_token VARCHAR(255) NULL AFTER brand");
+                    }
+
+                    // Upsert: check existing by provider_token (if available) or by tenant_id+last4+brand
+                    $existingId = null;
+                    if (!empty($provider_token)) {
+                        $sel = $conn->prepare('SELECT id FROM payment_methods WHERE provider_token = ? AND tenant_id = ? LIMIT 1');
+                        if ($sel) { $sel->bind_param('si', $provider_token, $tenant_id); $sel->execute(); $r = $sel->get_result()->fetch_assoc(); $existingId = $r['id'] ?? null; $sel->close(); }
+                    }
+                    if (!$existingId && $last4 !== '') {
+                        $sel2 = $conn->prepare('SELECT id FROM payment_methods WHERE tenant_id = ? AND last4 = ? AND brand = ? LIMIT 1');
+                        if ($sel2) { $sel2->bind_param('iss', $tenant_id, $last4, $brand); $sel2->execute(); $r2 = $sel2->get_result()->fetch_assoc(); $existingId = $r2['id'] ?? null; $sel2->close(); }
+                    }
+
+                    if ($existingId) {
+                        $upd = $conn->prepare('UPDATE payment_methods SET provider = ?, brand = ?, last4 = ?, exp_month = ?, exp_year = ?, billing_contact = ?, provider_token = ? WHERE id = ? AND tenant_id = ?');
+                        if ($upd) {
+                            $upd->bind_param('sssiisisi', 'PayMongo', $brand, $last4, $exp_month, $exp_year, $billing_contact, $provider_token, $existingId, $tenant_id);
+                            $upd->execute();
+                            $upd->close();
+                        }
+                    } else {
+                        $ins = $conn->prepare('INSERT INTO payment_methods (tenant_id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default, provider_token) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)');
+                        if ($ins) {
+                            $ins->bind_param('isssiiis', $tenant_id, 'PayMongo', $brand, $last4, $exp_month, $exp_year, $billing_contact, $provider_token);
+                            $ins->execute();
+                            $ins->close();
+                        }
+                    }
+                }
+            } else {
+                error_log("[confirm_payment] Could not fetch payment details for $paymongo_payment_id (http={$pm_http})");
+            }
+        } catch (Throwable $t) {
+            error_log('[confirm_payment] payment-details-save error: ' . $t->getMessage());
+        }
+    }
+
 } catch (Exception $ex) {
     $conn->rollback();
     $conn->close();

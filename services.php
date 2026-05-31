@@ -548,6 +548,7 @@ if ($stmt) {
             <a href="?tenant=<?php echo urlencode($tenantSlug); ?>&page=<?php echo min($totalPages, $page + 1); ?>" class="page-link <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
           </div>
         <?php endif; ?>
+      <?php endif; ?>
       </div>
     </main>
   </div>

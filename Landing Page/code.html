@@ -1039,28 +1039,18 @@
                         selectedFiles = [];
                         renderFileList();
 
-                        // Open checkout / success modal
-                        paymentModal.classList.remove('hidden');
-                        paymentModal.classList.add('flex');
-
                         if (data.checkout_url) {
-                            // Paid tier - polling required
-                            paymentModalInitial.classList.remove('hidden');
-                            paymentModalSuccess.classList.add('hidden');
-                            checkoutUrlDisplay.textContent = data.checkout_url;
-                            paymentOpenBtn.href = data.checkout_url;
+                            // Paid tier - redirect immediately to PayMongo
+                            window.location.href = data.checkout_url;
+                            return;
+                        }
 
-                            paymentCopyBtn.onclick = function() {
-                                navigator.clipboard.writeText(data.checkout_url).then(() => {
-                                    showToast('Payment link copied successfully!');
-                                });
-                            };
-
-                            startPolling(data.slug);
+                        // Trial / Free tier - show a brief confirmation toast that email was sent
+                        const sent = (typeof data.email_sent === 'undefined') ? true : !!data.email_sent;
+                        if (sent) {
+                            showToast('Registration complete! An onboarding email has been sent to the address you provided.', 6000);
                         } else {
-                            // Trial / Free tier - direct activation success
-                            paymentModalInitial.classList.add('hidden');
-                            paymentModalSuccess.classList.remove('hidden');
+                            showToast('Registration complete! Onboarding email could not be sent automatically. Please check your email or contact support.', 7000);
                         }
                     } else {
                         showToast(data.message || 'An error occurred during registration.');

@@ -169,6 +169,24 @@ if ($docsStmt) {
     }
     $docsStmt->close();
 }
+
+$storageInfo = getTenantStorageUsageInfo($tenantId, $conn);
+$storageWarning = '';
+$storageBannerType = '';
+
+if ($storageInfo['limit_bytes'] !== null) {
+    $tenantTierInfo = getTenantTierInfo($tenantId, $conn);
+    $tierName = $tenantTierInfo['name'] ?? ucfirst(trim((string)($tenantData['subscription_tier'] ?? 'Current')));
+    $usagePercent = $storageInfo['usage_percent'] ?? 0;
+
+    if ($usagePercent >= 100) {
+        $storageWarning = "⚠️ Your {$tierName} plan storage limit has been exceeded. Current usage is " . formatBytesToMB($storageInfo['usage_bytes']) . " of " . formatBytesToMB($storageInfo['limit_bytes']) . ".";
+        $storageBannerType = 'storage-error';
+    } elseif ($usagePercent >= 80) {
+        $storageWarning = "⚠️ Storage usage is at {$usagePercent}% of your {$tierName} plan limit (" . formatBytesToMB($storageInfo['usage_bytes']) . " / " . formatBytesToMB($storageInfo['limit_bytes']) . "). Uploading more documents may fail.";
+        $storageBannerType = 'storage-warning';
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -227,6 +245,27 @@ if ($docsStmt) {
             margin-bottom: 20px;
             border: 1px solid #bbf7d0;
             font-weight: 600;
+        }
+
+        .storage-banner {
+            padding: 16px 18px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            border: 1px solid;
+            line-height: 1.5;
+        }
+
+        .storage-warning {
+            background: #fffbeb;
+            color: #92400e;
+            border-color: #fcd34d;
+        }
+
+        .storage-error {
+            background: #fef2f2;
+            color: #991b1b;
+            border-color: #fecaca;
         }
 
         .patient-summary {
@@ -422,6 +461,10 @@ if ($docsStmt) {
             <a href="dentist_dashboard.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" class="back-link">← Return to Dashboard</a>
         </div>
     </div>
+
+    <?php if ($storageWarning): ?>
+        <div class="storage-banner <?php echo h($storageBannerType); ?>"><?php echo h($storageWarning); ?></div>
+    <?php endif; ?>
 
     <?php if ($successMsg): ?>
         <div class="success-message"><?php echo $successMsg; ?></div>

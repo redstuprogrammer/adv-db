@@ -32,6 +32,7 @@ if ($tenant) {
         'contact_phone' => $tenant['phone'],
         'contact_email' => $tenant['contact_email'] ?? $tenant['email'] ?? 'support@oralsync.com',
         'contact_address' => $tenant['address'] . ", " . $tenant['city'] . ", " . $tenant['province'],
+        'tenant_code' => $tenant['tenant_code'] ?? '',
         'accent_color' => $settings['accent_color'] ?? '#004872',
         'badge_text' => $settings['badge_text'] ?? 'Clinical Serenity',
         'badge_visible' => ($settings['badge_visible'] ?? '1') === '1',
@@ -651,6 +652,18 @@ foreach ($announcements as $index => $announcement):
                             <p class="text-on-surface-variant text-sm"><?= htmlspecialchars($clinic['contact_address']) ?></p>
                         </div>
                     </div>
+                    <div class="flex gap-4 mt-4">
+                        <div class="w-10 h-10 bg-surface-container-high rounded-full flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-primary">qr_code</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-sm">Clinic Code</p>
+                            <p class="text-on-surface-variant text-sm"><?= htmlspecialchars($clinic['tenant_code'] ?: 'N/A') ?></p>
+                        </div>
+                        <?php if (!empty($clinic['tenant_code'])): ?>
+                        <button onclick="copyClinicCode()" class="rounded-full border border-outline-variant px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/5 transition">Copy</button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -670,6 +683,18 @@ foreach ($announcements as $index => $announcement):
         document.getElementById('appointmentModal').classList.add('hidden');
         document.body.style.overflow = 'auto';
     }
+    function copyClinicCode() {
+        const clinicCode = <?= json_encode($clinic['tenant_code'] ?? '') ?>;
+        if (!clinicCode) {
+            return;
+        }
+        navigator.clipboard.writeText(clinicCode).then(() => {
+            alert('Clinic code copied to clipboard.');
+        }).catch(() => {
+            alert('Unable to copy clinic code.');
+        });
+    }
+
     function filterServices(category, element) {
         // Update active tab styling
         const tabs = document.querySelectorAll('.category-tab');
