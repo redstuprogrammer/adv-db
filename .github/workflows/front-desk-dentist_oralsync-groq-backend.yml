@@ -52,8 +52,8 @@ jobs:
         with:
           name: python-app
           path: |
-            ./groq-ocr-backend
-            !./groq-ocr-backend/antenv
+            groq-ocr-backend
+            !groq-ocr-backend/antenv
 
       # 🚫 Opting Out of Oryx Build
       # If you prefer to disable the Oryx build process during deployment, follow these steps:
@@ -87,5 +87,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: ./groq-ocr-backend
+          package: groq-ocr-backend
           
