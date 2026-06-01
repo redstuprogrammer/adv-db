@@ -42,10 +42,9 @@ jobs:
       # The following section in your workflow is designed to catch build issues early on the client side, before deployment. This can be helpful for debugging and validation. However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
       - name: Create and Start virtual environment and Install dependencies (subfolder)
         run: |
-          BACKEND_DIR="adv db"
-          python -m venv "$BACKEND_DIR/antenv"
-          "$BACKEND_DIR/antenv/bin/python" -m pip install --upgrade pip
-          "$BACKEND_DIR/antenv/bin/pip" install --no-cache-dir -r "$BACKEND_DIR/groq-ocr-backend/requirements.txt"
+          python -m venv ./antenv
+          ./antenv/bin/python -m pip install --upgrade pip
+          ./antenv/bin/pip install --no-cache-dir -r ./groq-ocr-backend/requirements.txt
           echo "Using fixed backend requirements version: pypdfium2==4.30.0"
       # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
       - name: Upload artifact for deployment jobs (only backend folder)
@@ -53,8 +52,8 @@ jobs:
         with:
           name: python-app
           path: |
-            adv db/groq-ocr-backend
-            !adv db/groq-ocr-backend/antenv
+            ./groq-ocr-backend
+            !./groq-ocr-backend/antenv
 
       # 🚫 Opting Out of Oryx Build
       # If you prefer to disable the Oryx build process during deployment, follow these steps:
@@ -88,5 +87,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: adv db/groq-ocr-backend
+          package: ./groq-ocr-backend
           
