@@ -77,6 +77,23 @@ jobs:
         with:
           name: python-app
           path: .
+
+      - name: Debug artifact layout and move zip to root if present
+        run: |
+          echo "Working directory: $(pwd)"
+          echo "Listing root:"; ls -la || true
+          echo "Listing python-app dir (if exists):"; ls -la python-app || true
+          if [ -f python-app/groq-ocr-backend.zip ]; then
+            echo "Found python-app/groq-ocr-backend.zip, moving to root"
+            mv python-app/groq-ocr-backend.zip .
+          fi
+          if [ -f groq-ocr-backend.zip ]; then
+            echo "Final listing:"; ls -la groq-ocr-backend.zip
+          else
+            echo "groq-ocr-backend.zip not found after download"
+            ls -la
+            exit 1
+          fi
       
       - name: Login to Azure
         uses: azure/login@v2
