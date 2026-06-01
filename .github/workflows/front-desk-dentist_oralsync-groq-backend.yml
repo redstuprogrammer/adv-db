@@ -108,5 +108,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: python-app/groq-ocr-backend.zip
+          package: groq-ocr-backend.zip
           
