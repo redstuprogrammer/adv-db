@@ -38,18 +38,21 @@ jobs:
           echo "Checking for groq-ocr-backend at root:"
           ls -la groq-ocr-backend 2>&1 || echo "Directory 'groq-ocr-backend' not found at root"
 
-      # Skip local venv build - let Azure Oryx handle dependencies
-      # Oryx will detect requirements.txt and build the environment during deployment
+      # Package backend contents into a zip for predictable deployment root
+      - name: Create backend deployment zip
+        run: |
+          apt-get update && apt-get install -y zip >/dev/null
+          cd groq-ocr-backend
+          zip -r ../groq-ocr-backend.zip . -x "antenv/*"
+
       - name: Upload backend artifact for Azure deployment
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: groq-ocr-backend/
+          path: groq-ocr-backend.zip
 
       # 🚫 Opting Out of Oryx Build
-      # If you prefer to disable the Oryx build process during deployment, follow these steps:
-      # 1. Remove the SCM_DO_BUILD_DURING_DEPLOYMENT app setting from your Azure App Service Environment variables.
-      # 2. Refer to sample workflows for alternative deployment strategies: https://github.com/Azure/actions-workflow-samples/tree/master/AppService
+      # If you prefer to disable the SCM_DO_BUILD_DURING_DEPLOYMENT app setting from your Azure App Service Environment variables.
       
 
   deploy:
@@ -70,8 +73,21 @@ jobs:
         run: |
           echo "Deployment directory contents:"
           ls -la deployment/
-          echo "Checking for requirements.txt:"
-          [ -f deployment/groq-ocr-backend/requirements.txt ] && echo "✓ Found requirements.txt" || echo "✗ requirements.txt not found"
+          echo "Checking for zip file:"
+          [ -f deployment/groq-ocr-backend.zip ] && echo "✓ Found zip" || echo "✗ zip not found"
+          find deployment -maxdepth 2 -type f | sort
+      
+      - name: Prepare zip for deployment
+        run: |
+          if [ -f deployment/groq-ocr-backend.zip ]; then
+            mv deployment/groq-ocr-backend.zip .
+          elif [ -f deployment/python-app/groq-ocr-backend.zip ]; then
+            mv deployment/python-app/groq-ocr-backend.zip .
+          else
+            echo "Zip file not found in downloaded artifact"
+            ls -la deployment/
+            exit 1
+          fi
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -86,5 +102,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: deployment/groq-ocr-backend/
+          package: groq-ocr-backend.zip
           
