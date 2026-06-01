@@ -412,6 +412,7 @@
             <button type="reset" class="px-6 py-3 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 active:scale-95 transition-all text-sm">Clear Form</button>
             <button type="submit" class="px-8 py-3 bg-brand-navy text-white rounded-xl font-semibold hover:bg-brand-navy-dark active:scale-95 transition-all text-sm">Register Clinic</button>
         </div>
+        <div id="registration-status-banner" class="hidden rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 px-5 py-4 text-sm mt-4"></div>
     </form>
 </div>
 </section>
@@ -552,6 +553,29 @@
         }, duration);
     }
 
+    function showRegistrationStatus(message, type = 'info') {
+        const banner = document.getElementById('registration-status-banner');
+        if (!banner) return;
+        banner.textContent = message;
+        banner.className = 'rounded-2xl border px-5 py-4 text-sm mt-4';
+        if (type === 'success') {
+            banner.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-900');
+        } else if (type === 'warning') {
+            banner.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-900');
+        } else if (type === 'danger') {
+            banner.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-900');
+        } else {
+            banner.classList.add('bg-slate-50', 'border-slate-200', 'text-slate-700');
+        }
+        banner.classList.remove('hidden');
+    }
+
+    function hideRegistrationStatus() {
+        const banner = document.getElementById('registration-status-banner');
+        if (!banner) return;
+        banner.classList.add('hidden');
+    }
+
     // Scroll to form and set selected plan
     function selectPlan(planKey) {
         const tierSelect = document.getElementById('clinic-tier');
@@ -585,6 +609,7 @@
         const reviewModalContent = document.getElementById('review-modal-content');
         const reviewCancelBtn = document.getElementById('review-cancel-btn');
         const reviewConfirmBtn = document.getElementById('review-confirm-btn');
+        const registrationStatusBanner = document.getElementById('registration-status-banner');
 
         const paymentModal = document.getElementById('payment-modal');
         const paymentModalInitial = document.getElementById('payment-modal-initial');
@@ -1032,6 +1057,15 @@
                 })
                 .then(data => {
                     if (data.success) {
+                        if (data.registration_status && data.registration_status !== 'APPROVED') {
+                            const statusText = data.registration_status === 'PENDING_ADMIN_REVIEW'
+                                ? 'Registration submitted. Your documents are awaiting admin review before payment can be completed.'
+                                : 'Registration submitted. Your documents were not approved. Please wait for admin review or contact support.';
+                            showRegistrationStatus(statusText, data.registration_status === 'PENDING_ADMIN_REVIEW' ? 'warning' : 'danger');
+                        } else {
+                            hideRegistrationStatus();
+                        }
+
                         // Close review modal
                         reviewModal.classList.add('hidden');
                         reviewModal.classList.remove('flex');
