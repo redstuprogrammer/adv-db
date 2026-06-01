@@ -139,11 +139,12 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
         // 4. Insert clinic into database
         $initial_status = ($tier === 'trial') ? 'active' : 'inactive';
         
-        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, barangay, zip_code, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO tenants (company_name, owner_name, username, contact_email, password, phone, address, city, province, barangay, zip_code, subdomain_slug, homepage_url, tenant_code, status, subscription_tier, subscription_start_date, subscription_duration, registration_status) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "sssssssssssssssssi", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $barangay, $zip_code, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration);
+        $registration_status = 'PENDING';
+        mysqli_stmt_bind_param($stmt, "sssssssssssssssssss", $clinicName, $ownerName, $username, $email, $hashed_password, $phone, $address, $city, $province, $barangay, $zip_code, $slug, $homepage_url, $tenant_code, $initial_status, $tier, $start_date, $duration, $registration_status);
 
         if (mysqli_stmt_execute($stmt)) {
             $new_id = mysqli_insert_id($conn);
@@ -171,9 +172,74 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             $paymongo_url = null;
             $paymongo_session_id = null;
             $payment_status = ($tier === 'trial' || $total_amount <= 0) ? 'paid' : 'pending';
+            $registration_status_final = 'PENDING';
 
-            // Generate PayMongo link if it's a paid tier
-            if ($payment_status === 'pending') {
+            // ========== OCR VERIFICATION (if documents uploaded) ==========
+            // Call Python Groq verification API to validate DTI/BIR documents
+            $ocr_verification_attempted = false;
+            $ocr_verification_result = null;
+            
+            if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name']) && count($_FILES['documents']['tmp_name']) > 0) {
+                // Get first valid document file
+                $first_doc_path = null;
+                $first_doc_name = null;
+                
+                foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
+                    if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK) {
+                        $first_doc_path = $tmp_name;
+                        $first_doc_name = $_FILES['documents']['name'][$key];
+                        break;
+                    }
+                }
+                
+                if ($first_doc_path && $first_doc_name) {
+                    // Prepare multipart form data for Python backend
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, getenv('GROQ_BACKEND_URL') ?: 'http://localhost:8000/api/verify-document');
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+                    
+                    $cfile = curl_file_create($first_doc_path);
+                    $post_data = array(
+                        'clinic_name' => $clinicName,
+                        'tenant_id' => $new_id,
+                        'document' => $cfile
+                    );
+                    
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
+                    
+                    $response_body = curl_exec($ch);
+                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    
+                    if ($http_code === 200) {
+                        $ocr_verification_result = json_decode($response_body, true);
+                        $ocr_verification_attempted = true;
+                        
+                        if ($ocr_verification_result && isset($ocr_verification_result['registration_status'])) {
+                            $registration_status_final = $ocr_verification_result['registration_status']; // APPROVED or PENDING_ADMIN_REVIEW
+                        }
+                        
+                        error_log("OCR Verification Result: " . json_encode($ocr_verification_result));
+                    } else {
+                        error_log("OCR Verification API Error (HTTP $http_code): " . $response_body);
+                        $registration_status_final = 'PENDING_ADMIN_REVIEW'; // Default to manual review on API error
+                    }
+                }
+            }
+            
+            // Update tenant registration_status based on OCR result
+            $update_status_sql = "UPDATE tenants SET registration_status = ? WHERE id = ?";
+            $update_stmt = mysqli_prepare($conn, $update_status_sql);
+            if ($update_stmt) {
+                mysqli_stmt_bind_param($update_stmt, "si", $registration_status_final, $new_id);
+                mysqli_stmt_execute($update_stmt);
+                mysqli_stmt_close($update_stmt);
+            }
+
+            // Generate PayMongo link ONLY if registration is APPROVED (or tier is free/trial)
+            if (($payment_status === 'pending' && $registration_status_final === 'APPROVED') || $payment_status === 'paid') {
                 $pm_config = null;
                 $config_candidates = [
                     __DIR__ . '/config/paymongo.php',
@@ -332,12 +398,15 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
 
         $response = [
             'success' => true, 
-            'message' => ($initial_status === 'active') ? 'Clinic registered successfully!' : 'Clinic registered. Waiting for payment.',
+            'message' => ($initial_status === 'active') ? 'Clinic registered successfully!' : ($registration_status_final === 'APPROVED' ? 'Clinic registered. Proceed to payment.' : 'Clinic registered. Documents pending verification by admin.'),
             'slug' => $slug,
             'tenant_code' => $tenant_code,
             'status' => $initial_status,
+            'registration_status' => $registration_status_final,
             'checkout_url' => $paymongo_url,
-            'email_sent' => $email_sent
+            'email_sent' => $email_sent,
+            'ocr_verification_attempted' => $ocr_verification_attempted,
+            'ocr_result' => $ocr_verification_result
         ];
     }
 } catch (Throwable $e) {

@@ -85,6 +85,38 @@ if (!$tenant_id || !$billing_id || !$patient_id || $amount === null) {
     exit;
 }
 
+// ========== OCR VERIFICATION GATE ==========
+// Check if tenant's registration_status is APPROVED (document verification passed)
+$status_check_sql = "SELECT registration_status FROM tenants WHERE id = ?";
+$status_stmt = mysqli_prepare($conn, $status_check_sql);
+if (!$status_stmt) {
+    echo json_encode(['success' => false, 'message' => 'Database error: ' . mysqli_error($conn)]);
+    exit;
+}
+
+mysqli_stmt_bind_param($status_stmt, "i", $tenant_id);
+mysqli_stmt_execute($status_stmt);
+$status_result = mysqli_stmt_get_result($status_stmt);
+$tenant_row = mysqli_fetch_assoc($status_result);
+mysqli_stmt_close($status_stmt);
+
+if (!$tenant_row) {
+    echo json_encode(['success' => false, 'message' => 'Tenant not found']);
+    exit;
+}
+
+$registration_status = $tenant_row['registration_status'] ?? 'PENDING';
+
+// Gate: Only allow payment if registration_status is APPROVED
+if ($registration_status !== 'APPROVED') {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Document verification pending. Please wait for admin approval before proceeding with payment.',
+        'registration_status' => $registration_status
+    ]);
+    exit;
+}
+
 // ─── Robust config loader ──────────────────────────────────
 $pm_config = null;
 $config_candidates = [

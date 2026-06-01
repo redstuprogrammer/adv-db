@@ -41,3 +41,10 @@ transfer the tenant's clinic code from the dashboard to the "Book Appointment" m
 2026-05-29T02:40:16.369847Z 127.0.0.1 -  29/May/2026:02:40:16 +0000 "GET /services.php" 500
 
 for every filter in reports.php - activity audit trail
+
+
+
+Next: What's Left (Optional)
+Admin Review UI (superadmin_review_documents.php): Page for admins to manually approve/reject flagged documents
+Client-side updates (code.html): Show verification status, block payment UI if not approved, display admin message
+Testing: Upload sample DTI/BIR images and PDFs; verify the entire flow end-to-end
