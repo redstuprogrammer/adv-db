@@ -71,7 +71,7 @@ jobs:
           echo "Deployment directory contents:"
           ls -la deployment/
           echo "Checking for requirements.txt:"
-          [ -f deployment/requirements.txt ] && echo "✓ Found requirements.txt" || echo "✗ requirements.txt not found"
+          [ -f deployment/groq-ocr-backend/requirements.txt ] && echo "✓ Found requirements.txt" || echo "✗ requirements.txt not found"
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -86,5 +86,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: deployment/
+          package: deployment/groq-ocr-backend/
           
