@@ -38,25 +38,13 @@ jobs:
           echo "Checking for groq-ocr-backend at root:"
           ls -la groq-ocr-backend 2>&1 || echo "Directory 'groq-ocr-backend' not found at root"
 
-      # 🛠️ Local Build Section (Optional)
-      # The following section in your workflow is designed to catch build issues early on the client side, before deployment. This can be helpful for debugging and validation. However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
-      - name: Create and Start virtual environment and Install dependencies (subfolder)
-        run: |
-          python -m venv ./antenv
-          ./antenv/bin/python -m pip install --upgrade pip
-          ./antenv/bin/pip install --no-cache-dir -r ./groq-ocr-backend/requirements.txt
-          echo "Using fixed backend requirements version: pypdfium2==4.30.0"
-      # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
-      - name: Create backend zip
-        run: |
-          apt-get update && apt-get install -y zip >/dev/null
-          zip -r groq-ocr-backend.zip groq-ocr-backend -x "groq-ocr-backend/antenv/*"
-
-      - name: Upload backend artifact (zip)
+      # Skip local venv build - let Azure Oryx handle dependencies
+      # Oryx will detect requirements.txt and build the environment during deployment
+      - name: Upload backend artifact for Azure deployment
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: groq-ocr-backend.zip
+          path: groq-ocr-backend/
 
       # 🚫 Opting Out of Oryx Build
       # If you prefer to disable the Oryx build process during deployment, follow these steps:
@@ -76,24 +64,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: python-app
-          path: .
-
-      - name: Debug artifact layout and move zip to root if present
+          path: deployment/
+      
+      - name: Debug - List deployment contents
         run: |
-          echo "Working directory: $(pwd)"
-          echo "Listing root:"; ls -la || true
-          echo "Listing python-app dir (if exists):"; ls -la python-app || true
-          if [ -f python-app/groq-ocr-backend.zip ]; then
-            echo "Found python-app/groq-ocr-backend.zip, moving to root"
-            mv python-app/groq-ocr-backend.zip .
-          fi
-          if [ -f groq-ocr-backend.zip ]; then
-            echo "Final listing:"; ls -la groq-ocr-backend.zip
-          else
-            echo "groq-ocr-backend.zip not found after download"
-            ls -la
-            exit 1
-          fi
+          echo "Deployment directory contents:"
+          ls -la deployment/
+          echo "Checking for requirements.txt:"
+          [ -f deployment/requirements.txt ] && echo "✓ Found requirements.txt" || echo "✗ requirements.txt not found"
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -108,5 +86,5 @@ jobs:
         with:
           app-name: 'oralsync-groq-backend'
           slot-name: 'Production'
-          package: groq-ocr-backend.zip
+          package: deployment/
           
