@@ -36,7 +36,7 @@ DB_NAME = os.environ.get("DB_NAME")
 CONFIDENCE_THRESHOLD = float(os.environ.get("CONFIDENCE_THRESHOLD", "0.80"))
 
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY not found in environment variables")
+    print("WARNING: GROQ_API_KEY not found in environment variables")
 
 # ========== DATABASE FUNCTIONS ==========
 

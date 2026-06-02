@@ -1,4 +1,7 @@
 #!/bin/bash
+echo "Starting SSH..."
+service ssh start || true
+
 cd /home/site/wwwroot
 if [ -f output.tar.zst ]; then
   echo "Extracting application files from output.tar.zst..."
