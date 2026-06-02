@@ -4,7 +4,7 @@ header('Content-Type: application/json');
 require_once __DIR__ . '/includes/connect.php'; 
 require_once __DIR__ . '/includes/subscription_tiers.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
-require_once __DIR__ . '/tenant_tier_helper.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 $response = [
     'success' => false, 

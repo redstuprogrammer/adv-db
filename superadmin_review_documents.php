@@ -212,7 +212,7 @@ if ($result) {
             justify-content: space-between;
             align-items: center;
             padding: 20px 0;
-            margin-bottom: 24px;
+            margin-bottom: 10px;
         }
 
         .sa-main-header h1 {
@@ -231,246 +231,28 @@ if ($result) {
             display: flex;
             align-items: center;
             gap: 10px;
-            font-size: 0.9rem;
-            color: var(--sa-muted);
         }
 
         .sa-profile span {
             font-weight: 600;
         }
 
-        .sa-profile-avatar {
-            width: 35px;
-            height: 35px;
-            border-radius: 999px;
-            background: #e2e8f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .sa-card {
-            background: #ffffff;
-            border: 1px solid var(--sa-border);
-            border-radius: 16px;
-            padding: 28px;
-            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-            transition: all 0.2s ease;
-        }
-
-        .sa-card:hover {
-            box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
-            border-color: var(--sa-primary);
-        }
-
-        .sa-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            border-bottom: 2px solid var(--sa-border);
-            padding-bottom: 16px;
-        }
-
-        .sa-card-title {
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: var(--sa-primary);
-            letter-spacing: -0.3px;
-            margin: 0;
-        }
-
-        .sa-card-subtitle {
-            font-size: 0.9rem;
-            color: var(--sa-muted);
-            margin-top: 6px;
-            font-weight: 500;
-        }
-
-        .status-box {
-            padding: 16px 20px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border: 1px solid;
-            font-size: 0.95rem;
-        }
-
+        .review-table { width: 100%; border-collapse: collapse; }
+        .review-table th, .review-table td { padding: 12px 14px; border: 1px solid #e2e8f0; vertical-align: top; }
+        .review-table th { background: #f8fafc; color: #0f172a; text-align: left; }
+        .review-chip { display: inline-flex; gap: 0.35rem; padding: 0.5rem 0.85rem; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+        .review-chip.pending { background: #fde68a; color: #92400e; }
+        .review-chip.approved { background: #dcfce7; color: #166534; }
+        .review-chip.rejected { background: #fee2e2; color: #991b1b; }
+        .review-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 28px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08); }
+        .review-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+        .review-actions form { margin: 0; }
+        .review-textarea { width: 100%; min-height: 100px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px; font-size: 0.95rem; }
+        .status-box { padding: 18px 22px; border-radius: 18px; margin-bottom: 24px; border: 1px solid #cbd5e1; }
         .status-box.success { background: #ecfdf5; color: #166534; border-color: #86efac; }
         .status-box.warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
         .status-box.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
         .status-box.info { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-
-        .review-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
-        }
-
-        .review-table th {
-            background: #f8fafc;
-            color: #0f172a;
-            text-align: left;
-            padding: 14px 16px;
-            font-weight: 700;
-            border-bottom: 2px solid var(--sa-border);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .review-table td {
-            padding: 16px;
-            border-bottom: 1px solid var(--sa-border);
-            vertical-align: top;
-        }
-
-        .review-table tbody tr:hover {
-            background-color: #f8fafc;
-        }
-
-        .review-chip {
-            display: inline-flex;
-            gap: 0.35rem;
-            padding: 0.5rem 0.85rem;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-
-        .review-chip.pending { background: #fde68a; color: #92400e; }
-        .review-chip.approved { background: #dcfce7; color: #166534; }
-        .review-chip.rejected { background: #fee2e2; color: #991b1b; }
-
-        .review-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-
-        .review-actions form {
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .review-textarea {
-            width: 100%;
-            min-height: 100px;
-            border: 1px solid var(--sa-border);
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-size: 0.9rem;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            resize: vertical;
-        }
-
-        .review-textarea:focus {
-            outline: none;
-            border-color: var(--sa-primary);
-            box-shadow: 0 0 0 3px rgba(13, 59, 102, 0.1);
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 0.75rem;
-        }
-
-        .btn-approve, .btn-reject {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-approve {
-            background: #22c55e;
-            color: white;
-        }
-
-        .btn-approve:hover {
-            background: #16a34a;
-            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-        }
-
-        .btn-reject {
-            background: #ef4444;
-            color: white;
-        }
-
-        .btn-reject:hover {
-            background: #dc2626;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        }
-
-        .empty-state {
-            padding: 40px 20px;
-            text-align: center;
-            color: var(--sa-muted);
-            font-size: 1rem;
-        }
-
-        .tenant-info-section {
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: 8px;
-            margin: 8px 0;
-        }
-
-        .tenant-info-row {
-            display: flex;
-            gap: 4px;
-            font-size: 0.85rem;
-            color: #475569;
-            margin: 6px 0;
-        }
-
-        .tenant-info-label {
-            font-weight: 600;
-            color: var(--sa-primary);
-            min-width: 70px;
-        }
-
-        .document-preview {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 8px;
-        }
-
-        .document-thumbnail {
-            max-width: 120px;
-            max-height: 90px;
-            border-radius: 8px;
-            object-fit: cover;
-            border: 1px solid var(--sa-border);
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        .document-thumbnail:hover {
-            transform: scale(1.05);
-        }
-
-        .document-link {
-            padding: 6px 12px;
-            background: #f1f5f9;
-            border-radius: 6px;
-            border: 1px solid var(--sa-border);
-            font-size: 0.85rem;
-            text-decoration: none;
-            color: var(--sa-primary);
-            display: inline-block;
-            transition: all 0.2s ease;
-        }
-
-        .document-link:hover {
-            background: var(--sa-primary);
-            color: white;
-        }
     </style>
 </head>
 <body>
@@ -482,7 +264,7 @@ if ($result) {
         <header class="sa-main-header">
             <div>
                 <h1>Registration Approvals</h1>
-                <span>Review new clinic applications and documents</span>
+                <span>Review new clinic applications and documents.</span>
             </div>
             <div class="sa-profile">
                 <span>Welcome, <strong>Super Admin</strong></span>
@@ -491,148 +273,109 @@ if ($result) {
         </header>
 
         <?php if ($message): ?>
-            <div class="status-box <?php echo htmlspecialchars($alertType, ENT_QUOTES, 'UTF-8'); ?>">
+            <div class="status-box <?php echo htmlspecialchars($alertType, ENT_QUOTES, 'UTF-8'); ?> mb-6">
                 <?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?>
             </div>
         <?php endif; ?>
 
-        <div class="sa-card">
-            <div class="sa-card-header">
-                <div>
-                    <h2 class="sa-card-title">Clinic Applications</h2>
-                    <p class="sa-card-subtitle">Manage and review pending clinic registration requests</p>
-                </div>
-            </div>
+        <div class="review-card">
+            <h2 class="text-xl font-bold text-slate-900 mb-4">Clinic Applications</h2>
 
             <?php if (empty($reviewRequests)): ?>
-                <div class="empty-state">
-                    <p style="font-size: 1.1rem; margin-bottom: 8px;">ℹ️</p>
-                    <p>There are no pending applications at this time.</p>
-                </div>
+                <div class="status-box info">There are no pending applications at this time.</div>
             <?php else: ?>
-                <div style="overflow-x: auto;">
-                    <table class="review-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 60px;">ID</th>
-                                <th>Clinic Information</th>
-                                <th style="width: 100px;">Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($reviewRequests as $request): ?>
-                                <?php
-                                    $statusClass = strtolower($request['registration_status']);
-                                    $tenantDocs = [];
-                                    $tenantId = intval($request['tenant_id']);
-                                    $docsStmt = $conn->prepare("SELECT id, document_name, file_path, file_type FROM tenant_documents WHERE tenant_id = ? ORDER BY id DESC");
-                                    if ($docsStmt) {
-                                        $docsStmt->bind_param('i', $tenantId);
-                                        $docsStmt->execute();
-                                        $docsResult = $docsStmt->get_result();
-                                        while ($d = $docsResult->fetch_assoc()) {
-                                            $tenantDocs[] = $d;
-                                        }
-                                        $docsStmt->close();
-                                    }
-                                ?>
-                                <tr>
-                                    <td style="text-align: center; color: var(--sa-muted); font-weight: 600;">
-                                        #<?php echo (int)$request['tenant_id']; ?>
-                                    </td>
-                                    <td>
-                                        <div style="font-weight: 700; color: #0f172a; font-size: 1rem; margin-bottom: 12px;">
-                                            <?php echo htmlspecialchars($request['company_name'], ENT_QUOTES, 'UTF-8'); ?>
-                                        </div>
-                                        <div class="tenant-info-section">
-                                            <?php if (!empty($request['subdomain_slug'])): ?>
-                                                <div class="tenant-info-row">
-                                                    <span class="tenant-info-label">Slug:</span>
-                                                    <span><?php echo htmlspecialchars($request['subdomain_slug'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($request['owner_name'])): ?>
-                                                <div class="tenant-info-row">
-                                                    <span class="tenant-info-label">Owner:</span>
-                                                    <span><?php echo htmlspecialchars($request['owner_name'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($request['contact_email'])): ?>
-                                                <div class="tenant-info-row">
-                                                    <span class="tenant-info-label">Email:</span>
-                                                    <span><?php echo htmlspecialchars($request['contact_email'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($request['phone'])): ?>
-                                                <div class="tenant-info-row">
-                                                    <span class="tenant-info-label">Phone:</span>
-                                                    <span><?php echo htmlspecialchars($request['phone'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                                </div>
-                                            <?php endif; ?>
-                                            <?php if (!empty($request['subscription_tier'])): ?>
-                                                <div class="tenant-info-row">
-                                                    <span class="tenant-info-label">Plan:</span>
-                                                    <span><?php echo htmlspecialchars($request['subscription_tier'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo (int)$request['subscription_duration']; ?> mo.)</span>
-                                                </div>
-                                            <?php endif; ?>
-                                        </div>
+                <table class="review-table">
+                    <thead>
+                        <tr>
+                            <th># ID</th>
+                            <th>Clinic / Tenant Info</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($reviewRequests as $request): ?>
+                            <?php
+                                $statusClass = strtolower($request['registration_status']);
 
+                                // Fetch uploaded tenant documents for preview (if any)
+                                $tenantDocs = [];
+                                $tenantId = intval($request['tenant_id']);
+                                $docsStmt = $conn->prepare("SELECT id, document_name, file_path, file_type FROM tenant_documents WHERE tenant_id = ? ORDER BY id DESC");
+                                if ($docsStmt) {
+                                    $docsStmt->bind_param('i', $tenantId);
+                                    $docsStmt->execute();
+                                    $docsResult = $docsStmt->get_result();
+                                    while ($d = $docsResult->fetch_assoc()) {
+                                        $tenantDocs[] = $d;
+                                    }
+                                    $docsStmt->close();
+                                }
+                            ?>
+                            <tr>
+                                <td class="align-top text-sm text-slate-700"><?php echo (int)$request['tenant_id']; ?></td>
+                                <td class="align-top text-sm text-slate-700">
+                                    <div class="font-semibold"><?php echo htmlspecialchars($request['company_name'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php if (!empty($request['subdomain_slug'])): ?>
+                                        <div class="text-xs text-slate-500">Slug: <?php echo htmlspecialchars($request['subdomain_slug'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($request['owner_name'])): ?>
+                                        <div class="text-xs text-slate-500">Owner: <?php echo htmlspecialchars($request['owner_name'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($request['contact_email'])): ?>
+                                        <div class="text-xs text-slate-500">Email: <?php echo htmlspecialchars($request['contact_email'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($request['phone'])): ?>
+                                        <div class="text-xs text-slate-500">Phone: <?php echo htmlspecialchars($request['phone'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php endif; ?>
+                                    <?php if (!empty($request['subscription_tier'])): ?>
+                                        <div class="text-xs text-slate-500">Tier: <?php echo htmlspecialchars($request['subscription_tier'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo (int)$request['subscription_duration']; ?> months)</div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="mt-2 text-xs text-slate-600">Documents:</div>
+                                    <div class="mt-1 flex flex-wrap gap-2">
                                         <?php if (!empty($tenantDocs)): ?>
-                                            <div style="margin-top: 12px;">
-                                                <div style="font-size: 0.85rem; font-weight: 600; color: var(--sa-primary); margin-bottom: 8px;">📎 Documents:</div>
-                                                <div class="document-preview">
-                                                    <?php foreach ($tenantDocs as $d): ?>
-                                                        <?php
-                                                            $downloadUrl = 'download_tenant_document.php?id=' . urlencode((int)$d['id']);
-                                                            $docName = htmlspecialchars($d['document_name'], ENT_QUOTES, 'UTF-8');
-                                                            $ext = strtolower(pathinfo($d['file_path'], PATHINFO_EXTENSION));
-                                                        ?>
-                                                        <?php if (in_array($ext, ['jpg','jpeg','png','gif'])): ?>
-                                                            <a href="<?php echo $downloadUrl; ?>" target="_blank" title="<?php echo $docName; ?>">
-                                                                <img src="<?php echo $downloadUrl; ?>" class="document-thumbnail" alt="<?php echo $docName; ?>">
-                                                            </a>
-                                                        <?php else: ?>
-                                                            <a href="<?php echo $downloadUrl; ?>" target="_blank" class="document-link">
-                                                                📄 <?php echo $docName; ?>
-                                                            </a>
-                                                        <?php endif; ?>
-                                                    <?php endforeach; ?>
-                                                </div>
-                                            </div>
+                                            <?php foreach ($tenantDocs as $d): ?>
+                                                <?php
+                                                    $downloadUrl = 'download_tenant_document.php?id=' . urlencode((int)$d['id']);
+                                                    $docName = htmlspecialchars($d['document_name'], ENT_QUOTES, 'UTF-8');
+                                                    $ext = strtolower(pathinfo($d['file_path'], PATHINFO_EXTENSION));
+                                                ?>
+                                                <?php if (in_array($ext, ['jpg','jpeg','png','gif'])): ?>
+                                                    <a href="<?php echo $downloadUrl; ?>" target="_blank" title="<?php echo $docName; ?>"><img src="<?php echo $downloadUrl; ?>" style="max-width:120px;max-height:90px;border-radius:8px;object-fit:cover;border:1px solid #e6e6e6;" alt="<?php echo $docName; ?>"></a>
+                                                <?php else: ?>
+                                                    <div style="padding:6px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e6e6e6;font-size:0.9rem;"><a href="<?php echo $downloadUrl; ?>" target="_blank"><?php echo $docName; ?></a></div>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
                                         <?php else: ?>
-                                            <div style="margin-top: 12px; font-size: 0.85rem; color: var(--sa-muted);">
-                                                No uploaded documents
+                                            <div class="text-xs text-slate-400">No uploaded documents found.</div>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+                                <td class="align-top">
+                                    <span class="review-chip <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($request['registration_status'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php if ($request['tenant_status'] === 'archived'): ?>
+                                        <br><span class="text-xs text-rose-600 font-bold">Archived</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="align-top">
+                                    <?php if ($request['registration_status'] === 'PENDING'): ?>
+                                        <form method="post" class="space-y-3">
+                                            <input type="hidden" name="tenant_id" value="<?php echo (int)$request['tenant_id']; ?>">
+                                            <textarea name="admin_notes" class="review-textarea" placeholder="Admin notes (optional)..."></textarea>
+                                            <div class="review-actions">
+                                                <button type="submit" name="action" value="approve" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">Approve</button>
+                                                <button type="submit" name="action" value="reject" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700">Reject</button>
                                             </div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td style="text-align: center;">
-                                        <span class="review-chip <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>">
-                                            <?php echo htmlspecialchars($request['registration_status'], ENT_QUOTES, 'UTF-8'); ?>
-                                        </span>
-                                        <?php if ($request['tenant_status'] === 'archived'): ?>
-                                            <div style="font-size: 0.75rem; color: #dc2626; font-weight: 700; margin-top: 6px;">Archived</div>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <?php if ($request['registration_status'] === 'PENDING'): ?>
-                                            <form method="post" class="review-actions">
-                                                <input type="hidden" name="tenant_id" value="<?php echo (int)$request['tenant_id']; ?>">
-                                                <textarea name="admin_notes" class="review-textarea" placeholder="Add optional admin notes..."></textarea>
-                                                <div class="action-buttons">
-                                                    <button type="submit" name="action" value="approve" class="btn-approve">✓ Approve</button>
-                                                    <button type="submit" name="action" value="reject" class="btn-reject">✕ Reject</button>
-                                                </div>
-                                            </form>
-                                        <?php else: ?>
-                                            <span style="font-size: 0.9rem; color: var(--sa-muted);">Already processed</span>
-                                        <?php endif; ?>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                                        </form>
+                                    <?php else: ?>
+                                        <span class="text-sm text-slate-500">Processed.</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                         </tbody>
-                    </table>
-                </div>
+                </table>
             <?php endif; ?>
         </div>
     </main>

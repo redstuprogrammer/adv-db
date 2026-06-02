@@ -1337,43 +1337,88 @@ if ($stmt) {
 
   <!-- Reschedule Appointment Modal -->
   <div id="rescheduleModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <span>Reschedule Appointment</span>
-        <button class="close" type="button" onclick="closeRescheduleModal()">&times;</button>
-      </div>
-      <form method="POST" action="appointments.php?tenant=<?php echo urlencode($tenantSlug); ?>">
-        <input type="hidden" id="reschedule_id" name="reschedule_id" value="">
-        <div class="form-group">
-          <label for="reschedule_patient_display">Patient</label>
-          <input type="text" id="reschedule_patient_display" readonly style="background: #f8fafc;">
-        </div>
-        <div class="form-group">
-          <label for="reschedule_original_date">Original Appointment</label>
-          <input type="text" id="reschedule_original_date" readonly style="background: #f8fafc;">
-        </div>
-        <div class="form-group required">
-          <label for="reschedule_dentist_id">Dentist</label>
-          <select id="reschedule_dentist_id" name="reschedule_dentist_id" required>
-            <option value="">Select dentist</option>
-            <?php foreach ($dentists as $dentist): ?>
-              <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="form-row">
-          <div class="form-group required">
-            <label for="reschedule_date">New Date</label>
-            <input type="date" id="reschedule_date" name="reschedule_date" required>
+    <div class="modal-content wide">
+      <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+        <div class="booking-grid">
+          <!-- Sidebar: Selection -->
+          <div class="booking-sidebar">
+            <div class="modal-header">
+              <h3 class="modal-title">Reschedule Appointment</h3>
+              <button class="modal-close" type="button" onclick="closeRescheduleModal()">&times;</button>
+            </div>
+
+            <div class="form-group">
+              <label for="reschedule_patient_display">Patient</label>
+              <input type="text" id="reschedule_patient_display" readonly>
+              <input type="hidden" id="reschedule_id" name="reschedule_id" value="">
+            </div>
+
+            <div class="form-group">
+              <label>Original Appointment</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span id="reschedule-original-date" style="font-weight:700; color:var(--accent);">-</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="reschedule_dentist_id">Preferred Dentist</label>
+              <select id="reschedule_dentist_id" name="reschedule_dentist_id" onchange="handleRescheduleDentistChange()">
+                <option value="">Select dentist</option>
+                <?php foreach ($dentists as $dentist): ?>
+                  <option value="<?php echo (int)$dentist['dentist_id']; ?>">Dr. <?php echo h($dentist['first_name'] . ' ' . $dentist['last_name']); ?></option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+
+            <div class="booking-summary-card">
+              <h4 style="margin: 0 0 12px 0; font-size: 14px; color: var(--accent);">New Appointment Date & Time</h4>
+              <div class="summary-item">
+                <span class="summary-label">Date:</span>
+                <span class="summary-value" id="reschedule-summary-date">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Time:</span>
+                <span class="summary-value" id="reschedule-summary-time">Not selected</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Dentist:</span>
+                <span class="summary-value" id="reschedule-summary-dentist">Select dentist</span>
+              </div>
+            </div>
+
+            <input type="hidden" id="reschedule_date" name="reschedule_date" required>
+            <input type="hidden" id="reschedule_time" name="reschedule_time" required>
+
+            <div class="modal-actions">
+              <button type="button" class="btn-secondary" onclick="closeRescheduleModal()">Cancel</button>
+              <button type="submit" class="btn-primary" name="reschedule_appointment">Confirm New Date & Time</button>
+            </div>
           </div>
-          <div class="form-group required">
-            <label for="reschedule_time">New Time</label>
-            <input type="time" id="reschedule_time" name="reschedule_time" required>
+
+          <!-- Main: Calendar & Slots -->
+          <div class="booking-main">
+            <div class="calendar-container">
+              <div class="calendar-header">
+                <button type="button" class="action-link" onclick="reschedule_prevMonth()" style="padding: 4px 10px;">❮</button>
+                <h4 id="reschedule-calendar-month-year" style="margin: 0; font-weight: 700;"></h4>
+                <button type="button" class="action-link" onclick="reschedule_nextMonth()" style="padding: 4px 10px;">❯</button>
+              </div>
+              <div class="calendar-grid" id="reschedule-calendar-grid">
+                <!-- Calendar will be rendered here -->
+              </div>
+            </div>
+
+            <div id="reschedule-slots-container" style="display: none;">
+              <h4 style="margin: 0; font-size: 14px; color: var(--accent);">Available Time Slots</h4>
+              <div class="time-slot-grid" id="reschedule-time-slot-grid">
+                <!-- Slots will be rendered here -->
+              </div>
+            </div>
+
+            <div id="reschedule-no-slots-msg" style="display: block; padding: 40px; text-align: center; color: #64748b; background: #f8fafc; border-radius: 12px;">
+              <p>Please select a date from the calendar to view available times.</p>
+            </div>
           </div>
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-cancel" onclick="closeRescheduleModal()">Cancel</button>
-          <button type="submit" class="btn-submit" name="reschedule_appointment">Save Changes</button>
         </div>
       </form>
     </div>
@@ -1407,7 +1452,7 @@ if ($stmt) {
         </div>
         <div class="form-actions">
           <button type="button" class="btn-cancel" onclick="closeManageModal()">Cancel</button>
-          <button type="button" class="btn-cancel" onclick="openRescheduleModal()">Reschedule</button>
+          <button type="button" class="btn-cancel" onclick="openRescheduleModal()" id="rescheduleBtn">Reschedule</button>
           <button type="submit" id="updateStatusBtn" class="btn-submit" name="update_appointment">Update Status</button>
         </div>
       </form>
@@ -1650,7 +1695,7 @@ if ($stmt) {
 
         const newStatusSelect = document.getElementById('new_status');
         const updateBtn = document.getElementById('updateStatusBtn');
-        const rescheduleBtn = document.querySelector('#manageModal button[onclick="openRescheduleModal()"]');
+        const rescheduleBtn = document.getElementById('rescheduleBtn');
         newStatusSelect.value = status;
 
         const lowerStatus = status ? status.toLowerCase() : '';
@@ -1671,32 +1716,203 @@ if ($stmt) {
         document.getElementById('manageModal').classList.add('active');
       }
 
+      // Reschedule modal state
+      let reschedule_selectedDate = null;
+      let reschedule_selectedTime = null;
+      let reschedule_selectedDentistId = null;
+      let reschedule_currentViewDate = new Date();
+      let reschedule_availabilityData = null;
+
       function openRescheduleModal() {
         closeManageModal();
         const appointmentId = document.getElementById('manage_appointment_id').value;
         if (!appointmentId) return;
 
+        // Reset state
+        reschedule_selectedDate = null;
+        reschedule_selectedTime = null;
+        reschedule_currentViewDate = new Date();
+
         document.getElementById('reschedule_id').value = appointmentId;
+        document.getElementById('reschedule_date').value = '';
+        document.getElementById('reschedule_time').value = '';
+        document.getElementById('reschedule-summary-date').textContent = 'Not selected';
+        document.getElementById('reschedule-summary-time').textContent = 'Not selected';
+        document.getElementById('reschedule-summary-dentist').textContent = 'Select dentist';
+        document.getElementById('reschedule-slots-container').style.display = 'none';
+        document.getElementById('reschedule-no-slots-msg').style.display = 'block';
+
         const patientName = document.getElementById('manage_patient_name').value || '';
         const originalDate = document.getElementById('manage_original_date').value || '';
         const prevDentistId = document.getElementById('manage_dentist_id').value || '';
 
         document.getElementById('reschedule_patient_display').value = patientName;
-        const originalDateEl = document.getElementById('reschedule_original_date');
-        if (originalDateEl) {
-          try {
-            originalDateEl.value = originalDate ? new Date(originalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
-          } catch (e) {
-            originalDateEl.value = originalDate || '-';
-          }
+        if (originalDate) {
+          try { document.getElementById('reschedule-original-date').textContent = new Date(originalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+          catch(e) { document.getElementById('reschedule-original-date').textContent = originalDate; }
+        } else {
+          document.getElementById('reschedule-original-date').textContent = '-';
         }
-        document.getElementById('reschedule_dentist_id').value = prevDentistId;
-        document.getElementById('reschedule_date').value = originalDate;
+
+        if (prevDentistId) {
+          document.getElementById('reschedule_dentist_id').value = prevDentistId;
+          handleRescheduleDentistChange();
+        } else {
+          document.getElementById('reschedule_dentist_id').value = '';
+        }
+
         document.getElementById('rescheduleModal').classList.add('active');
+        fetchRescheduleAvailability(reschedule_currentViewDate.getMonth(), reschedule_currentViewDate.getFullYear());
       }
 
       function closeRescheduleModal() {
         document.getElementById('rescheduleModal').classList.remove('active');
+      }
+
+      async function fetchRescheduleAvailability(month, year, dentistId = null) {
+        const url = `api/get_monthly_availability.php?tenant_id=${tenantId}&month=${month + 1}&year=${year}${dentistId ? '&dentist_id=' + dentistId : ''}`;
+        try {
+          const response = await fetch(url);
+          reschedule_availabilityData = await response.json();
+          renderRescheduleCalendar();
+        } catch (err) {
+          console.error('Failed to fetch availability:', err);
+        }
+      }
+
+      function renderRescheduleCalendar() {
+        const grid = document.getElementById('reschedule-calendar-grid');
+        const monthYearLabel = document.getElementById('reschedule-calendar-month-year');
+        if (!grid || !monthYearLabel) return;
+
+        grid.innerHTML = '';
+        const year = reschedule_currentViewDate.getFullYear();
+        const month = reschedule_currentViewDate.getMonth();
+        monthYearLabel.textContent = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(reschedule_currentViewDate);
+
+        ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+          const div = document.createElement('div');
+          div.className = 'cal-day-header';
+          div.textContent = day;
+          grid.appendChild(div);
+        });
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement('div'));
+
+        const today = new Date().toISOString().split('T')[0];
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayDiv = document.createElement('div');
+          dayDiv.className = 'cal-day';
+          dayDiv.textContent = d;
+
+          const dayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date(year, month, d));
+          const isClinicClosed = reschedule_availabilityData?.clinic_closed_days?.includes(dayName);
+          const isDentistWorking = reschedule_availabilityData?.dentist_working_days?.length > 0 ? reschedule_availabilityData.dentist_working_days.includes(dayName) : true;
+          const isPast = dateStr < today;
+
+          if (isClinicClosed || !isDentistWorking || isPast) {
+            dayDiv.classList.add('disabled');
+          } else {
+            dayDiv.classList.add('working');
+            dayDiv.onclick = () => handleRescheduleDate(dateStr);
+          }
+
+          if (dateStr === today) dayDiv.classList.add('today');
+          if (dateStr === reschedule_selectedDate) dayDiv.classList.add('active');
+          grid.appendChild(dayDiv);
+        }
+      }
+
+      function reschedule_prevMonth() {
+        reschedule_currentViewDate.setMonth(reschedule_currentViewDate.getMonth() - 1);
+        fetchRescheduleAvailability(reschedule_currentViewDate.getMonth(), reschedule_currentViewDate.getFullYear(), document.getElementById('reschedule_dentist_id').value);
+      }
+
+      function reschedule_nextMonth() {
+        reschedule_currentViewDate.setMonth(reschedule_currentViewDate.getMonth() + 1);
+        fetchRescheduleAvailability(reschedule_currentViewDate.getMonth(), reschedule_currentViewDate.getFullYear(), document.getElementById('reschedule_dentist_id').value);
+      }
+
+      function handleRescheduleDentistChange() {
+        const dentistId = document.getElementById('reschedule_dentist_id').value;
+        const dentistName = document.getElementById('reschedule_dentist_id').options[document.getElementById('reschedule_dentist_id').selectedIndex].text;
+        document.getElementById('reschedule-summary-dentist').textContent = dentistId ? dentistName : 'Select dentist';
+
+        reschedule_selectedTime = null;
+        document.getElementById('reschedule_time').value = '';
+        document.getElementById('reschedule-summary-time').textContent = 'Not selected';
+
+        fetchRescheduleAvailability(reschedule_currentViewDate.getMonth(), reschedule_currentViewDate.getFullYear(), dentistId);
+
+        if (reschedule_selectedDate) {
+          loadRescheduleSlots(reschedule_selectedDate, dentistId);
+        }
+      }
+
+      async function handleRescheduleDate(dateStr) {
+        reschedule_selectedDate = dateStr;
+        document.getElementById('reschedule_date').value = dateStr;
+        document.getElementById('reschedule-summary-date').textContent = new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        reschedule_selectedTime = null;
+        document.getElementById('reschedule_time').value = '';
+        document.getElementById('reschedule-summary-time').textContent = 'Not selected';
+
+        renderRescheduleCalendar();
+        loadRescheduleSlots(dateStr, document.getElementById('reschedule_dentist_id').value);
+      }
+
+      async function loadRescheduleSlots(date, dentistId) {
+        if (!dentistId) {
+          document.getElementById('reschedule-slots-container').style.display = 'none';
+          document.getElementById('reschedule-no-slots-msg').style.display = 'block';
+          document.getElementById('reschedule-no-slots-msg').innerHTML = '<p>Please select a dentist first.</p>';
+          return;
+        }
+
+        const slotsContainer = document.getElementById('reschedule-slots-container');
+        const timeGrid = document.getElementById('reschedule-time-slot-grid');
+        const noSlotsMsg = document.getElementById('reschedule-no-slots-msg');
+
+        slotsContainer.style.display = 'block';
+        noSlotsMsg.style.display = 'none';
+        timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">Loading slots...</p>';
+
+        const url = `api/get_available_slots.php?tenant_id=${tenantId}&dentist_id=${dentistId}&date=${date}`;
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
+
+          timeGrid.innerHTML = '';
+          if (!data.success || !data.slots || data.slots.length === 0) {
+            timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No available slots for this selection.</p>';
+            return;
+          }
+
+          data.slots.forEach(slot => {
+            const chip = document.createElement('div');
+            chip.className = `time-chip ${slot.available ? '' : 'disabled'}`;
+            chip.textContent = slot.label;
+            if (slot.available) {
+              chip.onclick = () => {
+                document.querySelectorAll('#reschedule-time-slot-grid .time-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                reschedule_selectedTime = slot.time;
+                document.getElementById('reschedule_time').value = slot.time;
+                document.getElementById('reschedule-summary-time').textContent = slot.label;
+              };
+            }
+            if (reschedule_selectedTime === slot.time) chip.classList.add('active');
+            timeGrid.appendChild(chip);
+          });
+        } catch (err) {
+          console.error('Failed to load slots:', err);
+          timeGrid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding: 20px; color: #ef4444;">Error loading slots.</p>';
+        }
       }
 
       function closeManageModal() {

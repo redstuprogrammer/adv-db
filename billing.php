@@ -135,8 +135,8 @@ if ($stats_stmt) {
     mysqli_stmt_execute($stats_stmt);
     $stats_result = mysqli_stmt_get_result($stats_stmt);
     while ($row = mysqli_fetch_assoc($stats_result)) {
-        $totalRevenue += (float)$row['amount_paid'];
         if (strtolower($row['payment_status'] ?? '') === 'paid') {
+            $totalRevenue += (float)$row['amount_paid'];
             $paidCount++;
         } else {
             $pendingAmount += (float)$row['amount_paid'];
@@ -271,7 +271,7 @@ if ($stats_stmt) {
           <tbody>
             <?php if (!$result || $result->num_rows === 0): ?>
               <tr>
-                <td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td>
+                <td colspan="7" style="text-align:center; padding:40px; color:#94a3b8;">No payment records found.</td>
               </tr>
             <?php else: ?>
               <?php while ($payment = $result->fetch_assoc()): ?>
@@ -292,9 +292,8 @@ if ($stats_stmt) {
                           $typeLabel = 'Downpayment';
                       } elseif ($pStatus === 'partial' || $pStatus === 'installment') {
                           $typeLabel = 'Partial Payment';
-                      } elseif ($pSource === 'mobile' && $pStatus === 'paid') {
-                          // Fallback: If it's from mobile and paid, and not explicitly marked 'full', 
-                          // it's likely a downpayment if it doesn't match service total
+                      } elseif ($pSource === 'mobile' && $pStatus === 'paid' && $bookingDepositAmount > 0 && abs((float)$payment['amount'] - $bookingDepositAmount) < 0.01) {
+                          // Only label as Downpayment if the amount exactly matches the configured deposit
                           $typeLabel = 'Downpayment';
                       }
                       echo '<span class="status-pill" style="background:rgba(13, 59, 102, 0.1); color:#0d3b66;">' . h($typeLabel) . '</span>';
@@ -494,6 +493,7 @@ if ($stats_stmt) {
         item.classList.remove('selected');
       });
       renderTags(); updateTotal(); document.getElementById('service_search').value = ''; filterServices('');
+      showToast('Services added to invoice');
     }
     function renderTags() {
       const serviceTags = document.getElementById('service-tags');

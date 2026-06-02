@@ -18,7 +18,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/custom_modal.php';
-require_once __DIR__ . '/tenant_tier_helper.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -33,7 +33,13 @@ $currentRole = $sessionManager->getCurrentRole();
 $dentistId   = $sessionManager->getUserId() ?? 0;
 $dentistName = $sessionManager->getUsername() ?? ucfirst($currentRole ?? 'User');
 
-if (!$tenantId || !$dentistId) {
+if (!$tenantId) {
+    echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
+    exit();
+}
+
+// Allow tenant owners/admins who may not have a numeric user_id (owner accounts)
+if ($currentRole !== 'admin' && !$dentistId) {
     echo "<script>alert('Access denied: Invalid session.'); window.history.back();</script>";
     exit();
 }

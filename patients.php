@@ -678,7 +678,7 @@ if (isset($_GET['view_patient_id'])) {
         </div>
 
         <div style="overflow-x:auto;">
-          <table class="patient-table" id="patientGrid">
+          <table class="patient-table" id="patientTable">
             <thead>
               <tr>
                 <th>Patient ID</th>
@@ -705,7 +705,7 @@ if (isset($_GET['view_patient_id'])) {
                     <td><?php echo h($patient['email'] ?? 'N/A'); ?></td>
                     <td><?php echo h($lastVisit); ?></td>
                     <td style="display:flex; gap:8px; flex-wrap:wrap;">
-                      <button class="action-btn" type="button" onclick="window.location.href='patients.php?tenant=<?php echo urlencode($tenantSlug); ?>&view_patient_id=<?php echo (int)$patient['patient_id']; ?>'">View</button>
+                      <button class="action-btn" type="button" onclick="openPatientModal(<?php echo (int)$patient['patient_id']; ?>)">View</button>
                       <a class="action-btn" style="background:white; color:var(--accent); border:1px solid var(--accent);" href="clinical_record.php?tenant=<?php echo rawurlencode($tenantSlug); ?>&patient_id=<?php echo (int)$patient['patient_id']; ?>">Records</a>
                     </td>
                   </tr>
@@ -740,70 +740,39 @@ if (isset($_GET['view_patient_id'])) {
     </div>
   </div>
 
-  <!-- View Patient Modal (if viewing) -->
-  <?php if ($viewPatient): ?>
-  <div id="viewPatientModal" class="modal" style="display: flex;">
+  <!-- Patient Detail Modal (JS-driven, no page reload) -->
+  <div id="patientModal" class="modal <?php echo $viewPatient ? 'active' : ''; ?>">
     <div class="modal-content">
       <div class="modal-header">
-        <span><?php echo h($viewPatient['first_name'] . ' ' . $viewPatient['last_name']); ?> - Patient Details</span>
-        <button class="close" onclick="closeViewPatientModal()">&times;</button>
+        <span id="modalPatientName">Patient Details</span>
+        <button class="close" onclick="closePatientModal()">&times;</button>
       </div>
-      <div style="max-height: 500px; overflow-y: auto;">
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Patient ID:</div>
-          <div class="patient-detail-value">P<?php echo str_pad($viewPatient['patient_id'], 3, '0', STR_PAD_LEFT); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Name:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['first_name'] . ' ' . $viewPatient['last_name']); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Contact Number:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['contact_number']); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Email:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['email'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Username (for mobile app):</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['username'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Address:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['address'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Birthdate:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['birthdate'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Gender:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['gender'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Occupation:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['occupation'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Medical History:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['medical_history'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Allergies:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['allergies'] ?? 'N/A'); ?></div>
-        </div>
-        <div class="patient-detail-row">
-          <div class="patient-detail-label">Notes:</div>
-          <div class="patient-detail-value"><?php echo h($viewPatient['notes'] ?? 'N/A'); ?></div>
-        </div>
+      <div id="modalBody">
+        <?php if ($viewPatient): ?>
+          <?php
+            $fields = [
+              'Patient ID'      => 'P' . str_pad($viewPatient['patient_id'], 3, '0', STR_PAD_LEFT),
+              'Full Name'       => h($viewPatient['first_name'] . ' ' . $viewPatient['last_name']),
+              'Contact Number'  => h($viewPatient['contact_number'] ?? 'N/A'),
+              'Email'           => h($viewPatient['email'] ?? 'N/A'),
+              'Gender'          => h($viewPatient['gender'] ?? 'N/A'),
+              'Birthdate'       => h($viewPatient['birthdate'] ?? 'N/A'),
+              'Address'         => h($viewPatient['address'] ?? 'N/A'),
+            ];
+            foreach ($fields as $label => $value): ?>
+              <div class="patient-detail-row">
+                <div class="patient-detail-label"><?php echo $label; ?></div>
+                <div class="patient-detail-value"><?php echo $value; ?></div>
+              </div>
+          <?php endforeach; ?>
+        <?php endif; ?>
       </div>
-      <div class="form-actions">
-        <a href="patients.php?tenant=<?php echo urlencode($tenantSlug); ?><?php echo ($page > 1 ? '&page=' . $page : ''); ?>" class="btn-cancel" style="text-decoration: none; text-align: center; padding: 10px;">Back to Patients</a>
+      <div class="modal-footer" style="padding: 16px 0 0; display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border); margin-top: 16px;">
+        <a id="modalRecordsLink" href="#" class="action-btn" style="background:white; color:var(--accent); border:1px solid var(--accent);">View Clinical Records</a>
+        <button class="action-btn" onclick="closePatientModal()">Close</button>
       </div>
     </div>
   </div>
-  <?php endif; ?>
 
   <!-- Add Patient Modal -->
   <div id="addPatientModal" class="modal">
@@ -869,15 +838,56 @@ if (isset($_GET['view_patient_id'])) {
 
   <script>
     <?php printDateClockScript(); ?>
-    // Verification logs
-    console.log('UI Parity Active - Version 2.0');
-    console.log('Patients Page Initialized');
-    console.log('FINAL UI SYNC COMPLETE');
 
+    const tenantSlug = '<?php echo rawurlencode($tenantSlug); ?>';
 
-    function closeViewPatientModal() {
-      window.location.href = 'patients.php?tenant=<?php echo urlencode($tenantSlug); ?>';
+    const patientData = <?php
+      $map = [];
+      foreach ($patients as $p) {
+          $map[$p['patient_id']] = [
+              'name'      => $p['first_name'] . ' ' . $p['last_name'],
+              'pid'       => 'P' . str_pad($p['patient_id'], 3, '0', STR_PAD_LEFT),
+              'contact'   => $p['contact_number'] ?? 'N/A',
+              'email'     => $p['email'] ?? 'N/A',
+              'gender'    => $p['gender'] ?? 'N/A',
+              'birthdate' => $p['birthdate'] ?? 'N/A',
+              'address'   => $p['address'] ?? 'N/A',
+              'last_visit'=> $p['last_visit'] ? date('M d, Y', strtotime($p['last_visit'])) : 'Never',
+          ];
+      }
+      echo json_encode($map, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT);
+    ?>;
+
+    function openPatientModal(id) {
+      const p = patientData[id];
+      if (!p) return;
+      document.getElementById('modalPatientName').textContent = p.name + ' — Patient Details';
+      document.getElementById('modalRecordsLink').href =
+        'clinical_record.php?tenant=' + tenantSlug + '&patient_id=' + id;
+
+      const fields = [
+        ['Patient ID', p.pid], ['Full Name', p.name], ['Contact Number', p.contact],
+        ['Email', p.email], ['Gender', p.gender], ['Birthdate', p.birthdate],
+        ['Address', p.address], ['Last Visit', p.last_visit],
+      ];
+      document.getElementById('modalBody').innerHTML = fields.map(([l, v]) =>
+        `<div class="patient-detail-row">
+           <div class="patient-detail-label">${l}</div>
+           <div class="patient-detail-value">${v}</div>
+         </div>`
+      ).join('');
+      document.getElementById('patientModal').classList.add('active');
     }
+
+    function closePatientModal() {
+      const modal = document.getElementById('patientModal');
+      if (modal) modal.classList.remove('active');
+      history.replaceState(null, '', window.location.pathname + '?tenant=' + tenantSlug);
+    }
+
+    document.getElementById('patientModal').addEventListener('click', function(e) {
+      if (e.target === this) closePatientModal();
+    });
 
     function openAddPatientModal() {
       const form = document.querySelector('.patient-form');
@@ -892,21 +902,19 @@ if (isset($_GET['view_patient_id'])) {
     }
 
     function filterPatients() {
-      const searchInput = document.getElementById('searchInput').value.toLowerCase();
-      const rows = document.querySelectorAll('#patientGrid tbody tr');
-
+      const searchInput = document.getElementById('searchInput');
+      const filter = searchInput ? searchInput.value.toLowerCase() : '';
+      const rows = document.querySelectorAll('#patientTable tbody tr');
       rows.forEach(row => {
         const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchInput) ? '' : 'none';
+        row.style.display = text.includes(filter) ? '' : 'none';
       });
     }
 
-    window.onclick = function(event) {
-      const modal = document.getElementById('addPatientModal');
-      if (event.target === modal) {
-        closeAddPatientModal();
-      }
-    }
+    window.addEventListener('click', function(e) {
+      const addModal = document.getElementById('addPatientModal');
+      if (e.target === addModal) addModal.classList.remove('active');
+    });
 
     <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient']) && $errorMsg !== ''): ?>
     document.addEventListener('DOMContentLoaded', () => {
