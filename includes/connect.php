@@ -71,7 +71,7 @@ if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, null, $flags)) 
     error_log('MySQLi connection failed: ' . $err);
 
     if ($is_api) {
-        die_json(503, 'Database service unavailable');
+        die_json(503, 'Database service unavailable: ' . $err);
     }
 
     http_response_code(503);
@@ -81,6 +81,9 @@ if (!mysqli_real_connect($conn, $host, $user, $pass, $db, $port, null, $flags)) 
     <body style="font-family:Arial;text-align:center;margin:50px">
         <h1 style="color:#d32f2f">Service Temporarily Unavailable</h1>
         <p>Database service is temporarily unavailable. Please try again shortly.</p>
+        <div style="margin-top: 30px; padding: 15px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; display: inline-block; text-align: left; max-width: 600px;">
+            <p style="margin: 0; color: #555; font-size: 14px;"><strong>Debug Info (Admin Only):</strong><br>' . htmlspecialchars($err) . '</p>
+        </div>
     </body></html>
     ');
 }
