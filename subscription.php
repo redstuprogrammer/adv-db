@@ -475,32 +475,7 @@ function formatReadableDate(?string $date): string {
               </div>
             </div>
 
-            <div class="subscription-item subscription-card" style="margin-top:24px;">
-              <h3>Update fallback payment method</h3>
-              <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
-                <input type="hidden" name="save_payment_method" value="1">
-                <input type="hidden" name="existing_pm_id" value="<?php echo h($currentPaymentMethod['id'] ?? ''); ?>">
-                <p><label>Provider</label><br>
-                  <input type="text" name="provider" value="<?php echo h($currentPaymentMethod['provider'] ?? 'PayMongo'); ?>" style="width:100%; padding:8px; margin-top:6px;" required></p>
-                <p><label>Brand (Card Brand)</label><br>
-                  <input type="text" name="brand" value="<?php echo h($currentPaymentMethod['brand'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;"></p>
-                <p style="display:flex; gap:8px;"><span style="flex:1"><label>Last 4 digits</label><br>
-                  <input type="text" name="last4" maxlength="4" value="<?php echo h($currentPaymentMethod['last4'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span>
-                  <span style="width:140px"><label>Exp (MM)</label><br>
-                  <input type="number" name="exp_month" min="1" max="12" value="<?php echo h($currentPaymentMethod['exp_month'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span>
-                  <span style="width:160px"><label>Exp (YYYY)</label><br>
-                  <input type="number" name="exp_year" min="2023" value="<?php echo h($currentPaymentMethod['exp_year'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;" required></span></p>
-                <p><label>Billing Contact</label><br>
-                  <input type="text" name="billing_contact" value="<?php echo h($currentPaymentMethod['billing_contact'] ?? ''); ?>" style="width:100%; padding:8px; margin-top:6px;"></p>
-                <p><label style="display:inline-block; margin-right:12px;"><input type="checkbox" name="make_default" value="1" <?php echo (!empty($currentPaymentMethod['is_default']) ? 'checked' : ''); ?>> Make default</label></p>
-                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:10px;">
-                  <button type="submit" class="button-primary">Save Payment Method</button>
-                  <?php if (!empty($currentPaymentMethod['id'])): ?>
-                    <button type="submit" name="delete_payment_method" value="1" onclick="return confirm('Delete saved payment method? This cannot be undone.');" style="background:#ef4444; border:none; color:white; padding:12px 16px; border-radius:12px;">Delete</button>
-                  <?php endif; ?>
-                </div>
-              </form>
-            </div>
+
 
 
           </div>

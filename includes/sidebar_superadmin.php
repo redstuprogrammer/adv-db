@@ -49,6 +49,7 @@ if (function_exists('getAllSettings')) {
   <div class="sidebar-nav">
     <a href="superadmin_dash.php" class="sidebar-nav-item<?php echo saMenuActive('superadmin_dash.php'); ?>"><span class="sidebar-nav-icon">🛡️</span><span>Dashboard</span></a>
     <a href="superadmin_dash.php#tenant-section" class="sidebar-nav-item"><span class="sidebar-nav-icon">🏥</span><span>Tenant List</span></a>
+    <a href="superadmin_review_documents.php" class="sidebar-nav-item<?php echo saMenuActive('superadmin_review_documents.php'); ?>"><span class="sidebar-nav-icon">📝</span><span>Review Registrations</span></a>
     <a href="superadmin_tenant_reports.php" class="sidebar-nav-item<?php echo saMenuActive('superadmin_tenant_reports.php'); ?>"><span class="sidebar-nav-icon">📈</span><span>Tenant Reports</span></a>
     <a href="superadmin_sales_reports.php" class="sidebar-nav-item<?php echo saMenuActive('superadmin_sales_reports.php'); ?>"><span class="sidebar-nav-icon">💰</span><span>Sales Reports</span></a>
     <a href="superadmin_audit_logs.php" class="sidebar-nav-item<?php echo saMenuActive('superadmin_audit_logs.php'); ?>"><span class="sidebar-nav-icon">📋</span><span>Audit Logs</span></a>

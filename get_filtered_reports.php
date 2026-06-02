@@ -21,9 +21,10 @@ $date_from     = $_GET['date_from']     ?? '';
 $date_to       = $_GET['date_to']       ?? '';
 $tenant_id     = $_GET['tenant_id']     ?? '';
 $activity_type = $_GET['activity_type'] ?? '';
-$page          = isset($_GET['page'])     ? (int)$_GET['page']     : null;
-$per_page      = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
-$offset        = ($page !== null) ? ($page - 1) * $per_page : 0;
+$page          = isset($_GET['page'])     ? max(1, (int)$_GET['page'])     : 1;
+$per_page      = isset($_GET['per_page']) ? min(max(1, (int)$_GET['per_page']), 100) : 10;
+$offset        = ($page - 1) * $per_page;
+if ($offset > 2147483647) $offset = 2147483647;  // Prevent MySQL signed int overflow
 
 if (!$isSuperAdmin && $tenantSessionId > 0) {
     if (!tenantHasTierFeature($tenantSessionId, 'basic_reporting', $conn)) {

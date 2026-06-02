@@ -170,11 +170,12 @@ if ($stmt) {
       .btn-danger {
         background: #ef4444;
         color: white;
-        padding: 6px 12px;
+        padding: 10px 16px;
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 13px;
+        font-weight: 600;
         transition: background 0.2s ease;
       }
 
