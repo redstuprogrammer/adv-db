@@ -125,6 +125,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0777, true);
     }
+
+    // Fetch storage info once before the loop for efficiency
+    $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
     
     foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
         if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
@@ -133,8 +136,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             $file_size = $_FILES['patient_docs']['size'][$key];
             $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
             
-            // Check storage limit
-            if (!isTenantWithinStorageLimit($tenantId, (int)$file_size, $conn)) {
+            // Check storage limit (inline replacement for missing isTenantWithinStorageLimit())
+            if (
+                $_uploadStorageInfo['limit_bytes'] !== null &&
+                ($_uploadStorageInfo['usage_bytes'] + (int)$file_size) > $_uploadStorageInfo['limit_bytes']
+            ) {
                 $errorMsg = "❌ Storage limit reached. Cannot upload $original_name.";
                 continue;
             }
