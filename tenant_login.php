@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userRole = 'Admin';
             $userData = [
                 'user_id' => null, // owner has no user_id
-                'username' => $username,
+                'username' => (string)$tenant['username'],
                 'email' => (string)$tenant['contact_email'],
                 'role' => 'Admin'
             ];

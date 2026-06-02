@@ -195,6 +195,48 @@ if ($result) {
     <link rel="stylesheet" href="style1.css">
     <link rel="stylesheet" href="tenant_style.css">
     <style>
+        :root {
+            --sa-primary: #0d3b66;
+            --sa-muted: #64748b;
+            --sa-border: #e2e8f0;
+            --sa-bg: #f8fafc;
+        }
+
+        body {
+            background-color: var(--sa-bg);
+            color: #0f172a;
+        }
+
+        .sa-main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 10px;
+        }
+
+        .sa-main-header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--sa-primary);
+            margin: 0;
+        }
+
+        .sa-main-header span {
+            font-size: 0.85rem;
+            color: var(--sa-muted);
+        }
+
+        .sa-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sa-profile span {
+            font-weight: 600;
+        }
+
         .review-table { width: 100%; border-collapse: collapse; }
         .review-table th, .review-table td { padding: 12px 14px; border: 1px solid #e2e8f0; vertical-align: top; }
         .review-table th { background: #f8fafc; color: #0f172a; text-align: left; }
@@ -214,17 +256,21 @@ if ($result) {
     </style>
 </head>
 <body>
-    <main class="container mx-auto px-4 py-10">
-        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+<div class="container">
+    <?php include __DIR__ . '/includes/sidebar_superadmin.php'; ?>
+
+    <main class="main-content">
+        <header class="sa-main-header">
             <div>
-                <p class="text-sm text-slate-500 uppercase tracking-[0.3em] mb-2">Superadmin</p>
-                <h1 class="text-3xl font-bold text-slate-900">Registration Approvals</h1>
-                <p class="text-slate-600 mt-2 max-w-2xl">Review new clinic applications and documents.</p>
+                <h1>Registration Approvals</h1>
+                <span>Review new clinic applications and documents.</span>
             </div>
-            <div class="flex flex-wrap gap-3">
-                <a href="superadmin_dash.php" class="px-5 py-3 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-700">Back to Dashboard</a>
+            <div class="sa-profile">
+                <span>Welcome, <strong>Super Admin</strong></span>
+                <div class="sa-profile-avatar">🛡️</div>
             </div>
-        </div>
+        </header>
 
         <?php if ($message): ?>
             <div class="status-box <?php echo htmlspecialchars($alertType, ENT_QUOTES, 'UTF-8'); ?> mb-6">
@@ -327,10 +373,44 @@ if ($result) {
                                 </td>
                             </tr>
                         <?php endforeach; ?>
-                    </tbody>
                 </table>
             <?php endif; ?>
         </div>
     </main>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dropdownToggle = document.querySelector('.menu-dropdown-toggle');
+        const dropdownItems = document.querySelector('.menu-dropdown-items');
+        const dropdown = document.querySelector('.menu-dropdown');
+
+        if (dropdownToggle) {
+            dropdownToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (dropdownItems.style.display === 'none' || dropdownItems.style.display === '') {
+                    dropdownItems.style.display = 'flex';
+                    dropdownToggle.classList.add('active');
+                } else {
+                    dropdownItems.style.display = 'none';
+                    dropdownToggle.classList.remove('active');
+                }
+            });
+        }
+
+        if (dropdownItems) {
+            dropdownItems.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            if (dropdown && !dropdown.contains(e.target)) {
+                if (dropdownItems) dropdownItems.style.display = 'none';
+                if (dropdownToggle) dropdownToggle.classList.remove('active');
+            }
+        });
+    });
+</script>
 </body>
 </html>
