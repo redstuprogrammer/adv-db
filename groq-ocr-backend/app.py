@@ -415,6 +415,15 @@ def verify_document():
 def health():
     return jsonify({"status": "ok", "model": GROQ_MODEL_ID}), 200
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"message": "Groq OCR Backend is running", "status": "ok"}), 200
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    # Return a 204 No Content to silence favicon 404 errors
+    return "", 204
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port, debug=False)
