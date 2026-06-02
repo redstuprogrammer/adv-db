@@ -1,9 +1,0 @@
-Flask==2.2.5
-gunicorn==21.2.0
-Pillow
-pypdfium2
-requests
-pymysql
-python-dotenv
-
-# Note: this is a placeholder requirements.txt. Replace with exact pins from your original backup if available.
