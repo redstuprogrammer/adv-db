@@ -76,13 +76,20 @@ if ($tenant) {
         $schedule = $defaultHours;
     }
 
-    // Fetch services for this tenant
+    // Fetch services for this tenant (include service_id and duration when available)
     $services = [];
     try {
         $serviceTableResult = $conn->query("SHOW COLUMNS FROM service LIKE 'category'");
         $categoryExists = ($serviceTableResult && $serviceTableResult->num_rows > 0);
-        
-        $selectSql = "SELECT service_name, price, description" . ($categoryExists ? ", category" : "") . " FROM service WHERE tenant_id = ? ORDER BY category, service_name";
+
+        $durResult = $conn->query("SHOW COLUMNS FROM service LIKE 'total_duration_minutes'");
+        $durationExists = ($durResult && $durResult->num_rows > 0);
+
+        $selectCols = ["service_id", "service_name", "price", "description"];
+        if ($categoryExists) $selectCols[] = "category";
+        if ($durationExists) $selectCols[] = "total_duration_minutes";
+
+        $selectSql = "SELECT " . implode(", ", $selectCols) . " FROM service WHERE tenant_id = ? ORDER BY " . ($categoryExists ? "category, service_name" : "service_name");
         $stmtServ = $conn->prepare($selectSql);
         if ($stmtServ) {
             $stmtServ->bind_param("i", $tenantId);
