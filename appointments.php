@@ -18,6 +18,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/date_clock.php';
 require_once __DIR__ . '/includes/tenant_tier_helper.php';
+require_once __DIR__ . '/includes/patient_welcome_email.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -43,6 +44,9 @@ if ($_SESSION['role'] !== 'Admin') {
 
 $tenantName = getCurrentTenantName();
 $tenantId = getCurrentTenantId();
+$successMsg = '';
+$errorMsg = '';
+$isBookingError = false;
 $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 $today = date('Y-m-d');
 
@@ -67,28 +71,170 @@ if ($dstmt) {
   $dstmt->close();
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
+    $firstName = trim($_POST['first_name'] ?? '');
+    $lastName = trim($_POST['last_name'] ?? '');
+    $contactNumber = trim($_POST['contact_number'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $birthdate = trim($_POST['birthdate'] ?? '');
+    $gender = trim($_POST['gender'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+    $usernameInput = trim($_POST['patient_username'] ?? '');
+
+    if (!tenantHasTierFeature((int)$tenantId, 'patient_records', $conn)) {
+        $errorMsg = 'Patient records are not available on your current plan.';
+    } elseif ($firstName === '' || $lastName === '' || $contactNumber === '' || $usernameInput === '') {
+        $errorMsg = 'First name, last name, contact number, and username are required.';
+    } else {
+        $patientLimit = getTenantTierLimit((int)$tenantId, 'max_patients', $conn);
+        if ($patientLimit !== null) {
+            $countStmt = $conn->prepare('SELECT COUNT(*) AS c FROM patient WHERE tenant_id = ?');
+            if ($countStmt) {
+                $countStmt->bind_param('i', $tenantId);
+                $countStmt->execute();
+                $resCount = $countStmt->get_result();
+                $countRow = $resCount->fetch_assoc();
+                $countStmt->close();
+                if ((int)($countRow['c'] ?? 0) >= $patientLimit) {
+                    $errorMsg = 'Patient limit reached for your plan (' . $patientLimit . '). Upgrade to add more patients.';
+                }
+            }
+        }
+
+        if ($errorMsg === '') {
+            $checkUserStmt = $conn->prepare('SELECT patient_id FROM patient WHERE username = ? LIMIT 1');
+            if ($checkUserStmt) {
+                $checkUserStmt->bind_param('s', $usernameInput);
+                $checkUserStmt->execute();
+                $checkUserResult = $checkUserStmt->get_result();
+                if ($checkUserResult && $checkUserResult->num_rows > 0) {
+                    $errorMsg = 'That username is already taken. Please choose a different username.';
+                }
+                $checkUserStmt->close();
+            }
+        }
+
+        if ($errorMsg === '' && $email !== '') {
+            $checkEmailStmt = $conn->prepare('SELECT patient_id FROM patient WHERE tenant_id = ? AND email = ? LIMIT 1');
+            if ($checkEmailStmt) {
+                $checkEmailStmt->bind_param('is', $tenantId, $email);
+                $checkEmailStmt->execute();
+                $checkEmailResult = $checkEmailStmt->get_result();
+                if ($checkEmailResult && $checkEmailResult->num_rows > 0) {
+                    $errorMsg = 'That email address is already registered to another patient in this clinic.';
+                }
+                $checkEmailStmt->close();
+            }
+        }
+
+        if ($errorMsg === '') {
+            $tempPassword = trim($_POST['temp_password'] ?? '');
+            if ($tempPassword === '') {
+                $tempPassword = bin2hex(random_bytes(4));
+            }
+            $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
+            $username = $usernameInput;
+
+            $maxIdRow = ['MAX(tenant_patient_id)' => 0];
+            $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
+            if ($maxIdStmt) {
+                $maxIdStmt->bind_param('i', $tenantId);
+                $maxIdStmt->execute();
+                $maxIdResult = $maxIdStmt->get_result();
+                $maxIdRow = $maxIdResult->fetch_assoc();
+                $maxIdStmt->close();
+            }
+
+            $newTenantPatientId = (($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1);
+
+            $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            if ($insertStmt) {
+                $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash);
+                if ($insertStmt->execute()) {
+                    $newPatientId = $conn->insert_id ?? null;
+                    if ($newPatientId) {
+                        try {
+                            $desc = safeDesc('Created', 'Patient', $newPatientId, ['tenant_patient_id' => $newTenantPatientId, 'patient_name' => $firstName . ' ' . $lastName]);
+                            logTenantActivity($conn, $tenantId, 'Created', $desc);
+                        } catch (Exception $e) {
+                            error_log('Patient creation logging failed: ' . $e->getMessage());
+                        }
+                    }
+
+                    if (!empty($email)) {
+                        sendPatientWelcomeEmail($email, $firstName, $lastName, $username, $tempPassword, $tenantName, $tenantSlug);
+                        $successMsg = 'Patient added successfully. A welcome email with the temporary password has been sent to ' . h($email) . '.';
+                    } else {
+                        $successMsg = 'Patient added successfully.';
+                    }
+
+                    // Refresh patient list for scheduling dropdown
+                    $patients = [];
+                    $pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+                    if ($pstmt) {
+                        $pstmt->bind_param('i', $tenantId);
+                        $pstmt->execute();
+                        $pres = $pstmt->get_result();
+                        while ($r = $pres->fetch_assoc()) $patients[] = $r;
+                        $pstmt->close();
+                    }
+                } else {
+                    $errorMsg = 'Unable to add patient. DB Error: ' . $conn->error;
+                    error_log("Patient add failed for tenant $tenantId: " . $conn->error);
+                }
+                $insertStmt->close();
+            } else {
+                $errorMsg = 'Unable to prepare patient insert statement.';
+            }
+        }
+    }
+}
+
 // Handle Add Appointment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_appointment'])) {
     $patientId = isset($_POST['patient_id']) ? (int)$_POST['patient_id'] : 0;
     $dentistId = isset($_POST['dentist_id']) ? (int)$_POST['dentist_id'] : 0;
-    $appointmentDate = isset($_POST['appointment_date']) ? trim($_POST['appointment_date']) : '';
-    $appointmentTime = isset($_POST['appointment_time']) ? trim($_POST['appointment_time']) : '';
-    $status = 'pending'; // Default status; user should not set this manually
+    $appointmentDate = trim($_POST['appointment_date'] ?? '');
+    $appointmentTime = trim($_POST['appointment_time'] ?? '');
+    $status = 'pending';
 
     if (!tenantHasTierFeature((int)$tenantId, 'appointment_scheduling', $conn)) {
         $errorMsg = 'Appointment scheduling is not available on your current plan.';
     } elseif ($patientId > 0 && $dentistId > 0 && $appointmentDate !== '' && $appointmentTime !== '') {
-        $stmt = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status) VALUES (?, ?, ?, ?, ?, ?)');
-        $stmt->bind_param('iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
-        if ($stmt->execute()) {
-          $successMsg = 'Appointment scheduled successfully!';
-          $newAppointmentId = $conn->insert_id ?? null;
-          $desc = safeDesc('Appointment', 'Appointment', $newAppointmentId, ['status' => 'scheduled']);
-          logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+        $stmtCheck = $conn->prepare('SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND status NOT IN ("Cancelled", "Disapproved")');
+        if ($stmtCheck) {
+            $stmtCheck->bind_param('iiss', $tenantId, $dentistId, $appointmentDate, $appointmentTime);
+            $stmtCheck->execute();
+            $stmtCheck->store_result();
+
+            if ($stmtCheck->num_rows > 0) {
+                $errorMsg = 'Booking already exists for this dentist at the selected date and time.';
+                $isBookingError = true;
+            } else {
+                $stmtAdd = $conn->prepare('INSERT INTO appointment (tenant_id, patient_id, dentist_id, appointment_date, appointment_time, status, is_appointment_request) VALUES (?, ?, ?, ?, ?, ?, 0)');
+                if ($stmtAdd) {
+                    $stmtAdd->bind_param('iiisss', $tenantId, $patientId, $dentistId, $appointmentDate, $appointmentTime, $status);
+                    if ($stmtAdd->execute()) {
+                        $successMsg = 'Appointment scheduled successfully.';
+                        $newAppointmentId = $conn->insert_id ?? null;
+                        $desc = safeDesc('Appointment', 'Appointment', $newAppointmentId, ['status' => 'scheduled']);
+                        logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+                    } else {
+                        $errorMsg = 'Unable to schedule appointment. DB Error: ' . $conn->error;
+                        $isBookingError = true;
+                        error_log("Appt add failed for tenant $tenantId: " . $conn->error);
+                    }
+                    $stmtAdd->close();
+                } else {
+                    $errorMsg = 'Unable to prepare appointment statement.';
+                    $isBookingError = true;
+                }
+            }
+            $stmtCheck->close();
         }
-        $stmt->close();
     } else {
-        $errorMsg = 'Please choose a patient, dentist, date, and time for the appointment.';
+        $errorMsg = 'Please select a patient, dentist, date, and time for the appointment.';
+        $isBookingError = true;
     }
 }
 
@@ -99,26 +245,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reschedule_appointmen
     $newDentist = isset($_POST['reschedule_dentist_id']) ? (int)$_POST['reschedule_dentist_id'] : 0;
 
     if ($appointmentId > 0 && $newDate !== '' && $newTime !== '' && $newDentist > 0) {
-        $stmt = $conn->prepare('UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ? WHERE appointment_id = ? AND tenant_id = ?');
-        if ($stmt) {
-            $stmt->bind_param('ssiii', $newDate, $newTime, $newDentist, $appointmentId, $tenantId);
-            if ($stmt->execute()) {
-              $successMsg = 'Appointment rescheduled successfully.';
-              try {
-                $desc = safeDesc('Appointment', 'Rescheduled', $appointmentId, ['new_date' => $newDate, 'new_time' => $newTime, 'dentist_id' => $newDentist]);
-                logTenantActivity($conn, $tenantId, 'Appointment', $desc);
-              } catch (Exception $e) {
-                error_log('Reschedule logging failed: ' . $e->getMessage());
-              }
+        $stmtCheck = $conn->prepare('SELECT appointment_id FROM appointment WHERE tenant_id = ? AND dentist_id = ? AND appointment_date = ? AND appointment_time = ? AND appointment_id != ? AND status NOT IN ("Cancelled", "Disapproved")');
+        if ($stmtCheck) {
+            $stmtCheck->bind_param('iissi', $tenantId, $newDentist, $newDate, $newTime, $appointmentId);
+            $stmtCheck->execute();
+            $stmtCheck->store_result();
+
+            if ($stmtCheck->num_rows > 0) {
+                $errorMsg = 'Booking already exists for this dentist at the selected date and time.';
             } else {
-              $errorMsg = 'Unable to reschedule appointment.';
+                $stmt = $conn->prepare('UPDATE appointment SET appointment_date = ?, appointment_time = ?, dentist_id = ? WHERE appointment_id = ? AND tenant_id = ?');
+                if ($stmt) {
+                    $stmt->bind_param('ssiii', $newDate, $newTime, $newDentist, $appointmentId, $tenantId);
+                    if ($stmt->execute()) {
+                        $successMsg = 'Appointment rescheduled successfully.';
+                        try {
+                            $desc = safeDesc('Appointment', 'Rescheduled', $appointmentId, ['new_date' => $newDate, 'new_time' => $newTime, 'dentist_id' => $newDentist]);
+                            logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+                        } catch (Exception $e) {
+                            error_log('Reschedule logging failed: ' . $e->getMessage());
+                        }
+                    } else {
+                        $errorMsg = 'Unable to reschedule appointment.';
+                    }
+                    $stmt->close();
+                } else {
+                    $errorMsg = 'Unable to prepare reschedule statement.';
+                }
             }
-            $stmt->close();
-        } else {
-            $errorMsg = 'Unable to prepare reschedule statement.';
+            $stmtCheck->close();
         }
     } else {
-        $errorMsg = 'Please select a valid date, time, and dentist to reschedule.';
+        $errorMsg = 'Please provide a valid date, time, and dentist for rescheduling.';
     }
 }
 
@@ -128,16 +286,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
     $rawStatus = trim($_POST['new_status'] ?? '');
     $statusMap = [
         'ongoing' => 'ongoing',
+        'in_progress' => 'ongoing',
         'in progress' => 'ongoing',
         'pending' => 'pending',
         'completed' => 'completed',
         'cancelled' => 'cancelled',
         'approved' => 'approved',
         'disapproved' => 'disapproved',
+        'pending_payment' => 'pending_payment',
         'pending payment' => 'pending_payment',
     ];
-    $normalized = strtolower(trim($rawStatus));
-    $newStatus = $statusMap[$normalized] ?? '';
+    $statusKey = strtolower(str_replace(' ', '_', $rawStatus));
+    $newStatus = $statusMap[$statusKey] ?? '';
 
     if ($appointmentId > 0 && $newStatus !== '') {
         // Extra safety check: verify current status is not a final state
@@ -154,9 +314,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
             $stmt = $conn->prepare('UPDATE appointment SET status = ? WHERE appointment_id = ? AND tenant_id = ?');
             $stmt->bind_param('sii', $newStatus, $appointmentId, $tenantId);
             if ($stmt->execute()) {
-            $successMsg = 'Appointment updated successfully!';
-            $desc = safeDesc('Appointment', 'Appointment', $appointmentId, ['status' => $newStatus]);
-            logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+            $successMsg = 'Appointment status updated successfully.';
+            try {
+                $desc = safeDesc('Appointment', 'Status Changed', $appointmentId, ['new_status' => $newStatus, 'old_status' => $current['status'] ?? '']);
+                logTenantActivity($conn, $tenantId, 'Appointment', $desc);
+            } catch (Exception $e) {
+                error_log('Appointment status update logging failed: ' . $e->getMessage());
+            }
           } else {
                 $errorMsg = 'Unable to update appointment status.';
             }
@@ -389,24 +553,41 @@ if ($stmt) {
 
       .booking-grid {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 16px;
+        grid-template-columns: 350px 1fr;
+        min-height: 600px;
       }
 
       .booking-sidebar {
-        display: block;
+        padding: 24px;
+        background: #f8fafc;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
       }
 
       .booking-main {
-        display: block;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-height: 80vh;
+        overflow-y: auto;
       }
 
       .modal.active {
         display: flex;
       }
 
+      #manageModal.active,
+      #rescheduleModal.active {
+        display: flex;
+      }
+
       .modal-content.wide {
-        max-width: 800px;
+        max-width: 1000px;
+        padding: 0;
+        overflow: hidden;
       }
 
       .tab.active, .action-btn.active {
@@ -657,76 +838,129 @@ if ($stmt) {
         border-color: #0a2d4f;
       }
 
-      .action-btn {
-        display: inline-block;
-        padding: 8px 12px;
-        margin-right: 4px;
-        background: var(--accent);
-        border: 1px solid var(--accent);
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        font-size: 12px;
-        color: white;
-        font-weight: 600;
-        transition: all 0.2s ease;
-      }
-
-      .action-btn:hover {
-        background: #0a2d4f;
-        border-color: #0a2d4f;
-      }
-
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.4);
-      }
-
-      .modal-content {
-        background-color: white;
-        margin: 10% auto;
-        padding: 20px;
+      .calendar-container {
+        background: white;
         border: 1px solid var(--border);
         border-radius: 12px;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+        padding: 16px;
       }
 
-      .modal-header {
-        font-size: 18px;
-        font-weight: 700;
-        color: var(--accent);
+      .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 16px;
       }
 
-      .form-group {
-        margin-bottom: 12px;
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
       }
 
-      .form-group label {
-        display: block;
+      .cal-day-header {
+        text-align: center;
         font-size: 12px;
         font-weight: 700;
-        color: var(--accent);
-        margin-bottom: 6px;
+        color: #64748b;
+        padding: 8px 0;
       }
 
-      .form-group input,
-      .form-group select {
-        width: 100%;
-        padding: 10px 12px;
+      .cal-day {
+        aspect-ratio: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.2s;
+        border: 1px solid transparent;
+        position: relative;
+        font-size: 14px;
+      }
+
+      .cal-day:hover:not(.disabled) {
+        background: #f1f5f9;
+        border-color: var(--accent);
+      }
+
+      .cal-day.active {
+        background: var(--accent) !important;
+        color: white !important;
+      }
+
+      .cal-day.disabled {
+        cursor: not-allowed;
+        opacity: 0.3;
+        background: #f1f5f9;
+      }
+
+      .cal-day.today {
+        border: 2px solid var(--accent);
+        font-weight: 700;
+      }
+
+      .cal-day.working {
+        background: #ecfdf5;
+        color: #065f46;
+        font-weight: 600;
+      }
+
+      .time-slot-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .time-chip {
+        padding: 10px;
+        text-align: center;
         border: 1px solid var(--border);
         border-radius: 8px;
         font-size: 13px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
       }
+
+      .time-chip:hover:not(.disabled) {
+        border-color: var(--accent);
+        background: #f0f9ff;
+      }
+
+      .time-chip.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .time-chip.disabled {
+        background: #f1f5f9;
+        color: #94a3b8;
+        cursor: not-allowed;
+        text-decoration: line-through;
+        opacity: 0.6;
+      }
+
+      .booking-summary-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: auto;
+      }
+
+      .summary-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+
+      .summary-label { color: #64748b; }
+      .summary-value { font-weight: 700; color: var(--accent); }
 
       .form-actions {
         display: flex;
@@ -838,14 +1072,15 @@ if ($stmt) {
       </div>
 
       <div class="module-card">
-        <?php if (isset($successMsg)): ?>
+        <?php if ($successMsg): ?>
           <div class="alert-box" style="background: #ecfdf5; color: #16573b; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($successMsg); ?></div>
         <?php endif; ?>
-        <?php if (isset($errorMsg)): ?>
+        <?php if ($errorMsg && !isset($_POST['add_appointment'])): ?>
           <div class="alert-box" style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
         <div class="content-header" style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:16px;">
+          <button class="btn-secondary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
           <button class="btn-primary" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
 
@@ -887,7 +1122,7 @@ if ($stmt) {
                       $isFinalStatus = in_array(strtolower($appt['status'] ?? ''), ['completed', 'cancelled']);
                       if (!$isFinalStatus): 
                     ?>
-                      <button class="action-btn" onclick="openManageModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['dentist_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['appointment_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['appointment_time'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)$appt['dentist_id']; ?>)">Manage</button>
+                      <button class="action-btn" onclick="openManageModal(<?php echo (int)$appt['appointment_id']; ?>, <?php echo htmlspecialchars(json_encode(($appt['patient_first'] ?? '') . ' ' . ($appt['patient_last'] ?? '')), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['dentist_name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['status'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode($appt['appointment_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>, <?php echo (int)$appt['dentist_id']; ?>)">Manage</button>
                     <?php else: ?>
                       <button class="action-btn" style="opacity: 0.5; cursor: not-allowed; background: #94a3b8; border-color: #94a3b8;" disabled>Locked</button>
                     <?php endif; ?>
@@ -933,6 +1168,68 @@ if ($stmt) {
 
 
 
+  <!-- Add Patient Modal -->
+  <div id="addPatientModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Add Patient</h2>
+        <button class="modal-close" type="button" onclick="closeAddPatientModal()">&times;</button>
+      </div>
+      <form method="POST" class="patient-form" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+        <div class="form-row">
+          <div class="form-group required">
+            <label for="first_name">First Name</label>
+            <input type="text" id="first_name" name="first_name" required>
+          </div>
+          <div class="form-group required">
+            <label for="last_name">Last Name</label>
+            <input type="text" id="last_name" name="last_name" required>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px;">
+          <div class="form-group required">
+            <label for="contact_number">Contact Number</label>
+            <input type="text" id="contact_number" name="contact_number" required>
+          </div>
+          <div class="form-group required">
+            <label for="patient_username">Username</label>
+            <input type="text" id="patient_username" name="patient_username" required placeholder="e.g. juan.delacruz">
+            <small style="color: #666;">Used for patient portal login. Must be unique.</small>
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px;">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+          </div>
+          <div class="form-group">
+            <label for="birthdate">Birthdate</label>
+            <input type="date" id="birthdate" name="birthdate">
+          </div>
+        </div>
+        <div class="form-row" style="margin-top: 12px;">
+          <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender" name="gender">
+              <option value="">-- Select Gender --</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="address">Address</label>
+            <input type="text" id="address" name="address">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-cancel" onclick="closeAddPatientModal()">Cancel</button>
+          <button type="submit" class="btn-submit" name="add_patient">Save Patient</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Schedule Appointment Modal (receptionist-style) -->
   <div id="scheduleModal" class="modal">
     <div class="modal-content wide">
@@ -944,6 +1241,12 @@ if ($stmt) {
               <h3 class="modal-title">Schedule Appointment</h3>
               <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
             </div>
+
+            <?php if ($errorMsg && isset($_POST['add_appointment'])): ?>
+              <div style="background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; font-size: 13px; margin-bottom: 15px; font-weight: 600;">
+                ⚠️ <?php echo h($errorMsg); ?>
+              </div>
+            <?php endif; ?>
 
             <div class="form-group">
               <label for="patient_id">Patient</label>
@@ -1071,8 +1374,12 @@ if ($stmt) {
         <h3 class="modal-title" style="margin:0; color:var(--accent);">Manage Appointment</h3>
         <span class="close" onclick="closeManageModal()">&times;</span>
       </div>
-      <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+      <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" id="manageForm">
         <input type="hidden" id="update_id" name="update_id" value="">
+        <input type="hidden" id="manage_appointment_id" value="">
+        <input type="hidden" id="manage_patient_name" value="">
+        <input type="hidden" id="manage_dentist_id" value="">
+        <input type="hidden" id="manage_original_date" value="">
         <div class="form-group" style="margin-top: 15px;">
           <label>Appointment</label>
           <input type="text" id="manageAppointmentInfo" readonly style="background: #f8fafc;">
@@ -1081,7 +1388,7 @@ if ($stmt) {
           <label for="new_status">Status</label>
           <select id="new_status" name="new_status" required>
             <option value="">Select status</option>
-            <option value="pending">Ongoing</option>
+            <option value="ongoing">Ongoing</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -1128,6 +1435,18 @@ if ($stmt) {
 
       function closeScheduleModal() {
         document.getElementById('scheduleModal').classList.remove('active');
+      }
+
+      function openAddPatientModal() {
+        const form = document.querySelector('#addPatientModal .patient-form');
+        if (form) form.reset();
+        const modal = document.getElementById('addPatientModal');
+        if (modal) modal.classList.add('active');
+      }
+
+      function closeAddPatientModal() {
+        const modal = document.getElementById('addPatientModal');
+        if (modal) modal.classList.remove('active');
       }
 
       let currentViewDate = new Date();
@@ -1290,55 +1609,125 @@ if ($stmt) {
         }
       }
 
-      function openManageModal(id, patientName, dentistName, status, appointmentDate, appointmentTime, dentistId) {
+      function openManageModal(id, patientName, dentistName, status, apptDate, dentistId) {
         document.getElementById('update_id').value = id;
-        document.getElementById('manageAppointmentInfo').value = patientName + ' with ' + dentistName + ' (' + status + ')';
-        
+        document.getElementById('manage_appointment_id').value = id;
+        document.getElementById('manage_patient_name').value = patientName || '';
+        document.getElementById('manage_original_date').value = apptDate || '';
+        document.getElementById('manage_dentist_id').value = dentistId ? dentistId : '';
+
+        const statusLabels = {
+          pending: 'Ongoing',
+          ongoing: 'Ongoing',
+          completed: 'Completed',
+          cancelled: 'Cancelled',
+          approved: 'Approved',
+          disapproved: 'Disapproved',
+          pending_payment: 'Pending Payment'
+        };
+
+        let formattedDate = '';
+        try {
+          if (apptDate) formattedDate = new Date(apptDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch (e) { formattedDate = apptDate || ''; }
+
+        document.getElementById('manageAppointmentInfo').value = (patientName || '') + ' with ' + (dentistName || '') + (formattedDate ? ' — ' + formattedDate : '') + ' (' + (statusLabels[status] || status) + ')';
+
         const newStatusSelect = document.getElementById('new_status');
         const updateBtn = document.getElementById('updateStatusBtn');
+        const rescheduleBtn = document.querySelector('#manageModal button[onclick="openRescheduleModal()"]');
         newStatusSelect.value = status;
-        
+
         const lowerStatus = status ? status.toLowerCase() : '';
         if (lowerStatus === 'completed' || lowerStatus === 'cancelled') {
           newStatusSelect.disabled = true;
           if (updateBtn) updateBtn.disabled = true;
+          if (rescheduleBtn) rescheduleBtn.disabled = true;
         } else {
           newStatusSelect.disabled = false;
           if (updateBtn) updateBtn.disabled = false;
+          if (rescheduleBtn) rescheduleBtn.disabled = false;
         }
 
         document.getElementById('reschedule_id').value = id;
         document.getElementById('reschedule_patient_display').value = patientName;
-        document.getElementById('reschedule_original_date').value = appointmentDate + ' ' + appointmentTime;
         document.getElementById('reschedule_dentist_id').value = dentistId || '';
-        document.getElementById('reschedule_date').value = appointmentDate;
-        document.getElementById('reschedule_time').value = appointmentTime;
-        
-        document.getElementById('manageModal').style.display = 'flex';
+
+        document.getElementById('manageModal').classList.add('active');
       }
 
       function openRescheduleModal() {
         closeManageModal();
-        document.getElementById('rescheduleModal').style.display = 'flex';
+        const appointmentId = document.getElementById('manage_appointment_id').value;
+        if (!appointmentId) return;
+
+        document.getElementById('reschedule_id').value = appointmentId;
+        const patientName = document.getElementById('manage_patient_name').value || '';
+        const originalDate = document.getElementById('manage_original_date').value || '';
+        const prevDentistId = document.getElementById('manage_dentist_id').value || '';
+
+        document.getElementById('reschedule_patient_display').value = patientName;
+        const originalDateEl = document.getElementById('reschedule_original_date');
+        if (originalDateEl) {
+          try {
+            originalDateEl.value = originalDate ? new Date(originalDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+          } catch (e) {
+            originalDateEl.value = originalDate || '-';
+          }
+        }
+        document.getElementById('reschedule_dentist_id').value = prevDentistId;
+        document.getElementById('reschedule_date').value = originalDate;
+        document.getElementById('rescheduleModal').classList.add('active');
       }
 
       function closeRescheduleModal() {
-        document.getElementById('rescheduleModal').style.display = 'none';
+        document.getElementById('rescheduleModal').classList.remove('active');
       }
 
       function closeManageModal() {
-        document.getElementById('manageModal').style.display = 'none';
+        document.getElementById('manageModal').classList.remove('active');
+      }
+
+      function filterAppointments() {
+        const query = document.getElementById('appointmentSearch').value.toLowerCase();
+        document.querySelectorAll('#appointmentTable tbody tr').forEach(row => {
+          row.style.display = row.innerText.toLowerCase().includes(query) ? '' : 'none';
+        });
       }
 
       // Close modal when clicking outside
       window.addEventListener('click', function(event) {
+        const addPatientModal = document.getElementById('addPatientModal');
         const scheduleModalEl = document.getElementById('scheduleModal');
         const manageModal = document.getElementById('manageModal');
         const rescheduleModal = document.getElementById('rescheduleModal');
+        if (event.target === addPatientModal) closeAddPatientModal();
         if (event.target === scheduleModalEl) closeScheduleModal();
         if (event.target === manageModal) closeManageModal();
         if (event.target === rescheduleModal) closeRescheduleModal();
       });
+
+      <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient']) && $errorMsg !== ''): ?>
+      document.addEventListener('DOMContentLoaded', () => {
+        openAddPatientModal();
+      });
+      <?php endif; ?>
+
+      <?php if ($isBookingError && isset($_POST['add_appointment'])): ?>
+      document.addEventListener('DOMContentLoaded', () => {
+        openScheduleModal();
+        const prevPatient = <?php echo json_encode($_POST['patient_id'] ?? ''); ?>;
+        const prevDentist = <?php echo json_encode($_POST['dentist_id'] ?? ''); ?>;
+        const prevDate = <?php echo json_encode($_POST['appointment_date'] ?? ''); ?>;
+        const prevTime = <?php echo json_encode($_POST['appointment_time'] ?? ''); ?>;
+        if (prevPatient) document.getElementById('patient_id').value = prevPatient;
+        if (prevDentist) {
+          document.getElementById('dentist_id').value = prevDentist;
+          handleDentistChange();
+        }
+        if (prevDate) handleDateClick(prevDate);
+      });
+      <?php endif; ?>
   </script>
 </body>
 </html>

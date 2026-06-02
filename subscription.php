@@ -11,6 +11,7 @@ session_start();
 require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
+require_once __DIR__ . '/includes/tenant_tier_helper.php';
 require_once __DIR__ . '/includes/date_clock.php';
 
 function h(string $s): string {
@@ -277,10 +278,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             error_log('Auto-renew logging failed: ' . $e->getMessage());
                         }
                     }
-    } else {
-        $errorMessage = 'No active subscription record was found to update.';
-    }
-}
+                }
+                $update->close();
+            }
+        } else {
+            $errorMessage = 'No active subscription record was found to update.';
+        }
+    } // End if POST
+
 
 $displayPlanName = $subscription['plan_name'] ?? null;
 if (!$displayPlanName) {
@@ -382,6 +387,24 @@ function formatReadableDate(?string $date): string {
         <div class="left-column">
           <div class="subscription-card">
             <h2>Subscription Details</h2>
+            
+            <?php
+            $storageInfo = getTenantStorageUsageInfo($tenantId, $conn);
+            $storageUsedMb = formatBytesToMB($storageInfo['usage_bytes']);
+            $storageLimitMb = formatBytesToMB($storageInfo['limit_bytes'] ?? 0);
+            $storagePercent = $storageInfo['usage_percent'] ?? 0;
+            ?>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; margin-bottom: 18px;">
+                <h3 style="margin: 0 0 12px; font-size: 14px; color: #0d3b66;">Storage Usage (<?php echo h((string)$storagePercent); ?>%)</h3>
+                <div style="background: #e2e8f0; border-radius: 8px; height: 12px; width: 100%; overflow: hidden; margin-bottom: 8px;">
+                    <div style="background: <?php echo $storagePercent >= 90 ? '#ef4444' : '#0d3b66'; ?>; height: 100%; width: <?php echo h((string)$storagePercent); ?>%; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569;">
+                    <span><?php echo h($storageUsedMb); ?> used</span>
+                    <span><?php echo h($storageLimitMb); ?> total limit</span>
+                </div>
+            </div>
+
             <div class="subscription-grid">
               <div class="subscription-item">
                 <h3>Current Plan</h3>

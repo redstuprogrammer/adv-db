@@ -253,13 +253,13 @@ function getTenantStorageUsage(int $tenantId, $conn): int {
  * @return bool True if within limits
  */
 function isTenantWithinStorageLimit(int $tenantId, int $newFileSizeBytes, $conn): bool {
-    $limitGb = getTenantTierLimit($tenantId, 'max_storage_gb', $conn);
+    $limitMb = getTenantTierLimit($tenantId, 'max_storage_mb', $conn);
     
-    if ($limitGb === null) {
+    if ($limitMb === null) {
         return true; // No limit defined
     }
     
-    $limitBytes = (float)$limitGb * 1024 * 1024 * 1024;
+    $limitBytes = (float)$limitMb * 1024 * 1024;
     $currentUsage = getTenantStorageUsage($tenantId, $conn);
     
     return ($currentUsage + $newFileSizeBytes) <= $limitBytes;

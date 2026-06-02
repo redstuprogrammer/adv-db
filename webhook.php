@@ -44,12 +44,47 @@ if ($event_type === 'checkout_session.payment.paid') {
                 
                 if ($isInitial) {
                     $tId = $tRow['tenant_id'];
-                    $activateSql = "UPDATE tenants SET status = 'active' WHERE tenant_id = ? AND status = 'inactive'";
+                    $activateSql = "UPDATE tenants SET status = 'active' WHERE id = ? AND status = 'inactive'";
                     $aStmt = $conn->prepare($activateSql);
                     $aStmt->bind_param("i", $tId);
                     $aStmt->execute();
                     if ($aStmt->affected_rows > 0) {
                         error_log("SUCCESS: Tenant $tId activated after successful initial payment.");
+                        
+                        require_once __DIR__ . '/includes/onboarding_utils.php';
+                        
+                        // Fetch tenant details for email
+                        $infoQuery = "SELECT company_name, owner_name, contact_email, subdomain_slug FROM tenants WHERE id = ?";
+                        $iStmt = $conn->prepare($infoQuery);
+                        $iStmt->bind_param("i", $tId);
+                        $iStmt->execute();
+                        $iRow = $iStmt->get_result()->fetch_assoc();
+                        $iStmt->close();
+                        
+                        if ($iRow) {
+                            $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
+                            $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
+                            
+                            $updPass = $conn->prepare("UPDATE tenants SET password = ? WHERE id = ?");
+                            $updPass->bind_param("si", $hashed_password, $tId);
+                            $updPass->execute();
+                            $updPass->close();
+                            
+                            $login_url = buildTenantLoginUrl($iRow['subdomain_slug']);
+                            $emailResult = sendTenantOnboardingEmail([
+                                'clinic_name' => $iRow['company_name'],
+                                'owner_name' => $iRow['owner_name'],
+                                'owner_email' => $iRow['contact_email'],
+                                'temp_password' => $temp_password,
+                                'login_url' => $login_url
+                            ]);
+                            
+                            if (isset($emailResult['sent']) && $emailResult['sent']) {
+                                error_log("SUCCESS: Onboarding email sent to " . $iRow['contact_email']);
+                            } else {
+                                error_log("ERROR: Failed to send onboarding email - " . ($emailResult['error'] ?? 'Unknown error'));
+                            }
+                        }
                     }
                     $aStmt->close();
                 }

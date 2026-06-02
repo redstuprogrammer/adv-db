@@ -209,12 +209,13 @@ class OralSyncPDFGenerator {
         } else {
             $this->renderPeriodBadge($periodLabel);
         }
+        $this->renderReportMeta($paidData, $periodLabel, $context);
 
         $this->renderKeyMetrics($keyMetrics);
         $this->renderCharts($chartSVGs);
         $this->renderSummaryBar($paidData, $context);
         $this->renderTable($tableHeaders, $tableData, $tableTitle);
-        $this->renderTableTotals($paidData, count($tableHeaders));
+        $this->renderTableTotals($paidData, count($tableHeaders), $tableTitle);
         $this->renderPageFooter();
 
         return $this->pdf->Output('', 'S');
@@ -274,7 +275,7 @@ class OralSyncPDFGenerator {
         // Generated date
         $pdf->SetFont('dejavusans', '', 7.5);
         $pdf->SetXY(20, 20);
-        $pdf->Cell($pw, 8, 'Generated: ' . date('F j, Y  H:i'), 0, 0, 'R');
+        $pdf->Cell($pw, 8, 'Generated: ' . date('F j, Y  H:i') . ' ' . date('T'), 0, 0, 'R');
 
         // Report title
         $pdf->SetFont('dejavusans', '', 10);
@@ -357,6 +358,44 @@ class OralSyncPDFGenerator {
 
         $pdf->SetTextColor(30, 41, 59);
         $pdf->SetY($y + 15);
+    }
+
+    /**
+     * Metadata row to make reports more audit-ready without requiring new data fields.
+     */
+    private function renderReportMeta(array $data, string $periodLabel, string $context): void {
+        $pdf = $this->pdf;
+        $pw  = $pdf->getPageWidth() - 30;
+        $y   = $pdf->GetY() + 1;
+
+        $generatedAt = date('M d, Y H:i') . ' ' . date('T');
+        $rangeLabel  = $this->deriveCoverageRange($data);
+        $statusLabel = 'Paid only';
+        $scopeLabel  = $context === 'superadmin' ? 'System-wide sales' : 'Clinic sales';
+
+        $metaLeft  = "Scope: {$scopeLabel}  |  Period: {$periodLabel}";
+        $metaRight = "Coverage: {$rangeLabel}  |  Status: {$statusLabel}";
+
+        $pdf->SetFillColor(250, 252, 255);
+        $pdf->SetDrawColor(226, 232, 240);
+        $pdf->SetLineWidth(0.3);
+        $pdf->RoundedRect(15, $y, $pw, 13, 2, '1111', 'DF');
+
+        $pdf->SetFont('dejavusans', '', 7.2);
+        $pdf->SetTextColor(71, 85, 105);
+        $pdf->SetXY(20, $y + 2);
+        $pdf->Cell($pw - 10, 4.5, $metaLeft, 0, 0, 'L');
+
+        $pdf->SetXY(20, $y + 6.5);
+        $pdf->Cell($pw - 10, 4.5, $metaRight, 0, 0, 'L');
+
+        $pdf->SetFont('dejavusans', 'I', 7);
+        $pdf->SetTextColor(100, 116, 139);
+        $pdf->SetXY(20, $y + 2);
+        $pdf->Cell($pw - 10, 4.5, 'Report generated ' . $generatedAt, 0, 0, 'R');
+
+        $pdf->SetTextColor(30, 41, 59);
+        $pdf->SetY($y + 17);
     }
 
     private function renderKeyMetrics(array $metrics): void {
@@ -525,31 +564,30 @@ class OralSyncPDFGenerator {
 
         $this->renderSectionLabel($title);
 
-        $colW = array_fill(0, $n, $pw / $n);
-        if ($n === 5) {
-            $raw  = [38, 45, 40, 35, 22];
-            $sum  = array_sum($raw);
-            $colW = array_map(fn($c) => $c / $sum * $pw, $raw);
-        } elseif ($n === 4) {
-            $raw  = [38, 68, 42, 32];
-            $sum  = array_sum($raw);
-            $colW = array_map(fn($c) => $c / $sum * $pw, $raw);
-        }
+        $colW = $this->getColumnWidths($n, $pw);
 
         $drawHeader = function() use ($pdf, $headers, $colW, $n) {
             $pdf->SetFillColor(13, 59, 102);
             $pdf->SetTextColor(255, 255, 255);
-            $pdf->SetFont('dejavusans', 'B', 7.5);
-            $pdf->SetDrawColor(255, 255, 255);
-            $pdf->SetLineWidth(0.1);
+            $pdf->SetFont('dejavusans', 'B', 8.3);
+            $pdf->SetDrawColor(226, 232, 240);
+            $pdf->SetLineWidth(0.2);
             $x = 15;
             $y = $pdf->GetY();
+            $lineH = 4.2;
+            $maxLines = 1;
+            foreach ($headers as $ci => $h) {
+                $lines = max(1, $pdf->getNumLines((string)$h, max(8, $colW[$ci] - 2)));
+                if ($lines > $maxLines) $maxLines = $lines;
+            }
+            $headerH = max(8.5, $maxLines * $lineH + 1.5);
+
             foreach ($headers as $ci => $h) {
                 $pdf->SetXY($x, $y);
-                $pdf->Cell($colW[$ci], 8, strtoupper((string)$h), 0, 0, 'C', true);
+                $pdf->MultiCell($colW[$ci], $headerH, (string)$h, 0, 'C', true, 0, $x, $y, true, 0, false, true, $headerH, 'M');
                 $x += $colW[$ci];
             }
-            $pdf->Ln(8);
+            $pdf->SetY($y + $headerH);
         };
 
         $drawHeader();
@@ -563,30 +601,39 @@ class OralSyncPDFGenerator {
             return;
         }
 
-        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetFont('dejavusans', '', 8.6);
         $pdf->SetDrawColor(226, 232, 240);
         $pdf->SetLineWidth(0.2);
 
         $even = false;
         foreach ($rows as $row) {
-            if ($pdf->GetY() + 8 > $pdf->getPageHeight() - 25) {
+            $cells = array_values((array)$row);
+            while (count($cells) < $n) $cells[] = '';
+            $cells = array_slice($cells, 0, $n);
+
+            $lineH = 4.4;
+            $maxLines = 1;
+            foreach ($cells as $ci => $cell) {
+                $cellStr = $this->fitCellText((string)$cell, $ci, $n);
+                $lines = max(1, $pdf->getNumLines($cellStr, max(8, $colW[$ci] - 2)));
+                if ($lines > $maxLines) $maxLines = $lines;
+            }
+            $rowH = max(8.5, $maxLines * $lineH + 1.4);
+
+            if ($pdf->GetY() + $rowH > $pdf->getPageHeight() - 25) {
                 $pdf->AddPage();
                 $this->renderWatermark();
-                $this->renderContinuationBanner('Clinic Transactions (continued)');
+                $this->renderContinuationBanner($title . ' (continued)');
                 $drawHeader();
             }
 
             $even = !$even;
             $pdf->SetFillColor($even ? 248 : 255, $even ? 250 : 255, $even ? 252 : 255);
-
-            $cells = array_values((array)$row);
-            while (count($cells) < $n) $cells[] = '';
-            $cells = array_slice($cells, 0, $n);
             $x     = 15;
             $y     = $pdf->GetY();
 
             foreach ($cells as $ci => $cell) {
-                $cellStr = (string)$cell;
+                $cellStr = $this->fitCellText((string)$cell, $ci, $n);
                 if ($ci === $n - 1) {
                     $lower = strtolower($cellStr);
                     if (in_array($lower, ['paid', 'full payment', 'cash', 'gcash', 'card', 'online'])) {
@@ -601,10 +648,10 @@ class OralSyncPDFGenerator {
                 }
                 $align = ($ci === $n - 2) ? 'R' : 'L';
                 $pdf->SetXY($x, $y);
-                $pdf->Cell($colW[$ci], 8, $cellStr, 'B', 0, $align, true);
+                $pdf->MultiCell($colW[$ci], $rowH, $cellStr, 'B', $align, true, 0, $x, $y, true, 0, false, true, $rowH, 'M');
                 $x += $colW[$ci];
             }
-            $pdf->Ln(8);
+            $pdf->SetY($y + $rowH);
         }
 
         $pdf->SetTextColor(30, 41, 59);
@@ -613,7 +660,7 @@ class OralSyncPDFGenerator {
     }
 
     /** Grand total row pinned immediately after the last data row. */
-    private function renderTableTotals(array $data, int $colCount): void {
+    private function renderTableTotals(array $data, int $colCount, string $tableTitle = 'Transactions'): void {
         if (empty($data) || $colCount < 3) return;
         $pdf = $this->pdf;
         $pw  = $pdf->getPageWidth() - 30;
@@ -627,20 +674,10 @@ class OralSyncPDFGenerator {
         if ($pdf->GetY() + 10 > $pdf->getPageHeight() - 25) {
             $pdf->AddPage();
             $this->renderWatermark();
-            $this->renderContinuationBanner('Clinic Transactions (continued)');
+            $this->renderContinuationBanner($tableTitle . ' (continued)');
         }
 
-        // Column widths match renderTable for n=4
-        $colW = array_fill(0, $colCount, $pw / $colCount);
-        if ($colCount === 4) {
-            $raw  = [38, 68, 42, 32];
-            $sum  = array_sum($raw);
-            $colW = array_map(fn($c) => $c / $sum * $pw, $raw);
-        } elseif ($colCount === 5) {
-            $raw  = [38, 45, 40, 35, 22];
-            $sum  = array_sum($raw);
-            $colW = array_map(fn($c) => $c / $sum * $pw, $raw);
-        }
+        $colW = $this->getColumnWidths($colCount, $pw);
 
         $pdf->SetFillColor(13, 59, 102);
         $pdf->SetTextColor(255, 255, 255);
@@ -659,9 +696,9 @@ class OralSyncPDFGenerator {
         $pdf->Cell($colW[$colCount - 2], 9, '₱' . number_format($total, 2), 0, 0, 'R', true);
         $x += $colW[$colCount - 2];
 
-        // Last column blank
+        // Last column shows completion marker for cleaner presentation
         $pdf->SetXY($x, $y);
-        $pdf->Cell($colW[$colCount - 1], 9, '', 0, 0, 'L', true);
+        $pdf->Cell($colW[$colCount - 1], 9, 'Complete', 0, 0, 'C', true);
 
         $pdf->Ln(9);
         $pdf->SetTextColor(30, 41, 59);
@@ -687,7 +724,7 @@ class OralSyncPDFGenerator {
 
         $pdf->SetFont('dejavusans', '', 7.5);
         $pdf->SetXY(20, 20);
-        $pdf->Cell($pw, 6, 'OralSync  |  Generated: ' . date('F j, Y'), 0, 0, 'R');
+        $pdf->Cell($pw, 6, 'OralSync  |  Generated: ' . date('F j, Y') . ' ' . date('T'), 0, 0, 'R');
 
         $pdf->SetTextColor(30, 41, 59);
         $pdf->SetY(34);
@@ -732,6 +769,60 @@ class OralSyncPDFGenerator {
         $pdf->Cell($pw - 6, 6, strtoupper($label), 0, 0, 'L');
         $pdf->Ln(10);
         $pdf->SetTextColor(30, 41, 59);
+    }
+
+    private function deriveCoverageRange(array $data): string {
+        if (empty($data)) return 'No records';
+        $timestamps = [];
+        foreach ($data as $row) {
+            $raw = $row['payment_date'] ?? $row['billing_date'] ?? $row['appointment_date'] ?? $row['date'] ?? null;
+            if ($raw) {
+                $ts = strtotime((string)$raw);
+                if ($ts !== false) $timestamps[] = $ts;
+            }
+        }
+        if (empty($timestamps)) return 'No dated records';
+        sort($timestamps);
+        $start = date('M d, Y', $timestamps[0]);
+        $end   = date('M d, Y', $timestamps[count($timestamps) - 1]);
+        return $start . ' to ' . $end;
+    }
+
+    private function getColumnWidths(int $count, float $pageWidth): array {
+        $colW = array_fill(0, $count, $pageWidth / max(1, $count));
+        if ($count === 5) {
+            $raw  = [36, 52, 34, 34, 24];
+            $sum  = array_sum($raw);
+            $colW = array_map(fn($c) => $c / $sum * $pageWidth, $raw);
+        } elseif ($count === 4) {
+            $raw  = [36, 72, 38, 30];
+            $sum  = array_sum($raw);
+            $colW = array_map(fn($c) => $c / $sum * $pageWidth, $raw);
+        }
+        return $colW;
+    }
+
+    private function fitCellText(string $value, int $colIndex, int $colCount): string {
+        $clean = preg_replace('/\s+/', ' ', trim($value)) ?? '';
+        $maxChars = 40;
+        if ($colCount === 5) {
+            $maxChars = match($colIndex) {
+                0 => 16,
+                1 => 42,
+                2 => 20,
+                3 => 16,
+                default => 16,
+            };
+        } elseif ($colCount === 4) {
+            $maxChars = match($colIndex) {
+                0 => 16,
+                1 => 44,
+                2 => 16,
+                default => 18,
+            };
+        }
+        if (strlen($clean) <= $maxChars) return $clean;
+        return substr($clean, 0, max(1, $maxChars - 1)) . '...';
     }
 
     // =========================================================================

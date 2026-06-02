@@ -9,6 +9,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
 require_once __DIR__ . '/includes/tenant_tier_helper.php';
 require_once __DIR__ . '/includes/date_clock.php';
+require_once __DIR__ . '/includes/patient_welcome_email.php';
 
 function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
@@ -95,6 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
         }
 
         if ($errorMsg === '') {
+            $tempPassword = trim($_POST['temp_password'] ?? '');
+            if ($tempPassword === '') {
+                $tempPassword = bin2hex(random_bytes(4));
+            }
+            $passwordHash = password_hash($tempPassword, PASSWORD_DEFAULT);
+            $username = $usernameInput;
+
             $maxIdStmt = $conn->prepare('SELECT MAX(tenant_patient_id) FROM patient WHERE tenant_id = ?');
             if ($maxIdStmt) {
                 $maxIdStmt->bind_param('i', $tenantId);
@@ -105,21 +113,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
             }
 
             $newTenantPatientId = (($maxIdRow['MAX(tenant_patient_id)'] ?? 0) + 1);
-            $passwordHash = password_hash(trim($_POST['temp_password'] ?? bin2hex(random_bytes(4))), PASSWORD_DEFAULT);
 
             $insertStmt = $conn->prepare('INSERT INTO patient (tenant_id, tenant_patient_id, first_name, last_name, contact_number, email, birthdate, gender, address, username, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             if ($insertStmt) {
-                $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $usernameInput, $passwordHash);
+                $insertStmt->bind_param('iisssssssss', $tenantId, $newTenantPatientId, $firstName, $lastName, $contactNumber, $email, $birthdate, $gender, $address, $username, $passwordHash);
                 if ($insertStmt->execute()) {
-                    $successMsg = 'Patient added successfully.';
-                    // Log patient creation (privacy-safe)
                     $newPatientId = $conn->insert_id ?? null;
                     if ($newPatientId) {
-                      $desc = safeDesc('Created', 'Patient', $newPatientId, ['tenant_patient_id' => $newTenantPatientId]);
-                      logTenantActivity($conn, $tenantId, 'Created', $desc);
+                        try {
+                            $desc = safeDesc('Created', 'Patient', $newPatientId, ['tenant_patient_id' => $newTenantPatientId, 'patient_name' => $firstName . ' ' . $lastName]);
+                            logTenantActivity($conn, $tenantId, 'Created', $desc);
+                        } catch (Exception $e) {
+                            error_log('Patient creation logging failed: ' . $e->getMessage());
+                        }
+                    }
+
+                    if (!empty($email)) {
+                        sendPatientWelcomeEmail($email, $firstName, $lastName, $username, $tempPassword, $tenantName, $tenantSlug);
+                        $successMsg = 'Patient added successfully. A welcome email with the temporary password has been sent to ' . h($email) . '.';
+                    } else {
+                        $successMsg = 'Patient added successfully.';
                     }
                 } else {
                     $errorMsg = 'Unable to add patient. DB Error: ' . $conn->error;
+                    error_log("Patient add failed for tenant $tenantId: " . $conn->error);
                 }
                 $insertStmt->close();
             } else {
@@ -446,6 +463,26 @@ if (isset($_GET['view_patient_id'])) {
         align-items: center;
       }
 
+      .modal-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--accent);
+        margin: 0;
+      }
+
+      .modal-close {
+        font-size: 28px;
+        cursor: pointer;
+        color: #94a3b8;
+        border: none;
+        background: none;
+        line-height: 1;
+      }
+
+      .modal-close:hover {
+        color: var(--accent);
+      }
+
       .form-group {
         margin-bottom: 12px;
       }
@@ -526,22 +563,23 @@ if (isset($_GET['view_patient_id'])) {
         color: var(--accent);
       }
 
-      .success-msg {
-        display: none;
-        padding: 12px;
-        background: rgba(16, 185, 129, 0.1);
-        color: #10b981;
-        border-radius: 8px;
-        margin-bottom: 16px;
+      .message {
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        font-size: 14px;
       }
 
-      .error-msg {
-        display: none;
-        padding: 12px;
-        background: rgba(239, 68, 68, 0.1);
-        color: #ef4444;
-        border-radius: 8px;
-        margin-bottom: 16px;
+      .message.success {
+        background: #ecfdf5;
+        color: #115e59;
+        border: 1px solid #a7f3d0;
+      }
+
+      .message.error {
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
       }
 
       .empty-state {
@@ -624,11 +662,11 @@ if (isset($_GET['view_patient_id'])) {
       </div>
 
       <div class="module-card">
-        <?php if ($successMsg): ?>
-          <div class="success-msg" style="display: block;"><?php echo h($successMsg); ?></div>
+        <?php if ($successMsg !== ''): ?>
+          <div class="message success"><?php echo h($successMsg); ?></div>
         <?php endif; ?>
-        <?php if ($errorMsg): ?>
-          <div class="error-msg" style="display: block;"><?php echo h($errorMsg); ?></div>
+        <?php if ($errorMsg !== ''): ?>
+          <div class="message error"><?php echo h($errorMsg); ?></div>
         <?php endif; ?>
 
         <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:16px;">
@@ -771,10 +809,10 @@ if (isset($_GET['view_patient_id'])) {
   <div id="addPatientModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <span>Add Patient</span>
-        <button class="close" type="button" onclick="closeAddPatientModal()">&times;</button>
+        <h2 class="modal-title">Add Patient</h2>
+        <button class="modal-close" type="button" onclick="closeAddPatientModal()">&times;</button>
       </div>
-      <form method="POST" action="patients.php?tenant=<?php echo urlencode($tenantSlug); ?>">
+      <form method="POST" class="patient-form">
         <div class="form-row">
           <div class="form-group required">
             <label for="first_name">First Name</label>
@@ -790,38 +828,35 @@ if (isset($_GET['view_patient_id'])) {
             <label for="contact_number">Contact Number</label>
             <input type="text" id="contact_number" name="contact_number" required>
           </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email">
+          <div class="form-group required">
+            <label for="patient_username">Username</label>
+            <input type="text" id="patient_username" name="patient_username" required placeholder="e.g. juan.delacruz">
+            <small style="color: #666;">Used for patient portal login. Must be unique.</small>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email">
+          </div>
+          <div class="form-group">
             <label for="birthdate">Birthdate</label>
             <input type="date" id="birthdate" name="birthdate">
           </div>
+        </div>
+        <div class="form-row">
           <div class="form-group">
             <label for="gender">Gender</label>
             <select id="gender" name="gender">
-              <option value="">Select gender</option>
+              <option value="">-- Select Gender --</option>
               <option value="Male">Male</option>
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
           </div>
-        </div>
-        <div class="form-group">
-          <label for="address">Address</label>
-          <textarea id="address" name="address"></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group required">
-            <label for="patient_username">Username</label>
-            <input type="text" id="patient_username" name="patient_username" required>
-          </div>
           <div class="form-group">
-            <label for="temp_password">Temporary Password</label>
-            <input type="text" id="temp_password" name="temp_password" placeholder="Leave blank to auto-generate">
+             <label for="address">Address</label>
+             <input type="text" id="address" name="address">
           </div>
         </div>
         <div class="form-actions">
@@ -845,11 +880,15 @@ if (isset($_GET['view_patient_id'])) {
     }
 
     function openAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'flex';
+      const form = document.querySelector('.patient-form');
+      if (form) form.reset();
+      const modal = document.getElementById('addPatientModal');
+      if (modal) modal.classList.add('active');
     }
 
     function closeAddPatientModal() {
-      document.getElementById('addPatientModal').style.display = 'none';
+      const modal = document.getElementById('addPatientModal');
+      if (modal) modal.classList.remove('active');
     }
 
     function filterPatients() {
@@ -868,6 +907,12 @@ if (isset($_GET['view_patient_id'])) {
         closeAddPatientModal();
       }
     }
+
+    <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient']) && $errorMsg !== ''): ?>
+    document.addEventListener('DOMContentLoaded', () => {
+      openAddPatientModal();
+    });
+    <?php endif; ?>
   </script>
 </body>
 </html>

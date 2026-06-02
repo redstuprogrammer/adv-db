@@ -14,52 +14,157 @@ require_once ROOT_PATH . 'includes/session_utils.php';
 $sessionManager = SessionManager::getInstance();
 $sessionManager->requireSuperAdmin();
 require_once ROOT_PATH . 'includes/connect.php';
+require_once ROOT_PATH . 'includes/onboarding_utils.php';
+require_once ROOT_PATH . 'includes/subscription_tiers.php';
 
 $message = '';
 $alertType = 'info';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $queueId = intval($_POST['queue_id'] ?? 0);
+    $tenantId = intval($_POST['tenant_id'] ?? 0);
     $action = $_POST['action'] ?? '';
     $adminNotes = trim($_POST['admin_notes'] ?? '');
 
-    if ($queueId > 0 && in_array($action, ['approve', 'reject'], true)) {
-        $newStatus = $action === 'approve' ? 'APPROVED' : 'REJECTED';
-        $tenantStatus = $action === 'approve' ? 'APPROVED' : 'PENDING_ADMIN_REVIEW';
-
-        $stmt = $conn->prepare("SELECT tenant_id, clinic_name FROM document_review_queue WHERE id = ? LIMIT 1");
-        $stmt->bind_param('i', $queueId);
+    if ($tenantId > 0 && in_array($action, ['approve', 'reject'], true)) {
+        
+        $stmt = $conn->prepare("SELECT id, company_name, owner_name, contact_email, subscription_tier, subscription_duration, registration_status FROM tenants WHERE id = ? LIMIT 1");
+        $stmt->bind_param('i', $tenantId);
         $stmt->execute();
-        $queueRow = $stmt->get_result()->fetch_assoc();
+        $tenantRow = $stmt->get_result()->fetch_assoc();
         $stmt->close();
 
-        if ($queueRow) {
-            $tenantId = intval($queueRow['tenant_id']);
-            $updateQueue = $conn->prepare(
-                "UPDATE document_review_queue SET status = ?, reviewed_at = NOW(), reviewed_by_admin_id = ?, admin_notes = ? WHERE id = ?"
-            );
-            $adminId = $sessionManager->getUserId() ?? 0;
-            $updateQueue->bind_param('sisi', $newStatus, $adminId, $adminNotes, $queueId);
-            if ($updateQueue->execute()) {
-                if ($tenantId > 0) {
-                    $updateTenant = $conn->prepare(
-                        "UPDATE tenants SET registration_status = ? WHERE id = ?"
-                    );
-                    $updateTenant->bind_param('si', $tenantStatus, $tenantId);
-                    $updateTenant->execute();
-                    $updateTenant->close();
+        if ($tenantRow && $tenantRow['registration_status'] === 'PENDING') {
+            if ($action === 'approve') {
+                $tier = $tenantRow['subscription_tier'];
+                $duration = (int)$tenantRow['subscription_duration'];
+                
+                $tier_data = getTierByKey($tier);
+                $monthly_amount = $tier_data['price_min'] ?? 0;
+                $total_amount = $monthly_amount * $duration;
+
+                $payment_status = ($tier === 'trial' || $total_amount <= 0) ? 'paid' : 'pending';
+                $registration_status_final = 'APPROVED';
+                
+                // Update tenant
+                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ? WHERE id = ?");
+                $updateTenant->bind_param('si', $registration_status_final, $tenantId);
+                $updateTenant->execute();
+                $updateTenant->close();
+
+                $paymongo_url = null;
+                $paymongo_session_id = null;
+
+                if ($payment_status === 'pending') {
+                    $pm_config = null;
+                    $config_candidates = [
+                        __DIR__ . '/config/paymongo.php',
+                        $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
+                    ];
+                    foreach ($config_candidates as $path) {
+                        if (file_exists($path)) {
+                            $pm_config = require $path;
+                            break;
+                        }
+                    }
+                    $secret = ($pm_config && isset($pm_config['secret_key'])) ? $pm_config['secret_key'] : (getenv('PAYMONGO_SECRET_KEY') ?: '');
+                    
+                    if ($secret) {
+                        $auth = base64_encode($secret . ':');
+                        $amount_centavos = (int) round($total_amount * 100);
+                        $description = "OralSync Subscription: " . ucfirst($tier) . " ($duration months)";
+                        
+                        $payload = json_encode([
+                            'data' => [
+                                'attributes' => [
+                                    'payment_method_types' => ['gcash', 'card', 'paymaya', 'grab_pay'],
+                                    'line_items' => [[
+                                        'currency'    => 'PHP',
+                                        'amount'      => $amount_centavos,
+                                        'description' => $description,
+                                        'name'        => 'OralSync - ' . ucfirst($tier) . ' Plan',
+                                        'quantity'    => 1,
+                                    ]],
+                                    'description' => $description,
+                                    'send_email_receipt' => true,
+                                    'metadata' => [
+                                        'tenant_id' => (string)$tenantId,
+                                        'tier_key' => $tier,
+                                        'type' => 'initial_registration',
+                                        'duration' => (string)$duration
+                                    ]
+                                ],
+                            ],
+                        ]);
+
+                        $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
+                        curl_setopt_array($ch, [
+                            CURLOPT_POST           => true,
+                            CURLOPT_POSTFIELDS     => $payload,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_HTTPHEADER     => [
+                                'Authorization: Basic ' . $auth,
+                                'Content-Type: application/json',
+                                'Accept: application/json',
+                            ],
+                        ]);
+
+                        $pm_response = curl_exec($ch);
+                        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+
+                        if ($http_code === 200) {
+                            $pm_data = json_decode($pm_response, true);
+                            $paymongo_url = $pm_data['data']['attributes']['checkout_url'] ?? null;
+                            $paymongo_session_id = $pm_data['data']['id'] ?? null;
+                        } else {
+                            error_log("PayMongo API Error (HTTP $http_code): " . $pm_response);
+                        }
+                    }
                 }
-                $message = $action === 'approve'
-                    ? 'Document review approved and tenant registration status updated.'
-                    : 'Document review rejected. Tenant remains pending admin verification.';
-                $alertType = $action === 'approve' ? 'success' : 'warning';
-            } else {
-                $message = 'Unable to update the review request. Please try again.';
-                $alertType = 'danger';
+
+                // Update payment record
+                if ($paymongo_session_id) {
+                    $updPay = $conn->prepare("UPDATE payment SET paymongo_link_id = ? WHERE tenant_id = ? AND status = 'pending' AND paymongo_link_id IS NULL");
+                    if ($updPay) {
+                        $updPay->bind_param('si', $paymongo_session_id, $tenantId);
+                        $updPay->execute();
+                        $updPay->close();
+                    }
+                }
+
+                // Send email
+                if ($paymongo_url) {
+                    sendTenantApprovalEmail([
+                        'clinic_name' => $tenantRow['company_name'],
+                        'owner_name' => $tenantRow['owner_name'],
+                        'owner_email' => $tenantRow['contact_email'],
+                        'payment_url' => $paymongo_url
+                    ]);
+                }
+
+                $message = 'Application approved and payment link sent to the tenant.';
+                $alertType = 'success';
+
+            } else if ($action === 'reject') {
+                $registration_status_final = 'REJECTED';
+                $status = 'archived';
+
+                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ?, status = ? WHERE id = ?");
+                $updateTenant->bind_param('ssi', $registration_status_final, $status, $tenantId);
+                $updateTenant->execute();
+                $updateTenant->close();
+
+                sendTenantRejectionEmail([
+                    'clinic_name' => $tenantRow['company_name'],
+                    'owner_name' => $tenantRow['owner_name'],
+                    'owner_email' => $tenantRow['contact_email']
+                ]);
+
+                $message = 'Application rejected and notification sent to the tenant.';
+                $alertType = 'warning';
             }
-            $updateQueue->close();
         } else {
-            $message = 'Review request not found.';
+            $message = 'Tenant not found or already processed.';
             $alertType = 'danger';
         }
     } else {
@@ -69,10 +174,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $reviewRequests = [];
-$query = "SELECT q.*, t.company_name, t.subdomain_slug, t.contact_email, t.phone, t.owner_name, t.status AS tenant_status, t.registration_status
-          FROM document_review_queue q
-          LEFT JOIN tenants t ON t.id = q.tenant_id
-          ORDER BY FIELD(q.status, 'PENDING', 'APPROVED', 'REJECTED'), q.created_at DESC";
+$query = "SELECT t.id AS tenant_id, t.company_name, t.subdomain_slug, t.contact_email, t.phone, t.owner_name, t.status AS tenant_status, t.registration_status, t.subscription_tier, t.subscription_duration
+          FROM tenants t
+          WHERE t.registration_status IN ('PENDING', 'APPROVED', 'REJECTED')
+          ORDER BY FIELD(t.registration_status, 'PENDING', 'APPROVED', 'REJECTED'), t.id DESC";
 $result = $conn->query($query);
 if ($result) {
     while ($row = $result->fetch_assoc()) {
@@ -106,7 +211,6 @@ if ($result) {
         .status-box.warning { background: #fef3c7; color: #92400e; border-color: #fde68a; }
         .status-box.danger { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
         .status-box.info { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-        .code-block { white-space: pre-wrap; word-break: break-word; background: #f8fafc; padding: 14px; border-radius: 14px; border: 1px solid #e2e8f0; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -114,8 +218,8 @@ if ($result) {
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <p class="text-sm text-slate-500 uppercase tracking-[0.3em] mb-2">Superadmin</p>
-                <h1 class="text-3xl font-bold text-slate-900">Document Review Queue</h1>
-                <p class="text-slate-600 mt-2 max-w-2xl">Review OCR verification cases flagged for manual approval or rejection.</p>
+                <h1 class="text-3xl font-bold text-slate-900">Registration Approvals</h1>
+                <p class="text-slate-600 mt-2 max-w-2xl">Review new clinic applications and documents.</p>
             </div>
             <div class="flex flex-wrap gap-3">
                 <a href="superadmin_dash.php" class="px-5 py-3 text-sm font-semibold bg-slate-900 text-white rounded-xl hover:bg-slate-700">Back to Dashboard</a>
@@ -129,60 +233,43 @@ if ($result) {
         <?php endif; ?>
 
         <div class="review-card">
-            <h2 class="text-xl font-bold text-slate-900 mb-4">Queued Requests</h2>
+            <h2 class="text-xl font-bold text-slate-900 mb-4">Clinic Applications</h2>
 
             <?php if (empty($reviewRequests)): ?>
-                <div class="status-box info">There are no document review requests at this time.</div>
+                <div class="status-box info">There are no pending applications at this time.</div>
             <?php else: ?>
                 <table class="review-table">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Clinic / Tenant</th>
+                            <th># ID</th>
+                            <th>Clinic / Tenant Info</th>
                             <th>Status</th>
-                            <th>Reason</th>
-                            <th>Admin Notes</th>
-                            <th>Model Output</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($reviewRequests as $request): ?>
                             <?php
-                                $modelOutput = null;
-                                if (!empty($request['model_output'])) {
-                                    $decoded = json_decode($request['model_output'], true);
-                                    if (json_last_error() === JSON_ERROR_NONE) {
-                                        $modelOutput = json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-                                    } else {
-                                        $modelOutput = $request['model_output'];
-                                    }
-                                }
-                                $statusClass = strtolower($request['status']);
+                                $statusClass = strtolower($request['registration_status']);
 
                                 // Fetch uploaded tenant documents for preview (if any)
                                 $tenantDocs = [];
-                                $tenantId = intval($request['tenant_id'] ?? 0);
-                                if ($tenantId > 0) {
-                                    $docsStmt = $conn->prepare("SELECT id, document_name, file_path, file_type FROM tenant_documents WHERE tenant_id = ? ORDER BY id DESC");
-                                    if ($docsStmt) {
-                                        $docsStmt->bind_param('i', $tenantId);
-                                        $docsStmt->execute();
-                                        $docsResult = $docsStmt->get_result();
-                                        while ($d = $docsResult->fetch_assoc()) {
-                                            $tenantDocs[] = $d;
-                                        }
-                                        $docsStmt->close();
+                                $tenantId = intval($request['tenant_id']);
+                                $docsStmt = $conn->prepare("SELECT id, document_name, file_path, file_type FROM tenant_documents WHERE tenant_id = ? ORDER BY id DESC");
+                                if ($docsStmt) {
+                                    $docsStmt->bind_param('i', $tenantId);
+                                    $docsStmt->execute();
+                                    $docsResult = $docsStmt->get_result();
+                                    while ($d = $docsResult->fetch_assoc()) {
+                                        $tenantDocs[] = $d;
                                     }
+                                    $docsStmt->close();
                                 }
                             ?>
                             <tr>
-                                <td class="align-top text-sm text-slate-700"><?php echo (int)$request['id']; ?></td>
+                                <td class="align-top text-sm text-slate-700"><?php echo (int)$request['tenant_id']; ?></td>
                                 <td class="align-top text-sm text-slate-700">
-                                    <div class="font-semibold"><?php echo htmlspecialchars($request['clinic_name'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <?php if (!empty($request['company_name'])): ?>
-                                        <div class="text-xs text-slate-500">Tenant: <?php echo htmlspecialchars($request['company_name'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <?php endif; ?>
+                                    <div class="font-semibold"><?php echo htmlspecialchars($request['company_name'], ENT_QUOTES, 'UTF-8'); ?></div>
                                     <?php if (!empty($request['subdomain_slug'])): ?>
                                         <div class="text-xs text-slate-500">Slug: <?php echo htmlspecialchars($request['subdomain_slug'], ENT_QUOTES, 'UTF-8'); ?></div>
                                     <?php endif; ?>
@@ -195,12 +282,10 @@ if ($result) {
                                     <?php if (!empty($request['phone'])): ?>
                                         <div class="text-xs text-slate-500">Phone: <?php echo htmlspecialchars($request['phone'], ENT_QUOTES, 'UTF-8'); ?></div>
                                     <?php endif; ?>
-                                    <?php if (!empty($request['tenant_status'])): ?>
-                                        <div class="text-xs text-slate-500">Tenant Status: <?php echo htmlspecialchars($request['tenant_status'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                    <?php if (!empty($request['subscription_tier'])): ?>
+                                        <div class="text-xs text-slate-500">Tier: <?php echo htmlspecialchars($request['subscription_tier'], ENT_QUOTES, 'UTF-8'); ?> (<?php echo (int)$request['subscription_duration']; ?> months)</div>
                                     <?php endif; ?>
-                                    <?php if (!empty($request['registration_status'])): ?>
-                                        <div class="text-xs text-slate-500">Registration Status: <?php echo htmlspecialchars($request['registration_status'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <?php endif; ?>
+                                    
                                     <div class="mt-2 text-xs text-slate-600">Documents:</div>
                                     <div class="mt-1 flex flex-wrap gap-2">
                                         <?php if (!empty($tenantDocs)): ?>
@@ -222,31 +307,22 @@ if ($result) {
                                     </div>
                                 </td>
                                 <td class="align-top">
-                                    <span class="review-chip <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($request['status'], ENT_QUOTES, 'UTF-8'); ?></span>
-                                    <div class="text-xs text-slate-500 mt-1">Created: <?php echo htmlspecialchars($request['created_at'], ENT_QUOTES, 'UTF-8'); ?></div>
-                                </td>
-                                <td class="align-top text-sm text-slate-700"><?php echo nl2br(htmlspecialchars($request['reason'] ?? 'No reason provided.', ENT_QUOTES, 'UTF-8')); ?></td>
-                                <td class="align-top text-sm text-slate-700"><?php echo nl2br(htmlspecialchars($request['admin_notes'] ?? '-', ENT_QUOTES, 'UTF-8')); ?></td>
-                                <td class="align-top text-sm text-slate-700">
-                                    <?php if ($modelOutput): ?>
-                                        <div class="code-block"><?php echo htmlspecialchars($modelOutput, ENT_QUOTES, 'UTF-8'); ?></div>
-                                    <?php else: ?>
-                                        <span class="text-slate-500">No output available.</span>
+                                    <span class="review-chip <?php echo htmlspecialchars($statusClass, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($request['registration_status'], ENT_QUOTES, 'UTF-8'); ?></span>
+                                    <?php if ($request['tenant_status'] === 'archived'): ?>
+                                        <br><span class="text-xs text-rose-600 font-bold">Archived</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="align-top">
-                                    <?php if ($request['status'] === 'PENDING'): ?>
+                                    <?php if ($request['registration_status'] === 'PENDING'): ?>
                                         <form method="post" class="space-y-3">
-                                            <input type="hidden" name="queue_id" value="<?php echo (int)$request['id']; ?>">
-                                            <label class="block text-xs text-slate-500">Admin notes (optional)</label>
-                                            <textarea name="admin_notes" class="review-textarea" placeholder="Enter notes for this decision..."><?php echo htmlspecialchars($request['admin_notes'] ?? '', ENT_QUOTES, 'UTF-8'); ?></textarea>
+                                            <input type="hidden" name="tenant_id" value="<?php echo (int)$request['tenant_id']; ?>">
                                             <div class="review-actions">
                                                 <button type="submit" name="action" value="approve" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">Approve</button>
                                                 <button type="submit" name="action" value="reject" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700">Reject</button>
                                             </div>
                                         </form>
                                     <?php else: ?>
-                                        <span class="text-sm text-slate-500">Review completed.</span>
+                                        <span class="text-sm text-slate-500">Processed.</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>

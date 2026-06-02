@@ -164,3 +164,192 @@ HTML;
         return ['sent' => false, 'error' => $e->getMessage()];
     }
 }
+
+function sendTenantApprovalEmail(array $params): array {
+    $smtpHost = envOrNull('SMTP_HOST');
+    $smtpPort = envOrNull('SMTP_PORT');
+    $smtpUser = envOrNull('SMTP_USERNAME');
+    $smtpPass = envOrNull('SMTP_PASSWORD');
+    $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
+    $fromName = envOrNull('SMTP_FROM_NAME') ?? 'OralSync';
+
+    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass || !$fromEmail) {
+        return ['sent' => false, 'error' => 'SMTP settings are missing.'];
+    }
+
+    $autoloadPath = dirname(__DIR__) . '/vendor/autoload.php';
+    if (!file_exists($autoloadPath)) {
+        return ['sent' => false, 'error' => 'PHPMailer is not installed.'];
+    }
+
+    require_once $autoloadPath;
+
+    $clinicName = (string)($params['clinic_name'] ?? '');
+    $ownerName = (string)($params['owner_name'] ?? '');
+    $ownerEmail = (string)($params['owner_email'] ?? '');
+    $paymentUrl = (string)($params['payment_url'] ?? '');
+
+    if ($clinicName === '' || $ownerEmail === '' || $paymentUrl === '') {
+        return ['sent' => false, 'error' => 'Email parameters are incomplete.'];
+    }
+
+    $safeClinic = htmlspecialchars($clinicName, ENT_QUOTES, 'UTF-8');
+    $safeOwner = htmlspecialchars($ownerName ?: 'Clinic Owner', ENT_QUOTES, 'UTF-8');
+    $safePaymentUrl = htmlspecialchars($paymentUrl, ENT_QUOTES, 'UTF-8');
+
+    $subject = "Your OralSync Application is Approved!";
+
+    $html = <<<HTML
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>OralSync Application Approved</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+    <div style="padding:24px 12px;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
+          <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
+          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Application Approved</div>
+        </div>
+
+        <div style="padding:22px;">
+          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
+            Hi <strong>{$safeOwner}</strong>,<br />
+            Congratulations! Your clinic <strong>{$safeClinic}</strong> has been approved for OralSync.
+          </div>
+
+          <div style="margin-top:16px;padding:14px 14px;border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;">
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Complete your subscription payment below to activate your account.</div>
+            <div style="margin-top:14px;">
+              <a href="{$safePaymentUrl}" style="display:inline-block;background:#0d3b66;color:#ffffff;text-decoration:none;font-weight:800;padding:10px 14px;border-radius:999px;">Pay via PayMongo</a>
+            </div>
+            <div style="margin-top:8px;color:#64748b;font-size:12px;">
+              Alternatively, you can copy this link: <br/>{$safePaymentUrl}
+            </div>
+          </div>
+
+          <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
+            <div style="font-weight:800;color:#0d3b66;margin-bottom:6px;">Next steps</div>
+            <ul style="margin:0;padding-left:18px;">
+              <li>Complete your payment using the link above.</li>
+              <li>Once payment is successful, you will receive another email with your login portal and temporary password.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+HTML;
+
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = (int)$smtpPort;
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($ownerEmail, $ownerName ?: $ownerEmail);
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $html;
+        $mail->AltBody = "Congratulations! Your clinic {$clinicName} has been approved.\n\nPlease complete your subscription payment here: {$paymentUrl}\n\nOnce paid, you will receive your login details.";
+
+        $mail->send();
+        return ['sent' => true];
+    } catch (Throwable $e) {
+        return ['sent' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function sendTenantRejectionEmail(array $params): array {
+    $smtpHost = envOrNull('SMTP_HOST');
+    $smtpPort = envOrNull('SMTP_PORT');
+    $smtpUser = envOrNull('SMTP_USERNAME');
+    $smtpPass = envOrNull('SMTP_PASSWORD');
+    $fromEmail = envOrNull('SMTP_FROM_EMAIL') ?? $smtpUser;
+    $fromName = envOrNull('SMTP_FROM_NAME') ?? 'OralSync';
+
+    if (!$smtpHost || !$smtpPort || !$smtpUser || !$smtpPass || !$fromEmail) {
+        return ['sent' => false, 'error' => 'SMTP settings are missing.'];
+    }
+
+    $autoloadPath = dirname(__DIR__) . '/vendor/autoload.php';
+    if (!file_exists($autoloadPath)) {
+        return ['sent' => false, 'error' => 'PHPMailer is not installed.'];
+    }
+
+    require_once $autoloadPath;
+
+    $clinicName = (string)($params['clinic_name'] ?? '');
+    $ownerName = (string)($params['owner_name'] ?? '');
+    $ownerEmail = (string)($params['owner_email'] ?? '');
+
+    if ($clinicName === '' || $ownerEmail === '') {
+        return ['sent' => false, 'error' => 'Email parameters are incomplete.'];
+    }
+
+    $safeClinic = htmlspecialchars($clinicName, ENT_QUOTES, 'UTF-8');
+    $safeOwner = htmlspecialchars($ownerName ?: 'Clinic Owner', ENT_QUOTES, 'UTF-8');
+
+    $subject = "Update on Your OralSync Application";
+
+    $html = <<<HTML
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>OralSync Application Disapproved</title>
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
+    <div style="padding:24px 12px;">
+      <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+        <div style="padding:20px 22px;background:linear-gradient(135deg,#0d3b66,#0f172a);color:#fff;">
+          <div style="font-weight:800;letter-spacing:0.2px;font-size:18px;">OralSync</div>
+          <div style="opacity:0.9;margin-top:4px;font-size:13px;">Application Update</div>
+        </div>
+
+        <div style="padding:22px;">
+          <div style="font-size:14px;color:#0f172a;line-height:1.6;">
+            Hi <strong>{$safeOwner}</strong>,<br />
+            We regret to inform you that your clinic application for <strong>{$safeClinic}</strong> has been disapproved.
+          </div>
+          <div style="margin-top:16px;font-size:13px;color:#0f172a;line-height:1.6;">
+            If you have any questions or feel this was in error, please contact our support team.
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+HTML;
+
+    try {
+        $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = (int)$smtpPort;
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->addAddress($ownerEmail, $ownerName ?: $ownerEmail);
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $html;
+        $mail->AltBody = "Hi {$ownerName},\n\nWe regret to inform you that your clinic application for {$clinicName} has been disapproved.\n\nIf you have any questions, please contact our support team.";
+
+        $mail->send();
+        return ['sent' => true];
+    } catch (Throwable $e) {
+        return ['sent' => false, 'error' => $e->getMessage()];
+    }
+}

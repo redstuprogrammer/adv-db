@@ -180,12 +180,12 @@ function getTenantStorageUsageBytes(int $tenantId, $conn): int {
  * @return int|null Limit in bytes, or null if undefined
  */
 function getTenantStorageLimitBytes(int $tenantId, $conn): ?int {
-    $limitGb = getTenantTierLimit($tenantId, 'max_storage_gb', $conn);
-    if ($limitGb === null) {
+    $limitMb = getTenantTierLimit($tenantId, 'max_storage_mb', $conn);
+    if ($limitMb === null) {
         return null;
     }
 
-    return $limitGb * 1024 * 1024 * 1024;
+    return $limitMb * 1024 * 1024;
 }
 
 /**

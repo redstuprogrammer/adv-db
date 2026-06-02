@@ -664,7 +664,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['announcement_action'
                                 <th>Max Dentists</th>
                                 <th>Max Receptionists</th>
                                 <th>Max Patients</th>
-                                <th>Storage (GB)</th>
+                                <th>Storage (MB)</th>
                                 <th>Payment Tracking</th>
                                 <th>Basic Reporting</th>
                             </tr>
@@ -682,7 +682,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['announcement_action'
                                     <td>" . ($tier['features']['max_dentists'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_receptionists'] ?? 0) . "</td>
                                     <td>" . ($tier['features']['max_patients'] ?? 0) . "</td>
-                                    <td>" . ($tier['features']['max_storage_gb'] ?? 0) . "</td>
+                                    <td>" . ($tier['features']['max_storage_mb'] ?? 0) . "</td>
                                     <td>" . (($tier['features']['payment_tracking'] ?? false) ? '✓' : '✗') . "</td>
                                     <td>" . (($tier['features']['basic_reporting'] ?? false) ? '✓' : '✗') . "</td>
                                 </tr>";

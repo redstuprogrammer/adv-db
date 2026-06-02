@@ -182,83 +182,6 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
                 mysqli_stmt_execute($update_stmt);
                 mysqli_stmt_close($update_stmt);
             }
-
-            // Generate PayMongo link ONLY if registration is APPROVED (or tier is free/trial)
-            if (($payment_status === 'pending' && $registration_status_final === 'APPROVED') || $payment_status === 'paid') {
-                $pm_config = null;
-                $config_candidates = [
-                    __DIR__ . '/config/paymongo.php',
-                    $_SERVER['DOCUMENT_ROOT'] . '/config/paymongo.php',
-                ];
-
-                foreach ($config_candidates as $path) {
-                    if (file_exists($path)) {
-                        $pm_config = require $path;
-                        break;
-                    }
-                }
-
-                $secret = ($pm_config && isset($pm_config['secret_key'])) ? $pm_config['secret_key'] : (getenv('PAYMONGO_SECRET_KEY') ?: '');
-                
-                if ($secret) {
-                    $auth = base64_encode($secret . ':');
-                    $amount_centavos = (int) round($total_amount * 100);
-                    $description = "OralSync Subscription: " . ucfirst($tier) . " ($duration months)";
-                    
-                    $base_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
-                    $base_url = rtrim($base_url, '/') . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-                    
-                    $payload = json_encode([
-                        'data' => [
-                            'attributes' => [
-                                'payment_method_types' => ['gcash', 'card', 'paymaya', 'grab_pay'],
-                                'line_items' => [[
-                                    'currency'    => 'PHP',
-                                    'amount'      => $amount_centavos,
-                                    'description' => $description,
-                                    'name'        => 'OralSync - ' . ucfirst($tier) . ' Plan',
-                                    'quantity'    => 1,
-                                ]],
-                                'description' => $description,
-                                'send_email_receipt' => true,
-                                'metadata' => [
-                                    'tenant_id' => (string)$new_id,
-                                    'tier_key' => $tier,
-                                    'type' => 'initial_registration',
-                                    'duration' => (string)$duration
-                                ]
-                            ],
-                        ],
-                    ]);
-
-                    $ch = curl_init('https://api.paymongo.com/v1/checkout_sessions');
-                    curl_setopt_array($ch, [
-                        CURLOPT_POST           => true,
-                        CURLOPT_POSTFIELDS     => $payload,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_HTTPHEADER     => [
-                            'Authorization: Basic ' . $auth,
-                            'Content-Type: application/json',
-                            'Accept: application/json',
-                        ],
-                    ]);
-
-                    $pm_response = curl_exec($ch);
-                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-
-                    if ($http_code === 200) {
-                        $pm_data = json_decode($pm_response, true);
-                        $paymongo_url = $pm_data['data']['attributes']['checkout_url'] ?? null;
-                        $paymongo_session_id = $pm_data['data']['id'] ?? null;
-                    } else {
-                        error_log("PayMongo API Error (HTTP $http_code): " . $pm_response);
-                    }
-                } else {
-                    error_log("PayMongo Secret Key is missing. Skipping checkout session creation.");
-                }
-            }
-
             $revenue_sql = "INSERT INTO payment (tenant_id, amount, status, payment_date, procedures_json, paymongo_link_id) 
                            VALUES (?, ?, ?, ?, ?, ?)";
             $revenue_stmt = mysqli_prepare($conn, $revenue_sql);
@@ -324,32 +247,16 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             throw new Exception("Database error: " . mysqli_error($conn));
         }
 
-        // 6. Conditional Onboarding Email
-        $email_sent = false;
-        $login_url = buildTenantLoginUrl($slug);
-        
-        // Send onboarding email so the user has their credentials
-        $emailResult = sendTenantOnboardingEmail([
-            'clinic_name' => $clinicName,
-            'owner_name' => $ownerName,
-            'owner_email' => $email,
-            'temp_password' => $temp_password,
-            'login_url' => $login_url
-        ]);
-        $email_sent = (bool)($emailResult['sent'] ?? false);
-        if (!$email_sent) {
-            error_log("Failed to send onboarding email to $email: " . ($emailResult['error'] ?? 'Unknown error'));
-        }
+        // We don't send the onboarding email immediately anymore.
+        // It will be sent via webhook.php upon successful payment.
 
         $response = [
             'success' => true, 
-            'message' => ($initial_status === 'active') ? 'Clinic registered successfully!' : ($registration_status_final === 'APPROVED' ? 'Clinic registered. Proceed to payment.' : 'Clinic registered. Documents pending verification by admin.'),
+            'message' => 'Registration submitted successfully. You will get notified by email if your application gets approved or disapproved.',
             'slug' => $slug,
             'tenant_code' => $tenant_code,
             'status' => $initial_status,
-            'registration_status' => $registration_status_final,
-            'checkout_url' => $paymongo_url,
-            'email_sent' => $email_sent
+            'registration_status' => $registration_status_final
         ];
     }
 } catch (Throwable $e) {
