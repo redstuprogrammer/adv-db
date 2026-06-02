@@ -174,10 +174,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $reviewRequests = [];
-$query = "SELECT t.id AS tenant_id, t.company_name, t.subdomain_slug, t.contact_email, t.phone, t.owner_name, t.status AS tenant_status, t.registration_status, t.subscription_tier, t.subscription_duration
+$query = "SELECT t.tenant_id, t.company_name, t.subdomain_slug, t.contact_email, t.phone, t.owner_name, t.status AS tenant_status, t.registration_status, t.subscription_tier, t.subscription_duration
           FROM tenants t
           WHERE t.registration_status IN ('PENDING', 'APPROVED', 'REJECTED')
-          ORDER BY FIELD(t.registration_status, 'PENDING', 'APPROVED', 'REJECTED'), t.id DESC";
+          ORDER BY FIELD(t.registration_status, 'PENDING', 'APPROVED', 'REJECTED'), t.tenant_id DESC";
 $result = $conn->query($query);
 if ($result) {
     while ($row = $result->fetch_assoc()) {

@@ -202,7 +202,7 @@ if (isset($conn) && $conn instanceof mysqli) {
 
                 const bannerContainer = document.createElement('div');
                 bannerContainer.className = 'global-announcement-banner';
-                bannerContainer.style.cssText = 'background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 16px 24px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4); display: flex; flex-direction: column; gap: 12px; font-family: inherit; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); animation: slideDown 0.4s ease-out; z-index: 100;';
+                bannerContainer.style.cssText = 'background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 28px 32px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.4); display: flex; flex-direction: column; gap: 16px; font-family: inherit; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); animation: slideDown 0.4s ease-out; z-index: 100; width: 100%; box-sizing: border-box; min-height: 120px;';
 
                 if (!document.getElementById('announcement-styles')) {
                     const style = document.createElement('style');
@@ -222,24 +222,24 @@ if (isset($conn) && $conn instanceof mysqli) {
                     const badgeBg = isPlatform ? "linear-gradient(135deg, #e11d48, #be123c)" : "linear-gradient(135deg, #0284c7, #0369a1)";
                     
                     const item = document.createElement('div');
-                    item.style.cssText = 'display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 12px; margin-bottom: 4px;';
+                    item.style.cssText = 'display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 16px; margin-bottom: 8px;';
                     
                     const header = document.createElement('div');
-                    header.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+                    header.style.cssText = 'display: flex; align-items: center; gap: 12px;';
                     
                     const badge = document.createElement('span');
-                    badge.style.cssText = `font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; background: ${badgeBg}; color: white; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
+                    badge.style.cssText = `font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 6px 10px; border-radius: 6px; background: ${badgeBg}; color: white; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);`;
                     badge.textContent = badgeText;
                     
                     const title = document.createElement('strong');
-                    title.style.cssText = 'font-size: 15px; font-weight: 700; color: #f8fafc; letter-spacing: 0.2px;';
+                    title.style.cssText = 'font-size: 18px; font-weight: 800; color: #f8fafc; letter-spacing: 0.2px; line-height: 1.3;';
                     title.textContent = ann.title;
 
                     header.appendChild(badge);
                     header.appendChild(title);
                     
                     const content = document.createElement('div');
-                    content.style.cssText = 'font-size: 13.5px; color: #cbd5e1; white-space: pre-line; line-height: 1.5; margin-left: 2px;';
+                    content.style.cssText = 'font-size: 15px; color: #cbd5e1; white-space: pre-line; line-height: 1.6; margin-left: 2px;';
                     content.textContent = ann.content;
                     
                     item.appendChild(header);
