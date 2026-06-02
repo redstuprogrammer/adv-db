@@ -1,5 +1,4 @@
 
-when I register a tenant, the email is automatically displayed as the username in the sidebar even though there is already a username field in the registration. only username should be displayed in the sidebar.
 
 
 patients.php, appointments.php and billings.php
