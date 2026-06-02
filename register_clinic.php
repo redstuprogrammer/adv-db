@@ -174,62 +174,7 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             $payment_status = ($tier === 'trial' || $total_amount <= 0) ? 'paid' : 'pending';
             $registration_status_final = 'PENDING';
 
-            // ========== OCR VERIFICATION (if documents uploaded) ==========
-            // Call Python Groq verification API to validate DTI/BIR documents
-            $ocr_verification_attempted = false;
-            $ocr_verification_result = null;
-            
-            if (isset($_FILES['documents']) && is_array($_FILES['documents']['tmp_name']) && count($_FILES['documents']['tmp_name']) > 0) {
-                // Get first valid document file
-                $first_doc_path = null;
-                $first_doc_name = null;
-                
-                foreach ($_FILES['documents']['tmp_name'] as $key => $tmp_name) {
-                    if ($_FILES['documents']['error'][$key] === UPLOAD_ERR_OK) {
-                        $first_doc_path = $tmp_name;
-                        $first_doc_name = $_FILES['documents']['name'][$key];
-                        break;
-                    }
-                }
-                
-                if ($first_doc_path && $first_doc_name) {
-                    // Prepare multipart form data for Python backend
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, getenv('GROQ_BACKEND_URL') ?: 'http://localhost:8000/api/verify-document');
-                    curl_setopt($ch, CURLOPT_POST, 1);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-                    
-                    $cfile = curl_file_create($first_doc_path);
-                    $post_data = array(
-                        'clinic_name' => $clinicName,
-                        'tenant_id' => $new_id,
-                        'document' => $cfile
-                    );
-                    
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, $post_data);
-                    
-                    $response_body = curl_exec($ch);
-                    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-                    
-                    if ($http_code === 200) {
-                        $ocr_verification_result = json_decode($response_body, true);
-                        $ocr_verification_attempted = true;
-                        
-                        if ($ocr_verification_result && isset($ocr_verification_result['registration_status'])) {
-                            $registration_status_final = $ocr_verification_result['registration_status']; // APPROVED or PENDING_ADMIN_REVIEW
-                        }
-                        
-                        error_log("OCR Verification Result: " . json_encode($ocr_verification_result));
-                    } else {
-                        error_log("OCR Verification API Error (HTTP $http_code): " . $response_body);
-                        $registration_status_final = 'PENDING_ADMIN_REVIEW'; // Default to manual review on API error
-                    }
-                }
-            }
-            
-            // Update tenant registration_status based on OCR result
+            // Update tenant registration_status based on current registration flow
             $update_status_sql = "UPDATE tenants SET registration_status = ? WHERE id = ?";
             $update_stmt = mysqli_prepare($conn, $update_status_sql);
             if ($update_stmt) {
@@ -404,9 +349,7 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             'status' => $initial_status,
             'registration_status' => $registration_status_final,
             'checkout_url' => $paymongo_url,
-            'email_sent' => $email_sent,
-            'ocr_verification_attempted' => $ocr_verification_attempted,
-            'ocr_result' => $ocr_verification_result
+            'email_sent' => $email_sent
         ];
     }
 } catch (Throwable $e) {
