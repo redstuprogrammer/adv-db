@@ -376,7 +376,7 @@ if ($stats_stmt) {
               <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
                 <option value="">-- Select Patient --</option>
                 <?php
-                $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY patient_id ASC");
                 if ($pStmt) {
                   mysqli_stmt_bind_param($pStmt, "i", $tenantId);
                   mysqli_stmt_execute($pStmt);
@@ -417,7 +417,7 @@ if ($stats_stmt) {
             <div class="form-group">
               <label>Update Appointment Status?</label>
               <select name="update_appt_status" id="update_appt_status">
-                <option value="">No Change (Keep In Progress)</option>
+                <option value="">No Change (Keep Ongoing)</option>
                 <option value="Completed">Mark as Completed</option>
               </select>
               <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Choose if this appointment should be finished after billing.</p>
@@ -465,7 +465,7 @@ if ($stats_stmt) {
         <label for="booking_deposit_amount">Downpayment Amount (₱)</label>
         <input type="number" id="booking_deposit_amount" step="0.01" min="0.00" value="<?php echo number_format($bookingDepositAmount, 2, '.', ''); ?>">
       </div>
-      <button type="button" class="btn-primary" style="width: 100%;" onclick="saveDepositConfig()">Save Downpayment</button>
+      <button type="button" class="add-btn-main" style="width: 100%;" onclick="saveDepositConfig()">Save Downpayment</button>
       <div id="depositMessage" style="margin-top: 14px; color: #0d3b66;"></div>
     </div>
   </div>
@@ -548,7 +548,7 @@ if ($stats_stmt) {
       fetch('get_patient_services.php?' + params)
         .then(res => res.json())
         .then(data => {
-          if (data.length === 0) { apptSelect.innerHTML = '<option value="">No "In Progress" appointments found</option>'; updateTotal(); return; }
+          if (data.length === 0) { apptSelect.innerHTML = '<option value="">No "Ongoing" appointments found</option>'; updateTotal(); return; }
           apptSelect.innerHTML = '<option value="">-- Select Appointment --</option>';
           data.forEach((item, index) => {
             let opt = document.createElement('option');
@@ -593,7 +593,7 @@ if ($stats_stmt) {
       const result = await response.json();
       if (result.success) {
         messageEl.textContent = result.message; messageEl.style.color = '#166534'; bookingDepositAmount = amount; updateTotal();
-        setTimeout(closeDepositModal, 1200);
+        setTimeout(() => location.reload(), 1200);
       } else { messageEl.textContent = result.message || 'Unable to save downpayment.'; messageEl.style.color = '#b91c1c'; }
     }
     function filterMainTable() {

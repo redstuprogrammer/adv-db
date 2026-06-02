@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_appointment'])
 
 
 $patients = [];
-$stmtPatients = mysqli_prepare($conn, 'SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+$stmtPatients = mysqli_prepare($conn, 'SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY patient_id ASC');
 if ($stmtPatients) {
     mysqli_stmt_bind_param($stmtPatients, 'i', $tenantId);
     mysqli_stmt_execute($stmtPatients);
@@ -1044,7 +1044,7 @@ if ($stmt) {
   <script>
     const tenantId = <?php echo json_encode($tenantId); ?>;
 
-    function openScheduleModal() {
+    window.openScheduleModal = function() {
       console.log('Schedule modal opened');
       const form = document.querySelector('#scheduleModal form');
       if (form) form.reset();
@@ -1067,7 +1067,7 @@ if ($stmt) {
       fetchAvailabilityData(currentViewDate.getMonth(), currentViewDate.getFullYear());
     }
 
-    function closeScheduleModal() {
+    window.closeScheduleModal = function() {
       document.getElementById('scheduleModal').classList.remove('active');
     }
 

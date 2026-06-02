@@ -170,6 +170,33 @@ function getTenantStorageUsageBytes(int $tenantId, $conn): int {
         $totalBytes += isset($row['total_size']) ? (int)$row['total_size'] : 0;
     }
 
+    // Calculate untracked image files (branding/settings)
+    $settingsDir = __DIR__ . '/../assets/uploads/tenants/' . $tenantId;
+    if (is_dir($settingsDir)) {
+        try {
+            $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($settingsDir, FileSystemIterator::SKIP_DOTS));
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $totalBytes += $file->getSize();
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
+    // Calculate untracked image files (landing page)
+    $homepageDir = __DIR__ . '/../uploads/homepage';
+    if (is_dir($homepageDir)) {
+        try {
+            $iterator = new DirectoryIterator($homepageDir);
+            $prefix = 'tenant_' . $tenantId . '_';
+            foreach ($iterator as $fileinfo) {
+                if ($fileinfo->isFile() && strpos($fileinfo->getFilename(), $prefix) === 0) {
+                    $totalBytes += $fileinfo->getSize();
+                }
+            }
+        } catch (Exception $e) {}
+    }
+
     return $totalBytes;
 }
 

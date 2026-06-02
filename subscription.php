@@ -73,6 +73,19 @@ $nextRenewalAt = null;
 $subscriptionEndAt = null;
 $subscriptionEndingSoon = false;
 $subscriptionEndMessage = null;
+
+$tenantSubEndAt = null;
+$tStmt = $conn->prepare('SELECT subscription_start_date, subscription_duration FROM tenants WHERE tenant_id = ?');
+if ($tStmt) {
+    $tStmt->bind_param('i', $tenantId);
+    $tStmt->execute();
+    $tRes = $tStmt->get_result()->fetch_assoc();
+    if ($tRes && !empty($tRes['subscription_start_date']) && !empty($tRes['subscription_duration'])) {
+        $tenantSubEndAt = date('Y-m-d H:i:s', strtotime('+' . (int)$tRes['subscription_duration'] . ' months', strtotime($tRes['subscription_start_date'])));
+    }
+    $tStmt->close();
+}
+
 if (!empty($subscription)) {
     $autoRenewEnabled = !empty($subscription['auto_renew']);
     $subscriptionEndAt = $subscription['current_period_end'] ?? null;
@@ -243,25 +256,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
   }
 
-  if (isset($_POST['save_integration_settings'])) {
-        $gateway = trim($_POST['payment_gateway'] ?? 'PayMongo');
-        $oldGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo');
-
-        if (saveTenantConfig($tenantId, ['payment_gateway' => $gateway])) {
-            $saveMessage = 'Integration settings saved successfully.';
-            if ($oldGateway !== $gateway) {
-                    try {
-                        $desc = safeDesc('Updated', 'Settings', null, ['section' => 'payment_gateway', 'from' => $oldGateway, 'to' => $gateway]);
-                        logTenantActivity($conn, $tenantId, 'Updated', $desc);
-                    } catch (Exception $e) {
-                        error_log('Payment gateway logging failed: ' . $e->getMessage());
-                    }
-                }
-            } else {
-                $errorMessage = 'Unable to save integration settings. Please try again.';
-            }
-        }
-
         $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
         if ($subscription && isset($subscription['id'])) {
             $currentAutoRenew = intval($subscription['auto_renew'] ?? 0);
@@ -420,7 +414,7 @@ function formatReadableDate(?string $date): string {
               </div>
               <div class="subscription-item">
                 <h3>Subscription ends</h3>
-                <p><?php echo h(formatReadableDate($subscriptionEndAt)); ?></p>
+                <p><?php echo h(formatReadableDate($tenantSubEndAt ?? $subscriptionEndAt)); ?></p>
               </div>
               <div class="subscription-item">
                 <h3>Next renewal</h3>
@@ -508,64 +502,11 @@ function formatReadableDate(?string $date): string {
               </form>
             </div>
 
-            <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
-              <div class="subscription-item subscription-card" style="grid-column: 1 / -1;">
-                <h3>🔌 Integrations & Payments</h3>
-                <p style="color: #475569; margin-bottom: 16px;">Choose and configure your clinic's active payment gateway provider for patients' booking deposits and bill payments.</p>
-                <?php $activeGateway = getTenantConfigValue($tenantId, 'payment_gateway', 'PayMongo'); ?>
-                <input type="hidden" name="save_integration_settings" value="1">
-                <div class="form-group" style="margin-bottom: 18px;">
-                  <label for="payment_gateway">Active Payment Gateway</label>
-                  <select id="payment_gateway" name="payment_gateway" style="width:100%; padding:10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size:14px; box-sizing:border-box; background:white; height:42px;">
-                    <option value="PayMongo" <?php echo $activeGateway === 'PayMongo' ? 'selected' : ''; ?>>PayMongo (GCash, Maya, Cards)</option>
-                    <option value="Maya" <?php echo $activeGateway === 'Maya' ? 'selected' : ''; ?>>Maya Business</option>
-                    <option value="PayPal" <?php echo $activeGateway === 'PayPal' ? 'selected' : ''; ?>>PayPal Checkout</option>
-                  </select>
-                </div>
-                <div style="text-align: right;">
-                  <button type="submit" class="button-primary">Save Integration Settings</button>
-                </div>
-              </div>
-            </form>
+
           </div>
         </div>
 
-        <aside class="notification-panel">
-          <div class="notification-header">
-            <div>
-              <div class="notification-tab">Notifications</div>
-              <p style="margin:8px 0 0; color:#475569;">Pending auto-renewal notifications for this tenant.</p>
-            </div>
-            <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>" style="margin:0;">
-              <input type="hidden" name="mark_notifications_read" value="1">
-              <button type="submit" class="button-primary" style="padding:10px 14px;">Mark all read</button>
-            </form>
-          </div>
-          <div style="margin-top:18px;">
-            <?php if ($notificationCount > 0): ?>
-              <div class="notification-pill"><?php echo h((string)$notificationCount); ?> unread</div>
-            <?php endif; ?>
-            <?php if (!empty($pendingNotifications)): ?>
-              <?php foreach ($pendingNotifications as $note): ?>
-                <div class="notification-item">
-                  <div class="notification-title">
-                    <span><strong>Renewal attempt <?php echo h((string)$note['attempt_count']); ?></strong></span>
-                    <span style="font-size:12px; color:#64748b;"><?php echo h(formatReadableDate($note['created_at'])); ?></span>
-                  </div>
-                  <p style="margin:10px 0 0; color:#334155;">Status: <?php echo h($note['status']); ?><?php if (!empty($note['next_retry_at'])): ?> — next retry: <?php echo h(formatReadableDate($note['next_retry_at'])); ?><?php endif; ?></p>
-                  <?php if (!empty($note['response'])): ?>
-                    <details style="margin-top:10px; font-size:13px; color:#475569;">
-                      <summary style="cursor:pointer;">View response</summary>
-                      <pre style="white-space:pre-wrap; word-break:break-word; margin-top:8px; background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:12px;"><?php echo h(substr((string)$note['response'], 0, 800)); ?></pre>
-                    </details>
-                  <?php endif; ?>
-                </div>
-              <?php endforeach; ?>
-            <?php else: ?>
-              <p style="color:#475569;">No pending renewal notifications at this time.</p>
-            <?php endif; ?>
-          </div>
-        </aside>
+        <!-- Notification panel moved to global sidebar -->
       </div>
     </div>
   </div>

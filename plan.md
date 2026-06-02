@@ -2,14 +2,14 @@
 when I register a tenant, the email is automatically displayed as the username in the sidebar even though there is already a username field in the registration. only username should be displayed in the sidebar.
 
 
-transfer the tenant's clinic code from the dashboard to the "Book Appointment" modal form in their tenant's homepage
+inside "Book Appointment" modal. move the clinic code beneath "Install the app". so its obvious that its the clinic code the patient should enter. make it a bit bigger too so its more obvious.
 
 
 Sales Reports
     - check if sales in reports in superadmin_sales_reports.php and tenant_sales_reports.php's pdf generation is good
 
 
-patients.php, appointments.phpand billings.php
+patients.php, appointments.php and billings.php
     - check if it looks like the same and works as for receptionist's.
 
 
@@ -33,5 +33,6 @@ code.html (main landing page)
     - test the registration of tenants.
 
 
-patients.php and receptionist_patients.php
-    - alerts like "patient with the same email address already exists"  should be inside the modal form, not in a separate alert above the modal form. and it should not make the user automatically close the modal form and make the user fill the fields again.
+STORAGE LIMITS
+    - test all of storage limits per subscription plan.
+    

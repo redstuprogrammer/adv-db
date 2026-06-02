@@ -52,7 +52,7 @@ $today = date('Y-m-d');
 
 // Fetch patients and dentists for scheduling modal
 $patients = [];
-$pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+$pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY patient_id ASC');
 if ($pstmt) {
   $pstmt->bind_param('i', $tenantId);
   $pstmt->execute();
@@ -170,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_patient'])) {
 
                     // Refresh patient list for scheduling dropdown
                     $patients = [];
-                    $pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY first_name ASC');
+                    $pstmt = $conn->prepare('SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY patient_id ASC');
                     if ($pstmt) {
                         $pstmt->bind_param('i', $tenantId);
                         $pstmt->execute();
@@ -404,17 +404,16 @@ if ($stmt) {
       }
 
       .btn-primary {
-        background: var(--accent);
+        background: var(--dashboard-accent, var(--accent));
         color: white;
-        padding: 10px 18px;
         border: none;
-        border-radius: 10px;
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 16px;
         cursor: pointer;
         text-decoration: none;
         font-weight: 600;
-        font-size: 13px;
         transition: background 0.2s ease;
-        min-height: 44px;
       }
 
       .btn-primary:hover {
@@ -498,6 +497,13 @@ if ($stmt) {
         justify-content: space-between;
         align-items: center;
         margin-bottom: 20px;
+      }
+
+      .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--dashboard-accent);
+        margin: 0;
       }
 
       .modal-close {
@@ -907,6 +913,14 @@ if ($stmt) {
         font-weight: 600;
       }
 
+      .cal-dot {
+        width: 4px;
+        height: 4px;
+        background: var(--dashboard-accent);
+        border-radius: 50%;
+        margin-top: 2px;
+      }
+
       .time-slot-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -1080,7 +1094,6 @@ if ($stmt) {
         <?php endif; ?>
 
         <div class="content-header" style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin-bottom:16px;">
-          <button class="btn-secondary" type="button" onclick="openAddPatientModal()">+ Add Patient</button>
           <button class="btn-primary" type="button" onclick="openScheduleModal()">+ Schedule Appointment</button>
         </div>
 
@@ -1233,15 +1246,14 @@ if ($stmt) {
   <!-- Schedule Appointment Modal (receptionist-style) -->
   <div id="scheduleModal" class="modal">
     <div class="modal-content wide">
+      <div class="modal-header">
+        <h3 class="modal-title">Schedule Appointment</h3>
+        <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
+      </div>
       <form method="POST" action="appointments.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
         <div class="booking-grid">
           <!-- Sidebar: Selection -->
           <div class="booking-sidebar">
-            <div class="modal-header">
-              <h3 class="modal-title">Schedule Appointment</h3>
-              <button class="modal-close" type="button" onclick="closeScheduleModal()">&times;</button>
-            </div>
-
             <?php if ($errorMsg && isset($_POST['add_appointment'])): ?>
               <div style="background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; font-size: 13px; margin-bottom: 15px; font-weight: 600;">
                 ⚠️ <?php echo h($errorMsg); ?>
@@ -1504,6 +1516,9 @@ if ($stmt) {
             dayDiv.classList.add('disabled');
           } else {
             dayDiv.classList.add('working');
+            const dot = document.createElement('div');
+            dot.className = 'cal-dot';
+            dayDiv.appendChild(dot);
             dayDiv.onclick = () => handleDateClick(dateStr);
           }
 

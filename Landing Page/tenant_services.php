@@ -398,6 +398,22 @@ foreach ($services as $service) {
                         </a>
                     </div>
                 </div>
+
+                <div class="bg-surface-container-low p-5 rounded-2xl border border-primary/20 mt-4 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                            <span class="material-symbols-outlined text-primary text-2xl">qr_code</span>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-bold text-on-surface text-base">Clinic Code</p>
+                            <p class="text-primary text-2xl font-black tracking-widest mt-1"><?= htmlspecialchars($clinic['tenant_code'] ?: 'N/A') ?></p>
+                        </div>
+                        <?php if (!empty($clinic['tenant_code'])): ?>
+                        <button onclick="copyClinicCode()" class="bg-primary text-on-primary px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-primary/90 transition shadow-md active:scale-95">Copy</button>
+                        <?php endif; ?>
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-medium mt-3 text-center bg-surface p-2 rounded-lg">Enter this code in the mobile app to book an appointment with us.</p>
+                </div>
             </div>
 
             <div>
@@ -448,6 +464,17 @@ foreach ($services as $service) {
     function closeModal() {
         document.getElementById('appointmentModal').classList.add('hidden');
         document.body.style.overflow = 'auto';
+    }
+    function copyClinicCode() {
+        const clinicCode = <?= json_encode($clinic['tenant_code'] ?? '') ?>;
+        if (!clinicCode) {
+            return;
+        }
+        navigator.clipboard.writeText(clinicCode).then(() => {
+            alert('Clinic code copied to clipboard.');
+        }).catch(() => {
+            alert('Unable to copy clinic code.');
+        });
     }
     function filterServices(category, element) {
         // Update active tab styling

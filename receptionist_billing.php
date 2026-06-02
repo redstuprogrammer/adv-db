@@ -588,7 +588,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                         <select name="patient_id" id="patient_dropdown" onchange="loadPatientAppointments(this.value)" required>
                             <option value="">-- Select Patient --</option>
                             <?php 
-                            $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY last_name ASC");
+                            $pStmt = mysqli_prepare($conn, "SELECT patient_id, tenant_patient_id, first_name, last_name FROM patient WHERE tenant_id = ? ORDER BY patient_id ASC");
                             if ($pStmt) {
                                 mysqli_stmt_bind_param($pStmt, "i", $tenantId);
                                 mysqli_stmt_execute($pStmt);
@@ -634,7 +634,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                     <div class="form-group">
                         <label>Update Appointment Status?</label>
                         <select name="update_appt_status" id="update_appt_status">
-                            <option value="">No Change (Keep In Progress)</option>
+                            <option value="">No Change (Keep Ongoing)</option>
                             <option value="Completed">Mark as Completed</option>
                         </select>
                         <p style="font-size: 11px; color: #64748b; margin-top: 4px;">Choose if this appointment should be finished after billing.</p>
@@ -853,7 +853,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
             .then(res => res.json())
             .then(data => {
                 if (data.length === 0) {
-                    apptSelect.innerHTML = '<option value="">No "In Progress" appointments found</option>';
+                    apptSelect.innerHTML = '<option value="">No "Ongoing" appointments found</option>';
                     updateTotal();
                     return;
                 }
@@ -943,7 +943,7 @@ $bookingDepositAmount = isset($tenantConfig['booking_deposit_amount']) ? (float)
                 }
                 bookingDepositAmount = amount;
                 updateTotal();
-                setTimeout(closeDepositModal, 1500);
+                setTimeout(() => location.reload(), 1500);
             } else {
                 if (msg) {
                     msg.textContent = result.message || 'Unable to save deposit config.';

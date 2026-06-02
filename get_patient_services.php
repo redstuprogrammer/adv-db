@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             a.procedure_name,
             a.requested_by
         FROM appointment a
-        WHERE a.patient_id = ? AND a.tenant_id = ? AND a.status = 'In Progress'
+        WHERE a.patient_id = ? AND a.tenant_id = ? AND a.status = 'Ongoing'
         ORDER BY a.appointment_date DESC, a.appointment_time DESC
     ");
 
