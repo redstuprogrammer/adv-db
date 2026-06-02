@@ -15,11 +15,12 @@ if ($is_local) {
     $port     = 3306;
     $ssl_cert = null;
 } else {
-    $host     = "oralsync-db.mysql.database.azure.com";
-    $user     = "oralsync";
-    $pass     = "Oralsync1";
-    $db       = "oral";
-    $port     = 3306;
+    // Read from Azure Environment Variables if the user set them, otherwise fallback to hardcoded
+    $host     = getenv('DB_HOST') ?: (getenv('MYSQL_HOST') ?: "oralsync-db.mysql.database.azure.com");
+    $user     = getenv('DB_USER') ?: (getenv('MYSQL_USER') ?: "oralsync");
+    $pass     = getenv('DB_PASS') ?: (getenv('MYSQL_PASSWORD') ?: "Oralsync1");
+    $db       = getenv('DB_NAME') ?: (getenv('MYSQL_DATABASE') ?: "oral");
+    $port     = getenv('DB_PORT') ?: (getenv('MYSQL_PORT') ?: 3306);
     $ssl_cert = dirname(__DIR__) . '/azure-combined-2026.pem';
 }
 
@@ -37,6 +38,10 @@ function die_json($code, $message) {
 }
 
 // ── mysqli init ───────────────────────────────────────────────────────────────
+// Set PHP socket timeout to prevent 230s hangs on Azure if DB firewall blocks connection
+ini_set('default_socket_timeout', 5);
+ini_set('mysqlnd.net_read_timeout', 5);
+
 $conn = mysqli_init();
 
 if (!$conn) {
