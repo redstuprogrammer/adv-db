@@ -43,7 +43,6 @@ $defaultPlanName = null;
 $currentPaymentMethod = null;
 $saveMessage = null;
 $errorMessage = null;
-$notificationMessage = null;
 
 $paymentMethods = [];
 $pendingNotifications = [];
@@ -92,37 +91,25 @@ if (!empty($subscription)) {
     if ($autoRenewEnabled) {
         $nextRenewalAt = $subscriptionEndAt;
     }
-    if (!empty($subscriptionEndAt)) {
-        $endTimestamp = strtotime($subscriptionEndAt);
-        if ($endTimestamp !== false) {
-            $daysRemaining = (int)ceil(($endTimestamp - time()) / 86400);
-            if ($daysRemaining >= 0 && $daysRemaining <= 7) {
-                $subscriptionEndingSoon = true;
-                $subscriptionEndMessage = $daysRemaining === 0
-                    ? 'Your subscription ends today.'
-                    : 'Your subscription ends in ' . $daysRemaining . ' day' . ($daysRemaining === 1 ? '' : 's') . '.';
-            }
+}
+
+// Use the most reliable end date available — prefer tenantSubEndAt, fall back to subscriptions table
+$effectiveEndAt = $tenantSubEndAt ?? $subscriptionEndAt ?? null;
+if (!empty($effectiveEndAt)) {
+    $endTimestamp = strtotime($effectiveEndAt);
+    if ($endTimestamp !== false) {
+        $daysRemaining = (int)ceil(($endTimestamp - time()) / 86400);
+        if ($daysRemaining >= 0 && $daysRemaining <= 7) {
+            $subscriptionEndingSoon = true;
+            $subscriptionEndMessage = $daysRemaining === 0
+                ? 'Your subscription ends today.'
+                : 'Your subscription ends in ' . $daysRemaining . ' day' . ($daysRemaining === 1 ? '' : 's') . '.';
         }
     }
 }
 
 if ($paymentMethodsTableExists) {
-    $stmt = $conn->prepare(
-      'SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default
-       FROM payment_methods
-       WHERE tenant_id = ?
-       ORDER BY is_default DESC, id DESC
-       LIMIT 1'
-    );
-    if ($stmt) {
-        $stmt->bind_param('i', $tenantId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $currentPaymentMethod = $result->fetch_assoc() ?: null;
-        $stmt->close();
-    }
-
-  // Fetch all payment methods for display
+  // Single query — $currentPaymentMethod derived as first row afterwards
   $allStmt = $conn->prepare(
     'SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default, provider_token
      FROM payment_methods
@@ -138,6 +125,7 @@ if ($paymentMethodsTableExists) {
     }
     $allStmt->close();
   }
+  $currentPaymentMethod = $paymentMethods[0] ?? null;
 }
 
 $notificationsTableExists = tableExists($conn, 'subscription_renewal_attempts');
@@ -188,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pmId = (int)$currentPaymentMethod['id'];
         $upd = $conn->prepare('UPDATE payment_methods SET provider = ?, brand = ?, last4 = ?, exp_month = ?, exp_year = ?, billing_contact = ?, is_default = ? WHERE id = ? AND tenant_id = ?');
         if ($upd) {
-          $upd->bind_param('sssiisiii', $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default, $pmId, $tenantId);
+          $upd->bind_param('sssiiisii', $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default, $pmId, $tenantId);
           if ($upd->execute()) {
             $saveMessage = 'Payment method updated.';
             try {
@@ -203,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       } else {
         $ins = $conn->prepare('INSERT INTO payment_methods (tenant_id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         if ($ins) {
-          $ins->bind_param('isssiiisi', $tenantId, $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default);
+          $ins->bind_param('isssiisi', $tenantId, $provider, $brand, $last4, $exp_month, $exp_year, $billing_contact, $make_default);
           if ($ins->execute()) {
             $newId = (int)$conn->insert_id;
             $saveMessage = 'Payment method saved.';
@@ -217,9 +205,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $ins->close();
         }
       }
-      // Refresh current payment method for immediate UI feedback
-      $stmt = $conn->prepare('SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default FROM payment_methods WHERE tenant_id = ? ORDER BY is_default DESC, id DESC LIMIT 1');
-      if ($stmt) { $stmt->bind_param('i', $tenantId); $stmt->execute(); $currentPaymentMethod = $stmt->get_result()->fetch_assoc() ?: null; $stmt->close(); }
+      // Refresh payment methods for immediate UI feedback
+      $paymentMethods = [];
+      $rfStmt = $conn->prepare('SELECT id, provider, brand, last4, exp_month, exp_year, billing_contact, is_default, provider_token FROM payment_methods WHERE tenant_id = ? ORDER BY is_default DESC, id DESC');
+      if ($rfStmt) { $rfStmt->bind_param('i', $tenantId); $rfStmt->execute(); $rfRes = $rfStmt->get_result(); while ($r = $rfRes->fetch_assoc()) { $paymentMethods[] = $r; } $rfStmt->close(); }
+      $currentPaymentMethod = $paymentMethods[0] ?? null;
     }
   }
 
@@ -232,6 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $saveMessage = 'Payment method deleted.';
         try { $desc = safeDesc('Deleted', 'Payment Method', $pmId); logTenantActivity($conn, $tenantId, 'Deleted', $desc); } catch (Exception $e) { error_log('Payment method delete logging failed: ' . $e->getMessage()); }
         $currentPaymentMethod = null;
+        $paymentMethods = [];
       } else {
         $errorMessage = 'Unable to delete payment method.';
       }
@@ -239,46 +230,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-    if (isset($_POST['mark_notifications_read'])) {
-      if ($notificationsTableExists) {
-          $updRead = $conn->prepare('UPDATE subscription_renewal_attempts SET is_read = 1 WHERE tenant_id = ? AND status != ?');
-          if ($updRead) {
-              $success = 'success';
-              $updRead->bind_param('is', $tenantId, $success);
-              if ($updRead->execute()) {
-                  $saveMessage = 'Notifications marked as read.';
-                  $notificationCount = 0;
-              } else {
-                  $errorMessage = 'Unable to mark notifications as read.';
-              }
-              $updRead->close();
-          }
+  if (isset($_POST['mark_notifications_read'])) {
+    if ($notificationsTableExists) {
+      $updRead = $conn->prepare('UPDATE subscription_renewal_attempts SET is_read = 1 WHERE tenant_id = ? AND status != ?');
+      if ($updRead) {
+        $success = 'success';
+        $updRead->bind_param('is', $tenantId, $success);
+        if ($updRead->execute()) {
+          $saveMessage = 'Notifications marked as read.';
+          $notificationCount = 0;
+        } else {
+          $errorMessage = 'Unable to mark notifications as read.';
+        }
+        $updRead->close();
       }
+    }
   }
 
-        $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
-        if ($subscription && isset($subscription['id'])) {
-            $currentAutoRenew = intval($subscription['auto_renew'] ?? 0);
-            $update = $conn->prepare('UPDATE subscriptions SET auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?');
-            if ($update) {
-                $update->bind_param('iii', $autoRenewValue, $subscription['id'], $tenantId);
-                if ($update->execute()) {
-                    $saveMessage = 'Subscription preferences have been saved successfully.';
-                    if ($currentAutoRenew !== $autoRenewValue) {
-                        try {
-                            $desc = safeDesc('Updated', 'Subscription', $subscription['id'], ['setting' => 'auto_renew', 'value' => $autoRenewValue ? 'enabled' : 'disabled']);
-                            logTenantActivity($conn, $tenantId, 'Updated', $desc);
-                        } catch (Exception $e) {
-                            error_log('Auto-renew logging failed: ' . $e->getMessage());
-                        }
-                    }
-                }
-                $update->close();
+  // Only update auto-renew when that form was actually submitted
+  if (!isset($_POST['save_payment_method']) && !isset($_POST['delete_payment_method']) && !isset($_POST['mark_notifications_read'])) {
+    $autoRenewValue = isset($_POST['auto_renew']) ? 1 : 0;
+    if ($subscription && isset($subscription['id'])) {
+      $currentAutoRenew = intval($subscription['auto_renew'] ?? 0);
+      $update = $conn->prepare('UPDATE subscriptions SET auto_renew = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?');
+      if ($update) {
+        $update->bind_param('iii', $autoRenewValue, $subscription['id'], $tenantId);
+        if ($update->execute()) {
+          $saveMessage = 'Subscription preferences have been saved successfully.';
+          $subscription['auto_renew'] = $autoRenewValue; // reflect change immediately
+          $autoRenewEnabled = (bool)$autoRenewValue;
+          if ($currentAutoRenew !== $autoRenewValue) {
+            try {
+              $desc = safeDesc('Updated', 'Subscription', $subscription['id'], ['setting' => 'auto_renew', 'value' => $autoRenewValue ? 'enabled' : 'disabled']);
+              logTenantActivity($conn, $tenantId, 'Updated', $desc);
+            } catch (Exception $e) {
+              error_log('Auto-renew logging failed: ' . $e->getMessage());
             }
-        } else {
-            $errorMessage = 'No active subscription record was found to update.';
+          }
         }
-    } // End if POST
+        $update->close();
+      }
+    } else {
+      $errorMessage = 'No active subscription record was found to update.';
+    }
+  }
+} // End if POST
 
 
 $displayPlanName = $subscription['plan_name'] ?? null;
@@ -300,17 +296,13 @@ if (!$displayPlanName) {
     $displayPlanName = $tenantTier ? ucwords($tenantTier) : 'Unknown Plan';
 }
 
+
 function formatReadableDate(?string $date): string {
-    if (empty($date)) {
-        return 'N/A';
-    }
+    if (empty($date)) { return 'N/A'; }
     $timestamp = strtotime($date);
-    if ($timestamp === false) {
-        return 'N/A';
-    }
+    if ($timestamp === false) { return 'N/A'; }
     return date('M d, Y', $timestamp);
 }
-
 ?>
 <!doctype html>
 <html lang="en">
@@ -318,35 +310,129 @@ function formatReadableDate(?string $date): string {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo h($tenantName); ?> | Subscription</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="tenant_style.css">
   <style>
-    .subscription-card { background: white; border-radius: 20px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08); padding: 28px; margin-bottom: 24px; }
-    .subscription-card h2 { margin-top: 0; color: #0d3b66; }
-    .subscription-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 18px; }
-    .subscription-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; }
-    .subscription-item h3 { margin: 0 0 12px; font-size: 14px; color: #0d3b66; }
-    .subscription-item p { margin: 0; color: #334155; font-size: 16px; line-height: 1.5; }
-    .alert { border-radius: 16px; padding: 16px 18px; margin-bottom: 20px; font-weight: 600; }
-    .alert-success { background: #ecfdf5; color: #0f766e; border: 1px solid #6ee7b7; }
-    .alert-error { background: #fce7f3; color: #9d174d; border: 1px solid #f472b6; }
-    .alert-warning { background: #fffbeb; color: #78350f; border: 1px solid #facc15; }
-    .form-checkbox { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
-    .form-checkbox input { width: 18px; height: 18px; }
-    .button-primary { border: none; border-radius: 14px; background: #0d3b66; color: white; padding: 12px 22px; cursor: pointer; font-weight: 700; }
-    .button-primary:hover { background: #0a2d4f; }
-    .payment-method { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 16px; padding: 18px; }
-    .payment-method p { margin: 4px 0; }
-    .content-columns { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; }
-    .left-column { min-width: 0; }
-    .notification-panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 22px; padding: 22px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08); }
-    .notification-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .notification-tab { display: inline-flex; align-items: center; justify-content: center; background: #eef2ff; color: #1d4ed8; border-radius: 999px; padding: 10px 16px; font-weight: 700; }
-    .notification-pill { display: inline-block; background: #e0f2fe; color: #0369a1; border-radius: 999px; padding: 8px 12px; margin-bottom: 12px; font-size: 13px; font-weight: 700; }
-    .notification-item { background: #f8fafc; border: 1px solid #dbeafe; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
-    .notification-title { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-    @media (max-width: 980px) {
-      .content-columns { grid-template-columns: 1fr; }
-      .notification-panel { margin-top: 24px; }
+    :root {
+      --navy:        #0d3b66;
+      --navy-dark:   #082c52;
+      --navy-light:  #e8f0f9;
+      --slate:       #475569;
+      --slate-light: #94a3b8;
+      --border:      #e2e8f0;
+      --bg:          #f4f7fb;
+      --white:       #ffffff;
+      --success-bg:  #ecfdf5;
+      --success-bd:  #a7f3d0;
+      --warn-bg:     #fffbeb;
+      --warn-bd:     #fde68a;
+      --danger-bg:   #fef2f2;
+      --danger-bd:   #fecaca;
+      --radius-sm:   10px;
+      --radius-md:   16px;
+      --radius-lg:   22px;
+      --shadow:      0 4px 24px rgba(13,59,102,.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: #1e293b; }
+
+    /* ── Wrapper ── */
+    .sub-wrap { max-width: 860px; margin: 0 auto; padding: 32px 24px 64px; }
+
+    /* ── Page header ── */
+    .sub-page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 28px; gap: 12px; flex-wrap: wrap; }
+    .sub-page-header h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--navy); margin: 0; line-height: 1.1; }
+    .sub-page-header p { margin: 6px 0 0; font-size: 0.9rem; color: var(--slate); }
+    .plan-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--navy); color: #fff; font-size: 0.82rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 7px 16px; border-radius: 999px; white-space: nowrap; }
+    .plan-badge::before { content: ''; display: block; width: 7px; height: 7px; border-radius: 50%; background: #34d399; }
+
+    /* ── Alerts ── */
+    .sub-alert { display: flex; align-items: flex-start; gap: 14px; border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 16px; font-size: 0.9rem; font-weight: 500; border: 1px solid transparent; animation: fadeUp .35s ease both; }
+    .sub-alert-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+    .sub-alert strong { display: block; margin-bottom: 2px; font-size: 0.88rem; text-transform: uppercase; letter-spacing: .05em; }
+    .sub-alert.success { background: var(--success-bg); color: #065f46; border-color: var(--success-bd); }
+    .sub-alert.error   { background: var(--danger-bg);  color: #7f1d1d; border-color: var(--danger-bd); }
+    .sub-alert.warning { background: var(--warn-bg);    color: #78350f; border-color: var(--warn-bd); }
+
+    /* ── Cards ── */
+    .sub-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); padding: 26px 28px; margin-bottom: 20px; animation: fadeUp .4s ease both; }
+    .sub-card:nth-child(2) { animation-delay: .06s; }
+    .sub-card:nth-child(3) { animation-delay: .12s; }
+    .sub-card-label { font-size: 0.68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--slate-light); margin: 0 0 20px; }
+
+    /* ── Stats ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 22px; }
+    .stat-item { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px 16px; transition: border-color .2s, box-shadow .2s; }
+    .stat-item:hover { border-color: #bdd5ed; box-shadow: var(--shadow); }
+    .stat-lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--slate-light); margin-bottom: 7px; }
+    .stat-val { font-size: 1rem; font-weight: 600; color: var(--navy); line-height: 1.3; }
+    .stat-val.muted { color: var(--slate); font-weight: 500; }
+    .status-pill { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .status-pill.active  { background: #dcfce7; color: #166534; }
+    .status-pill.trial   { background: #dbeafe; color: #1e40af; }
+    .status-pill.expired { background: #fee2e2; color: #991b1b; }
+
+    /* ── Storage ── */
+    .storage-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+    .storage-header strong { font-size: 0.85rem; font-weight: 600; color: var(--navy); }
+    .storage-header span { font-size: 0.78rem; color: var(--slate-light); }
+    .storage-track { height: 7px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .storage-fill { height: 100%; border-radius: 999px; transition: width .7s cubic-bezier(.4,0,.2,1); }
+    .storage-fill.ok      { background: linear-gradient(90deg,#0d3b66,#1d6fa4); }
+    .storage-fill.warning { background: linear-gradient(90deg,#d97706,#f59e0b); }
+    .storage-fill.danger  { background: linear-gradient(90deg,#dc2626,#ef4444); }
+    .storage-footer { display: flex; justify-content: space-between; margin-top: 7px; font-size: 0.75rem; color: var(--slate-light); }
+
+    /* ── Divider ── */
+    .sub-hr { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+
+    /* ── Toggle ── */
+    .toggle-row { display: flex; align-items: flex-start; gap: 16px; padding: 16px 18px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .toggle-switch { position: relative; flex-shrink: 0; width: 44px; height: 25px; margin-top: 2px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px; cursor: pointer; transition: background .25s; }
+    .toggle-slider::before { content: ''; position: absolute; left: 3px; top: 3px; width: 19px; height: 19px; background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,.18); transition: transform .25s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--navy); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(19px); }
+    .toggle-text strong { display: block; font-size: 0.9rem; font-weight: 600; color: #1e293b; margin-bottom: 3px; }
+    .toggle-text p { margin: 0; font-size: 0.81rem; color: var(--slate); line-height: 1.55; }
+
+    /* ── Inline alerts ── */
+    .inline-alert { display: flex; gap: 11px; align-items: flex-start; padding: 13px 15px; border-radius: var(--radius-sm); margin-top: 13px; font-size: 0.83rem; border: 1px solid transparent; line-height: 1.5; }
+    .inline-alert.warn  { background: var(--warn-bg);   color: #78350f; border-color: var(--warn-bd); }
+    .inline-alert.error { background: var(--danger-bg); color: #7f1d1d; border-color: var(--danger-bd); }
+    .ia-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Save button ── */
+    .form-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+    .btn-save { display: inline-flex; align-items: center; gap: 7px; background: var(--navy); color: #fff; border: none; border-radius: var(--radius-sm); padding: 11px 26px; font-size: 0.87rem; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: background .2s, box-shadow .2s, transform .15s; box-shadow: 0 2px 10px rgba(13,59,102,.22); }
+    .btn-save:hover { background: var(--navy-dark); box-shadow: 0 5px 18px rgba(13,59,102,.32); transform: translateY(-1px); }
+    .btn-save:active { transform: translateY(0); }
+
+    /* ── Payment methods ── */
+    .pm-list { display: flex; flex-direction: column; gap: 10px; }
+    .pm-card { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg); transition: border-color .2s, box-shadow .2s; }
+    .pm-card:hover { border-color: #bdd5ed; box-shadow: var(--shadow); }
+    .pm-card.is-default { border-color: #bfdbfe; background: #f0f7ff; }
+    .pm-icon { width: 40px; height: 40px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+    .pm-info { flex: 1; min-width: 0; }
+    .pm-info strong { display: block; font-size: 0.88rem; font-weight: 600; color: #1e293b; }
+    .pm-info span { font-size: 0.78rem; color: var(--slate); }
+    .pm-default-tag { font-size: 0.68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; background: #dbeafe; color: #1e40af; padding: 3px 9px; border-radius: 999px; flex-shrink: 0; }
+    .pm-empty { text-align: center; padding: 24px 20px; color: var(--slate-light); font-size: 0.86rem; }
+    .pm-empty-icon { font-size: 1.8rem; margin-bottom: 6px; }
+    .btn-paymongo { display: inline-flex; align-items: center; gap: 7px; background: var(--white); color: var(--navy); border: 1.5px solid var(--navy); border-radius: var(--radius-sm); padding: 9px 18px; font-size: 0.83rem; font-weight: 600; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: background .2s, color .2s; margin-top: 14px; }
+    .btn-paymongo:hover { background: var(--navy); color: #fff; }
+
+    /* ── Animation ── */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 640px) {
+      .sub-wrap { padding: 18px 14px 48px; }
+      .sub-page-header h1 { font-size: 1.6rem; }
+      .sub-card { padding: 18px 16px; }
+      .stat-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
 </head>
@@ -360,129 +446,180 @@ function formatReadableDate(?string $date): string {
         <?php renderDateClock(); ?>
       </div>
 
-      <?php if ($saveMessage): ?>
-        <div class="alert alert-success"><?php echo h($saveMessage); ?></div>
-      <?php endif; ?>
-      <?php if ($errorMessage): ?>
-        <div class="alert alert-error"><?php echo h($errorMessage); ?></div>
-      <?php endif; ?>
-      <?php if (!empty($subscriptionEndingSoon)): ?>
-        <div class="alert alert-warning">
-          <strong>Renewal due soon:</strong>
-          <?php if ($autoRenewEnabled): ?>
-            Your subscription is set to renew automatically on <?php echo h(formatReadableDate($subscriptionEndAt)); ?>. Please ensure your payment method is current.
-          <?php else: ?>
-            Your subscription expires on <?php echo h(formatReadableDate($subscriptionEndAt)); ?>. Renew manually or enable auto-renew to avoid service interruption.
-          <?php endif; ?>
+      <div class="sub-wrap">
+
+        <!-- Header -->
+        <div class="sub-page-header">
+          <div>
+            <h1>Subscription</h1>
+            <p><?php echo h($tenantName); ?> &mdash; manage your plan &amp; billing</p>
+          </div>
+          <span class="plan-badge"><?php echo h($displayPlanName); ?></span>
         </div>
-      <?php endif; ?>
 
-      <div class="content-columns">
-        <div class="left-column">
-          <div class="subscription-card">
-            <h2>Subscription Details</h2>
-            
-            <?php
-            $storageInfo = getTenantStorageUsageInfo($tenantId, $conn);
-            $storageUsedMb = formatBytesToMB($storageInfo['usage_bytes']);
-            $storageLimitMb = formatBytesToMB($storageInfo['limit_bytes'] ?? 0);
-            $storagePercent = $storageInfo['usage_percent'] ?? 0;
-            ?>
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; margin-bottom: 18px;">
-                <h3 style="margin: 0 0 12px; font-size: 14px; color: #0d3b66;">Storage Usage (<?php echo h((string)$storagePercent); ?>%)</h3>
-                <div style="background: #e2e8f0; border-radius: 8px; height: 12px; width: 100%; overflow: hidden; margin-bottom: 8px;">
-                    <div style="background: <?php echo $storagePercent >= 90 ? '#ef4444' : '#0d3b66'; ?>; height: 100%; width: <?php echo h((string)$storagePercent); ?>%; transition: width 0.3s ease;"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: #475569;">
-                    <span><?php echo h($storageUsedMb); ?> used</span>
-                    <span><?php echo h($storageLimitMb); ?> total limit</span>
-                </div>
-            </div>
-
-            <div class="subscription-grid">
-              <div class="subscription-item">
-                <h3>Current Plan</h3>
-                <p><?php echo h($displayPlanName); ?></p>
-              </div>
-              <div class="subscription-item">
-                <h3>Current Status</h3>
-                <p><?php echo h($subscription['status'] ?? 'Active'); ?></p>
-              </div>
-              <div class="subscription-item">
-                <h3>Trial ends</h3>
-                <p><?php echo h(formatReadableDate($subscription['trial_ends_at'] ?? null)); ?></p>
-              </div>
-              <div class="subscription-item">
-                <h3>Subscription ends</h3>
-                <p><?php echo h(formatReadableDate($tenantSubEndAt ?? $subscriptionEndAt)); ?></p>
-              </div>
-              <div class="subscription-item">
-                <h3>Next renewal</h3>
-                <p><?php echo h($autoRenewEnabled ? formatReadableDate($nextRenewalAt) : 'Disabled'); ?></p>
-              </div>
-            </div>
-
-            <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
-              <div class="subscription-item" style="grid-column: 1 / -1;">
-                <div class="form-checkbox">
-                  <input type="checkbox" name="auto_renew" id="auto_renew" value="1"<?php echo isset($subscription['auto_renew']) && $subscription['auto_renew'] ? ' checked' : ''; ?> />
-                  <label for="auto_renew">Keep my subscription active and automatically renew at the end of the current period.</label>
-                </div>
-                <p style="color: #475569; margin-top: 12px;">Toggle this checkbox to stop or resume automatic billing. Access remains until the end of the current period.</p>
-              </div>
-              <?php if ($hasAutoRenewFailure): ?>
-                <div class="subscription-item" style="grid-column: 1 / -1; background:#fff1f2; border-color:#fecdd3;">
-                  <h3 style="color:#b91c1c;">Auto-renewal alert</h3>
-                  <p style="color:#991b1b;">An automatic renewal attempt failed. Please update your payment method or review the pending notifications on the right.</p>
-                </div>
+        <!-- Flash messages -->
+        <?php if ($saveMessage): ?>
+          <div class="sub-alert success">
+            <span class="sub-alert-icon">✅</span>
+            <div><strong>Saved</strong><?php echo h($saveMessage); ?></div>
+          </div>
+        <?php endif; ?>
+        <?php if ($errorMessage): ?>
+          <div class="sub-alert error">
+            <span class="sub-alert-icon">⛔</span>
+            <div><strong>Error</strong><?php echo h($errorMessage); ?></div>
+          </div>
+        <?php endif; ?>
+        <?php if (!empty($subscriptionEndingSoon)): ?>
+          <div class="sub-alert warning">
+            <span class="sub-alert-icon">⚠️</span>
+            <div>
+              <strong>Renewal due soon</strong>
+              <?php if ($autoRenewEnabled): ?>
+                Auto-renews on <strong><?php echo h(formatReadableDate($subscriptionEndAt)); ?></strong>. Ensure your payment method is current.
+              <?php else: ?>
+                Expires on <strong><?php echo h(formatReadableDate($subscriptionEndAt)); ?></strong>. Enable auto-renew or renew manually to avoid interruption.
               <?php endif; ?>
-              <?php if ($subscriptionEndingSoon): ?>
-                <div class="subscription-item" style="grid-column: 1 / -1; background:#fff7ed; border-color:#fcd34d;">
-                  <h3 style="color:#b45309;">Subscription ending soon</h3>
-                  <p style="color:#92400e;"><?php echo h($subscriptionEndMessage); ?> <?php echo $autoRenewEnabled ? 'Your subscription is set to renew automatically.' : 'Auto-renewal is disabled, so your plan will expire unless you renew manually.'; ?></p>
-                </div>
-              <?php endif; ?>
-              <div style="grid-column: 1 / -1; text-align: right; margin-top: 16px;">
-                <button type="submit" class="button-primary">Save Subscription Settings</button>
-              </div>
-            </form>
+            </div>
+          </div>
+        <?php endif; ?>
 
-            <div class="subscription-item subscription-card" style="margin-top:24px;">
-              <h3>Payment method</h3>
-              <div class="payment-method">
-                <?php if (!empty($paymentMethods)): ?>
-                  <?php foreach ($paymentMethods as $pm): ?>
-                    <div style="border:1px solid #e6eef6; padding:10px; border-radius:10px; margin-bottom:8px; background:#fff;">
-                      <strong><?php echo h($pm['brand'] ?? 'Card'); ?></strong>
-                      <span style="color:#64748b; margin-left:8px;">ending in <?php echo h($pm['last4'] ?? ''); ?></span>
-                      <?php if (!empty($pm['is_default'])): ?>
-                        <span style="background:#ecfdf5; color:#065f46; padding:4px 8px; border-radius:8px; margin-left:10px; font-size:12px;">Default</span>
-                      <?php endif; ?>
-                      <div style="font-size:13px; color:#475569; margin-top:6px;">Expiry: <?php echo h($pm['exp_month'] ?? ''); ?>/<?php echo h($pm['exp_year'] ?? ''); ?>
-                        <?php if (!empty($pm['provider_token'])): ?>
-                          &nbsp;•&nbsp; <span style="font-family:monospace; color:#334155;">token: <?php echo h(substr($pm['provider_token'], 0, 8)); ?>...</span>
-                        <?php endif; ?>
-                      </div>
-                    </div>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <p style="color:#667085;">No saved payment methods available. You can still manage your subscription settings here.</p>
-                <?php endif; ?>
+        <?php
+        $storageInfo    = getTenantStorageUsageInfo($tenantId, $conn);
+        $storageUsedMb  = formatBytesToMB($storageInfo['usage_bytes']);
+        $storageLimitMb = formatBytesToMB($storageInfo['limit_bytes'] ?? 0);
+        $storagePercent = $storageInfo['usage_percent'] ?? 0;
+        $storageFillClass = $storagePercent >= 90 ? 'danger' : ($storagePercent >= 70 ? 'warning' : 'ok');
+        $statusRaw  = strtolower($subscription['status'] ?? 'active');
+        $statusPill = in_array($statusRaw, ['active','trial','expired']) ? $statusRaw : 'active';
+        ?>
 
-                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
-                  <a class="button-primary" href="https://dashboard.paymongo.com/" target="_blank" style="text-decoration:none; display:inline-block; padding:10px 14px; border-radius:12px;">Manage PayMongo Account</a>
-                </div>
+        <!-- Plan overview card -->
+        <div class="sub-card">
+          <p class="sub-card-label">Plan Overview</p>
+
+          <div class="stat-grid">
+            <div class="stat-item">
+              <div class="stat-lbl">Plan</div>
+              <div class="stat-val"><?php echo h($displayPlanName); ?></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-lbl">Status</div>
+              <div class="stat-val">
+                <span class="status-pill <?php echo $statusPill; ?>"><?php echo h(ucfirst($statusRaw)); ?></span>
               </div>
             </div>
+            <div class="stat-item">
+              <div class="stat-lbl">Trial Ends</div>
+              <div class="stat-val muted"><?php echo h(formatReadableDate($subscription['trial_ends_at'] ?? null)); ?></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-lbl">Subscription Ends</div>
+              <div class="stat-val muted"><?php echo h(formatReadableDate($tenantSubEndAt ?? $subscriptionEndAt)); ?></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-lbl">Next Renewal</div>
+              <div class="stat-val muted"><?php echo h($autoRenewEnabled ? formatReadableDate($nextRenewalAt) : 'Disabled'); ?></div>
+            </div>
+          </div>
 
+          <hr class="sub-hr">
 
-
-
+          <div class="storage-header">
+            <strong>Storage</strong>
+            <span><?php echo h((string)$storagePercent); ?>% used</span>
+          </div>
+          <div class="storage-track">
+            <div class="storage-fill <?php echo $storageFillClass; ?>" style="width:<?php echo h((string)min((int)$storagePercent,100)); ?>%"></div>
+          </div>
+          <div class="storage-footer">
+            <span><?php echo h($storageUsedMb); ?> used</span>
+            <span><?php echo h($storageLimitMb); ?> limit</span>
           </div>
         </div>
 
-        <!-- Notification panel moved to global sidebar -->
-      </div>
+        <!-- Billing settings card -->
+        <div class="sub-card">
+          <p class="sub-card-label">Billing Settings</p>
+
+          <form method="post" action="subscription.php?tenant=<?php echo rawurlencode($tenantSlug); ?>">
+
+            <div class="toggle-row">
+              <label class="toggle-switch">
+                <input type="checkbox" name="auto_renew" id="auto_renew" value="1"<?php echo !empty($subscription['auto_renew']) ? ' checked' : ''; ?>>
+                <span class="toggle-slider"></span>
+              </label>
+              <div class="toggle-text">
+                <strong>Automatic Renewal</strong>
+                <p>Keep your subscription active and auto-renew at period end. If disabled, access continues until the current period expires.</p>
+              </div>
+            </div>
+
+            <?php if ($hasAutoRenewFailure): ?>
+              <div class="inline-alert error">
+                <span class="ia-icon">🚨</span>
+                <div><strong>Renewal failed.</strong> A recent billing attempt did not go through. Check your payment method below.</div>
+              </div>
+            <?php endif; ?>
+
+            <?php if ($subscriptionEndingSoon): ?>
+              <div class="inline-alert warn">
+                <span class="ia-icon">⏳</span>
+                <div><?php echo h($subscriptionEndMessage); ?>
+                <?php echo $autoRenewEnabled ? " Auto-renewal is on — you're set." : ' Auto-renewal is off. Renew manually to keep access.'; ?></div>
+              </div>
+            <?php endif; ?>
+
+            <div class="form-footer">
+              <button type="submit" class="btn-save">Save Settings</button>
+            </div>
+
+          </form>
+        </div>
+
+        <!-- Payment methods card -->
+        <div class="sub-card">
+          <p class="sub-card-label">Payment Methods</p>
+
+          <?php if (!empty($paymentMethods)): ?>
+            <div class="pm-list">
+              <?php foreach ($paymentMethods as $pm): ?>
+                <?php
+                  $brand = strtolower($pm['brand'] ?? '');
+                  $pmIcon = match(true) {
+                    str_contains($brand,'gcash')  => '📱',
+                    str_contains($brand,'maya')   => '📱',
+                    str_contains($brand,'grab')   => '🛵',
+                    default                       => '💳',
+                  };
+                ?>
+                <div class="pm-card <?php echo !empty($pm['is_default']) ? 'is-default' : ''; ?>">
+                  <div class="pm-icon"><?php echo $pmIcon; ?></div>
+                  <div class="pm-info">
+                    <strong><?php echo h(ucfirst($pm['brand'] ?? 'Card')); ?> &nbsp;•••• <?php echo h($pm['last4'] ?? ''); ?></strong>
+                    <span>Expires <?php echo h($pm['exp_month'] ?? ''); ?>/<?php echo h($pm['exp_year'] ?? ''); ?>
+                      <?php if (!empty($pm['billing_contact'])): ?>&nbsp;·&nbsp;<?php echo h($pm['billing_contact']); ?><?php endif; ?>
+                    </span>
+                  </div>
+                  <?php if (!empty($pm['is_default'])): ?>
+                    <span class="pm-default-tag">Default</span>
+                  <?php endif; ?>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            <div class="pm-empty">
+              <div class="pm-empty-icon">💳</div>
+              No saved payment methods. Manage billing via PayMongo.
+            </div>
+          <?php endif; ?>
+
+          <a class="btn-paymongo" href="https://dashboard.paymongo.com/" target="_blank" rel="noopener">
+            ↗&nbsp; Manage PayMongo Account
+          </a>
+        </div>
+
+      </div><!-- /sub-wrap -->
     </div>
   </div>
 </body>

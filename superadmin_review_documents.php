@@ -362,6 +362,7 @@ if ($result) {
                                     <?php if ($request['registration_status'] === 'PENDING'): ?>
                                         <form method="post" class="space-y-3">
                                             <input type="hidden" name="tenant_id" value="<?php echo (int)$request['tenant_id']; ?>">
+                                            <textarea name="admin_notes" class="review-textarea" placeholder="Admin notes (optional)..."></textarea>
                                             <div class="review-actions">
                                                 <button type="submit" name="action" value="approve" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700">Approve</button>
                                                 <button type="submit" name="action" value="reject" class="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700">Reject</button>
@@ -373,6 +374,7 @@ if ($result) {
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                        </tbody>
                 </table>
             <?php endif; ?>
         </div>
