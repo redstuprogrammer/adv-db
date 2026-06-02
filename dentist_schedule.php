@@ -9,7 +9,7 @@ require_once __DIR__ . '/includes/security_headers.php';
 require_once __DIR__ . '/includes/session_utils.php';
 
 $sessionManager = SessionManager::getInstance();
-$sessionManager->requireTenantUser('dentist');
+$sessionManager->requireTenantUser();
 
 require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_utils.php';
@@ -20,8 +20,51 @@ function h(string $s): string {
 }
 
 $tenantId = $sessionManager->getTenantId();
+$currentRole = $sessionManager->getRole();
+
+// Determine dentist context: if tenant dentist -> use their id, if admin -> allow selecting dentist
 $dentistId = $sessionManager->getUserId();
 $dentistName = $sessionManager->getUsername() ?? 'Doctor';
+
+// Fetch dentists for this tenant (for admin dropdown)
+$dentistsList = [];
+$stmtD = mysqli_prepare($conn, "SELECT user_id, COALESCE(NULLIF(CONCAT(first_name, ' ', last_name), ' '), username) AS display_name FROM users WHERE tenant_id = ? AND (role = 'Dentist' OR role = 'dentist') ORDER BY display_name ASC");
+if ($stmtD) {
+    mysqli_stmt_bind_param($stmtD, 'i', $tenantId);
+    mysqli_stmt_execute($stmtD);
+    $resD = mysqli_stmt_get_result($stmtD);
+    while ($r = mysqli_fetch_assoc($resD)) {
+        $dentistsList[] = $r;
+    }
+    mysqli_stmt_close($stmtD);
+}
+
+// Determine selected dentist from GET (when changing dropdown) or POST (when saving)
+$selectedFromGet = isset($_GET['selected_dentist']) && is_numeric($_GET['selected_dentist']) ? (int)$_GET['selected_dentist'] : null;
+$selectedFromPost = isset($_POST['selected_dentist']) && is_numeric($_POST['selected_dentist']) ? (int)$_POST['selected_dentist'] : null;
+
+if ($currentRole === 'admin') {
+    if ($selectedFromGet) {
+        $dentistId = $selectedFromGet;
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $selectedFromPost) {
+        // When saving, prefer the posted selected dentist
+        $dentistId = $selectedFromPost;
+    }
+
+    // default to first dentist if none chosen yet
+    if (empty($dentistId) && !empty($dentistsList)) {
+        $dentistId = (int)$dentistsList[0]['user_id'];
+    }
+
+    // update displayed name if possible
+    foreach ($dentistsList as $d) {
+        if ((int)$d['user_id'] === (int)$dentistId) {
+            $dentistName = $d['display_name'];
+            break;
+        }
+    }
+}
 
 $message = '';
 $messageType = '';
@@ -32,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all_schedule']))
     $successCount = 0;
 
     // Start transaction or just clear existing for this dentist to avoid duplicates
-    mysqli_query($conn, "DELETE FROM dentist_schedule WHERE tenant_id = $tenantId AND dentist_id = $dentistId");
+    mysqli_query($conn, "DELETE FROM dentist_schedule WHERE tenant_id = " . intval($tenantId) . " AND dentist_id = " . intval($dentistId));
 
     foreach ($daysOfWeek as $day) {
         $isAvailable = isset($_POST["available_$day"]) ? 1 : 0;
@@ -53,7 +96,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_all_schedule']))
         $message = 'Weekly schedule updated successfully.';
         $messageType = 'success';
         $desc = safeDesc('Schedule', 'DentistSchedule', null, ['dentist_id' => $dentistId]);
-        logActivity($conn, $tenantId, 'Schedule', $desc, null, 'dentist', 'Dentist');
+        // log role-aware: if admin changed another dentist's schedule, mark as Admin
+        $logRole = ($currentRole === 'admin') ? 'admin' : 'dentist';
+        logActivity($conn, $tenantId, 'Schedule', $desc, null, $logRole, 'Tenant Admin');
     }
 }
 
@@ -168,7 +213,24 @@ mysqli_stmt_close($stmt);
                     </div>
                 <?php endif; ?>
 
+                    <?php if ($currentRole === 'admin'): ?>
+                        <form id="select-dentist-form" method="GET" style="margin-bottom:12px; display:flex; align-items:center; gap:12px;">
+                            <input type="hidden" name="tenant" value="<?php echo h($sessionManager->getCurrentTenantSlug() ?? ''); ?>">
+                            <label style="font-weight:600; color:#1f2937;">Select Dentist:</label>
+                            <select name="selected_dentist" style="padding:8px 10px; border-radius:6px; border:1px solid #d1d5db;" onchange="document.getElementById('select-dentist-form').submit()">
+                                <?php if (empty($dentistsList)): ?>
+                                    <option value="">No dentists available</option>
+                                <?php else: ?>
+                                    <?php foreach ($dentistsList as $d): ?>
+                                        <option value="<?php echo (int)$d['user_id']; ?>" <?php echo ((int)$d['user_id'] === (int)$dentistId) ? 'selected' : ''; ?>><?php echo h($d['display_name']); ?></option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+                        </form>
+                    <?php endif; ?>
+
                 <form method="POST" class="management-card">
+                    <input type="hidden" name="selected_dentist" value="<?php echo (int)$dentistId; ?>">
                     <input type="hidden" name="save_all_schedule" value="1">
                     <table class="compact-table">
                         <thead>
