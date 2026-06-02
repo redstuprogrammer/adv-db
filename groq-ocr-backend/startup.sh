@@ -1,11 +1,16 @@
-#!/bin/bash
-echo "Starting SSH..."
-service ssh start || true
+#!/usr/bin/env bash
+set -euo pipefail
 
-cd /home/site/wwwroot
-if [ -f output.tar.zst ]; then
-  echo "Extracting application files from output.tar.zst..."
-  tar -I zstd -xf output.tar.zst
+# Minimal startup script placeholder — extracts archived artifacts if present and starts the app.
+if [ -f "/home/site/wwwroot/output.tar.zst" ]; then
+  echo "Found output.tar.zst, extracting..."
+  tar -I zstd -xf /home/site/wwwroot/output.tar.zst -C /home/site/wwwroot || true
 fi
-echo "Starting gunicorn..."
-gunicorn --bind=0.0.0.0:8000 --workers=2 --threads=2 --timeout=120 app:app
+
+if command -v gunicorn >/dev/null 2>&1; then
+  echo "Starting gunicorn..."
+  exec gunicorn --bind 0.0.0.0:5000 app:app
+else
+  echo "gunicorn not found, running flask directly"
+  exec python app.py
+fi
