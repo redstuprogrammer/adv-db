@@ -1,5 +1,3 @@
-I added a new patient but superadmin_tenant_reports.php and reports.php didnt show any action recorded.
-
 
 when I register a tenant, the email is automatically displayed as the username in the sidebar even though there is already a username field in the registration. only username should be displayed in the sidebar.
 
@@ -32,7 +30,7 @@ subscription.php
 
 
 code.html (main landing page)
-    - check this. after registration, instead of displaying the paymongo link. bring the user to the paymongo page right away.
+    - test the registration of tenants.
 
 
 patients.php and receptionist_patients.php

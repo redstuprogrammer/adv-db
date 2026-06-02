@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($tenantId > 0 && in_array($action, ['approve', 'reject'], true)) {
         
-        $stmt = $conn->prepare("SELECT id, company_name, owner_name, contact_email, subscription_tier, subscription_duration, registration_status FROM tenants WHERE id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT tenant_id, company_name, owner_name, contact_email, subscription_tier, subscription_duration, registration_status FROM tenants WHERE tenant_id = ? LIMIT 1");
         $stmt->bind_param('i', $tenantId);
         $stmt->execute();
         $tenantRow = $stmt->get_result()->fetch_assoc();
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $registration_status_final = 'APPROVED';
                 
                 // Update tenant
-                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ? WHERE id = ?");
+                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ? WHERE tenant_id = ?");
                 $updateTenant->bind_param('si', $registration_status_final, $tenantId);
                 $updateTenant->execute();
                 $updateTenant->close();
@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $registration_status_final = 'REJECTED';
                 $status = 'archived';
 
-                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ?, status = ? WHERE id = ?");
+                $updateTenant = $conn->prepare("UPDATE tenants SET registration_status = ?, status = ? WHERE tenant_id = ?");
                 $updateTenant->bind_param('ssi', $registration_status_final, $status, $tenantId);
                 $updateTenant->execute();
                 $updateTenant->close();

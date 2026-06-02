@@ -175,7 +175,7 @@ $maxSizeMB = 5; // Max file size shown in UI (5MB)
             $registration_status_final = 'PENDING';
 
             // Update tenant registration_status based on current registration flow
-            $update_status_sql = "UPDATE tenants SET registration_status = ? WHERE id = ?";
+            $update_status_sql = "UPDATE tenants SET registration_status = ? WHERE tenant_id = ?";
             $update_stmt = mysqli_prepare($conn, $update_status_sql);
             if ($update_stmt) {
                 mysqli_stmt_bind_param($update_stmt, "si", $registration_status_final, $new_id);

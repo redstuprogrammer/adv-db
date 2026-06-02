@@ -44,7 +44,7 @@ if ($event_type === 'checkout_session.payment.paid') {
                 
                 if ($isInitial) {
                     $tId = $tRow['tenant_id'];
-                    $activateSql = "UPDATE tenants SET status = 'active' WHERE id = ? AND status = 'inactive'";
+                    $activateSql = "UPDATE tenants SET status = 'active' WHERE tenant_id = ? AND status = 'inactive'";
                     $aStmt = $conn->prepare($activateSql);
                     $aStmt->bind_param("i", $tId);
                     $aStmt->execute();
@@ -54,7 +54,7 @@ if ($event_type === 'checkout_session.payment.paid') {
                         require_once __DIR__ . '/includes/onboarding_utils.php';
                         
                         // Fetch tenant details for email
-                        $infoQuery = "SELECT company_name, owner_name, contact_email, subdomain_slug FROM tenants WHERE id = ?";
+                        $infoQuery = "SELECT company_name, owner_name, contact_email, subdomain_slug FROM tenants WHERE tenant_id = ?";
                         $iStmt = $conn->prepare($infoQuery);
                         $iStmt->bind_param("i", $tId);
                         $iStmt->execute();
@@ -65,7 +65,7 @@ if ($event_type === 'checkout_session.payment.paid') {
                             $temp_password = substr(bin2hex(random_bytes(4)), 0, 8);
                             $hashed_password = password_hash($temp_password, PASSWORD_DEFAULT);
                             
-                            $updPass = $conn->prepare("UPDATE tenants SET password = ? WHERE id = ?");
+                            $updPass = $conn->prepare("UPDATE tenants SET password = ? WHERE tenant_id = ?");
                             $updPass->bind_param("si", $hashed_password, $tId);
                             $updPass->execute();
                             $updPass->close();

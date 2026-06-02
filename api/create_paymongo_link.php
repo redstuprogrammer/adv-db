@@ -87,7 +87,7 @@ if (!$tenant_id || !$billing_id || !$patient_id || $amount === null) {
 
 // ========== OCR VERIFICATION GATE ==========
 // Check if tenant's registration_status is APPROVED (document verification passed)
-$status_check_sql = "SELECT registration_status FROM tenants WHERE id = ?";
+$status_check_sql = "SELECT registration_status FROM tenants WHERE tenant_id = ?";
 $status_stmt = mysqli_prepare($conn, $status_check_sql);
 if (!$status_stmt) {
     echo json_encode(['success' => false, 'message' => 'Database error: ' . mysqli_error($conn)]);

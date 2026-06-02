@@ -264,7 +264,7 @@ if (!function_exists('getAllowedActivityTypes')) {
 }
 
 if (!function_exists('safeDesc')) {
-    function safeDesc(string $action, string $entity = null, $id = null, array $meta = []): string {
+    function safeDesc(string $action, ?string $entity = null, $id = null, array $meta = []): string {
         $action = trim((string)$action);
         $entity = $entity ? trim((string)$entity) : null;
 
