@@ -93,9 +93,13 @@ $errorMsg = '';
 // File validation happens BEFORE clinical note save to prevent saving if files are invalid
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
     $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
+    $_effectiveTier = getTenantEffectiveTier($tenantId, $conn);
     $_maxFileSizeMb = getTenantEffectiveMaxFileSize($tenantId, $conn);
     $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
     $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+    
+    // DEBUG: Log tier and file size info
+    error_log("DEBUG clinical_record.php PHASE 1: tenantId=$tenantId, effectiveTier=$_effectiveTier, maxFileSizeMb=$_maxFileSizeMb, maxFileSizeBytes=$_maxFileSizeBytes");
     
     // Pre-validate all files before any database operations
     foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
@@ -103,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             $file_size = $_FILES['patient_docs']['size'][$key];
             $original_name = $_FILES['patient_docs']['name'][$key];
             $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+            
+            error_log("DEBUG clinical_record.php file check: file=$original_name, size=$file_size, maxBytes=$_maxFileSizeBytes");
             
             // Check file type first
             if (!in_array($ext, $_allowed)) {
@@ -113,8 +119,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             // Check individual file size limit
             if ($file_size > $_maxFileSizeBytes) {
                 $fileSizeMB = round($file_size / (1024 * 1024), 2);
-                $tierName = ucfirst(getTenantEffectiveTier($tenantId, $conn));
+                $tierName = ucfirst($_effectiveTier);
                 $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your $tierName plan.";
+                error_log("DEBUG clinical_record.php FILE SIZE EXCEEDED: $errorMsg");
                 break;
             }
             
