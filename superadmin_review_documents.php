@@ -259,6 +259,10 @@ $totalPages = $totalRows > 0 ? (int)ceil($totalRows / $perPage) : 1;
             --mono:    'DM Mono', monospace;
         }
 
+        html, body {
+            min-height: 100%;
+            overflow-y: auto;
+        }
         body {
             font-family: var(--font);
             background: var(--bg);
@@ -269,7 +273,7 @@ $totalPages = $totalRows > 0 ? (int)ceil($totalRows / $perPage) : 1;
 
         /* ── Layout ──────────────────────────────────────────────── */
         .page-wrap { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; padding: 32px 36px; overflow-x: hidden; }
+        .main-content { flex: 1; padding: 32px 36px; overflow-x: hidden; overflow-y: auto; }
 
         /* ── Page Header ─────────────────────────────────────────── */
         .page-header {
