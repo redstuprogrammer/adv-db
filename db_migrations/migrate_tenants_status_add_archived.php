@@ -10,7 +10,7 @@
  * Safe to run multiple times — checks if 'archived' already exists first.
  */
 
-define('ROOT_PATH', __DIR__ . '/');
+define('ROOT_PATH', __DIR__ . '/../');
 require_once ROOT_PATH . 'includes/connect.php';  // provides $conn (mysqli)
 /** @var mysqli $conn */
 
