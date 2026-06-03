@@ -85,9 +85,54 @@ if (!empty($patient['birthdate'])) {
     }
 }
 
-// Handle treatment note submission
+// Initialize messages
 $successMsg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note'])) {
+$errorMsg = '';
+
+// === PHASE 1: VALIDATE FILES FIRST (if being uploaded) ===
+// File validation happens BEFORE clinical note save to prevent saving if files are invalid
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
+    $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
+    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5;
+    $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
+    $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+    
+    // Pre-validate all files before any database operations
+    foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
+        if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
+            $file_size = $_FILES['patient_docs']['size'][$key];
+            $original_name = $_FILES['patient_docs']['name'][$key];
+            $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
+            
+            // Check file type first
+            if (!in_array($ext, $_allowed)) {
+                $errorMsg = "❌ File type not allowed for '$original_name'. Allowed: PDF, JPG, PNG, DOC, DOCX.";
+                break;
+            }
+            
+            // Check individual file size limit
+            if ($file_size > $_maxFileSizeBytes) {
+                $fileSizeMB = round($file_size / (1024 * 1024), 2);
+                $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your " . (getTenantTier($tenantId, $conn) === 'trial' ? 'Trial' : 'plan') . " plan.";
+                break;
+            }
+            
+            // Check total storage limit
+            if (
+                $_uploadStorageInfo['limit_bytes'] !== null &&
+                ($_uploadStorageInfo['usage_bytes'] + (int)$file_size) > $_uploadStorageInfo['limit_bytes']
+            ) {
+                $usedMB = round($_uploadStorageInfo['usage_bytes'] / (1024 * 1024), 2);
+                $limitMB = round($_uploadStorageInfo['limit_bytes'] / (1024 * 1024), 2);
+                $errorMsg = "❌ Storage limit reached. You've used {$usedMB} MB of {$limitMB} MB. Cannot upload $original_name.";
+                break;
+            }
+        }
+    }
+}
+
+// === PHASE 2: SAVE CLINICAL NOTE (only if no file validation errors) ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note']) && !$errorMsg) {
     $notes = trim($_POST['clinical_notes'] ?? '');
     $diagnosis = trim($_POST['diagnosis'] ?? '');
     $treatment = trim($_POST['treatment'] ?? '');
@@ -105,31 +150,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_clinical_note'])
     }
 }
 
-// Fetch clinical history
-$clinicalHistory = [];
-$historyStmt = $conn->prepare("SELECT * FROM clinical_notes WHERE tenant_id = ? AND patient_id = ? ORDER BY note_id DESC");
-if ($historyStmt) {
-    $historyStmt->bind_param('ii', $tenantId, $patient_id);
-    $historyStmt->execute();
-    $historyResult = $historyStmt->get_result();
-    while ($row = $historyResult->fetch_assoc()) {
-        $clinicalHistory[] = $row;
-    }
-    $historyStmt->close();
-}
-
-// Handle file uploads
-$errorMsg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
+// === PHASE 3: HANDLE FILE UPLOADS (only if no validation errors) ===
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs']) && !$errorMsg) {
     $upload_dir = __DIR__ . '/uploads/patient_docs/';
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0777, true);
     }
 
-    // Fetch storage info and tier limits once before the loop
     $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
-    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5; // Default 5MB
+    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5;
     $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
+    $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+    $_filesUploaded = 0;
     
     foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
         if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
@@ -138,26 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             $file_size = $_FILES['patient_docs']['size'][$key];
             $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
             
-            // Check individual file size limit
-            if ($file_size > $_maxFileSizeBytes) {
-                $fileSizeMB = round($file_size / (1024 * 1024), 2);
-                $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your " . (getTenantTier($tenantId, $conn) === 'trial' ? 'Trial' : 'plan') . " plan.";
-                continue;
-            }
-            
-            // Check total storage limit
-            if (
-                $_uploadStorageInfo['limit_bytes'] !== null &&
-                ($_uploadStorageInfo['usage_bytes'] + (int)$file_size) > $_uploadStorageInfo['limit_bytes']
-            ) {
-                $usedMB = round($_uploadStorageInfo['usage_bytes'] / (1024 * 1024), 2);
-                $limitMB = round($_uploadStorageInfo['limit_bytes'] / (1024 * 1024), 2);
-                $errorMsg = "❌ Storage limit reached. You've used {$usedMB} MB of {$limitMB} MB. Cannot upload $original_name.";
-                continue;
-            }
-            
-            $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
-            if (in_array($ext, $allowed)) {
+            if (in_array($ext, $_allowed)) {
                 $safe_name = uniqid('pat_' . $patient_id . '_') . '.' . $ext;
                 $dest_path = $upload_dir . $safe_name;
                 
@@ -172,14 +185,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
                         mysqli_stmt_bind_param($doc_stmt, "iisssi", $tenantId, $patient_id, $original_name, $db_path, $file_type, $file_size);
                         mysqli_stmt_execute($doc_stmt);
                         mysqli_stmt_close($doc_stmt);
-                        $successMsg = '✓ Document(s) uploaded successfully.';
+                        $_filesUploaded++;
                     }
                 }
-            } else {
-                $errorMsg = "❌ File type not allowed for '$original_name'. Allowed: PDF, JPG, PNG, DOC, DOCX.";
             }
         }
     }
+    
+    if ($_filesUploaded > 0) {
+        $successMsg = '✓ Document(s) uploaded successfully.';
+    }
+}
+
+// Fetch clinical history
+$clinicalHistory = [];
+$historyStmt = $conn->prepare("SELECT * FROM clinical_notes WHERE tenant_id = ? AND patient_id = ? ORDER BY note_id DESC");
+if ($historyStmt) {
+    $historyStmt->bind_param('ii', $tenantId, $patient_id);
+    $historyStmt->execute();
+    $historyResult = $historyStmt->get_result();
+    while ($row = $historyResult->fetch_assoc()) {
+        $clinicalHistory[] = $row;
+    }
+    $historyStmt->close();
 }
 
 // Fetch patient documents
@@ -199,6 +227,27 @@ $storageInfo = getTenantStorageUsageInfo($tenantId, $conn);
 $storageWarning = '';
 $storageBannerType = '';
 
+// Calculate projected storage usage if files are being uploaded
+$projectedStorageBytes = $storageInfo['usage_bytes'];
+$projectedStoragePercent = $storageInfo['usage_percent'] ?? 0;
+
+if (isset($_FILES['patient_docs']) && is_array($_FILES['patient_docs']['tmp_name'])) {
+    $filesBeingUploaded = 0;
+    foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
+        if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
+            $filesBeingUploaded += $_FILES['patient_docs']['size'][$key];
+        }
+    }
+    
+    if ($filesBeingUploaded > 0 && $storageInfo['limit_bytes'] !== null) {
+        $projectedStorageBytes = $storageInfo['usage_bytes'] + $filesBeingUploaded;
+        $projectedStoragePercent = (int) floor($projectedStorageBytes / $storageInfo['limit_bytes'] * 100);
+        if ($projectedStoragePercent > 100) {
+            $projectedStoragePercent = 100;
+        }
+    }
+}
+
 if ($storageInfo['limit_bytes'] !== null) {
     $tenantTierInfo = getTenantTierInfo($tenantId, $conn);
     $tierName = $tenantTierInfo['name'] ?? ucfirst(trim((string)($tenantData['subscription_tier'] ?? 'Current')));
@@ -207,6 +256,20 @@ if ($storageInfo['limit_bytes'] !== null) {
     if ($usagePercent >= 100) {
         $storageWarning = "⚠️ Your {$tierName} plan storage limit has been exceeded. Current usage is " . formatBytesToMB($storageInfo['usage_bytes']) . " of " . formatBytesToMB($storageInfo['limit_bytes']) . ".";
         $storageBannerType = 'storage-error';
+    } elseif ($projectedStoragePercent >= 100) {
+        // Show error if uploading these files would exceed limit
+        $currentMB = formatBytesToMB($storageInfo['usage_bytes']);
+        $projectedMB = formatBytesToMB($projectedStorageBytes);
+        $limitMB = formatBytesToMB($storageInfo['limit_bytes']);
+        $storageWarning = "❌ Uploading these files would exceed your {$tierName} plan storage limit. Current: {$currentMB} → Projected: {$projectedMB} (limit: {$limitMB}).";
+        $storageBannerType = 'storage-error';
+    } elseif ($projectedStoragePercent >= 80) {
+        // Show warning if uploading these files would approach limit
+        $currentMB = formatBytesToMB($storageInfo['usage_bytes']);
+        $projectedMB = formatBytesToMB($projectedStorageBytes);
+        $limitMB = formatBytesToMB($storageInfo['limit_bytes']);
+        $storageWarning = "⚠️ Uploading these files will bring storage to {$projectedStoragePercent}% of your {$tierName} plan limit. Current: {$currentMB} → Projected: {$projectedMB} (limit: {$limitMB}).";
+        $storageBannerType = 'storage-warning';
     } elseif ($usagePercent >= 80) {
         $storageWarning = "⚠️ Storage usage is at {$usagePercent}% of your {$tierName} plan limit (" . formatBytesToMB($storageInfo['usage_bytes']) . " / " . formatBytesToMB($storageInfo['limit_bytes']) . "). Uploading more documents may fail.";
         $storageBannerType = 'storage-warning';

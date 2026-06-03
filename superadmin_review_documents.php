@@ -375,7 +375,9 @@ $totalPages = $totalRows > 0 ? (int)ceil($totalRows / $perPage) : 1;
             border: 1px solid var(--border);
             border-radius: 20px;
             box-shadow: var(--shadow);
-            overflow: hidden;
+            /* Allow the card to grow but remain within the viewport and scroll internally */
+            max-height: calc(100vh - 180px);
+            overflow: auto;
         }
         .review-card-header {
             display: flex; align-items: center; justify-content: space-between;
