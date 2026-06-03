@@ -98,8 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
     $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
     $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
     
-    // DEBUG: Log tier and file size info
-    error_log("DEBUG clinical_record.php PHASE 1: tenantId=$tenantId, effectiveTier=$_effectiveTier, maxFileSizeMb=$_maxFileSizeMb, maxFileSizeBytes=$_maxFileSizeBytes");
+    // DEBUG: Log tier and file size info (also write to local debug file)
+    $dbgMsg = "DEBUG clinical_record.php PHASE 1: tenantId=$tenantId, effectiveTier=$_effectiveTier, maxFileSizeMb=$_maxFileSizeMb, maxFileSizeBytes=$_maxFileSizeBytes";
+    error_log($dbgMsg);
+    $dbgDir = __DIR__ . '/cache';
+    if (!is_dir($dbgDir)) {
+        @mkdir($dbgDir, 0777, true);
+    }
+    @file_put_contents($dbgDir . '/debug_clinical_record.log', $dbgMsg . PHP_EOL, FILE_APPEND | LOCK_EX);
     
     // Pre-validate all files before any database operations
     foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
@@ -108,7 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             $original_name = $_FILES['patient_docs']['name'][$key];
             $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
             
-            error_log("DEBUG clinical_record.php file check: file=$original_name, size=$file_size, maxBytes=$_maxFileSizeBytes");
+            $dbgFileMsg = "DEBUG clinical_record.php file check: file=$original_name, size=$file_size, maxBytes=$_maxFileSizeBytes";
+            error_log($dbgFileMsg);
+            @file_put_contents(__DIR__ . '/cache/debug_clinical_record.log', $dbgFileMsg . PHP_EOL, FILE_APPEND | LOCK_EX);
             
             // Check file type first
             if (!in_array($ext, $_allowed)) {
@@ -121,7 +129,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
                 $fileSizeMB = round($file_size / (1024 * 1024), 2);
                 $tierName = ucfirst($_effectiveTier);
                 $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your $tierName plan.";
-                error_log("DEBUG clinical_record.php FILE SIZE EXCEEDED: $errorMsg");
+                $dbgExceeded = "DEBUG clinical_record.php FILE SIZE EXCEEDED: $errorMsg";
+                error_log($dbgExceeded);
+                @file_put_contents(__DIR__ . '/cache/debug_clinical_record.log', $dbgExceeded . PHP_EOL, FILE_APPEND | LOCK_EX);
                 break;
             }
             

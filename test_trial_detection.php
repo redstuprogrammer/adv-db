@@ -7,7 +7,7 @@ require_once __DIR__ . '/includes/connect.php';
 require_once __DIR__ . '/includes/tenant_tier_helper.php';
 
 // Get the first trial account from the database
-$stmt = $conn->prepare('SELECT tenant_id, tenant_name, subscription_tier, created_at FROM tenants WHERE subscription_tier = "trial" LIMIT 1');
+$stmt = $conn->prepare('SELECT tenant_id, company_name, subscription_tier, created_at FROM tenants WHERE subscription_tier = "trial" LIMIT 1');
 if ($stmt) {
     $stmt->execute();
     $result = $stmt->get_result();
@@ -17,7 +17,7 @@ if ($stmt) {
     if ($trial_account) {
         $tenantId = $trial_account['tenant_id'];
         echo "<h2>Testing Trial Account Detection</h2>";
-        echo "<p><strong>Tenant:</strong> {$trial_account['tenant_name']}</p>";
+        echo "<p><strong>Tenant:</strong> {$trial_account['company_name']}</p>";
         echo "<p><strong>DB subscription_tier:</strong> {$trial_account['subscription_tier']}</p>";
         echo "<p><strong>created_at:</strong> {$trial_account['created_at']}</p>";
         
@@ -56,7 +56,7 @@ if ($stmt) {
 echo "<hr />";
 echo "<h2>Testing Account with subscription_tier = NULL</h2>";
 
-$stmt2 = $conn->prepare('SELECT tenant_id, tenant_name, subscription_tier, created_at FROM tenants WHERE subscription_tier IS NULL LIMIT 1');
+$stmt2 = $conn->prepare('SELECT tenant_id, company_name, subscription_tier, created_at FROM tenants WHERE subscription_tier IS NULL LIMIT 1');
 if ($stmt2) {
     $stmt2->execute();
     $result2 = $stmt2->get_result();
@@ -65,7 +65,7 @@ if ($stmt2) {
     
     if ($null_account) {
         $tenantId = $null_account['tenant_id'];
-        echo "<p><strong>Tenant:</strong> {$null_account['tenant_name']}</p>";
+        echo "<p><strong>Tenant:</strong> {$null_account['company_name']}</p>";
         echo "<p><strong>DB subscription_tier:</strong> " . ($null_account['subscription_tier'] ? $null_account['subscription_tier'] : 'NULL') . "</p>";
         echo "<p><strong>created_at:</strong> {$null_account['created_at']}</p>";
         
