@@ -360,10 +360,26 @@ function getTenantEffectiveTier(int $tenantId, $conn): string {
         return $tier;
     }
     
-    // If subscription_tier is not set, check if this is an active trial account
-    $trialStatus = checkTrialStatus($tenantId, $conn);
-    if ($trialStatus['is_trial'] && !$trialStatus['expired']) {
-        return 'trial';
+    // If subscription_tier is not set, check if account is within 14-day trial period
+    // (regardless of subscription_tier being NULL or not set)
+    $stmt = $conn->prepare('SELECT created_at FROM tenants WHERE tenant_id = ? LIMIT 1');
+    if ($stmt) {
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+        
+        if ($row && $row['created_at']) {
+            $createdTime = strtotime($row['created_at']);
+            $trialEndTime = strtotime('+14 days', $createdTime);
+            $nowTime = time();
+            
+            // If account is less than 14 days old, treat as trial
+            if ($nowTime < $trialEndTime) {
+                return 'trial';
+            }
+        }
     }
     
     // Check if there's an active paid subscription
