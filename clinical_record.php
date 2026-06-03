@@ -93,7 +93,7 @@ $errorMsg = '';
 // File validation happens BEFORE clinical note save to prevent saving if files are invalid
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
     $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
-    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5;
+    $_maxFileSizeMb = getTenantEffectiveMaxFileSize($tenantId, $conn);
     $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
     $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
     
@@ -113,7 +113,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             // Check individual file size limit
             if ($file_size > $_maxFileSizeBytes) {
                 $fileSizeMB = round($file_size / (1024 * 1024), 2);
-                $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your " . (getTenantTier($tenantId, $conn) === 'trial' ? 'Trial' : 'plan') . " plan.";
+                $tierName = ucfirst(getTenantEffectiveTier($tenantId, $conn));
+                $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your $tierName plan.";
                 break;
             }
             
@@ -158,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs']) && !
     }
 
     $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
-    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5;
+    $_maxFileSizeMb = getTenantEffectiveMaxFileSize($tenantId, $conn);
     $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
     $_allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
     $_filesUploaded = 0;

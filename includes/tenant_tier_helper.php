@@ -207,12 +207,16 @@ function getTenantStorageUsageBytes(int $tenantId, $conn): int {
  * @return int|null Limit in bytes, or null if undefined
  */
 function getTenantStorageLimitBytes(int $tenantId, $conn): ?int {
-    $limitMb = getTenantTierLimit($tenantId, 'max_storage_mb', $conn);
+    $tier = getTenantEffectiveTier($tenantId, $conn);
+    $limitMb = getTierLimit($tier, 'max_storage_mb');
+    
     if ($limitMb === null) {
-        return null;
+        // Fallback to tier limits if not found
+        $fallbacks = ['trial' => 2, 'startup' => 5, 'professional' => 50];
+        $limitMb = $fallbacks[$tier] ?? 5;
     }
 
-    return $limitMb * 1024 * 1024;
+    return (int)$limitMb * 1024 * 1024;
 }
 
 /**
@@ -337,4 +341,67 @@ function getTrialExpirationDate(int $tenantId, $conn): ?string {
     
     $expirationTime = strtotime('+14 days', strtotime($created));
     return date('Y-m-d H:i:s', $expirationTime);
+}
+
+/**
+ * Get the effective tier for a tenant, considering subscription_tier column, trial status, and active subscriptions
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return string The effective tier ('trial', 'startup', or 'professional'), defaults to 'startup' if unknown
+ */
+function getTenantEffectiveTier(int $tenantId, $conn): string {
+    if (!$conn || $tenantId <= 0) {
+        return 'startup'; // Safe fallback
+    }
+    
+    // First, check the subscription_tier column
+    $tier = getTenantTier($tenantId, $conn);
+    if ($tier && isValidTier($tier)) {
+        return $tier;
+    }
+    
+    // If subscription_tier is not set, check if this is an active trial account
+    $trialStatus = checkTrialStatus($tenantId, $conn);
+    if ($trialStatus['is_trial'] && !$trialStatus['expired']) {
+        return 'trial';
+    }
+    
+    // Check if there's an active paid subscription
+    $stmt = $conn->prepare('SELECT s.status FROM subscriptions s 
+                          WHERE s.tenant_id = ? AND s.status = "active" 
+                          ORDER BY s.id DESC LIMIT 1');
+    if ($stmt) {
+        $stmt->bind_param('i', $tenantId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->fetch_assoc()) {
+            // Has an active subscription, default to Professional
+            $stmt->close();
+            return 'professional';
+        }
+        $stmt->close();
+    }
+    
+    // Default fallback
+    return 'startup';
+}
+
+/**
+ * Get the effective maximum file size limit for a tenant
+ * Takes into account subscription_tier, trial status, and active subscriptions
+ * @param int $tenantId The tenant ID
+ * @param mysqli $conn Database connection
+ * @return int Maximum file size in MB
+ */
+function getTenantEffectiveMaxFileSize(int $tenantId, $conn): int {
+    $tier = getTenantEffectiveTier($tenantId, $conn);
+    $limit = getTierLimit($tier, 'max_file_size_mb');
+    
+    // Fallback to tier limits if not found
+    if ($limit === null) {
+        $fallbacks = ['trial' => 2, 'startup' => 5, 'professional' => 50];
+        return $fallbacks[$tier] ?? 5;
+    }
+    
+    return (int)$limit;
 }

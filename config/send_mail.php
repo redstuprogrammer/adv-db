@@ -249,8 +249,20 @@ function dispatchMail(
     $fromName = trim(getenv('SMTP_FROM_NAME') ?: 'OralSync');
 
     if (!$host || !$username || !$password) {
-        error_log('[OralSync Mailer] SMTP credentials not configured. Cannot send to ' . $to);
-        return false;
+      error_log('[OralSync Mailer] SMTP credentials not configured. Falling back to PHP mail() for ' . $to);
+
+      // Build headers for PHP mail()
+      $fromHeader = $fromName . " <" . $from . ">";
+      $headers  = "MIME-Version: 1.0" . "\r\n";
+      $headers .= "Content-type: text/html; charset=UTF-8" . "\r\n";
+      $headers .= "From: " . $fromHeader . "\r\n";
+
+      $result = @mail($to, $subject, $htmlBody, $headers);
+      if ($result) {
+        return true;
+      }
+      error_log('[OralSync Mailer] PHP mail() fallback failed for ' . $to);
+      return false;
     }
 
     try {
