@@ -51,6 +51,12 @@ if ($isSettingsPage) {
             return null;
         }
 
+        // Check file size limit (10MB max for brand images regardless of tier)
+        $maxFileSizeBytes = 10 * 1024 * 1024; // 10MB
+        if ($file['size'] > $maxFileSizeBytes) {
+            return null;
+        }
+
         $allowed = ['jpg', 'jpeg', 'png'];
         $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         if (!in_array($extension, $allowed, true)) {

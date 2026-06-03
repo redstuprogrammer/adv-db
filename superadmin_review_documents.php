@@ -174,22 +174,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$perPage = 10;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $perPage;
+
+$pendingCount = $approvedCount = $rejectedCount = 0;
+$totalRows = 0;
+
+$countStmt = $conn->prepare("SELECT
+    SUM(registration_status = 'PENDING') AS pending_count,
+    SUM(registration_status = 'APPROVED') AS approved_count,
+    SUM(registration_status = 'REJECTED') AS rejected_count,
+    COUNT(*) AS total_rows
+  FROM tenants
+  WHERE registration_status IN ('PENDING', 'APPROVED', 'REJECTED')");
+if ($countStmt) {
+    $countStmt->execute();
+    $countResult = $countStmt->get_result();
+    if ($countResult && ($countRow = $countResult->fetch_assoc())) {
+        $pendingCount  = (int)$countRow['pending_count'];
+        $approvedCount = (int)$countRow['approved_count'];
+        $rejectedCount = (int)$countRow['rejected_count'];
+        $totalRows     = (int)$countRow['total_rows'];
+    }
+    $countStmt->close();
+}
+
 $reviewRequests = [];
 $query = "SELECT t.tenant_id, t.company_name, t.subdomain_slug, t.contact_email, t.phone, t.owner_name, t.status AS tenant_status, t.registration_status, t.subscription_tier, t.subscription_duration
           FROM tenants t
           WHERE t.registration_status IN ('PENDING', 'APPROVED', 'REJECTED')
-          ORDER BY FIELD(t.registration_status, 'PENDING', 'APPROVED', 'REJECTED'), t.tenant_id DESC";
-$result = $conn->query($query);
-if ($result) {
-    while ($row = $result->fetch_assoc()) {
-        $reviewRequests[] = $row;
+          ORDER BY FIELD(t.registration_status, 'PENDING', 'APPROVED', 'REJECTED'), t.tenant_id DESC
+          LIMIT ?, ?";
+$stmt = $conn->prepare($query);
+if ($stmt) {
+    $stmt->bind_param('ii', $offset, $perPage);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $reviewRequests[] = $row;
+        }
+        $result->close();
     }
-    $result->close();
+    $stmt->close();
 }
 
-$pendingCount  = count(array_filter($reviewRequests, fn($r) => $r['registration_status'] === 'PENDING'));
-$approvedCount = count(array_filter($reviewRequests, fn($r) => $r['registration_status'] === 'APPROVED'));
-$rejectedCount = count(array_filter($reviewRequests, fn($r) => $r['registration_status'] === 'REJECTED'));
+$totalPages = $totalRows > 0 ? (int)ceil($totalRows / $perPage) : 1;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -540,6 +571,46 @@ $rejectedCount = count(array_filter($reviewRequests, fn($r) => $r['registration_
             display: flex; align-items: center; gap: 6px;
         }
 
+        .pagination {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+            padding: 18px 24px;
+            background: #f8fafc;
+            border-top: 1px solid var(--border);
+        }
+        .page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: #fff;
+            color: var(--navy);
+            text-decoration: none;
+            font-weight: 600;
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .page-link:hover {
+            background: #e2e8f0;
+        }
+        .page-link.active {
+            background: var(--navy);
+            color: #fff;
+            border-color: var(--navy);
+        }
+        .page-link.disabled {
+            opacity: .5;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+        @media (max-width: 700px) {
+            .pagination { justify-content: center; }
+        }
+
         /* ── Responsive ──────────────────────────────────────────── */
         @media (max-width: 900px) {
             .main-content { padding: 20px 16px; }
@@ -757,6 +828,16 @@ $rejectedCount = count(array_filter($reviewRequests, fn($r) => $r['registration_
                     </div>
                     <?php endforeach; ?>
                 </div>
+
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination">
+                        <a href="?page=<?php echo max(1, $page - 1); ?>" class="page-link <?php echo ($page <= 1) ? 'disabled' : ''; ?>">← Previous</a>
+                        <?php for ($p = 1; $p <= $totalPages; $p++): ?>
+                            <a href="?page=<?php echo $p; ?>" class="page-link <?php echo ($p === $page) ? 'active' : ''; ?>"><?php echo $p; ?></a>
+                        <?php endfor; ?>
+                        <a href="?page=<?php echo min($totalPages, $page + 1); ?>" class="page-link <?php echo ($page >= $totalPages) ? 'disabled' : ''; ?>">Next →</a>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 

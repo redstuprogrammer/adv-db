@@ -12,6 +12,7 @@
 
 define('ROOT_PATH', __DIR__ . '/');
 require_once ROOT_PATH . 'includes/connect.php';  // provides $conn (mysqli)
+/** @var mysqli $conn */
 
 // ─── 1. Inspect current ENUM definition ──────────────────────────────────────
 $result = $conn->query("SHOW COLUMNS FROM `tenants` LIKE 'status'");

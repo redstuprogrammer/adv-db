@@ -406,7 +406,7 @@
 
         <!-- Document Upload -->
         <div class="flex flex-col gap-2">
-            <label class="font-medium text-slate-800 text-sm">Upload Credentials / Permits <span class="text-red-500">*</span></label>
+            <label class="font-medium text-slate-800 text-sm">Upload Credentials / Permits (DTI, BIR, and Government ID) <span class="text-red-500">*</span></label>
             <div class="border-2 border-dashed border-slate-200 hover:border-brand-navy rounded-2xl p-8 flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors relative" id="upload-dropzone">
                 <span class="material-symbols-outlined text-4xl text-slate-400" data-icon="cloud_upload">cloud_upload</span>
                 <span class="font-semibold text-slate-700 text-sm">Drag and drop files here, or click to browse</span>
@@ -1070,10 +1070,8 @@
                 .then(data => {
                     if (data.success) {
                         if (data.registration_status && data.registration_status !== 'APPROVED') {
-                            const statusText = data.registration_status === 'PENDING_ADMIN_REVIEW'
-                                ? 'Registration submitted. Your documents are awaiting admin review before payment can be completed.'
-                                : 'Registration submitted. Your documents were not approved. Please wait for admin review or contact support.';
-                            showRegistrationStatus(statusText, data.registration_status === 'PENDING_ADMIN_REVIEW' ? 'warning' : 'danger');
+                            const statusText = 'Registration submitted. Please wait for the admin\'s review or contact support; an email will be sent to your address.';
+                            showRegistrationStatus(statusText, 'warning');
                         } else {
                             hideRegistrationStatus();
                         }

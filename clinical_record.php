@@ -126,8 +126,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
         mkdir($upload_dir, 0777, true);
     }
 
-    // Fetch storage info once before the loop for efficiency
+    // Fetch storage info and tier limits once before the loop
     $_uploadStorageInfo = getTenantStorageUsageInfo($tenantId, $conn);
+    $_maxFileSizeMb = getTenantTierLimit($tenantId, 'max_file_size_mb', $conn) ?? 5; // Default 5MB
+    $_maxFileSizeBytes = $_maxFileSizeMb * 1024 * 1024;
     
     foreach ($_FILES['patient_docs']['tmp_name'] as $key => $tmp_name) {
         if ($_FILES['patient_docs']['error'][$key] === UPLOAD_ERR_OK) {
@@ -136,12 +138,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
             $file_size = $_FILES['patient_docs']['size'][$key];
             $ext = strtolower(pathinfo($original_name, PATHINFO_EXTENSION));
             
-            // Check storage limit (inline replacement for missing isTenantWithinStorageLimit())
+            // Check individual file size limit
+            if ($file_size > $_maxFileSizeBytes) {
+                $fileSizeMB = round($file_size / (1024 * 1024), 2);
+                $errorMsg = "❌ File '$original_name' ($fileSizeMB MB) exceeds the {$_maxFileSizeMb} MB limit for your " . (getTenantTier($tenantId, $conn) === 'trial' ? 'Trial' : 'plan') . " plan.";
+                continue;
+            }
+            
+            // Check total storage limit
             if (
                 $_uploadStorageInfo['limit_bytes'] !== null &&
                 ($_uploadStorageInfo['usage_bytes'] + (int)$file_size) > $_uploadStorageInfo['limit_bytes']
             ) {
-                $errorMsg = "❌ Storage limit reached. Cannot upload $original_name.";
+                $usedMB = round($_uploadStorageInfo['usage_bytes'] / (1024 * 1024), 2);
+                $limitMB = round($_uploadStorageInfo['limit_bytes'] / (1024 * 1024), 2);
+                $errorMsg = "❌ Storage limit reached. You've used {$usedMB} MB of {$limitMB} MB. Cannot upload $original_name.";
                 continue;
             }
             
@@ -164,6 +175,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['patient_docs'])) {
                         $successMsg = '✓ Document(s) uploaded successfully.';
                     }
                 }
+            } else {
+                $errorMsg = "❌ File type not allowed for '$original_name'. Allowed: PDF, JPG, PNG, DOC, DOCX.";
             }
         }
     }
